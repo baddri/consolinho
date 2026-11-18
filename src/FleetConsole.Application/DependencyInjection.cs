@@ -20,8 +20,9 @@ public static class DependencyInjection
     /// <list type="number">
     ///   <item><c>LoggingBehavior</c> — activity + outcome/timing log for every request.</item>
     ///   <item><c>AuthorizationBehavior</c> — <c>IRequireAuthenticated</c>/<c>IRequireRole</c>/<c>IAdminRequest</c> → 401/403.</item>
+    ///   <item><c>ReadOnlyGuardBehavior</c> — <c>IMutatingCommand</c> refused for globally read-only users (403).
+    ///   Before validation so a read-only admin gets <c>Auth.ReadOnly</c>, never field errors (contract §7 check order).</item>
     ///   <item><c>ValidationBehavior</c> — FluentValidation → validation <c>Result</c>.</item>
-    ///   <item><c>ReadOnlyGuardBehavior</c> — <c>IMutatingCommand</c> refused for globally read-only users (403).</item>
     ///   <item><c>CachingBehavior</c> — <c>ICacheableQuery</c> (future).</item>
     ///   <item><c>UnitOfWorkBehavior</c> — commands only; saves after a successful handler.</item>
     /// </list>
@@ -43,8 +44,8 @@ public static class DependencyInjection
         // Pipeline — order matters, see remarks. Keep the slots for future behaviors so insertion points stay obvious.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
-        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ReadOnlyGuardBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         // (future) services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
 

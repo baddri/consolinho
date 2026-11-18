@@ -53,6 +53,9 @@ Use cases (`Application/Users/<UseCase>/`); all implement `IAdminRequest`, comma
       `Concurrency.Conflict` with a stale version).
 - [ ] ADM-1: `GET /api/admin/users` and `POST /api/admin/users` → 401 anonymous, 403 `Auth.Forbidden` as non-admin.
 - [ ] ADM-2: read-only admin → 200 on GETs, 403 `Auth.ReadOnly` on every command.
+- [ ] Contract §7 check order (T-0044): read-only admin + well-formed JSON that fails field validation (e.g.
+      `POST /api/admin/users` with `"username": ""`) → 403 `Auth.ReadOnly`, not 400 — at least one command endpoint.
+      Malformed JSON / wrong content type still yields 400/415 first (model binding precedes the pipeline).
 - [ ] USR-1 fields incl. `status` pending/active/deactivated, `grantCount`, groups; USR-2 username rules; USR-4
       deactivate ends the user's session (with revalidation interval 0) and keeps grants; USR-6 `isAdminViaConfiguration`
       and `isAdminByAssignment` (projected straight from the column).

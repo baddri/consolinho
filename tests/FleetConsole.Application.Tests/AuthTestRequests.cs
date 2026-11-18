@@ -44,9 +44,17 @@ internal sealed class AdminMutatingCommandHandler(CallLog log) : IRequestHandler
     }
 }
 
+/// <summary>Records "validator" in the CallLog when it runs, so tests can prove validation was (not) reached.</summary>
 internal sealed class AdminMutatingCommandValidator : AbstractValidator<AdminMutatingCommand>
 {
-    public AdminMutatingCommandValidator() => RuleFor(c => c.Name).NotEmpty().WithMessage("Name is required.");
+    public AdminMutatingCommandValidator(CallLog log) =>
+        RuleFor(c => c.Name)
+            .Must(name =>
+            {
+                log.Entries.Add("validator");
+                return !string.IsNullOrEmpty(name);
+            })
+            .WithMessage("Name is required.");
 }
 
 /// <summary>A command that needs a session but changes nothing read-only users must be kept from (e.g. logout).</summary>
