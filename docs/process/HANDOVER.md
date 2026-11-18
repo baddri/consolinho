@@ -19,12 +19,12 @@
 | T-0009 | done | — | b90a5bc |
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
 | T-0011 | done | — | 72a46f8 (2 rounds) |
-| T-0012 | in_progress | backend-engineer | persistence for CP1 aggregates, single migration, DP keys (W3, critical path) |
+| T-0012 | in_review | backend-architect | persistence, single migration, DP keys; 656 tests |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
-| T-0023 | in_progress | frontend-engineer | MSW mock backend — round 1 fixes |
-| T-0024 | in_progress | frontend-engineer | shared UI kit (F2) |
+| T-0023 | done | — | committed (2 rounds) |
+| T-0024 | in_review | frontend-architect | shared UI kit |
 | T-0044 | todo | backend-engineer | ReadOnlyGuard before Validation (start after T-0012) |
 | next | todo | | T-0012 after T-0008+T-0010; after T-0012: T-0013 + T-0014 (W4, worktree isolation if parallel); FE T-0024, T-0025 after T-0023 |
 
