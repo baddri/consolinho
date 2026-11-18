@@ -49,6 +49,13 @@ folder is `Access/`; the feature is called "grants" everywhere in the UI and API
   `CreateGrant`, `BulkGrant`, `UpdateGrant`, `RevokeGrant`); `ClustersEndpoints.cs` at `/api/clusters` (tag
   `Clusters`, OperationId `ListMyClusters`) mapped from `ApiEndpoints`.
 
+**From T-0008 (architect review, 2026-11-19)** — the Domain as built; see T-0008's handover notes for details.
+- `Grant.Create` returns `CredentialNotInCluster` before `AlreadyExists`. For bulk, pass the existing cluster ids
+  **plus** the clusters of earlier items of the same request. The bulk field message ("alice already has access to
+  prod-eu-1.") differs from the `GrantErrors.AlreadyExists(...)` message — build it in the handler.
+- `Change(mode, newCredential, labels, ...)`: `labels.CredentialName` is the **current** (old) credential's name. No
+  change → no event, no audit entry.
+
 ## Acceptance criteria
 - [ ] GRANT-1: second grant 409 `Grants.AlreadyExists` with the spec message; credential of another cluster → 400
       on `credentialId`; unknown user/cluster/credential → 400 field errors.

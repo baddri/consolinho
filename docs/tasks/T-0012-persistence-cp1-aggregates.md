@@ -105,6 +105,22 @@ public sealed class CredentialsOptions { public int ExpiryWarningDays { get; set
 - Repositories `internal sealed` in `Persistence/Repositories/`; `ReadModel` over the context with `AsNoTracking()`.
 - Migration `IdentityAndAdministration` (one migration for all of CP1's model).
 
+**From T-0008 (architect review, 2026-11-19)** — the Domain as built; see T-0008's handover notes for details.
+- `ApiServerEndpoint` (complex property): its private constructor `(Uri url, CaBundle? caBundle, bool skipTlsVerify)`
+  is bindable. Store `api_url` as the canonical text `endpoint.ToString()` / `Url.GetLeftPart(UriPartial.Authority)`
+  (no trailing `/`, ≤ `ApiServerEndpoint.MaxUrlLength`), **not** `Uri.ToString()`, which appends `/`.
+- `ca_bundle` (`text`, null): converter `bundle.Pem` ↔ `CaBundle.Create(pem).Value` (re-parses on materialization;
+  ~40 rows, fine; a stored bundle that no longer parses is corrupt data and may throw). Do not map
+  `CaBundle.Certificates`, `ApiServerEndpoint.TlsMode`, `TokenMetadata.ServiceAccount` or expiry status (derived).
+- `EncryptedToken` → `bytea` (`t.Value` ↔ `new EncryptedToken(bytes)`; equality is byte-wise). `ClusterName`,
+  `CredentialName`, `TokenFingerprint` ↔ `string` via `.Create(s).Value`. Column lengths from the constants
+  `ClusterName.MaxLength` (40), `CredentialName.MaxLength` (63), `TokenFingerprint.Length` (8),
+  `Cluster.MaxDisplayNameLength` (100), `Cluster.MaxDescriptionLength` / `Credential.MaxDescriptionLength` (1000),
+  `Cluster.MaxWebConsoleUrlLength` (2048).
+- `ConnectionTestSummaryMapping.ToDto` uses `summary.IsStaleSince(connectionSettingsChangedAt)`; don't re-implement it.
+- Round-trip tests include a cluster with a CA bundle (generate the cert as `DomainTestData.CertificatePem` does) and
+  a credential with a recorded `LastTest`.
+
 ## Acceptance criteria
 - [ ] Integration tests (Testcontainers): round-trip of each aggregate incl. value objects and `Version`; unique
       constraints raise `DuplicateKeyException`; stale `xmin` raises `ConcurrencyConflictException`; deleting a cluster

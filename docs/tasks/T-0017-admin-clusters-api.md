@@ -48,6 +48,20 @@ Contract §3, §8.1, §8.2 (records, validation, semantics). ADR-0013. Domain fr
   `UpdateCluster`, `EnableCluster`, `DisableCluster`, `DeleteCluster`. Version mismatch message "This cluster was
   changed by someone else. Reload and try again."
 
+**From T-0008 (architect review, 2026-11-19)** — the Domain as built; see T-0008's handover notes for details.
+- Validators: `name` → `ClusterName.Create` (plain `Clusters.InvalidName`; put its message on `name`). Connection
+  fields → `ApiServerEndpoint.Create(apiUrl, caBundle, skipTlsVerify)`: on failure copy its `ValidationError.Errors`
+  as-is (keys are already `apiUrl` / `caBundle` / `skipTlsVerify`). It enforces https-only (T-0010 relies on it) and
+  two rules beyond the contract text: a CA bundle containing a `PRIVATE KEY` block is refused, and the 256 KiB limit is
+  in UTF-8 bytes. Add 400 tests for the private-key case and an undecodable `CERTIFICATE` block.
+- `webConsoleUrl` (absolute https, ≤ 2048), `displayName` (≤ 100) and `description` (≤ 1000) **must** be rejected by
+  the validator: `Cluster.Register/Update` throw (`ArgumentException`) on them as programming errors.
+- `apiUrl` in DTOs = `cluster.Endpoint.ToString()` (or the stored column, already canonical) — never `Url.ToString()`.
+- `Update` with identical values raises no event (no audit entry) but is still a 200 with the current detail.
+- `CertificateExpiryStatus` is not in the Domain: compute it in the `GetCluster` query from `CaCertificateInfo.NotAfter`
+  with the 30-day window, same boundaries as `TokenMetadata.StatusAt` (`notAfter <= now` expired,
+  `notAfter - now <= window` expiringSoon). `isStale` → `ConnectionTestSummary.IsStaleSince`.
+
 ## Acceptance criteria
 - [ ] Integration tests for each endpoint: happy path, 400 (each rule of contract §8.2 incl. bad PEM, `http://` URL,
       URL with path, skip+CA), 404, 409 (`NameTaken`, `NotDisabled`, stale version).

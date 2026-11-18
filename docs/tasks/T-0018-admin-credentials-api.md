@@ -48,6 +48,13 @@ Contract §2, §3, §8.3, §8.4. ADR-0004 (fingerprint = first 8 hex chars of SH
 - Endpoints `CredentialsAdminEndpoints.cs`, tag `Credentials`; OperationIds `ListCredentials` (fleet),
   `ListClusterCredentials`, `AddCredential`, `RotateCredentialToken`, `DeleteCredential`.
 
+**From T-0008 (architect review, 2026-11-19)** — the Domain as built; see T-0008's handover notes for details.
+- `Credential.Rotate(token, fingerprint, metadata, clusterName, actor, now)` — note the `clusterName` argument
+  (`cluster.Name.Value`). It is never a no-op: re-submitting the same token is a rotation and is audited.
+- `name` → `CredentialName.Create` (message on `name`); `description` ≤ `Credential.MaxDescriptionLength` must be
+  validated (the aggregate throws). Non-JWT tokens use `TokenMetadata.Opaque`. `TokenFingerprint.Create` failing means a
+  bug in `TokenFingerprints.Compute`. Expiry status: `TokenMetadata.StatusAt(clock.UtcNow, window)`.
+
 ## Acceptance criteria
 - [ ] Integration tests: add (JWT with exp/iat/sub → metadata, `serviceAccount` "ns/name"; opaque `sha256~...` →
       `tokenType: opaque`, status `unknown`), 400 token rules (empty, internal whitespace, > 16 KiB), 409 `NameTaken`,

@@ -51,6 +51,11 @@ public sealed record TestTokenCommand(string ClusterName, SensitiveString Token,
   (OperationId `TestCredential`), `POST /api/admin/clusters/{name}/test-token` (OperationId `TestToken`).
   Timeout comes from `CredentialsOptions.ConnectionTestTimeout`; also honour the request-aborted token.
 
+**From T-0008 (architect review, 2026-11-19)** — the Domain as built; see T-0008's handover notes for details.
+- `credential.RecordTest(summary, cluster.Name.Value)` replaces `LastTest` and raises `CredentialTested` on every
+  call; it throws if `Succeeded` disagrees with `FailedStep is null` (build the summary from the result consistently).
+  `isStale` → `ConnectionTestSummary.IsStaleSince(cluster.ConnectionSettingsChangedAt)`.
+
 ## Acceptance criteria
 - [ ] Unit tests of `ConnectionTester` with a fake probe session: each headline level; step stop/skip rules; 401 →
       authentication failed and later steps skipped; ClusterVersion 403 → warning not failure; SelfSubjectReview 404 →

@@ -54,6 +54,21 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
   `IDomainEventHandler<>` in the Application assembly whose namespace is `...Audit.EventHandlers` (or is in a
   commented allow-list — expected empty in CP1).
 
+**From T-0008 (architect review, 2026-11-19)** — the Domain as built; see T-0008's handover notes for details.
+- T-0008 adds 12 events; the mapping (contract §10), actor = current user for all of them:
+  `ClusterRegistered` → `cluster.registered` `{environment, apiUrl, tlsMode, isEnabled}`; `ClusterUpdated` →
+  `cluster.updated` `{changedFields}`; `ClusterEnabled`/`ClusterDisabled` → `{}`; `ClusterDeleted` →
+  `{credentialCount, grantCount}`; `CredentialAdded` → `{fingerprint, tokenType, serviceAccount}`; `CredentialRotated` →
+  `{oldFingerprint, newFingerprint}`; `CredentialDeleted` → `{fingerprint}`; `CredentialTested` →
+  `{succeeded, failedStep, headline}`; `GrantCreated`/`GrantRevoked` → `{username, accessMode, credential}`;
+  `GrantChanged` → `{oldAccessMode, newAccessMode, oldCredential, newCredential}`. Cluster entries: target = the
+  cluster, `clusterName` = its name; credential entries: target = credential (`Name`), `clusterName` = `ClusterName`;
+  grant entries: target name `"<username> → <cluster>"`, `clusterName` set.
+- `CredentialRotated` is raised on every rotation and `CredentialTested` on every recorded test run (intended: each is
+  an admin action, not an idempotent transition). `ClusterDeleted` covers the cascaded credentials/grants: no
+  per-child events exist.
+- Handler unit tests cover all 12 (plus T-0007's); the coverage test's allow-list stays empty.
+
 ## Acceptance criteria
 - [ ] AUD-1 / QA R5 integration tests (real Postgres, real `ConsoleDbContext` + repositories + dispatcher):
       (a) saving a `User` created via `PreCreate` writes the user and exactly one `user.created` entry in one
