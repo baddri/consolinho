@@ -37,7 +37,7 @@ committed, task file work log updated.
               ADRs (if needed) + task files with contracts. Orchestrator reconciles FE/BE contracts.
 3. BUILD    — repeat until no `todo` tasks remain in CP<n>:
               a. pick ready tasks (deps done). Run in parallel only if they touch disjoint paths
-                 (src/+tests/ vs web/) — max 3 concurrent agents; same-area parallel work uses isolation: worktree.
+                 (src/+tests/ vs web/) — max 3 concurrent backend/doc agents plus 1 frontend (web/-only) agent; same-area parallel work uses isolation: worktree.
               b. engineer agent implements → sets status in_review, fills work log.
               c. architect agent reviews `git diff` for that task → APPROVE or CHANGES_REQUESTED (findings list).
               d. on changes: same engineer type fixes (max 2 rounds; then mark blocked + note in HANDOVER).

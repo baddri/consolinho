@@ -8,19 +8,19 @@
 - **CP0 Foundations: DONE** (tasks T-0001..T-0006, QA report `docs/specs/CP0-qa-report.md`, all 9 criteria met).
   Backend 137 tests, frontend 51 tests, `aspire run` verified incl. real browser.
 - CP0 had no product-owner ACCEPT step (technical checkpoint, spec written by orchestrator).
-- CP1 loop step: **DESIGN (FE) + BUILD wave 1**. Spec + backend design committed (ADR-0008..0013,
-  `docs/specs/CP1-api-contract.md`, backend tasks T-0007..T-0021 with waves W1–W7 — see backend-architect notes in T-files).
-  Frontend design (tasks from T-0022) in progress.
+- CP1 loop step: **BUILD**. Design complete: backend T-0007..T-0021 (waves W1–W7), frontend T-0022..T-0043 (groups F1–F10),
+  ADR-0008..0017, contract `docs/specs/CP1-api-contract.md` (with orchestrator amendments 2026-11-18).
 - Human requirement recorded for CP1: login via **host-cluster OpenShift OAuth** (ADR-0007), dev uses in-repo emulator `FleetConsole.DevOAuth`.
 
 ## In flight
 | Task | Status | Owner | Note |
 |---|---|---|---|
-| FE design | in_progress | frontend-architect | tasks T-0022+ against the API contract |
 | T-0007 | done | — | 23817e0 (2 rounds; ADR-0017 promote ruling) |
-| T-0009 | in_progress | backend-engineer | DevOAuth emulator + AppHost (W1) |
+| T-0009 | in_review | backend-architect | DevOAuth emulator; 40 contract tests |
 | T-0010 | in_progress | backend-engineer | k8s probe client + fake apiserver (W1) |
-| T-0008, T-0011 | todo | backend-engineer | unblocked (W2); start when an agent slot frees (max 3) |
+| T-0008 | in_progress | backend-engineer | Domain clusters/credentials/grants (W2) |
+| T-0022 | in_progress | frontend-engineer | FE API foundations (F1) |
+| next | todo | | T-0011 (after T-0007, W2); T-0026 (F1); then follow waves in task files |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
