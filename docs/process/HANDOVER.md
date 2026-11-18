@@ -2,12 +2,13 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-18 · **Current checkpoint:** CP1 — Identity & administration (not started) · **Branch:** `main` (CP0 merged, tag `cp-0`)
+**Last updated:** 2026-11-18 · **Current checkpoint:** CP1 — Identity & administration · **Branch:** `cp/1-identity-admin`
 
 ## Where we are
 - **CP0 Foundations: DONE** (tasks T-0001..T-0006, QA report `docs/specs/CP0-qa-report.md`, all 9 criteria met).
   Backend 137 tests, frontend 51 tests, `aspire run` verified incl. real browser.
 - CP0 had no product-owner ACCEPT step (technical checkpoint, spec written by orchestrator).
+- CP1 loop step: **DESIGN** — spec `docs/specs/CP1-identity-and-admin.md` committed (Q1–Q11 recommendations accepted); backend-architect writing ADRs + `docs/specs/CP1-api-contract.md` + backend tasks; frontend-architect runs after (needs the contract).
 - Human requirement recorded for CP1: login via **host-cluster OpenShift OAuth** (ADR-0007), dev uses in-repo emulator `FleetConsole.DevOAuth`.
 
 ## In flight
@@ -16,15 +17,13 @@
 | — | | | |
 
 ## Next actions (CP1)
-1. `git switch -c cp/1-identity-admin` from main.
-2. SPEC: `ocp-product-owner` writes `docs/specs/CP1-identity-and-admin.md` from ROADMAP CP1 (must include ADR-0007 login).
-3. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
+1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
    - audit: post-commit event dispatch vs outbox (ADR); integration test of domain-event dispatch with first aggregate (QA R5)
    - OAuth callback under `/api/auth/...` (Vite proxies only `/api`); DevOAuth emulator project in AppHost + in-process for tests
    - backend CSRF filter on `/api` non-GET + test (QA R2); decide whether `/api/system/info` stays anonymous (QA R3)
    - replace temporary `IRequireRole.RequiredRole: string` / `ICurrentUser.UserId: Guid?` with domain types
    - HTTP-level validation/malformed-body tests with first command endpoint (QA R6)
-4. BUILD → VERIFY → ACCEPT (product owner) → CLOSE per `docs/process/SDLC.md`.
+2. BUILD → VERIFY → ACCEPT (product owner) → CLOSE per `docs/process/SDLC.md`.
 
 ## Needs human
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
