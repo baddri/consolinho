@@ -170,7 +170,9 @@ Empty array for users without grants (SW-4).
 
 ## 7. Admin — users (`/api/admin/users`)
 All require role `admin` (403 `Auth.Forbidden`). Commands (POST/PUT) additionally return 403 `Auth.ReadOnly` for
-read-only admins (ADM-2).
+read-only admins (ADM-2). **Check order (orchestrator 2026-11-19):** CSRF → 401 → `Auth.Forbidden` → `Auth.ReadOnly`
+→ field validation (`Validation.Failed`). Framework 400s for malformed JSON / wrong JSON types still come first because
+they happen during model binding. A read-only admin therefore gets `Auth.ReadOnly`, never field errors.
 
 ### 7.1 Records
 ```csharp
@@ -224,6 +226,8 @@ Semantics:
   `role` is `admin` and `isAdminViaConfiguration` is false.
 - Deactivate rotates the security stamp: the user's sessions end within `Auth:RevalidationInterval`. Grants are kept.
 - Read-only on an admin blocks admin commands (ADM-2) and (CP2) cluster mutations.
+- Setting read-only has no `Users.SelfChange` check: an admin may make themselves read-only unless that hits
+  `Users.LastAdmin` (no active writable admin would remain; pending admins count as active).
 
 ---
 
@@ -349,7 +353,8 @@ Validation (CRED-1):
   otherwise). Used only for TEST-4 hints (grant counts) while rotating.
 
 Semantics: rotate keeps the id and all grants (CRED-5), records old→new fingerprint in the audit, and does **not** run a
-test — "Test new token" is a separate `test-token` call, "Save anyway" is UI-only. Testing works on disabled clusters
+test — "Test new token" is a separate `test-token` call, "Save anyway" is UI-only. Rotate clears the credential's
+stored `lastTest` (it described the old token); `lastTest` is `null` until the next `…/test`. Testing works on disabled clusters
 (TEST-1). Test endpoints are admin **commands** (read-only admins get 403 `Auth.ReadOnly`).
 
 ### 8.5 Connection test result
@@ -461,7 +466,7 @@ Query parameters (all optional; combined with AND):
 | Param | Type | Meaning |
 |---|---|---|
 | `actor` | string | Exact actor name (`alice`, `system (config)`). |
-| `user` | string | Username that is the actor **or** the target user (USR-7 link). |
+| `user` | string | Username that is the actor, the target user, **or the user of a target grant** (`grant.*` entries) (USR-7 link; orchestrator 2026-11-19). Backend stores a related-username column for user and grant targets so this is an indexed equality match. |
 | `category` | `AuditCategory` | |
 | `cluster` | string | Exact cluster name (entries about the cluster itself, its credentials and grants). |
 | `target` | string | Case-insensitive substring of the target display name. |

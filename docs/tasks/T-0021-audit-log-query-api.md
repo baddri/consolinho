@@ -47,6 +47,7 @@ public sealed record ListAuditEntriesQuery(string? Actor, string? User, AuditCat
 - [ ] `schema.gen.ts` regenerated. Build, lint and tests green (CLAUDE.md rule 4).
 
 ## Contract amendments (orchestrator 2026-11-18)
+- `user` filter matches actor OR the related-username column (target user, or grant's user) — contract §10 amendment 2026-11-19. Bind `category` as string and validate to a field error (not a framework 400), per contract §10.
 - Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
 
 ## Work log

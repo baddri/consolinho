@@ -81,6 +81,9 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
 - [ ] Docs: BACKEND.md Persistence/Pipeline text matches the code (architect pre-updated it; fix drift).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4).
 
+## Contract amendments (orchestrator)
+- Audit entries store a related-username column (target user for `user.*`, the grant's user for `grant.*`, null otherwise), indexed, so contract §10 `user` filter = actor OR related username (orchestrator 2026-11-19).
+
 ## Work log
 
 ## Review
