@@ -46,6 +46,9 @@ public sealed record ListAuditEntriesQuery(string? Actor, string? User, AuditCat
 - [ ] Query plan sanity: filtered by cluster uses the index (EXPLAIN in a test or a work-log note).
 - [ ] `schema.gen.ts` regenerated. Build, lint and tests green (CLAUDE.md rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review

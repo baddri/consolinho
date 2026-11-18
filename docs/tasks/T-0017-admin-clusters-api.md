@@ -58,6 +58,10 @@ Contract §3, §8.1, §8.2 (records, validation, semantics). ADR-0013. Domain fr
 - [ ] `cluster.updated` audit lists changed field names and never CA content (AUD-1).
 - [ ] Read-only admin 403 on commands (ADM-2). `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- `ClusterListItemDto` gains `Version` (uint) — contract §8.1.
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review

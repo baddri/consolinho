@@ -97,6 +97,9 @@ Note: `CompleteLoginCommand`'s `ToString` must not include anything sensitive (i
 - [ ] AUTH-3 groundwork: the access token never appears in captured logs of these tests.
 - [ ] Build, lint and tests green (CLAUDE.md rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- `users/~` returns OCP virtual groups (`system:authenticated`, `system:authenticated:oauth`) — see T-0009 notes and contract §11. Ignore `system:*` groups for admin-group matching and display; storing them is allowed.
+
 ## Work log
 
 ## Review

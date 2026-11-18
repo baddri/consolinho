@@ -64,6 +64,9 @@ folder is `Access/`; the feature is called "grants" everywhere in the UI and API
 - [ ] CRED-2: `TokenLeakScanner` (T-0015) run over grant responses. Read-only admin 403 on commands.
 - [ ] `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review

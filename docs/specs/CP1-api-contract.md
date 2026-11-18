@@ -18,7 +18,7 @@ either. C# names below are the record names; OpenAPI schema names drop the `Dto`
 | Auth | Cookie `FleetConsole.Session` (HttpOnly; the SPA never reads it). Every `/api` endpoint requires a session **except** the four in §4/§5 marked *anonymous*. `/api/admin/**` additionally requires role `admin`. |
 | CSRF | Every request under `/api` with method other than GET/HEAD/OPTIONS must send `X-Console-Request: 1`, else **403** `Auth.CsrfHeaderMissing` before anything else runs (ADR-0012). The shared `apiClient` already does this. |
 | JSON | camelCase properties. Numbers strict (a quoted number → 400). Enums are camelCase strings (§3). Timestamps ISO 8601 UTC (`2026-11-18T09:30:00+00:00`). Ids are GUID strings. Nullable fields are present with `null`, not omitted. |
-| Errors | RFC 9457 ProblemDetails: `type`, `title`, `status`, `detail` (human-readable — **show verbatim**), `instance`, `traceId`, `code` (stable, §2). 400 validation adds `errors: { "<camelCasePath>": ["message", ...] }` whose keys match request JSON paths (`items[2].credentialId`); an empty key `""` means "whole request". Framework 400s (malformed JSON, unknown enum, quoted number) have no `code`. |
+| Errors | (orchestrator 2026-11-18: the OpenAPI document must declare the `code` and `traceId` extensions on the ProblemDetails schemas so they are generated into FE types.) RFC 9457 ProblemDetails: `type`, `title`, `status`, `detail` (human-readable — **show verbatim**), `instance`, `traceId`, `code` (stable, §2). 400 validation adds `errors: { "<camelCasePath>": ["message", ...] }` whose keys match request JSON paths (`items[2].credentialId`); an empty key `""` means "whole request". Framework 400s (malformed JSON, unknown enum, quoted number) have no `code`. |
 | Concurrency | Representations of users, clusters, credentials and grants carry `version` (uint32). Edit/transition requests send it back; mismatch → 409 `Concurrency.Conflict`. Creates/deletes/revokes take no version. |
 | Responses | Create → 201 + `Location` + body. Edit/transition → 200 + updated representation (fresh `version`). Delete → 204. Transitions to the current state are idempotent 200s (no audit entry). |
 | Lists | Bounded lists are plain JSON arrays (filter/sort client-side). The audit log is cursor-paginated (§10). |
@@ -176,8 +176,10 @@ read-only admins (ADM-2).
 ```csharp
 public sealed record UserListItemDto(
     string Username, string? DisplayName, UserRole Role, bool IsAdminViaConfiguration, bool IsAdminByAssignment,
+    string? AdminConfigurationSource,   // orchestrator 2026-11-18: list USR-6 tooltip names the group
     UserStatus Status, bool IsReadOnly, int GrantCount, DateTimeOffset? LastLoginAt,
-    IReadOnlyList<string> Groups);
+    IReadOnlyList<string> Groups,
+    uint Version);                      // orchestrator 2026-11-18: list kebab actions need it
 
 public sealed record UserDetailDto(
     string Username, string? DisplayName, UserRole Role, bool IsAdminViaConfiguration, bool IsAdminByAssignment,
@@ -235,7 +237,8 @@ public sealed record ClusterListItemDto(
     CredentialExpiryStatus? WorstCredentialExpiryStatus,   // null when no credentials
     int GrantCount,                                        // = users with access (one grant per user+cluster)
     ConnectionTestSummaryDto? LastTest,                    // newest test across this cluster's credentials
-    string? LastTestCredentialName);
+    string? LastTestCredentialName,
+    uint Version);                                         // orchestrator 2026-11-18: list actions (enable/disable) need it
 
 public sealed record ClusterDetailDto(
     string Name, string DisplayName, ClusterEnvironment Environment, string ApiUrl,
@@ -308,6 +311,7 @@ public sealed record CredentialDto(
     DateTimeOffset? IssuedAt,           // JWT iat
     DateTimeOffset? ExpiresAt,          // JWT exp; null = no expiry / unknown
     CredentialExpiryStatus ExpiryStatus,
+    int ExpiryWarningDays,              // orchestrator 2026-11-18: Credentials:ExpiryWarningDays, for CRED-8 alert text
     DateTimeOffset CreatedAt, string CreatedBy,
     DateTimeOffset? RotatedAt, string? RotatedBy,
     ConnectionTestSummaryDto? LastTest,
@@ -527,7 +531,7 @@ Emulates the subset of the OpenShift OAuth server + host API server that FleetCo
 | `GET /oauth/authorize?client_id&redirect_uri&response_type=code&scope&state&code_challenge&code_challenge_method` | Validates `client_id` and `response_type`; renders an HTML page "FleetConsole DevOAuth — pick a user" with one button per configured user (name, full name, groups) and a **Cancel** button. Invalid client → 400 page. |
 | `POST /oauth/authorize` (form: the original query values + `username` or `cancel=1`) | Selection → 302 `redirect_uri?code=<random>&state=<state>`; cancel → 302 `redirect_uri?error=access_denied&error_description=...&state=<state>`. Codes are single-use, valid 60 s, bound to client, redirect_uri, PKCE challenge, user. |
 | `POST /oauth/token` (form: `grant_type=authorization_code`, `code`, `redirect_uri`, `code_verifier`; client via HTTP Basic or `client_id`/`client_secret` form fields) | 200 `{ "access_token": "sha256~<random>", "token_type": "Bearer", "expires_in": 86400, "scope": "user:info" }`; errors 400 `{ "error": "invalid_grant" \| "invalid_client" \| "invalid_request", "error_description": "..." }` (bad/expired/used code, redirect mismatch, PKCE mismatch, bad secret). |
-| `GET /apis/user.openshift.io/v1/users/~` (`Authorization: Bearer <access_token>`) | 200 `{ "kind": "User", "apiVersion": "user.openshift.io/v1", "metadata": { "name": "alice", "uid": "<stable guid>" }, "fullName": "Alice Example", "identities": ["devoauth:alice"], "groups": ["sre"] }`; unknown/expired token → 401 Kubernetes `Status` JSON. |
+| `GET /apis/user.openshift.io/v1/users/~` (`Authorization: Bearer <access_token>`) | 200 `{ "kind": "User", "apiVersion": "user.openshift.io/v1", "metadata": { "name": "alice", "uid": "<stable guid>" }, "fullName": "Alice Example", "identities": ["devoauth:alice"], "groups": ["sre", "system:authenticated", "system:authenticated:oauth"] }` (`fullName` omitted when empty; real OCP also includes `system:` virtual groups — login must ignore `system:*` groups for admin/display purposes but may store them); unknown/expired token → 401 Kubernetes `Status` JSON. |
 
 Configuration (`src/FleetConsole.DevOAuth/appsettings.json`; obviously fake values, never real secrets):
 ```json

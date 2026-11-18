@@ -19,4 +19,7 @@ Never edit an accepted ADR's decision — supersede it.
 | 0011 | Connection test: step orchestration and capability probing | Accepted |
 | 0012 | CSRF header check as middleware; the anonymous API surface | Accepted |
 | 0013 | HTTP API conventions (resources, concurrency, enums, pagination) | Accepted |
+| 0014 | SPA session handling, route guards and permission-aware UI | Accepted |
+| 0015 | Forms, server validation errors, version conflicts and mutation feedback | Accepted |
+| 0016 | Contract-first API types and an MSW mock backend for frontend work | Accepted |
 | 0017 | Promote always records the admin assignment (refines 0009) | Accepted |

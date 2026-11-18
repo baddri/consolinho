@@ -64,6 +64,10 @@ Use cases (`Application/Users/<UseCase>/`); all implement `IAdminRequest`, comma
       validation `errors` keys are camelCase JSON paths; wrong content type → 415 ProblemDetails.
 - [ ] `schema.gen.ts` regenerated. Build, lint and tests green (CLAUDE.md rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- `UserListItemDto` gains `AdminConfigurationSource` (string?) and `Version` (uint) — contract §7.1.
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review

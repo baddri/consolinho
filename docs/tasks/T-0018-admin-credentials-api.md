@@ -60,6 +60,10 @@ Contract §2, §3, §8.3, §8.4. ADR-0004 (fingerprint = first 8 hex chars of SH
 - [ ] Unit tests for `TokenInspector` (malformed segments, non-JSON, missing claims, numeric date edge cases).
 - [ ] Read-only admin 403 on commands. `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- `CredentialDto` gains `ExpiryWarningDays` (int, from `Credentials:ExpiryWarningDays`) — contract §8.3.
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review

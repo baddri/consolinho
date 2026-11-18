@@ -64,6 +64,9 @@ public sealed record TestTokenCommand(string ClusterName, SensitiveString Token,
 - [ ] CRED-2: token absent from the result body, audit details and captured logs (`TokenLeakScanner`).
 - [ ] Read-only admin → 403 `Auth.ReadOnly`. `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review

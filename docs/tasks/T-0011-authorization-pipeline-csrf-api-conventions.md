@@ -85,6 +85,10 @@ public interface IAdminRequest : IRequireRole { UserRole IRequireRole.RequiredRo
 - [ ] BACKEND.md/SECURITY.md statements touched by this task still true (architect updated them in design; fix drift).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4).
 
+## Contract amendments (orchestrator 2026-11-18)
+- The OpenAPI document must declare `code` and `traceId` extensions on the ProblemDetails/HttpValidationProblemDetails schemas (contract §1 Errors row).
+- Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
+
 ## Work log
 
 ## Review
