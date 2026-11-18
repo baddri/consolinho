@@ -18,11 +18,12 @@
 | T-0007 | done | — | 23817e0 (2 rounds; ADR-0017 promote ruling) |
 | T-0009 | done | — | b90a5bc |
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
-| T-0011 | in_progress | backend-engineer | authz behaviors, CSRF middleware, cookie scheme (W2) |
-| T-0008 | in_progress | backend-engineer | Domain clusters/credentials/grants (W2) |
+| T-0011 | in_review | backend-architect | authz behaviors, CSRF middleware, cookie scheme; schema.gen.ts regenerated |
+| T-0008 | in_review | backend-architect | Domain clusters/credentials/grants; 320 domain tests |
 | T-0022 | done | — | 2baea45 |
-| T-0026 | in_progress | frontend-engineer | shared admin table kit (F1) |
-| next | todo | | T-0012 after T-0008+T-0010; FE F2 next: T-0023, T-0024, T-0025 (one FE engineer at a time) |
+| T-0026 | in_review | frontend-architect | shared admin table kit |
+| T-0023 | in_progress | frontend-engineer | MSW mock backend (F2) |
+| next | todo | | T-0012 after T-0008+T-0010; T-0012 after T-0008 approved; FE T-0024, T-0025 after T-0023 |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
@@ -37,6 +38,7 @@
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
 
 ## Gotchas
+- Usage limits can stop agents mid-task: resume them with SendMessage (work on disk is kept), don't respawn.
 - No docker: podman. Export `DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock TESTCONTAINERS_RYUK_DISABLED=true ASPIRE_CONTAINER_RUNTIME=podman` (fish: `$(id -u)`, not `$UID`).
 - Background runs: `aspire start --launch-profile http && aspire wait web`; stop with `aspire stop`. Api on :5180; web port changes per run (`aspire describe`).
 - Aspire pinned to 13.6.5 (advisory on 13.6.4). CLI offers 17 — don't `aspire update`; needs an ADR.
