@@ -23,11 +23,15 @@ integration-test harness every later API task reuses.
   assembly informational version). Port `IAppEnvironment` if needed.
 - Api: `Endpoints/SystemEndpoints.cs` → `GET /api/system/info` via dispatcher; built-in `AddOpenApi()` + `MapOpenApi()`
   at `/openapi/v1.json`; endpoint group convention `app.MapGroup("/api")` + per-feature `Map<Feature>Endpoints()` extension.
+  Endpoints return the typed unions from `ResultExtensions.ToHttpResult()` (`Results<Ok<T>, ProblemHttpResult>` etc.)
+  so success schemas are emitted automatically. Error responses are documented **once** on the `/api` group:
+  `.ProducesValidationProblem()` (400) and `.ProducesProblem(...)` for 401/403/404/409/500 (T-0002 review round 2).
+  Ignore `IHasDomainEvents.DomainEvents` in the EF model (a convention over all aggregates; T-0002 review nit 5).
 - AppHost: add the Vite app (`Aspire.Hosting.JavaScript` `AddViteApp("web", "../../web")` or the Aspire 13 equivalent),
   `.WithReference(api).WaitFor(api)`; ensure `npm install` runs (or document it).
 - tests/FleetConsole.Api.Tests: `ApiFactory : WebApplicationFactory<Program>` + Postgres Testcontainer (podman via
   DOCKER_HOST), xUnit collection fixture, helper to create `HttpClient`. Tests: `/api/system/info` 200 shape; unknown
-  `/api/x` → 404 ProblemDetails; `/openapi/v1.json` contains the system info path.
+  `/api/x` → 404 ProblemDetails; `/openapi/v1.json` contains the system info path with a typed 200 schema and the group-level ProblemDetails responses.
 - Regenerate `web/src/shared/api/schema.gen.ts` from the real document (`npm run gen:api` against a running Api or
   by fetching the document in a test/script) so FE types match.
 

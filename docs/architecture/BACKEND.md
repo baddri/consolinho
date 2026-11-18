@@ -44,8 +44,9 @@ Domain/
 ### Building blocks (`Application/Abstractions/Messaging`)
 
 ```csharp
-public interface ICommand : IRequest<Result>;                 // state change, no payload
-public interface ICommand<TResponse> : IRequest<Result<TResponse>>;
+public interface IBaseCommand;                                // marker for command-only behaviors (constraint target)
+public interface ICommand : IRequest<Result>, IBaseCommand;   // state change, no payload
+public interface ICommand<TResponse> : IRequest<Result<TResponse>>, IBaseCommand;
 public interface IQuery<TResponse> : IRequest<Result<TResponse>>;
 
 public interface IRequestHandler<in TRequest, TResponse> where TRequest : IRequest<TResponse>
@@ -53,6 +54,8 @@ public interface IRequestHandler<in TRequest, TResponse> where TRequest : IReque
 
 public interface IPipelineBehavior<in TRequest, TResponse> where TRequest : IRequest<TResponse>
 { Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct); }
+
+public delegate Task<TResponse> RequestHandlerDelegate<TResponse>(CancellationToken ct);
 
 public interface IDispatcher { Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct); }
 ```
@@ -67,7 +70,14 @@ in registration order. Handlers and validators are registered by assembly scanni
 3. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
 4. `ReadOnlyGuardBehavior` — commands marked `IMutatingCommand` fail for globally read-only users (except self-service like change-own-password).
 5. *(future)* `CachingBehavior` — queries implementing `ICacheableQuery`.
-6. `UnitOfWorkBehavior` — commands only: `SaveChangesAsync` + dispatch domain events after the handler succeeds.
+6. `UnitOfWorkBehavior` — commands only (constrained on `IBaseCommand`, so the container never builds it for
+   queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`
+   implementation (`ConsoleDbContext`) owns domain events: after a successful save it collects them from tracked
+   `IHasDomainEvents` aggregates, clears them, and hands them to the `IDomainEventDispatcher` port. Collection needs
+   the change tracker, so it lives in Infrastructure, not in the behavior.
+
+Behaviors that apply to a subset of requests use **generic constraints** (e.g. `where TRequest : IBaseCommand`); MS DI
+skips open-generic registrations whose constraints the request does not satisfy.
 
 ### Use case folder convention
 
@@ -91,7 +101,10 @@ Application/
 ### Results and errors
 
 `Result` / `Result<T>` with `Error(Code, Message, ErrorType)` where `ErrorType ∈ {Validation, NotFound, Conflict, Forbidden, Unauthorized, Failure}`.
-The Api maps them centrally (`ResultExtensions.ToHttpResult()`) to ProblemDetails with `type`, `title`, `detail`, `errors`.
+The Api maps them centrally (`ResultExtensions.ToHttpResult()`) to ProblemDetails with `type`, `title`, `detail`,
+`code` (the stable `Error.Code`), `traceId`, and for `ValidationError` an `errors` dictionary whose keys are the
+validator's property paths converted to the JSON naming policy (camelCase per segment: `Endpoints[0].Url` →
+`endpoints[0].url`), so the UI can attach messages to form fields.
 
 ## The proxy
 

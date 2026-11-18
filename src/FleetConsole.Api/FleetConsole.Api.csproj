@@ -5,6 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Tests exercise internal HTTP plumbing (GlobalExceptionHandler) directly. -->
+    <InternalsVisibleTo Include="FleetConsole.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\FleetConsole.Application\FleetConsole.Application.csproj" />
     <ProjectReference Include="..\FleetConsole.Domain\FleetConsole.Domain.csproj" />
     <ProjectReference Include="..\FleetConsole.Infrastructure\FleetConsole.Infrastructure.csproj" />
