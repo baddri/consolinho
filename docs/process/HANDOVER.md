@@ -8,13 +8,18 @@
 - **CP0 Foundations: DONE** (tasks T-0001..T-0006, QA report `docs/specs/CP0-qa-report.md`, all 9 criteria met).
   Backend 137 tests, frontend 51 tests, `aspire run` verified incl. real browser.
 - CP0 had no product-owner ACCEPT step (technical checkpoint, spec written by orchestrator).
-- CP1 loop step: **DESIGN** — spec `docs/specs/CP1-identity-and-admin.md` committed (Q1–Q11 recommendations accepted); backend-architect writing ADRs + `docs/specs/CP1-api-contract.md` + backend tasks; frontend-architect runs after (needs the contract).
+- CP1 loop step: **DESIGN (FE) + BUILD wave 1**. Spec + backend design committed (ADR-0008..0013,
+  `docs/specs/CP1-api-contract.md`, backend tasks T-0007..T-0021 with waves W1–W7 — see backend-architect notes in T-files).
+  Frontend design (tasks from T-0022) in progress.
 - Human requirement recorded for CP1: login via **host-cluster OpenShift OAuth** (ADR-0007), dev uses in-repo emulator `FleetConsole.DevOAuth`.
 
 ## In flight
 | Task | Status | Owner | Note |
 |---|---|---|---|
-| — | | | |
+| FE design | in_progress | frontend-architect | tasks T-0022+ against the API contract |
+| T-0007 | in_progress | backend-engineer | Domain users + audit (W1) |
+| T-0009 | in_progress | backend-engineer | DevOAuth emulator + AppHost (W1) |
+| T-0010 | todo | backend-engineer | W1, start after T-0007 (shares tests/Api.Tests area) |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
