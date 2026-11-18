@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Adapters for Application ports: EF Core persistence, token protection, per-cluster HTTP clients. -->
+  <PropertyGroup>
+    <RootNamespace>FleetConsole.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FleetConsole.Application\FleetConsole.Application.csproj" />
+    <ProjectReference Include="..\FleetConsole.Domain\FleetConsole.Domain.csproj" />
+  </ItemGroup>
+</Project>

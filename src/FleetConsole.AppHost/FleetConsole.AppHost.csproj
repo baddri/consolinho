@@ -1,0 +1,18 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+  <!-- Aspire orchestration for local development: Postgres + Api (the Vite dev server is added in T-0004).
+       Keep the SDK version in step with Aspire.Hosting.* versions in Directory.Packages.props. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>FleetConsole.AppHost</RootNamespace>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <UserSecretsId>f26da336-cba6-48ca-b82b-ae9a2d8d6779</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FleetConsole.Api\FleetConsole.Api.csproj" />
+  </ItemGroup>
+</Project>
