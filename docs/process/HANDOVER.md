@@ -16,11 +16,12 @@
 | Task | Status | Owner | Note |
 |---|---|---|---|
 | T-0007 | done | — | 23817e0 (2 rounds; ADR-0017 promote ruling) |
-| T-0009 | in_review | backend-architect | DevOAuth emulator; 40 contract tests |
-| T-0010 | in_progress | backend-engineer | k8s probe client + fake apiserver (W1) |
+| T-0009 | done | — | b90a5bc |
+| T-0010 | in_review | backend-architect | k8s probe client + fake apiserver |
+| T-0011 | in_progress | backend-engineer | authz behaviors, CSRF middleware, cookie scheme (W2) |
 | T-0008 | in_progress | backend-engineer | Domain clusters/credentials/grants (W2) |
 | T-0022 | in_progress | frontend-engineer | FE API foundations (F1) |
-| next | todo | | T-0011 (after T-0007, W2); T-0026 (F1); then follow waves in task files |
+| next | todo | | T-0012 after T-0008+T-0010; FE T-0026 then F2 (T-0023/24/25) after T-0022 |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
@@ -44,4 +45,5 @@
 - Endpoint/DTO XML docs flow into OpenAPI → `schema.gen.ts`; regenerate with `cd web && npm run gen:api` (Api running).
 - API JSON uses strict number handling (quoted numbers → 400).
 - DbContext uses retrying execution strategy: explicit transactions must run inside `CreateExecutionStrategy().ExecuteAsync`.
+- CP3 follow-ups from T-0009 review: Containerfile must publish `src/FleetConsole.Api` only and assert no `FleetConsole.DevOAuth*` in image; optional: AppHost `IsRunMode` guard for devoauth, loopback-only `redirect_uri` in emulator.
 - Frontend follow-ups: route code-splitting (bundle 574 kB), DOM lint gaps (`globalThis.document`), dev-only npm audit findings (QA R7).
