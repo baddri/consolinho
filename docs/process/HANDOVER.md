@@ -23,7 +23,9 @@
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
-| T-0023 | in_progress | frontend-engineer | MSW mock backend (F2) |
+| T-0023 | in_progress | frontend-engineer | MSW mock backend — round 1 fixes |
+| T-0024 | in_progress | frontend-engineer | shared UI kit (F2) |
+| T-0044 | todo | backend-engineer | ReadOnlyGuard before Validation (start after T-0012) |
 | next | todo | | T-0012 after T-0008+T-0010; after T-0012: T-0013 + T-0014 (W4, worktree isolation if parallel); FE T-0024, T-0025 after T-0023 |
 
 ## Next actions (CP1)
