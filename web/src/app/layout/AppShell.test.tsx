@@ -70,7 +70,11 @@ describe('AppShell', () => {
     const { user } = renderApp('/c/prod-eu-1/overview');
     await openSidebar(user);
 
-    expect(await screen.findByText('FleetConsole 0.0.0-test · Test')).toBeVisible();
+    // `getByText` matches own text nodes only: the footer's are "FleetConsole · Test" (the version is a child
+    // element), and the `·` keeps the masthead logo ("FleetConsole") from matching too.
+    const footer = await screen.findByText(/^FleetConsole ·/);
+    expect(footer).toBeVisible();
+    expect(footer).toHaveTextContent('FleetConsole 0.0.0-test · Test');
   });
 
   it('shows a fallback when version information cannot be loaded', async () => {
