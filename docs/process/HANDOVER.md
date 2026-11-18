@@ -17,9 +17,10 @@
 | Task | Status | Owner | Note |
 |---|---|---|---|
 | FE design | in_progress | frontend-architect | tasks T-0022+ against the API contract |
-| T-0007 | in_progress | backend-engineer | Domain users + audit (W1) |
+| T-0007 | done | — | 23817e0 (2 rounds; ADR-0017 promote ruling) |
 | T-0009 | in_progress | backend-engineer | DevOAuth emulator + AppHost (W1) |
-| T-0010 | todo | backend-engineer | W1, start after T-0007 (shares tests/Api.Tests area) |
+| T-0010 | in_progress | backend-engineer | k8s probe client + fake apiserver (W1) |
+| T-0008, T-0011 | todo | backend-engineer | unblocked (W2); start when an agent slot frees (max 3) |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
