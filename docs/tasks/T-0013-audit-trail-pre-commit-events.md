@@ -45,7 +45,9 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
 - `Application/Audit/EventHandlers/`: `UserAuditHandler`, `ClusterAuditHandler`, `CredentialAuditHandler`,
   `GrantAuditHandler` — one class per area implementing `IDomainEventHandler<X>` for each event. Actor rules:
   `UserProvisioned`/`UserLoggedIn` → the user (`AuditActor.ForUser(e.UserId, e.Username)`); `UserRoleChanged` with
-  `Source == Configuration` → `AuditActor.Configuration`; everything else → current user. Summaries are one sentence
+  `Source == Configuration` → `AuditActor.Configuration`; everything else → current user. `UserRoleChanged` →
+  `user.promoted` when `NewRole == Admin`, `user.demoted` when `NewRole == User` — never derive it from
+  `OldRole`/`NewRole` differing: promoting a config admin raises `Admin → Admin` (ADR-0017). Summaries are one sentence
   ("Deactivated user alice", "Granted alice ReadOnly on prod-eu-1 via fleet-view"). Target names per contract §10
   (grant: "alice → prod-eu-1").
 - Coverage test (`AuditCoverageTests`): every concrete `IDomainEvent` in the Domain assembly has ≥ 1

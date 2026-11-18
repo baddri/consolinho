@@ -175,12 +175,12 @@ read-only admins (ADM-2).
 ### 7.1 Records
 ```csharp
 public sealed record UserListItemDto(
-    string Username, string? DisplayName, UserRole Role, bool IsAdminViaConfiguration,
+    string Username, string? DisplayName, UserRole Role, bool IsAdminViaConfiguration, bool IsAdminByAssignment,
     UserStatus Status, bool IsReadOnly, int GrantCount, DateTimeOffset? LastLoginAt,
     IReadOnlyList<string> Groups);
 
 public sealed record UserDetailDto(
-    string Username, string? DisplayName, UserRole Role, bool IsAdminViaConfiguration,
+    string Username, string? DisplayName, UserRole Role, bool IsAdminViaConfiguration, bool IsAdminByAssignment,
     string? AdminConfigurationSource, UserStatus Status, bool IsReadOnly, int GrantCount,
     DateTimeOffset? LastLoginAt, IReadOnlyList<string> Groups,
     DateTimeOffset CreatedAt, string CreatedBy,   // "alice" (pre-created by) or the user's own name (auto-provisioned)
@@ -213,9 +213,13 @@ Validation (`CreateUserRequest.username`, USR-2): required; 1–253 chars; exact
 "Username can't contain '/', '%' or whitespace."
 
 Semantics:
-- Promote (`role: admin`) sets "admin by assignment". Demote (`role: user`) clears it; refused while admin via
-  configuration. A user who is admin via configuration **and** by assignment stays admin when removed from the config
-  group (ADR-0009).
+- Promote (`role: admin`) sets "admin by assignment" (`isAdminByAssignment`). It does so **also when the user is
+  already admin via configuration** and is audited (`user.promoted`, `configurationSource` = the current source), so
+  the role survives leaving the config group. It is a no-op (200, no audit entry) only when `isAdminByAssignment` is
+  already true (ADR-0017). Demote (`role: user`) clears it; refused while admin via configuration. A user who is admin
+  via configuration **and** by assignment stays admin when removed from the config group (ADR-0009).
+- UI: offer Promote when `isAdminByAssignment` is false (including Admins with `isAdminViaConfiguration`), Demote when
+  `role` is `admin` and `isAdminViaConfiguration` is false.
 - Deactivate rotates the security stamp: the user's sessions end within `Auth:RevalidationInterval`. Grants are kept.
 - Read-only on an admin blocks admin commands (ADM-2) and (CP2) cluster mutations.
 
@@ -491,7 +495,7 @@ Actions (AUD-1) and `details` shapes:
 | `auth.logout` | auth / session | `{}` |
 | `user.provisioned` | users / user | `{ "source": "login" }` (actor = the user, AUTH-5) |
 | `user.created` | users / user | `{ "role": "user", "isReadOnly": false }` |
-| `user.promoted`, `user.demoted` | users / user | `{ "source": "manual" \| "configuration", "configurationSource": "group fleetconsole-admins" \| null }` (configuration → actor `system (config)`) |
+| `user.promoted`, `user.demoted` | users / user | `{ "source": "manual" \| "configuration", "configurationSource": "group fleetconsole-admins" \| null }` (configuration → actor `system (config)`; manual → `configurationSource` is the source the user already had, non-null only when promoting a config admin, ADR-0017) |
 | `user.deactivated`, `user.reactivated` | users / user | `{}` |
 | `user.read_only_changed` | users / user | `{ "isReadOnly": bool }` |
 | `cluster.registered` | clusters / cluster | `{ "environment", "apiUrl", "tlsMode", "isEnabled" }` |

@@ -54,7 +54,10 @@ Use cases (`Application/Users/<UseCase>/`); all implement `IAdminRequest`, comma
 - [ ] ADM-1: `GET /api/admin/users` and `POST /api/admin/users` → 401 anonymous, 403 `Auth.Forbidden` as non-admin.
 - [ ] ADM-2: read-only admin → 200 on GETs, 403 `Auth.ReadOnly` on every command.
 - [ ] USR-1 fields incl. `status` pending/active/deactivated, `grantCount`, groups; USR-2 username rules; USR-4
-      deactivate ends the user's session (with revalidation interval 0) and keeps grants; USR-6 `isAdminViaConfiguration`.
+      deactivate ends the user's session (with revalidation interval 0) and keeps grants; USR-6 `isAdminViaConfiguration`
+      and `isAdminByAssignment` (projected straight from the column).
+- [ ] ADR-0017: promoting a config-only admin → 200, `isAdminByAssignment: true`, one `user.promoted` entry (manual,
+      `configurationSource` set); promoting again → 200, no entry.
 - [ ] AUD-1: each successful command writes exactly its audit entry; idempotent repeats write none.
 - [ ] QA R6 (`Integration/Http/RequestValidationTests`): malformed JSON → 400 ProblemDetails; missing required
       property → 400 with field key `username`; quoted number for `version` → 400; unknown enum (`"role":"root"`) → 400;

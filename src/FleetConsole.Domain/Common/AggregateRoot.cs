@@ -27,6 +27,16 @@ public abstract class AggregateRoot<TId> : Entity<TId>, IHasDomainEvents
     {
     }
 
+    /// <summary>
+    /// Optimistic concurrency token of the persisted row. Only persistence sets it: EF Core maps it to PostgreSQL's
+    /// <c>xmin</c> system column, which changes on every write. The Api returns it to clients as <c>version</c> and
+    /// edit/transition requests send it back, so a stale edit is rejected with <c>Concurrency.Conflict</c> (ADR-0013).
+    /// </summary>
+    /// <remarks>
+    /// <c>0</c> for an aggregate that has not been loaded from the database. No domain behaviour reads or changes it.
+    /// </remarks>
+    public uint Version { get; private set; }
+
     /// <inheritdoc />
     public IReadOnlyCollection<IDomainEvent> DomainEvents => _domainEvents.AsReadOnly();
 

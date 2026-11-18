@@ -1,5 +1,5 @@
 # 0009 — Cookie session revalidation, security stamp, and admin role sources
-**Status:** Accepted (2026-11-18) · **Refines:** 0007
+**Status:** Accepted (2026-11-18) · **Refines:** 0007 · **Refined by:** 0017
 
 ## Context
 ADR-0007 fixes login (host-cluster OpenShift OAuth) and a FleetConsole cookie session. CP1 adds:
@@ -45,6 +45,7 @@ ADR-0007 fixes login (host-cluster OpenShift OAuth) and a FleetConsole cookie se
 Rules: demote is refused (409 `Users.AdminViaConfiguration`) while `AdminConfigurationSource` is set; when a login
 changes the effective role, `User.RecordLogin` raises `UserRoleChanged` with source `Configuration`, audited with actor
 `system (config)`. Effective role is not persisted as a column; read-model projections compute it in SQL.
+Promote semantics for a user who is already admin through configuration: see ADR-0017.
 
 ### Typed identity in the Application layer
 - `IRequireRole.RequiredRole` becomes `UserRole` (Domain `Users/UserRole`). New marker `IAdminRequest : IRequireRole`

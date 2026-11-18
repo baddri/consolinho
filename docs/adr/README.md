@@ -19,3 +19,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0011 | Connection test: step orchestration and capability probing | Accepted |
 | 0012 | CSRF header check as middleware; the anonymous API surface | Accepted |
 | 0013 | HTTP API conventions (resources, concurrency, enums, pagination) | Accepted |
+| 0017 | Promote always records the admin assignment (refines 0009) | Accepted |
