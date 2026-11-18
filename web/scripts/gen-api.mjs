@@ -5,7 +5,7 @@
 // The generated file is committed so the SPA builds without a running backend.
 import { spawnSync } from 'node:child_process';
 
-const apiUrl = (process.env.API_URL ?? 'http://localhost:5000').replace(/\/+$/, '');
+const apiUrl = (process.env.API_URL ?? 'http://localhost:5180').replace(/\/+$/, '');
 const source = `${apiUrl}/openapi/v1.json`;
 const output = 'src/shared/api/schema.gen.ts';
 

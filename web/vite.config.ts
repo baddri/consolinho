@@ -8,10 +8,10 @@ import { defineConfig } from 'vite';
  *
  * Under `aspire run` the AppHost injects the Api's endpoints as environment variables following the
  * service-discovery convention `services__<resource>__<endpoint>__<index>` (here resource `api`). HTTPS is preferred
- * when present; outside Aspire we fall back to the Api's default Kestrel port.
+ * when present; outside Aspire we fall back to the Api's launch-profile port (5180).
  */
 const apiTarget =
-  process.env.services__api__https__0 ?? process.env.services__api__http__0 ?? 'http://localhost:5000';
+  process.env.services__api__https__0 ?? process.env.services__api__http__0 ?? 'http://localhost:5180';
 
 export default defineConfig({
   plugins: [react()],

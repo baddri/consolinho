@@ -108,11 +108,14 @@ after each approved task, and keeps `docs/process/HANDOVER.md` current after eve
 
 ```bash
 aspire run                                   # run everything locally (Postgres + Api + web) — needs podman socket
+aspire start --launch-profile http && aspire wait web   # same, in the background (no dev cert needed); `aspire stop` ends it
 dotnet build FleetConsole.slnx -warnaserror
 dotnet test FleetConsole.slnx
-dotnet ef migrations add <Name> -p src/FleetConsole.Infrastructure -s src/FleetConsole.Api
-cd web && npm run dev | lint | typecheck | test | build | gen:api
+dotnet tool restore && dotnet ef migrations add <Name> -p src/FleetConsole.Infrastructure -s src/FleetConsole.Api -o Persistence/Migrations
+cd web && npm run dev | lint | typecheck | test | build
+cd web && npm run gen:api   # Api must be running (Development); override with API_URL=...
 ```
 
 Podman notes: `systemctl --user enable --now podman.socket`; export
-`DOCKER_HOST=unix:///run/user/$UID/podman/podman.sock`, `TESTCONTAINERS_RYUK_DISABLED=true`, `ASPIRE_CONTAINER_RUNTIME=podman`.
+`DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock`, `TESTCONTAINERS_RYUK_DISABLED=true`, `ASPIRE_CONTAINER_RUNTIME=podman`.
+Setup, URLs and known issues: `README.md`, `docs/dev/TROUBLESHOOTING.md`.
