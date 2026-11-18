@@ -19,14 +19,17 @@
 | T-0009 | done | — | b90a5bc |
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
 | T-0011 | done | — | 72a46f8 (2 rounds) |
-| T-0012 | in_review | backend-architect | persistence, single migration, DP keys; 656 tests |
+| T-0012 | done | — | 4c7f114 |
+| T-0013 | in_progress | backend-engineer | audit trail, pre-commit events (W4, worktree) |
+| T-0014 | in_progress | backend-engineer | login use cases + identity adapters (W4, worktree) |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
 | T-0023 | done | — | committed (2 rounds) |
 | T-0024 | in_review | frontend-architect | shared UI kit |
-| T-0044 | todo | backend-engineer | ReadOnlyGuard before Validation (start after T-0012) |
-| next | todo | | T-0012 after T-0008+T-0010; after T-0012: T-0013 + T-0014 (W4, worktree isolation if parallel); FE T-0024, T-0025 after T-0023 |
+| T-0044 | in_progress | backend-engineer | ReadOnlyGuard before Validation (main tree) |
+| T-0025 | in_progress | frontend-engineer | shared forms (F2) |
+| next | todo | | T-0012 after T-0008+T-0010; after T-0013+T-0014: T-0015 (W5), then W6 admin APIs; FE T-0024, T-0025 after T-0023 |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
@@ -51,6 +54,8 @@
 - Endpoint/DTO XML docs flow into OpenAPI → `schema.gen.ts`; regenerate with `cd web && npm run gen:api` (Api running).
 - API JSON uses strict number handling (quoted numbers → 400).
 - DbContext uses retrying execution strategy: explicit transactions must run inside `CreateExecutionStrategy().ExecuteAsync`.
+- Worktree tasks: reviewers review in the worktree path; orchestrator commits there and merges into `cp/1-identity-admin` (DI files may conflict trivially).
+- CP3 follow-ups from T-0012 review: make DP-cert-missing warning (EventId 3200) a startup error in prod; support key-encryption cert rotation; ops runbook.
 - CP2 follow-ups from T-0010: pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies.
 - CP3 follow-ups from T-0009 review: Containerfile must publish `src/FleetConsole.Api` only and assert no `FleetConsole.DevOAuth*` in image; optional: AppHost `IsRunMode` guard for devoauth, loopback-only `redirect_uri` in emulator.
 - Frontend follow-ups: route code-splitting (bundle 574 kB), DOM lint gaps (`globalThis.document`), dev-only npm audit findings (QA R7).

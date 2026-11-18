@@ -35,7 +35,7 @@ either. C# names below are the record names; OpenAPI schema names drop the `Dto`
 | `Auth.Forbidden` | 403 | Non-admin calling `/api/admin/**`. "You don't have access to Administration." |
 | `Auth.ReadOnly` | 403 | Globally read-only user calling an admin **command**. "Your account is read-only." |
 | `Auth.CsrfHeaderMissing` | 403 | Missing/invalid `X-Console-Request`. "Missing CSRF header." |
-| `Concurrency.Conflict` | 409 | Stale `version`. "This user was changed by someone else. Reload and try again." (noun per resource) |
+| `Concurrency.Conflict` | 409 | Stale `version`, or a commit-time race with a concurrent change or delete (e.g. FK violation 23503; orchestrator 2026-11-19). "This user was changed by someone else. Reload and try again." (noun per resource) |
 | `Persistence.DuplicateKey` | 409 | Rare race on a unique key the handler pre-checked. "This item already exists. Reload and try again." |
 | `Users.NotFound` | 404 | Unknown `{username}` in route. |
 | `Users.UsernameTaken` | 409 | Create with existing username. "User alice already exists." |
