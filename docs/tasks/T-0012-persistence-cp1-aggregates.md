@@ -1,7 +1,7 @@
 ---
 id: T-0012
 title: Persistence for CP1 aggregates — EF mappings, migration, repositories, read model, Data Protection, conflict mapping
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0007, T-0008, T-0010]   # T-0010 for SensitiveString
@@ -127,20 +127,192 @@ public sealed class CredentialsOptions { public int ExpiryWarningDays { get; set
   a credential with a recorded `LastTest`.
 
 ## Acceptance criteria
-- [ ] Integration tests (Testcontainers): round-trip of each aggregate incl. value objects and `Version`; unique
+- [x] Integration tests (Testcontainers): round-trip of each aggregate incl. value objects and `Version`; unique
       constraints raise `DuplicateKeyException`; stale `xmin` raises `ConcurrencyConflictException`; deleting a cluster
       with credentials and grants removes all of them (CLU-6 cascade); deleting a credential still referenced fails.
-- [ ] `UnitOfWorkBehavior` unit tests: both exceptions become 409 results with the codes above.
-- [ ] CRED-2 (storage part): protect/unprotect round-trip through Data Protection with keys in Postgres; the
+- [x] `UnitOfWorkBehavior` unit tests: both exceptions become 409 results with the codes above.
+- [x] CRED-2 (storage part): protect/unprotect round-trip through Data Protection with keys in Postgres; the
       `credentials.token` column bytes do not contain the plaintext token.
-- [ ] `IReadModel` members documented (no-tracking, project to DTOs); `CountActiveWritableAdminsAsync` tested with
+- [x] `IReadModel` members documented (no-tracking, project to DTOs); `CountActiveWritableAdminsAsync` tested with
       config-sourced and assigned admins, read-only and deactivated users.
-- [ ] `ConnectionTestSummaryMapping` unit test (null, fresh, stale).
-- [ ] Migration generated with the documented command; model snapshot consistent (EF pending-changes guard passes).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4).
+- [x] `ConnectionTestSummaryMapping` unit test (null, fresh, stale).
+- [x] Migration generated with the documented command; model snapshot consistent (EF pending-changes guard passes).
+- [x] Build, lint and tests green (CLAUDE.md rule 4).
+
+## Contract amendments (orchestrator)
+- `audit_entries` needs a nullable, indexed `related_username` column (contract §10 amendment 2026-11-19); the domain `AuditEntry` field is added by T-0013 — if T-0012 lands first, include the column in the single CP1 migration only if the domain property exists; otherwise T-0013 may add a second migration (allowed exception).
 
 ## Work log
+- 2026-11-19 (backend-engineer): started. Read CLAUDE.md, BACKEND.md, SECURITY.md, ADR-0004/0008/0009/0013,
+  contract §3/§10/§12, handovers of T-0007/T-0008/T-0010/T-0011.
+
+- 2026-11-19 (backend-engineer): implemented.
+  - Application: ports in `Abstractions/Persistence/` (4 repositories + append-only `IAuditEntryRepository`,
+    `ConcurrencyConflictException`, `DuplicateKeyException` with `ConstraintName` + `ForConstraint` factory,
+    `PersistenceErrors`), `IReadModel`, `ITokenProtector`, `Audit/IAuditTrail.cs` (interface + `AuditRecord`),
+    `Common/ConnectionTestSummary{Dto,Mapping}`, `Credentials/CredentialsOptions` (+ `SectionName`,
+    `ExpiryWarningWindow`). `UnitOfWorkBehavior` maps both exceptions to 409 via `FailureResult<TResponse>`.
+    `Microsoft.Extensions.Options` 10.0.0 added (central), allowed in both architecture tests.
+  - Infrastructure: converters registered by type in `ConsoleDbContext.ConfigureConventions` (ids, single-value VOs
+    through their `Create` factories, `EncryptedToken` → bytea, `CaBundle` → PEM, all enums → text);
+    `Persistence/Configurations/` (one per aggregate + `data_protection_keys`, shared `MapAggregateRoot` with
+    `Version` → `xmin`); `Persistence/Repositories/`; `ReadModel`; `Crypto/` (`DataProtectionSetup`,
+    `DataProtectionTokenProtector`, `UnprotectedKeyRingWarning`, EventId 3200); `AddInfrastructure` registers all of
+    it plus validated `CredentialsOptions`. `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore` 10.0.14 (MIT).
+  - Migration `20261118220227_IdentityAndAdministration` generated with the documented command (the CP0 `Initial`
+    stays; this is the only CP1 migration). `has-pending-model-changes`: none.
+  - **Deviations / decisions (please review):**
+    1. `IReadModel` also has `ToListAsync`, `FirstOrDefaultAsync`, `CountAsync`, `AnyAsync`. The contract listed only the
+       five queryables, but Application can't reference EF Core, so without these, query handlers could only enumerate
+       synchronously (blocking I/O, against "async all the way"). Infrastructure delegates to EF; handler-test fakes
+       can run them with LINQ to Objects.
+    2. `AuditActor` is an **owned type** (same table, `actor_*` columns), not a complex property: EF Core 10 can't
+       index complex-type columns and `actor_name` needs an index. Other VOs (`ApiServerEndpoint`, `TokenMetadata`,
+       optional `ConnectionTestSummary`) are complex properties as specified.
+    3. Data Protection's EF key repository calls **synchronous** `SaveChanges()`, which the T-0004 guard refused
+       (every key creation failed). The guard now refuses sync saves only when anything other than
+       `DataProtectionKey` rows is pending. `PersistenceModelTests` updated; one sentence in BACKEND.md (Persistence)
+       corrected (outside `paths`, a doc fix only).
+    4. The migrator is registered before `AddDataProtection` so it starts before Data Protection's hosted service,
+       which loads the key ring.
+    5. `web_console_url` stores `Uri.OriginalString` (round-trips exactly, within the validated 2048 length).
+       `api_url` stores the canonical text as specified.
+    6. `fk_grants_users_user_id` is named explicitly (the convention produced `fk_grants_user_user_id`).
+    7. `ConnectionTestSummaryMappingTests` live in `tests/FleetConsole.Application.Tests/Common/` (outside `paths`; the
+       criterion requires the test, and `Behaviors/` is the wrong place).
+  - **Contract amendment (orchestrator message, 2026-11-19):** added `AuditEntry.RelatedUsername` (nullable, optional
+    last parameter `relatedUsername` of `AuditEntry.Record`, blank → null) with domain tests, mapped to nullable
+    `related_username` + `ix_audit_entries_related_username`, included in the single CP1 migration. T-0013 populates
+    it.
+  - Tests: Api.Tests/Persistence `AggregateRoundTripTests`, `ConstraintAndConcurrencyTests`,
+    `RepositoryAndReadModelTests`, `TokenProtectionTests`, `DataProtectionKeyRingTests` (a session ticket protected by
+    host A is accepted by a second host over the same DB and rejected by a host over a fresh DB; same for SA tokens),
+    `DataProtectionSetupTests` (no DB: repository type, PFX + password file encrypt/decrypt, missing private key fails,
+    warning outside Development). Application.Tests: 5 new `UnitOfWorkBehaviorTests` cases, mapping tests.
+  - Checks: `dotnet build FleetConsole.slnx -warnaserror` → 0 warnings; `dotnet test FleetConsole.slnx` (podman,
+    Testcontainers) → Domain 323, Application 73, Api 260, all passed; `dotnet ef migrations has-pending-model-changes`
+    → "No changes have been made to the model since the last migration."
 
 ## Review
+**Round 1 — backend-architect, 2026-11-19: APPROVE**
+
+Checks run by the reviewer (podman, Testcontainers): `dotnet build FleetConsole.slnx -warnaserror` gave 0 warnings
+and 0 errors. `dotnet test FleetConsole.slnx` passed Domain 323, Application 73 and Api 260.
+`dotnet ef migrations has-pending-model-changes` reported "No changes have been made to the model since the last
+migration."
+
+Migration (reviewed with `dotnet ef migrations script Initial IdentityAndAdministration`):
+- Tables and columns are all snake_case. `xmin` is mapped as a `rowVersion` on all five aggregates and is not created
+  as a real column.
+- `details` is `jsonb`, `groups` is `text[]`, `token` is `bytea`, and enums are stored as text.
+- Lengths come from the Domain constants: 40, 63, 8, 100, 1000, 2048 and `Username.MaxLength` (253) for `*_by`.
+- Unique indexes: `ix_users_username`, `ix_clusters_name`, `ix_credentials_cluster_id_name`,
+  `ix_grants_user_id_cluster_id`.
+- Audit indexes: `(occurred_at DESC, id DESC)`, `actor_name`, `cluster_name`, `related_username`.
+- Grant indexes: `credential_id`, plus `cluster_id` for the cascade and `CountByClusterAsync`.
+- Foreign keys: credentials→clusters CASCADE, grants→clusters CASCADE, grants→credentials NO ACTION, grants→users
+  RESTRICT.
+
+Matches the contract. Leaving audit text columns unbounded is deliberate and documented in
+`AuditEntryConfiguration`.
+
+Security:
+- Tokens reach the database only as Data Protection ciphertext. The test scans the column bytes for the token and
+  for UTF-8 and UTF-16 prefixes of it.
+- The purpose is isolated and tampering is rejected.
+- Plaintext buffers are zeroed.
+- No `EnableSensitiveDataLogging`. The exception messages carry no values (the Npgsql `Detail` stays on the inner
+  exception, which is swallowed into a Result).
+- The key ring is persisted, and the session cookie uses it, which the two-host test proves.
+- The PFX and password file load correctly, and a certificate without a private key fails at startup.
+- Outside Development, without a certificate, the EventId 3200 warning is registered, which the test checks for
+  Production and Staging.
+
+Rulings on the deviations:
+1. **`IReadModel` async operators:** accepted. Application can't reference EF Core, and synchronous enumeration
+   would break "async all the way". Fakes stay trivial with LINQ to Objects. BACKEND.md "Use case folder convention"
+   now documents this (architect doc fix).
+2. **Owned `AuditActor`:** accepted. EF Core 10 can't index complex-type columns, and `actor_name` must be indexed.
+   The columns are the same (`actor_*`, same table). Queries are no-tracking, so projecting `a.Actor` works.
+   BACKEND.md Persistence now records the rule: complex properties by default, an owned type only where a column
+   needs an index (architect doc fix).
+3. **Synchronous `SaveChanges` for `DataProtectionKey`-only saves:** accepted. `EntityFrameworkCoreXmlRepository`
+   only saves synchronously, and the guard still refuses every other pending entry. Both cases are tested, and
+   BACKEND.md is correct. Carried into T-0013 as a constraint.
+4. **Migrator registered before Data Protection:** accepted. Hosted services start sequentially in registration
+   order, and the comment explains the coupling. It only matters in Development. Production migrates through a job
+   before rollout.
+5. **`web_console_url` as entered:** accepted. The Domain validates `OriginalString.Length` against
+   `MaxWebConsoleUrlLength`, so storage and validation measure the same string and the URL round-trips exactly.
+   `api_url` stays canonical as specified.
+6. **Explicit `fk_grants_users_user_id`:** accepted. It keeps FK names uniform (`fk_<table>_<principal table>_<column>`).
+7. **23001 on user delete:** accepted. RESTRICT (immediate check, `restrict_violation`) is what the contract asked
+   for. Users are never deleted, so this is a bug guard, and the test pins the SQLSTATE.
+8. **Untranslated FK failure (500): ruling.** `DuplicateKeyException` is already generic (any 23505). For FKs, every
+   23503 that CP1 can produce is a lost race against a concurrent delete or insert:
+   - a credential deleted while a grant using it is created;
+   - a cluster deleted while a credential or grant is added to it.
+
+   The client action is the same as for a stale version, so 23503 will be translated into
+   `ConcurrencyConflictException`, which returns the existing 409 `Concurrency.Conflict`. This adds no new public
+   code. 23001 stays a 500 because it means a bug. T-0012 implemented its contract correctly, so this doesn't block
+   approval. The change goes to **T-0013**, which already owns `ConsoleDbContext.SaveChangesAsync` and these tests;
+   its contract and acceptance criteria are updated. The orchestrator needs to amend the contract §2
+   `Concurrency.Conflict` row: "stale `version`, or a commit-time race with a concurrent change or delete".
+
+Deviation 7 in the work log (mapping tests in `tests/FleetConsole.Application.Tests/Common/`) is fine.
+
+The T-0013 follow-ups are captured in T-0013 under "From T-0012":
+- `AuditRecord.RelatedUsername` and how to populate it.
+- Keep the commit-translation wrapper, and don't translate exceptions from event handlers.
+- 23503 → `ConcurrencyConflictException`.
+- The sync `SaveChanges` constraint.
+- Don't reuse a context after a failed commit.
+
+T-0013's `paths` now includes `ConcurrencyConflictException.cs`.
+
+Optional, non-blocking:
+- `src/FleetConsole.Infrastructure/Crypto/DataProtectionSetup.cs`: `LoadCertificate` checks `HasPrivateKey` but not
+  that the key is RSA. A non-RSA PFX fails only on the first key creation, not at startup. Add `GetRSAPrivateKey()
+  is null → throw` when the setup is next touched (CP3).
+- CP3 (for the orchestrator's roadmap/handover):
+  - turn warning 3200 into a startup error;
+  - support rotating the key-encryption certificate (`UnprotectKeysWithAnyCertificate` with the previous
+    certificate), or keys encrypted with the old certificate become unreadable;
+  - document both in the ops runbook (ADR-0004).
+- `tests/FleetConsole.Api.Tests/Persistence/DataProtectionSetupTests.cs`: asserts that the warning service is
+  registered, not that it logs. Acceptable; a `CapturedLogs` assertion would be stronger.
 
 ## Handover notes
+- **Ports:** `Application/Abstractions/Persistence/*`, `Abstractions/{IReadModel,ITokenProtector}.cs`,
+  `Audit/IAuditTrail.cs`, `Common/ConnectionTestSummary{Dto,Mapping}.cs`, `Credentials/CredentialsOptions.cs`. Inject
+  `IOptions<CredentialsOptions>`; it is bound and validated by `AddInfrastructure` (section `Credentials`).
+- **Queries (T-0016..T-0021):** compose from `IReadModel` queryables and execute with `readModel.ToListAsync(query, ct)`
+  etc. Never `.ToList()`. Compare value objects whole (`c.Name == name`, `names.Contains(c.Name)`), not via `.Value`.
+  Derived members (`User.Role/Status/IsActiveWritableAdmin`, `TlsMode`, `CaBundle.Certificates`,
+  `TokenMetadata.ServiceAccount`, expiry status) are not columns. Spell the role out
+  (`u.IsAdminByAssignment || u.AdminConfigurationSource != null`) or derive it in memory after projecting the VOs.
+  Selecting whole value objects (`c.Endpoint`, `cr.LastTest`) in a projection works. Join by id (see
+  `RepositoryAndReadModelTests.ReadModel_JoinsAggregatesById`).
+- **Commit races:** `IUnitOfWork` throws `ConcurrencyConflictException` (stale `xmin`, also on delete) and
+  `DuplicateKeyException` (23505, `ConstraintName` like `ix_users_username`); `UnitOfWorkBehavior` returns 409
+  `Concurrency.Conflict` / `Persistence.DuplicateKey`. A **foreign-key** failure (deleting a credential still used, 23503)
+  is not translated yet and would be a 500; T-0013 translates 23503 into `ConcurrencyConflictException` (architect
+  ruling, see Review). Handlers must still check `CountByCredentialAsync` first (CRED-6).
+- **Constraint names:** `ix_users_username`, `ix_clusters_name`, `ix_credentials_cluster_id_name`,
+  `ix_grants_user_id_cluster_id`. FKs: `fk_credentials_clusters_cluster_id` (cascade), `fk_grants_clusters_cluster_id`
+  (cascade), `fk_grants_credentials_credential_id` (NO ACTION), `fk_grants_users_user_id` (RESTRICT → SQLSTATE 23001).
+- **T-0013:** `ConsoleDbContext.SaveChangesAsync` is still post-commit dispatch (unchanged). The explicit
+  `IUnitOfWork.SaveChangesAsync` wraps it with the exception translation; keep that wrapper when moving dispatch
+  pre-commit. The sync `SaveChanges` override must keep allowing `DataProtectionKey`-only saves. Populate
+  `AuditEntry.RelatedUsername` (target user for `user.*`, grant user for `grant.*`). The `user` filter is then
+  `actor_name = @u OR related_username = @u` (both indexed).
+- **Data Protection:** `SetApplicationName("FleetConsole")`, keys in `data_protection_keys`; the session cookie uses the
+  same ring (proved by `DataProtectionKeyRingTests`), so sessions survive restarts/replicas. Optional
+  `DataProtection:KeyEncryptionCertificatePath` (+ `...PasswordPath`, trailing newline trimmed) must be an RSA PFX with
+  private key. Otherwise warning EventId 3200 outside Development. Token protector purpose `FleetConsole.Credentials.v1`;
+  plaintext byte buffers zeroed.
+- **Follow-ups:** (a) BACKEND.md/contract could mention `IReadModel`'s async operators and the owned `AuditActor`
+  (architect). (b) 23503 → 409: decided, moved to T-0013. (c) CP3: turn the
+  key-ring warning into a startup error. (d) Many idle MSBuild node-reuse processes from parallel sessions are running on the machine.
+  I stopped only three idle ones that matched my build times.

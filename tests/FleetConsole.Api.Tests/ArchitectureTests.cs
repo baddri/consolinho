@@ -9,8 +9,8 @@ namespace FleetConsole.Api.Tests;
 
 /// <summary>
 /// Enforces the layer dependency rules and use case conventions from docs/architecture/BACKEND.md:
-/// Domain references only the BCL; Application references only Domain, FluentValidation and Microsoft.Extensions
-/// abstractions; Infrastructure never references Api; handlers are internal sealed and requests sealed.
+/// Domain references only the BCL; Application references only Domain, FluentValidation, Microsoft.Extensions
+/// abstractions and Microsoft.Extensions.Options; Infrastructure never references Api; handlers are internal sealed and requests sealed.
 /// </summary>
 /// <remarks>
 /// Uses compiled assembly references, so it only sees references that code actually uses (the compiler drops unused
@@ -39,6 +39,7 @@ public sealed partial class ArchitectureTests
     {
         "FluentValidation",
         "FluentValidation.DependencyInjectionExtensions",
+        "Microsoft.Extensions.Options",
     };
 
     [Fact]
@@ -64,7 +65,7 @@ public sealed partial class ArchitectureTests
     }
 
     [Fact]
-    public void Application_ReferencesOnlyDomainBclFluentValidationAndExtensionsAbstractions()
+    public void Application_ReferencesOnlyDomainBclFluentValidationExtensionsAbstractionsAndOptions()
     {
         var disallowed = ReferencesOf(ApplicationAssembly.Assembly)
             .Where(name => !IsBcl(name)

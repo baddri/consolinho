@@ -47,6 +47,14 @@ public sealed partial class AuditEntry : AggregateRoot<AuditEntryId>
     /// <summary>Name of the cluster the action concerns, when it concerns one (clusters, credentials, grants).</summary>
     public string? ClusterName { get; private init; }
 
+    /// <summary>
+    /// The username of the user the action is about besides the actor, if any: the target user of <c>user.*</c>
+    /// entries, the granted user of <c>grant.*</c> entries. Lets the audit log's <c>user</c> filter match entries where
+    /// the user is the actor, the target, or the user of a target grant (contract §10). <see langword="null"/> when
+    /// the action concerns no particular user.
+    /// </summary>
+    public string? RelatedUsername { get; private init; }
+
     /// <summary>One human-readable sentence describing the action.</summary>
     public string Summary { get; private init; } = null!;
 
@@ -74,6 +82,8 @@ public sealed partial class AuditEntry : AggregateRoot<AuditEntryId>
     /// <param name="correlationId">Trace id of the current request, if any.</param>
     /// <param name="detailsJson">Serialized JSON object (<c>{}</c> when there are no details).</param>
     /// <param name="occurredAt">When it happened (from <c>IClock</c>).</param>
+    /// <param name="relatedUsername">The user the action is about, if any (see <see cref="RelatedUsername"/>); blank is
+    /// stored as <see langword="null"/>.</param>
     /// <returns>The new entry.</returns>
     /// <exception cref="ArgumentException">When the action is malformed or has an unknown prefix, the details are not a
     /// JSON object, or a required value is missing.</exception>
@@ -87,7 +97,8 @@ public sealed partial class AuditEntry : AggregateRoot<AuditEntryId>
         string summary,
         string? correlationId,
         string detailsJson,
-        DateTimeOffset occurredAt)
+        DateTimeOffset occurredAt,
+        string? relatedUsername = null)
     {
         Guard.NotNull(actor);
         Guard.NotNullOrWhiteSpace(targetName);
@@ -107,6 +118,7 @@ public sealed partial class AuditEntry : AggregateRoot<AuditEntryId>
             TargetId = targetId,
             TargetName = targetName,
             ClusterName = clusterName,
+            RelatedUsername = string.IsNullOrWhiteSpace(relatedUsername) ? null : relatedUsername,
             Summary = summary,
             CorrelationId = correlationId,
             DetailsJson = EnsureJsonObject(detailsJson),

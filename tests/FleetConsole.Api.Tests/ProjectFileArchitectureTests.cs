@@ -47,6 +47,7 @@ public sealed partial class ProjectFileArchitectureTests
 
         References(project, "PackageReference")
             .Where(name => !name.StartsWith("FluentValidation", StringComparison.Ordinal)
+                           && name != "Microsoft.Extensions.Options"
                            && !ExtensionsAbstractionsPattern().IsMatch(name))
             .ShouldBeEmpty();
         References(project, "FrameworkReference").ShouldBeEmpty();

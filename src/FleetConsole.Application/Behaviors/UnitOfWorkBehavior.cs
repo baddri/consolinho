@@ -1,5 +1,6 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Domain.Common;
 
 namespace FleetConsole.Application.Behaviors;
@@ -10,8 +11,13 @@ namespace FleetConsole.Application.Behaviors;
 /// mutate aggregates freely and simply return an error to abort.
 /// </summary>
 /// <remarks>
-/// The <see cref="IBaseCommand"/> constraint makes the DI container skip this behavior for queries entirely — it is
-/// never constructed for them, so queries work even where no <see cref="IUnitOfWork"/> is registered.
+/// <para>The <see cref="IBaseCommand"/> constraint makes the DI container skip this behavior for queries entirely — it
+/// is never constructed for them, so queries work even where no <see cref="IUnitOfWork"/> is registered.</para>
+/// <para><b>Races at commit time</b> are expected failures, not bugs: a row changed after the handler loaded it
+/// (<see cref="ConcurrencyConflictException"/>) or a concurrent command inserted the same natural key
+/// (<see cref="DuplicateKeyException"/>). Both become 409 results (<see cref="PersistenceErrors"/>) instead of 500s.
+/// Handlers still check the client's <c>version</c> and uniqueness themselves first, with resource-specific messages
+/// (ADR-0013 §4); this mapping only covers what those checks can't see.</para>
 /// </remarks>
 /// <typeparam name="TRequest">The command type.</typeparam>
 /// <typeparam name="TResponse"><see cref="Result"/> or <see cref="Result{TValue}"/>.</typeparam>
@@ -28,9 +34,22 @@ internal sealed class UnitOfWorkBehavior<TRequest, TResponse>(IUnitOfWork unitOf
 
         var response = await next(cancellationToken).ConfigureAwait(false);
 
-        if (response.IsSuccess)
+        if (response.IsFailure)
+        {
+            return response;
+        }
+
+        try
         {
             await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return FailureResult<TResponse>.Create(PersistenceErrors.ConcurrencyConflict);
+        }
+        catch (DuplicateKeyException)
+        {
+            return FailureResult<TResponse>.Create(PersistenceErrors.DuplicateKey);
         }
 
         return response;

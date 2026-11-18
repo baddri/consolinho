@@ -42,6 +42,29 @@ public sealed class AuditEntryTests
         entry.TargetId.ShouldBeNull();
         entry.ClusterName.ShouldBeNull();
         entry.CorrelationId.ShouldBeNull();
+        entry.RelatedUsername.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Record_KeepsRelatedUsername()
+    {
+        var entry = AuditEntry.Record(
+            AuditActor.ForUser(UserId.New(), "alice"), "grant.created", AuditTargetType.Grant, null, "bob → prod-eu-1",
+            "prod-eu-1", "Granted bob access to prod-eu-1.", null, "{}", Now, relatedUsername: "bob");
+
+        entry.RelatedUsername.ShouldBe("bob");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Record_StoresBlankRelatedUsernameAsNull(string relatedUsername)
+    {
+        var entry = AuditEntry.Record(
+            AuditActor.Configuration, "user.promoted", AuditTargetType.User, null, "bob", null, "Promoted bob.", null, "{}",
+            Now, relatedUsername);
+
+        entry.RelatedUsername.ShouldBeNull();
     }
 
     [Theory]

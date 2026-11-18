@@ -5,7 +5,7 @@ status: todo
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0012]
-paths: [src/FleetConsole.Application/Abstractions/Events/, src/FleetConsole.Application/Abstractions/IDomainEventDispatcher.cs, src/FleetConsole.Application/Abstractions/IUnitOfWork.cs, src/FleetConsole.Application/Audit/, src/FleetConsole.Application/DependencyInjection.cs, src/FleetConsole.Infrastructure/Events/, src/FleetConsole.Infrastructure/Persistence/ConsoleDbContext.cs, src/FleetConsole.Infrastructure/Persistence/PendingDomainEvents.cs, src/FleetConsole.Infrastructure/DependencyInjection.cs, tests/FleetConsole.Application.Tests/Audit/, tests/FleetConsole.Api.Tests/Persistence/, tests/FleetConsole.Api.Tests/Events/]
+paths: [src/FleetConsole.Application/Abstractions/Events/, src/FleetConsole.Application/Abstractions/IDomainEventDispatcher.cs, src/FleetConsole.Application/Abstractions/IUnitOfWork.cs, src/FleetConsole.Application/Abstractions/Persistence/ConcurrencyConflictException.cs, src/FleetConsole.Application/Audit/, src/FleetConsole.Application/DependencyInjection.cs, src/FleetConsole.Infrastructure/Events/, src/FleetConsole.Infrastructure/Persistence/ConsoleDbContext.cs, src/FleetConsole.Infrastructure/Persistence/PendingDomainEvents.cs, src/FleetConsole.Infrastructure/DependencyInjection.cs, tests/FleetConsole.Application.Tests/Audit/, tests/FleetConsole.Api.Tests/Persistence/, tests/FleetConsole.Api.Tests/Events/]
 review_rounds: 0
 ---
 
@@ -69,6 +69,37 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
   per-child events exist.
 - Handler unit tests cover all 12 (plus T-0007's); the coverage test's allow-list stays empty.
 
+**From T-0012 (architect review, 2026-11-19)**: persistence as built. See T-0012's handover notes.
+- **Related username.** `AuditEntry.RelatedUsername` and the indexed `audit_entries.related_username` column exist
+  already (in the CP1 migration, so this task needs no migration). `AuditRecord` doesn't carry it yet: append
+  `string? RelatedUsername = null` as the **last** optional parameter of `AuditRecord`, and have `AuditTrail` pass it
+  to `AuditEntry.Record(..., relatedUsername: record.RelatedUsername)`. Set it to the target user's username for every
+  `user.*` entry and to the grant's username for every `grant.*` entry. Leave it null for everything else. Handler
+  tests assert it.
+- **Keep T-0012's commit translation.** The explicit `IUnitOfWork.SaveChangesAsync` in `ConsoleDbContext` wraps the
+  save and translates `DbUpdateConcurrencyException` → `ConcurrencyConflictException` and 23505 →
+  `DuplicateKeyException`. Keep that wrapper around the whole new capture → dispatch → write sequence. Exceptions
+  thrown by event handlers are bugs and must **not** be translated (they stay 500s). Atomicity test (b) therefore sees
+  a `DuplicateKeyException` through `IUnitOfWork`.
+- **Translate foreign-key races (architect ruling, T-0012 deviation 8).** Every 23503 (`foreign_key_violation`) that
+  CP1 can produce is a lost race against a concurrent delete or insert. Examples: a credential is deleted while a
+  grant that uses it is created; a cluster is deleted while a credential or grant is added to it. The client needs to
+  do the same thing as for a stale version: reload and retry. In the same wrapper, translate
+  `DbUpdateException { InnerException: PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation } }` into
+  `ConcurrencyConflictException`. Its message names the constraint and contains no values. It becomes the existing
+  409 `Concurrency.Conflict`, so there is no new public error code. **Do not** translate 23001
+  (`restrict_violation`, `fk_grants_users_user_id`): users are never deleted, so a 23001 is a bug and stays a 500.
+  Update `ConstraintAndConcurrencyTests.DeletingCredentialStillUsedByAGrant_Fails` to expect
+  `ConcurrencyConflictException`. Add a test where a grant is inserted after its credential was deleted, which also
+  expects `ConcurrencyConflictException`. Update the XML docs of `ConcurrencyConflictException` and
+  `ConsoleDbContext`, and the BACKEND.md Pipeline sentence on `UnitOfWorkBehavior`. The orchestrator amends contract
+  §2's `Concurrency.Conflict` row to "stale `version`, or a commit-time race with a concurrent change or delete".
+- **Synchronous `SaveChanges`.** The override must keep allowing saves where only `DataProtectionKey` rows are
+  pending: Data Protection's EF key repository saves synchronously in its own scope, and every key creation fails
+  otherwise. It must keep refusing every other pending change.
+- A failed commit leaves the staged entities (including audit entries) tracked in the request's context. That is fine
+  because the scope ends with the request. Don't retry a save on the same context.
+
 ## Acceptance criteria
 - [ ] AUD-1 / QA R5 integration tests (real Postgres, real `ConsoleDbContext` + repositories + dispatcher):
       (a) saving a `User` created via `PreCreate` writes the user and exactly one `user.created` entry in one
@@ -78,6 +109,8 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
 - [ ] Unit tests per audit handler: action, category, target, cluster, actor rule, `details` JSON shape (contract §10),
       and that no `details` or summary contains token material (fingerprints only).
 - [ ] Coverage test green.
+- [ ] `AuditRecord.RelatedUsername` is set for every `user.*` and `grant.*` entry and is null otherwise (handler tests).
+- [ ] SQLSTATE 23503 at commit becomes `ConcurrencyConflictException`, so the behavior returns 409 `Concurrency.Conflict` (integration tests: deleting a credential that is in use; inserting a grant whose credential was deleted). 23001 is not translated.
 - [ ] Docs: BACKEND.md Persistence/Pipeline text matches the code (architect pre-updated it; fix drift).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4).
 

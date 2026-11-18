@@ -118,6 +118,9 @@ Application/
 
 - Commands go through repositories (`IClusterRepository`) + aggregates.
 - Queries read through `IReadModel` (no-tracking `IQueryable`s exposed by Infrastructure) and project straight to DTOs. Queries never load aggregates just to map them.
+  Application can't reference EF Core, so the async terminal operators are members of the port: compose with
+  `System.Linq`, then `await readModel.ToListAsync(query, ct)` (also `FirstOrDefaultAsync`, `CountAsync`, `AnyAsync`).
+  Never enumerate a queryable synchronously.
 - Handlers are `internal sealed`; commands/queries/DTOs are `public sealed record`.
 - Never name a feature folder after a BCL root namespace (`System`, `Threading`, …): the namespace
   `FleetConsole.Application.System` would shadow `System` for all Application code. Example: `Application/SystemInfo/`.
@@ -223,6 +226,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 ## Persistence
 
 - `ConsoleDbContext` with `IEntityTypeConfiguration<T>` per aggregate; snake_case naming; strongly typed ID converters.
+  Multi-value value objects are complex properties (flattened columns), except where a column needs an index: EF Core
+  10 can't index complex-type columns, so `AuditEntry.Actor` is an owned type (same table, `actor_*` columns).
 - Migrations live in `Infrastructure/Persistence/Migrations` (treated as generated code by a nested `.editorconfig`);
   applied on startup in Development by `DevelopmentDatabaseMigrator`, via a migration job/init container in production.
   Add one with `dotnet tool restore` then `dotnet ef migrations add <Name> -p src/FleetConsole.Infrastructure
@@ -236,8 +241,9 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   events, dispatches them to `IDomainEventHandler<T>`s **before** the write (handlers may only stage entities such as
   audit entries — no `SaveChanges`, no network I/O, no new events; the context throws if a handler raises one), writes
   everything in one transaction, and clears the events after success. A failed write persists neither the change nor
-  its audit entries. Synchronous `SaveChanges` throws `NotSupportedException`. Post-commit side effects (cache
-  invalidation) will be a separate, later stage.
+  its audit entries. Synchronous `SaveChanges` throws `NotSupportedException` for application data; only Data
+  Protection key rows (its EF key repository saves synchronously) may be saved that way. Post-commit side effects
+  (cache invalidation) will be a separate, later stage.
 - **Data Protection** key ring lives in Postgres (`data_protection_keys`, `ConsoleDbContext : IDataProtectionKeyContext`);
   used for session cookies and SA token encryption (purpose `FleetConsole.Credentials.v1`, ADR-0004).
 - **Foreign keys (CP1):** credentials→clusters and grants→clusters cascade; grants→credentials is `NO ACTION` (checked

@@ -1,8 +1,12 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
+using FleetConsole.Application.Abstractions.Persistence;
+using FleetConsole.Application.Credentials;
+using FleetConsole.Infrastructure.Crypto;
 using FleetConsole.Infrastructure.Events;
 using FleetConsole.Infrastructure.Kubernetes;
 using FleetConsole.Infrastructure.Persistence;
+using FleetConsole.Infrastructure.Persistence.Repositories;
 using FleetConsole.Infrastructure.Time;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,8 +17,9 @@ namespace FleetConsole.Infrastructure;
 
 /// <summary>
 /// Registers the Infrastructure adapters for the Application ports: the EF Core <see cref="ConsoleDbContext"/> (also the
-/// <see cref="IUnitOfWork"/>), <see cref="IReadModel"/>, <see cref="IClock"/>, <see cref="IDomainEventDispatcher"/> and
-/// the Kubernetes <see cref="IClusterProbeClient"/>.
+/// <see cref="IUnitOfWork"/>), the repositories, <see cref="IReadModel"/>, <see cref="IClock"/>,
+/// <see cref="IDomainEventDispatcher"/>, Data Protection with <see cref="ITokenProtector"/>, the
+/// <see cref="CredentialsOptions"/> and the Kubernetes <see cref="IClusterProbeClient"/>.
 /// Called once by the Api composition root.
 /// </summary>
 public static class DependencyInjection
@@ -29,6 +34,8 @@ public static class DependencyInjection
     /// regular scoped context and call <c>EnrichNpgsqlDbContext</c>, which adds the same Aspire extras (retries, health
     /// check, logging, OpenTelemetry).</para>
     /// <para><b>Development:</b> pending migrations are applied on startup (<see cref="DevelopmentDatabaseMigrator"/>).</para>
+    /// <para><b>Data Protection</b> (ADR-0004): key ring in the database, shared by the session cookie and SA token
+    /// encryption; optionally encrypted with <c>DataProtection:KeyEncryptionCertificatePath</c>.</para>
     /// </remarks>
     /// <param name="builder">The host builder (configuration, environment and services).</param>
     /// <returns>The same builder, for chaining.</returns>
@@ -46,8 +53,20 @@ public static class DependencyInjection
         });
         builder.EnrichNpgsqlDbContext<ConsoleDbContext>();
 
+        // Hosted services start in registration order. The migrator must run before Data Protection's own hosted
+        // service loads the key ring, or a fresh development database has no data_protection_keys table yet.
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Services.AddHostedService<DevelopmentDatabaseMigrator>();
+        }
+
         builder.Services.AddScoped<IUnitOfWork>(services => services.GetRequiredService<ConsoleDbContext>());
         builder.Services.AddScoped<IReadModel, ReadModel>();
+        builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<IClusterRepository, ClusterRepository>();
+        builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
+        builder.Services.AddScoped<IGrantRepository, GrantRepository>();
+        builder.Services.AddScoped<IAuditEntryRepository, AuditEntryRepository>();
         builder.Services.AddScoped<IDomainEventDispatcher, NoOpDomainEventDispatcher>();
         builder.Services.AddSingleton<IClock, SystemClock>();
 
@@ -59,10 +78,15 @@ public static class DependencyInjection
             services.GetRequiredService<ILogger<ClusterProbeClient>>(),
             ClusterProbeClient.DefaultRequestTimeout));
 
-        if (builder.Environment.IsDevelopment())
-        {
-            builder.Services.AddHostedService<DevelopmentDatabaseMigrator>();
-        }
+        builder.AddConsoleDataProtection();
+        builder.Services.AddSingleton<ITokenProtector, DataProtectionTokenProtector>();
+
+        // Credentials settings (contract §12) for the credential and connection-test use cases.
+        builder.Services.AddOptions<CredentialsOptions>()
+            .BindConfiguration(CredentialsOptions.SectionName)
+            .Validate(o => o.ExpiryWarningDays >= 0, "Credentials:ExpiryWarningDays must not be negative.")
+            .Validate(o => o.ConnectionTestTimeout > TimeSpan.Zero, "Credentials:ConnectionTestTimeout must be positive.")
+            .ValidateOnStart();
 
         return builder;
     }

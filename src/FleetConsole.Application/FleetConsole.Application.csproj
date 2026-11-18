@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Use cases (CQRS commands/queries, handlers, pipeline behaviors) and the ports Infrastructure implements.
-       Allowed references (BACKEND.md, enforced by ArchitectureTests): Domain, FluentValidation, Microsoft.Extensions abstractions. -->
+       Allowed references (BACKEND.md, enforced by ArchitectureTests): Domain, FluentValidation, Microsoft.Extensions abstractions,
+       Microsoft.Extensions.Options. -->
   <PropertyGroup>
     <RootNamespace>FleetConsole.Application</RootNamespace>
   </PropertyGroup>
@@ -15,6 +16,7 @@
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
   </ItemGroup>
 
   <ItemGroup>
