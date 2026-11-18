@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.DotSettings.user
+appsettings.*.local.json
+# Node
+node_modules/
+web/dist/
+web/coverage/
+*.tsbuildinfo
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.kubeconfig
+kubeconfig
+# Claude local
+.claude/settings.local.json
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json

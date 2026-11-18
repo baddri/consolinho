@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet:*)",
+      "Bash(aspire:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(git switch:*)",
+      "Bash(git branch:*)",
+      "Bash(git merge:*)",
+      "Bash(git tag:*)",
+      "Bash(git stash:*)",
+      "Bash(podman ps:*)",
+      "Bash(podman images:*)",
+      "Bash(podman build:*)",
+      "Bash(podman logs:*)",
+      "Bash(oc version:*)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(oc delete:*)",
+      "Bash(oc apply:*)",
+      "Bash(oc patch:*)",
+      "Bash(oc scale:*)",
+      "Bash(kubectl delete:*)",
+      "Bash(kubectl apply:*)"
+    ]
+  }
+}
