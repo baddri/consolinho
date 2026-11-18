@@ -19,11 +19,11 @@
 | T-0009 | done | — | b90a5bc |
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
 | T-0011 | in_review | backend-architect | authz behaviors, CSRF middleware, cookie scheme; schema.gen.ts regenerated |
-| T-0008 | in_review | backend-architect | Domain clusters/credentials/grants; 320 domain tests |
+| T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | in_review | frontend-architect | shared admin table kit |
 | T-0023 | in_progress | frontend-engineer | MSW mock backend (F2) |
-| next | todo | | T-0012 after T-0008+T-0010; T-0012 after T-0008 approved; FE T-0024, T-0025 after T-0023 |
+| next | todo | | T-0012 after T-0008+T-0010; T-0012 after T-0011 committed (overlapping Application paths); FE T-0024, T-0025 after T-0023 |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
