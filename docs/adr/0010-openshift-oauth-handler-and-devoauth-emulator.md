@@ -46,13 +46,13 @@ ADR-0007 decides *what* (server-side auth code + PKCE against the host cluster's
   callback.
 
 ### DevOAuth emulator (`src/FleetConsole.DevOAuth`)
-- Small ASP.NET Core minimal API, **no** reference to any FleetConsole project and not referenced by the Api
+- Small ASP.NET Core minimal API, **no** reference to any FleetConsole project except ServiceDefaults, not referenced by the Api
   (architecture test). Emulates: `GET /.well-known/oauth-authorization-server`, `GET /oauth/authorize` (HTML user
   picker + Cancel), `POST /oauth/authorize` (selection → redirect with `code`), `POST /oauth/token`,
   `GET /apis/user.openshift.io/v1/users/~`. In-memory, single-use codes (60 s), opaque `sha256~`-style tokens.
   Validates `client_id`/`client_secret`, `redirect_uri` equality between authorize and token, PKCE (`S256`, `plain`).
   Users and clients come from its `appsettings.json` (`DevOAuth:Users`, `DevOAuth:Clients`). Exact contract:
-  `docs/specs/CP1-api-contract.md` §9.
+  `docs/specs/CP1-api-contract.md` §11.
 - Entry-point marker type `FleetConsole.DevOAuth.DevOAuthEntryPoint` so tests can use
   `WebApplicationFactory<DevOAuthEntryPoint>` alongside the Api's global `Program` without a name clash.
 - AppHost: resource `devoauth` (`AddProject<Projects.FleetConsole_DevOAuth>`), Api gets

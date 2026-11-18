@@ -1,5 +1,5 @@
 <Project Sdk="Aspire.AppHost.Sdk/13.6.5">
-  <!-- Aspire orchestration for local development: Postgres + Api + the Vite dev server (web/).
+  <!-- Aspire orchestration for local development: Postgres + DevOAuth emulator + Api + the Vite dev server (web/).
        Keep the SDK version in step with Aspire.Hosting.* versions in Directory.Packages.props. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -15,5 +15,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FleetConsole.Api\FleetConsole.Api.csproj" />
+    <ProjectReference Include="..\FleetConsole.DevOAuth\FleetConsole.DevOAuth.csproj" />
   </ItemGroup>
 </Project>

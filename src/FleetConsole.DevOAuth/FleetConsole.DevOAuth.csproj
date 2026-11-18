@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!--
+    Development/test-only emulator of the OpenShift OAuth server and the host API server's users/~ endpoint
+    (ADR-0007, ADR-0010). Started by the AppHost as resource "devoauth" and hosted in-process by the Api tests.
+    Never deployed: not publishable, and no src/ project except the AppHost may reference it (architecture test).
+    References ServiceDefaults only (telemetry + health in the Aspire dashboard), never another FleetConsole project.
+  -->
+  <PropertyGroup>
+    <RootNamespace>FleetConsole.DevOAuth</RootNamespace>
+    <IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FleetConsole.ServiceDefaults\FleetConsole.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

@@ -12,9 +12,9 @@ on ([ADR-0007](docs/adr/0007-openshift-oauth-login.md)); every Kubernetes API ca
 assigned to that user for that cluster. Tokens are stored encrypted and never returned to the browser. See
 [docs/architecture/OVERVIEW.md](docs/architecture/OVERVIEW.md) for the full picture.
 
-> **Status:** checkpoint 0 (foundations). The app runs end-to-end locally (Postgres, Api, SPA shell) but has no
-> features yet. Login and the dev OAuth emulator (`FleetConsole.DevOAuth`) are **coming in CP1**; until then the SPA
-> shows "Not signed in" and the cluster switcher holds placeholder clusters.
+> **Status:** checkpoint 1 (identity & administration) in progress. The dev OAuth emulator (`FleetConsole.DevOAuth`)
+> runs as part of `aspire run`; the Api starts using it for login with T-0015. Until then the SPA shows "Not signed
+> in" and the cluster switcher holds placeholder clusters.
 
 ## Prerequisites
 
@@ -50,7 +50,7 @@ does it for you before starting the dev server.
 From the repository root (the CLI finds `src/FleetConsole.AppHost` by itself):
 
 ```bash
-aspire run                          # Postgres (podman) + Api + Vite dev server; Ctrl+C stops everything
+aspire run                          # Postgres (podman) + DevOAuth + Api + Vite dev server; Ctrl+C stops everything
 ```
 
 The CLI prints the dashboard URL with a one-time login token, e.g.
@@ -62,6 +62,7 @@ The CLI prints the dashboard URL with a one-time login token, e.g.
 | Web (Vite dev server, use this in the browser) | port assigned per run; shown in the dashboard and by `aspire describe` |
 | Api | http://localhost:5180 (https://localhost:7180 with the default https profile) |
 | Api health (Development only) | http://localhost:5180/health and `/alive` |
+| DevOAuth emulator (stands in for the host cluster's OAuth server) | http://localhost:5190 (same port with either AppHost profile) |
 | OpenAPI document (Development only) | http://localhost:5180/openapi/v1.json |
 | Postgres | random host port; connection string injected into the Api as `ConnectionStrings__consoledb` |
 
@@ -94,6 +95,35 @@ Quick check that it works:
 curl http://localhost:5180/health                      # Healthy
 curl http://localhost:<web-port>/api/system/info       # {"version":"1.0.0+<sha>","environment":"Development"} via the Vite proxy
 ```
+
+## Logging in locally (DevOAuth)
+
+In production FleetConsole logs users in with the OpenShift OAuth server of the cluster it runs on
+([ADR-0007](docs/adr/0007-openshift-oauth-login.md)). Locally, `aspire run` starts **`FleetConsole.DevOAuth`**, a small
+emulator of exactly the endpoints the Api uses (`/.well-known/oauth-authorization-server`, `/oauth/authorize`,
+`/oauth/token`, `/apis/user.openshift.io/v1/users/~`), and points the Api at it
+(`Auth__OpenShift__HostApiServerUrl=http://localhost:5190`). The Api runs the same login code as in production; only
+that URL and the client credentials differ ([ADR-0010](docs/adr/0010-openshift-oauth-handler-and-devoauth-emulator.md),
+contract in [docs/specs/CP1-api-contract.md §11](docs/specs/CP1-api-contract.md)).
+
+To log in (once the Api's login is wired, T-0015): open the **web** URL, click **Log in**, and the browser lands on the
+emulator's page *"FleetConsole DevOAuth — pick a user"*. Click a user to sign in as them, or **Cancel** to test the
+cancelled-login path. There is no password.
+
+| User | Full name | OpenShift groups | Typical use |
+|---|---|---|---|
+| `admin` | Fleet Admin | `fleetconsole-admins` | FleetConsole admin (the Api's dev config maps that group to the admin role) |
+| `alice` | Alice Example | `sre` | regular user |
+| `bob` | (none) | (none) | user with no full name and no groups |
+| `ines` | Ines Auditor | `auditors` | an admin can make her a read-only admin (auditor demo) |
+
+Like a real cluster, `users/~` also reports the virtual groups `system:authenticated` and `system:authenticated:oauth`
+for every user. Users and the OAuth client (`fleetconsole-dev` / `dev-only-not-a-secret`, an obviously fake value)
+live in `src/FleetConsole.DevOAuth/appsettings.json`; edit that file to add users. Codes and tokens are kept in memory,
+so restarting the emulator just means logging in again.
+
+**The emulator is never deployed.** It refuses to start outside the Development environment, is not publishable, and
+an architecture test fails if any project other than the AppHost references it.
 
 ## Tests and checks
 
@@ -137,12 +167,13 @@ No database is needed to add a migration (a design-time factory is used).
 
 ```
 FleetConsole.slnx                    solution; Directory.Build.props / Directory.Packages.props (central versions)
-src/FleetConsole.AppHost/            Aspire orchestration: Postgres, Api, Vite dev server
+src/FleetConsole.AppHost/            Aspire orchestration: Postgres, DevOAuth, Api, Vite dev server
 src/FleetConsole.ServiceDefaults/    OpenTelemetry, health checks, resilience defaults
 src/FleetConsole.Domain/             aggregates, value objects, domain events (no framework dependencies)
 src/FleetConsole.Application/        CQRS commands/queries/handlers, pipeline behaviors, ports
 src/FleetConsole.Infrastructure/     EF Core (Postgres), persistence, external clients
 src/FleetConsole.Api/                minimal API endpoints, ProblemDetails, OpenAPI, hosting
+src/FleetConsole.DevOAuth/           dev/test-only OpenShift OAuth emulator (never deployed)
 tests/                               xUnit v3 tests: Domain, Application, Api (WebApplicationFactory + Testcontainers)
 web/                                 Vite + React + TypeScript + PatternFly 6 SPA
 docs/                                architecture, ADRs, roadmap, specs, tasks, process, dev guides

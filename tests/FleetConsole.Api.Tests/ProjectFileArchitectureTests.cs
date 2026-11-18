@@ -5,7 +5,8 @@ namespace FleetConsole.Api.Tests;
 
 /// <summary>
 /// Complements <see cref="ArchitectureTests"/> by checking the layer rules from docs/architecture/BACKEND.md at the
-/// project-file level.
+/// project-file level, including the DevOAuth isolation rule (only the AppHost may reference the emulator; the emulator
+/// references nothing but ServiceDefaults).
 /// </summary>
 /// <remarks>
 /// <see cref="ArchitectureTests"/> reads compiled assembly references, which the compiler drops when no type is used.
@@ -15,6 +16,8 @@ namespace FleetConsole.Api.Tests;
 /// </remarks>
 public sealed partial class ProjectFileArchitectureTests
 {
+    private const string DevOAuthProjectName = "FleetConsole.DevOAuth";
+
     private static readonly string SourceRoot = Path.Combine(FindRepositoryRoot(), "src");
 
     [Fact]
@@ -59,11 +62,42 @@ public sealed partial class ProjectFileArchitectureTests
             .ShouldNotContain("FleetConsole.Api");
     }
 
+    /// <summary>
+    /// AUTH-15 / SECURITY.md: the DevOAuth emulator is never deployed, so the Api (the only deployed project) must not
+    /// reference it, directly or through another layer.
+    /// </summary>
+    [Fact]
+    public void Api_DoesNotDeclareDevOAuthProjectReference()
+    {
+        ProjectReferenceNames(LoadProject("FleetConsole.Api")).ShouldNotContain(DevOAuthProjectName);
+    }
+
+    [Fact]
+    public void OnlyTheAppHost_DeclaresDevOAuthProjectReference()
+    {
+        var referencing = Directory.EnumerateFiles(SourceRoot, "*.csproj", SearchOption.AllDirectories)
+            .Where(path => ProjectReferenceNames(XDocument.Load(path)).Contains(DevOAuthProjectName))
+            .Select(Path.GetFileNameWithoutExtension);
+
+        referencing.ShouldBe(["FleetConsole.AppHost"]);
+    }
+
+    [Fact]
+    public void DevOAuth_DeclaresOnlyServiceDefaultsProjectReference()
+    {
+        ProjectReferenceNames(LoadProject(DevOAuthProjectName)).ShouldBe(["FleetConsole.ServiceDefaults"]);
+    }
+
     [GeneratedRegex(@"^Microsoft\.Extensions\.[A-Za-z.]+\.Abstractions$", RegexOptions.CultureInvariant)]
     private static partial Regex ExtensionsAbstractionsPattern();
 
     private static XDocument LoadProject(string name) =>
         XDocument.Load(Path.Combine(SourceRoot, name, $"{name}.csproj"));
+
+    private static string[] ProjectReferenceNames(XDocument project) =>
+        References(project, "ProjectReference")
+            .Select(include => Path.GetFileNameWithoutExtension(include.Replace('\\', '/')))
+            .ToArray();
 
     private static string[] References(XDocument project, string itemType) =>
         project.Descendants(itemType)

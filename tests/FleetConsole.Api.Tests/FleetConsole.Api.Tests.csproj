@@ -11,5 +11,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\FleetConsole.Api\FleetConsole.Api.csproj" />
+    <!-- Hosted in-process (WebApplicationFactory<DevOAuthEntryPoint>) for its contract tests and, from T-0015, as the
+         OAuth server behind the Api's login tests. -->
+    <ProjectReference Include="..\..\src\FleetConsole.DevOAuth\FleetConsole.DevOAuth.csproj" />
   </ItemGroup>
 </Project>
