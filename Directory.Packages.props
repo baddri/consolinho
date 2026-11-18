@@ -10,7 +10,24 @@
 
   <!-- Aspire hosting (AppHost only). 13.6.5+ required (GHSA-f7vh-h5g3-7jrh). Keep in step with the Aspire.AppHost.Sdk version in the AppHost csproj. -->
   <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
     <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
+  </ItemGroup>
+
+  <!--
+    Infrastructure persistence: EF Core on PostgreSQL through the Aspire Npgsql integration (connection string, retries,
+    health check, telemetry), plus snake_case naming (EFCore.NamingConventions, Apache-2.0). EF Core Design is only
+    referenced by the Api (the migrations startup project) with PrivateAssets=all.
+  -->
+  <ItemGroup>
+    <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.5" />
+    <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
+  </ItemGroup>
+
+  <!-- Api: built-in OpenAPI document generation (/openapi/v1.json), the source of the frontend's generated types. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
   </ItemGroup>
 
   <!--
@@ -48,6 +65,9 @@
     <PackageVersion Include="xunit.v3.mtp-off" Version="4.0.3" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="NSubstitute" Version="6.2.0" />
+    <!-- Api integration tests: in-process host + a real PostgreSQL container (podman via DOCKER_HOST). MIT. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
     <!-- Real DI container for dispatcher/behavior tests (the Api tests get it from the ASP.NET Core shared framework). -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
   </ItemGroup>

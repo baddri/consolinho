@@ -1,0 +1,4 @@
+# EF Core migrations are tool-generated (dotnet ef migrations add) and never hand-edited for style, so analyzers and
+# code-style rules treat them as generated code. Applies to every future migration in this folder.
+[*.cs]
+generated_code = true

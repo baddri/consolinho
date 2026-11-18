@@ -5,6 +5,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Api.Tests exercises internal persistence plumbing (domain event collection, model conventions) directly. -->
+    <InternalsVisibleTo Include="FleetConsole.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="EFCore.NamingConventions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\FleetConsole.Application\FleetConsole.Application.csproj" />
     <ProjectReference Include="..\FleetConsole.Domain\FleetConsole.Domain.csproj" />
   </ItemGroup>

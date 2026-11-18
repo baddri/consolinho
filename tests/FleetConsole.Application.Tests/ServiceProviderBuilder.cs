@@ -18,6 +18,10 @@ internal static class ServiceProviderBuilder
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<CallLog>();
 
+        // Ports the Application's own handlers depend on (normally provided by Infrastructure/Api); needed because
+        // ValidateOnBuild checks every registered handler.
+        services.AddSingleton<IAppEnvironment>(new FakeAppEnvironment());
+
         if (withApplicationPipeline)
         {
             services.AddApplication();

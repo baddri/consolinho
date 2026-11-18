@@ -10,6 +10,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Design-time only: the Api is the startup project for `dotnet ef migrations add` (see CLAUDE.md Commands). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\FleetConsole.Application\FleetConsole.Application.csproj" />
     <ProjectReference Include="..\FleetConsole.Domain\FleetConsole.Domain.csproj" />
     <ProjectReference Include="..\FleetConsole.Infrastructure\FleetConsole.Infrastructure.csproj" />
