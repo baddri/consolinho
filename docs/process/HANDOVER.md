@@ -20,8 +20,9 @@
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
 | T-0011 | in_progress | backend-engineer | authz behaviors, CSRF middleware, cookie scheme (W2) |
 | T-0008 | in_progress | backend-engineer | Domain clusters/credentials/grants (W2) |
-| T-0022 | in_progress | frontend-engineer | FE API foundations (F1) |
-| next | todo | | T-0012 after T-0008+T-0010; FE T-0026 then F2 (T-0023/24/25) after T-0022 |
+| T-0022 | done | — | 2baea45 |
+| T-0026 | in_progress | frontend-engineer | shared admin table kit (F1) |
+| next | todo | | T-0012 after T-0008+T-0010; FE F2 next: T-0023, T-0024, T-0025 (one FE engineer at a time) |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
