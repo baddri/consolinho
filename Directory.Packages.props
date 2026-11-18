@@ -1,0 +1,74 @@
+<Project>
+  <!--
+    Central package management: every NuGet version used by the solution is declared here, exactly once.
+    Project files reference packages without a Version attribute. Permissive licenses only (MIT / Apache-2.0 / BSD).
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- Aspire hosting (AppHost only). 13.6.5+ required (GHSA-f7vh-h5g3-7jrh). Keep in step with the Aspire.AppHost.Sdk version in the AppHost csproj. -->
+  <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
+  </ItemGroup>
+
+  <!--
+    Infrastructure persistence: EF Core on PostgreSQL through the Aspire Npgsql integration (connection string, retries,
+    health check, telemetry), plus snake_case naming (EFCore.NamingConventions, Apache-2.0). EF Core Design is only
+    referenced by the Api (the migrations startup project) with PrivateAssets=all.
+  -->
+  <ItemGroup>
+    <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.5" />
+    <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
+  </ItemGroup>
+
+  <!-- Api: built-in OpenAPI document generation (/openapi/v1.json), the source of the frontend's generated types. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
+  </ItemGroup>
+
+  <!--
+    Application layer: validation (FluentValidation, Apache-2.0) and the Microsoft.Extensions abstractions it may use
+    (BACKEND.md allow-list, enforced by ArchitectureTests). Abstractions are pinned to the lowest 10.0 release, as
+    libraries should; hosts run on the newer shared framework, which wins at runtime.
+  -->
+  <ItemGroup>
+    <PackageVersion Include="FluentValidation" Version="12.2.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <!-- ServiceDefaults: OpenTelemetry, service discovery, HTTP resilience. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.10.0" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="10.10.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
+  </ItemGroup>
+
+  <!--
+    Tests: xUnit v3 run through VSTest (Microsoft.NET.Test.Sdk + xunit.runner.visualstudio) so the documented command
+    `dotnet test FleetConsole.slnx` works. The default xunit.v3 4.x package enables Microsoft.Testing.Platform v2, which
+    the .NET 10 SDK only runs in MTP mode, and MTP mode rejects a positional solution argument (requires a solution flag).
+    xunit.v3.mtp-off is the same framework without the MTP runner. Revisit (ADR) if we switch the whole repo to MTP.
+  -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+    <PackageVersion Include="xunit.v3.mtp-off" Version="4.0.3" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
+    <!-- Api integration tests: in-process host + a real PostgreSQL container (podman via DOCKER_HOST). MIT. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.17.0" />
+    <!-- Real DI container for dispatcher/behavior tests (the Api tests get it from the ASP.NET Core shared framework). -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+  </ItemGroup>
+</Project>

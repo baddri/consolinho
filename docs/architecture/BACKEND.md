@@ -44,8 +44,9 @@ Domain/
 ### Building blocks (`Application/Abstractions/Messaging`)
 
 ```csharp
-public interface ICommand : IRequest<Result>;                 // state change, no payload
-public interface ICommand<TResponse> : IRequest<Result<TResponse>>;
+public interface IBaseCommand;                                // marker for command-only behaviors (constraint target)
+public interface ICommand : IRequest<Result>, IBaseCommand;   // state change, no payload
+public interface ICommand<TResponse> : IRequest<Result<TResponse>>, IBaseCommand;
 public interface IQuery<TResponse> : IRequest<Result<TResponse>>;
 
 public interface IRequestHandler<in TRequest, TResponse> where TRequest : IRequest<TResponse>
@@ -53,6 +54,8 @@ public interface IRequestHandler<in TRequest, TResponse> where TRequest : IReque
 
 public interface IPipelineBehavior<in TRequest, TResponse> where TRequest : IRequest<TResponse>
 { Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct); }
+
+public delegate Task<TResponse> RequestHandlerDelegate<TResponse>(CancellationToken ct);
 
 public interface IDispatcher { Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct); }
 ```
@@ -67,7 +70,14 @@ in registration order. Handlers and validators are registered by assembly scanni
 3. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
 4. `ReadOnlyGuardBehavior` — commands marked `IMutatingCommand` fail for globally read-only users (except self-service like change-own-password).
 5. *(future)* `CachingBehavior` — queries implementing `ICacheableQuery`.
-6. `UnitOfWorkBehavior` — commands only: `SaveChangesAsync` + dispatch domain events after the handler succeeds.
+6. `UnitOfWorkBehavior` — commands only (constrained on `IBaseCommand`, so the container never builds it for
+   queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`
+   implementation (`ConsoleDbContext`) owns domain events: after a successful save it collects them from tracked
+   `IHasDomainEvents` aggregates, clears them, and hands them to the `IDomainEventDispatcher` port. Collection needs
+   the change tracker, so it lives in Infrastructure, not in the behavior.
+
+Behaviors that apply to a subset of requests use **generic constraints** (e.g. `where TRequest : IBaseCommand`); MS DI
+skips open-generic registrations whose constraints the request does not satisfy.
 
 ### Use case folder convention
 
@@ -87,11 +97,40 @@ Application/
 - Commands go through repositories (`IClusterRepository`) + aggregates.
 - Queries read through `IReadModel` (no-tracking `IQueryable`s exposed by Infrastructure) and project straight to DTOs. Queries never load aggregates just to map them.
 - Handlers are `internal sealed`; commands/queries/DTOs are `public sealed record`.
+- Never name a feature folder after a BCL root namespace (`System`, `Threading`, …): the namespace
+  `FleetConsole.Application.System` would shadow `System` for all Application code. Example: `Application/SystemInfo/`.
+- DTO type names end in `Dto`; the OpenAPI schema drops the suffix (`SystemInfoDto` → `SystemInfo`). Never have both
+  `Foo` and `FooDto` in the API contract.
 
 ### Results and errors
 
 `Result` / `Result<T>` with `Error(Code, Message, ErrorType)` where `ErrorType ∈ {Validation, NotFound, Conflict, Forbidden, Unauthorized, Failure}`.
-The Api maps them centrally (`ResultExtensions.ToHttpResult()`) to ProblemDetails with `type`, `title`, `detail`, `errors`.
+The Api maps them centrally (`ResultExtensions.ToHttpResult()`) to ProblemDetails with `type`, `title`, `detail`,
+`code` (the stable `Error.Code`), `traceId`, and for `ValidationError` an `errors` dictionary whose keys are the
+validator's property paths converted to the JSON naming policy (camelCase per segment: `Endpoints[0].Url` →
+`endpoints[0].url`), so the UI can attach messages to form fields.
+
+## HTTP API and OpenAPI (T-0004)
+
+- `Api/Endpoints/ApiEndpoints.MapApiEndpoints()` creates the `/api` group and calls one `Map<Feature>Endpoints()`
+  extension per feature (`Api/Endpoints/<Feature>Endpoints.cs`). Shared filters (auth, CSRF header) go on that group, once.
+- Endpoints dispatch a command/query and return the typed union from `ToHttpResult()`
+  (`Results<Ok<T>, ProblemHttpResult>` …), plus `.WithName("<OperationId>")`. Success schemas come from those types.
+- Error responses (400 `HttpValidationProblemDetails`, 401/403/404/409/500 `ProblemDetails`) are declared **once** on
+  the `/api` group, not per endpoint. Some operations therefore list statuses they never return; that is accepted.
+- `UseStatusCodePages()` gives bodiless 4xx/5xx responses (unknown route 404, 405, auth challenges) a ProblemDetails body.
+  The Kubernetes proxy route must disable it per request (`IStatusCodePagesFeature.Enabled = false`) so upstream
+  responses pass through untouched.
+- JSON uses ASP.NET web defaults **with strict number handling** (`JsonNumberHandling.Strict`): numbers are never
+  read from or documented as strings, so generated TS types stay `number`. A quoted number in a request body is a
+  400 (ProblemDetails via status-code pages). Configured in `Api/Http/JsonSetup.AddApiJson()`.
+- `/openapi/v1.json` is mapped **in Development only** (FE type generation and integration tests run in Development;
+  production has no consumer and gains nothing from exposing the API surface). The document has no `servers` entry: paths
+  already contain `/api` and the SPA's base URL is the page origin.
+- XML doc comments on endpoint handler methods and DTOs are **published** in the OpenAPI document (and in
+  `web/src/shared/api/schema.gen.ts`); they override `.WithSummary()`. Write them for API consumers, avoid `&lt;`/`&gt;`,
+  and keep implementation notes in `//` comments.
+- After changing the contract, run `cd web && npm run gen:api` against a running Api and commit `schema.gen.ts`.
 
 ## The proxy
 
@@ -132,7 +171,22 @@ add a handler unit test and an endpoint integration test.
 ## Persistence
 
 - `ConsoleDbContext` with `IEntityTypeConfiguration<T>` per aggregate; snake_case naming; strongly typed ID converters.
-- Migrations live in Infrastructure; applied on startup in Development, via a migration job/init container in production.
+- Migrations live in `Infrastructure/Persistence/Migrations` (treated as generated code by a nested `.editorconfig`);
+  applied on startup in Development by `DevelopmentDatabaseMigrator`, via a migration job/init container in production.
+  Add one with `dotnet tool restore` then `dotnet ef migrations add <Name> -p src/FleetConsole.Infrastructure
+  -s src/FleetConsole.Api -o Persistence/Migrations` (uses the design-time factory; no database needed). The history
+  table is `__ef_migrations_history`.
+- **Registration:** a regular scoped `AddDbContext` + Aspire `EnrichNpgsqlDbContext` (retries, health check, telemetry),
+  **not** the pooled `AddNpgsqlDbContext`: the context takes the scoped `IDomainEventDispatcher`. Because Enrich turns
+  on retrying execution, code that opens an explicit transaction must run inside
+  `Database.CreateExecutionStrategy().ExecuteAsync(...)`.
+- **Domain events:** `ConsoleDbContext.SaveChangesAsync` snapshots the tracked aggregates with pending events
+  *before* saving (deleted aggregates are detached afterwards), and only after a successful save clears them and calls
+  `IDomainEventDispatcher`. Dispatch is post-commit and in-process: a crash between commit and dispatch loses the
+  events. The first event-driven feature (audit) must decide whether that is acceptable or needs an outbox (ADR).
+  Synchronous `SaveChanges` throws `NotSupportedException`.
+- `IgnoreDomainEventsConvention` explicitly unmaps `IHasDomainEvents.DomainEvents` on every aggregate (EF 10 skips it
+  today anyway; the convention makes that independent of discovery rules).
 - Optimistic concurrency via Postgres `xmin`.
 
 ## Testing

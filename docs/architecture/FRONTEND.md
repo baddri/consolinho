@@ -19,6 +19,7 @@ web/src/
     layout/               # AppShell: Masthead (logo, ClusterSwitcher, user menu), Sidebar nav, page container
   shared/                 # no feature knowledge
     api/                  # openapi-fetch client for /api (generated schema in api/schema.gen.ts), error → ProblemDetails
+                          #   baseUrl = page origin: OpenAPI paths already include the /api prefix (Api maps MapGroup("/api"))
     k8s/                  # Kubernetes data layer over the proxy
       models.ts           # K8sModel descriptors: group, version, kind, plural, namespaced, label, abbr
       client.ts           # k8sList/k8sGet/k8sCreate/k8sPatch/k8sDelete — URL building in ONE place
@@ -45,12 +46,13 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 ## Routing — the URL is the context
 
 ```
-/login
+/login                                         # "Log in with OpenShift" → full-page redirect to /api/auth/login?returnUrl=…
 /c/:cluster/overview
+/c/:cluster/search
 /c/:cluster/ns/:namespace/:resource            # list (namespace "all" = all namespaces)
 /c/:cluster/ns/:namespace/:resource/:name      # details (tabs: details | yaml | events | logs | terminal ...)
 /c/:cluster/cluster/:resource[/:name]          # cluster-scoped kinds (nodes, PVs, namespaces...)
-/admin/users | /admin/clusters | /admin/credentials | /admin/audit
+/admin/users | /admin/clusters | /admin/credentials | /admin/audit   # /admin/:section; unknown section → 404
 ```
 
 - `useActiveCluster()` reads `:cluster` from the URL — no global store to drift out of sync. Links are shareable.
@@ -88,7 +90,9 @@ loading/error/empty states, filtering, sorting, pagination and watch updates.
 - Every page handles loading (Skeleton), error (ErrorState with retry), empty (EmptyState) explicitly.
 - Destructive actions use a confirm modal that names the resource and cluster.
 - Respect `useCanI` to hide/disable actions the user can't perform; still handle 403 gracefully.
-- Dark theme support via PatternFly's theme class; toggle in user menu.
+- Dark theme support via PatternFly's theme class (`pf-v6-theme-dark` on `<html>`); light/dark toggle in the masthead.
+  `shared/theme/ThemeProvider` is the only code allowed to touch the document (PF dark tokens live on `:root` and
+  menus are portalled); the choice is remembered in `localStorage`, defaulting to the OS preference.
 
 ## Testing
 

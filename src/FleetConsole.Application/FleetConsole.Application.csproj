@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Use cases (CQRS commands/queries, handlers, pipeline behaviors) and the ports Infrastructure implements.
+       Allowed references (BACKEND.md, enforced by ArchitectureTests): Domain, FluentValidation, Microsoft.Extensions abstractions. -->
+  <PropertyGroup>
+    <RootNamespace>FleetConsole.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Unit tests exercise internal pieces (the Dispatcher, assembly scanning) directly. -->
+    <InternalsVisibleTo Include="FleetConsole.Application.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FleetConsole.Domain\FleetConsole.Domain.csproj" />
+  </ItemGroup>
+</Project>

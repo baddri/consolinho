@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain model: aggregates, value objects, domain events. Must stay free of project and package references. -->
+  <PropertyGroup>
+    <RootNamespace>FleetConsole.Domain</RootNamespace>
+  </PropertyGroup>
+</Project>

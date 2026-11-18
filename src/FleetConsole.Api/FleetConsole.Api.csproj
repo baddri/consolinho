@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- Composition root: minimal API endpoints, auth, Kubernetes proxy, SPA hosting. May reference every layer. -->
+  <PropertyGroup>
+    <RootNamespace>FleetConsole.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Tests exercise internal HTTP plumbing (GlobalExceptionHandler) directly. -->
+    <InternalsVisibleTo Include="FleetConsole.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Design-time only: the Api is the startup project for `dotnet ef migrations add` (see CLAUDE.md Commands). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FleetConsole.Application\FleetConsole.Application.csproj" />
+    <ProjectReference Include="..\FleetConsole.Domain\FleetConsole.Domain.csproj" />
+    <ProjectReference Include="..\FleetConsole.Infrastructure\FleetConsole.Infrastructure.csproj" />
+    <ProjectReference Include="..\FleetConsole.ServiceDefaults\FleetConsole.ServiceDefaults.csproj" />
+  </ItemGroup>
+</Project>

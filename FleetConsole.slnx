@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/FleetConsole.Domain/FleetConsole.Domain.csproj" />
+    <Project Path="src/FleetConsole.Application/FleetConsole.Application.csproj" />
+    <Project Path="src/FleetConsole.Infrastructure/FleetConsole.Infrastructure.csproj" />
+    <Project Path="src/FleetConsole.Api/FleetConsole.Api.csproj" />
+    <Project Path="src/FleetConsole.ServiceDefaults/FleetConsole.ServiceDefaults.csproj" />
+    <Project Path="src/FleetConsole.AppHost/FleetConsole.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FleetConsole.Domain.Tests/FleetConsole.Domain.Tests.csproj" />
+    <Project Path="tests/FleetConsole.Application.Tests/FleetConsole.Application.Tests.csproj" />
+    <Project Path="tests/FleetConsole.Api.Tests/FleetConsole.Api.Tests.csproj" />
+  </Folder>
+</Solution>
