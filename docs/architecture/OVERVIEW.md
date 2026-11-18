@@ -57,4 +57,4 @@ rebuilt when the cluster's connection settings change.
 
 ## Decisions
 
-See `docs/adr/`. Start with ADR-0001 (stack) through ADR-0006.
+See `docs/adr/README.md` for the index (ADR-0001 stack … ADR-0013 API conventions).
