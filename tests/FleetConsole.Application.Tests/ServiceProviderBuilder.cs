@@ -28,7 +28,7 @@ internal static class ServiceProviderBuilder
         }
         else
         {
-            services.AddScoped<Abstractions.Messaging.IDispatcher, Abstractions.Messaging.Dispatcher>();
+            services.AddScoped<Application.Abstractions.Messaging.IDispatcher, Application.Abstractions.Messaging.Dispatcher>();
         }
 
         services.AddRequestHandlers(typeof(ServiceProviderBuilder).Assembly);

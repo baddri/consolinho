@@ -1,16 +1,20 @@
 using FleetConsole.Application.Abstractions;
+using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Infrastructure.Events;
+using FleetConsole.Infrastructure.Kubernetes;
 using FleetConsole.Infrastructure.Persistence;
 using FleetConsole.Infrastructure.Time;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FleetConsole.Infrastructure;
 
 /// <summary>
 /// Registers the Infrastructure adapters for the Application ports: the EF Core <see cref="ConsoleDbContext"/> (also the
-/// <see cref="IUnitOfWork"/>), <see cref="IReadModel"/>, <see cref="IClock"/> and <see cref="IDomainEventDispatcher"/>.
+/// <see cref="IUnitOfWork"/>), <see cref="IReadModel"/>, <see cref="IClock"/>, <see cref="IDomainEventDispatcher"/> and
+/// the Kubernetes <see cref="IClusterProbeClient"/>.
 /// Called once by the Api composition root.
 /// </summary>
 public static class DependencyInjection
@@ -46,6 +50,14 @@ public static class DependencyInjection
         builder.Services.AddScoped<IReadModel, ReadModel>();
         builder.Services.AddScoped<IDomainEventDispatcher, NoOpDomainEventDispatcher>();
         builder.Services.AddSingleton<IClock, SystemClock>();
+
+        // Kubernetes: the TLS handler factory is stateless and shared (CP2's client pool will use it too); the probe
+        // client opens a short-lived session per connection test (ADR-0011).
+        builder.Services.AddSingleton<ClusterTlsHandlerFactory>();
+        builder.Services.AddSingleton<IClusterProbeClient>(services => new ClusterProbeClient(
+            services.GetRequiredService<ClusterTlsHandlerFactory>(),
+            services.GetRequiredService<ILogger<ClusterProbeClient>>(),
+            ClusterProbeClient.DefaultRequestTimeout));
 
         if (builder.Environment.IsDevelopment())
         {
