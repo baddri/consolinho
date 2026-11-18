@@ -18,12 +18,13 @@
 | T-0007 | done | — | 23817e0 (2 rounds; ADR-0017 promote ruling) |
 | T-0009 | done | — | b90a5bc |
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
-| T-0011 | in_review | backend-architect | authz behaviors, CSRF middleware, cookie scheme; schema.gen.ts regenerated |
+| T-0011 | done | — | 72a46f8 (2 rounds) |
+| T-0012 | in_progress | backend-engineer | persistence for CP1 aggregates, single migration, DP keys (W3, critical path) |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | in_review | frontend-architect | shared admin table kit |
 | T-0023 | in_progress | frontend-engineer | MSW mock backend (F2) |
-| next | todo | | T-0012 after T-0008+T-0010; T-0012 after T-0011 committed (overlapping Application paths); FE T-0024, T-0025 after T-0023 |
+| next | todo | | T-0012 after T-0008+T-0010; after T-0012: T-0013 + T-0014 (W4, worktree isolation if parallel); FE T-0024, T-0025 after T-0023 |
 
 ## Next actions (CP1)
 1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
