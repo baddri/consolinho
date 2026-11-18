@@ -19,8 +19,11 @@ public static class SystemEndpoints
 
         // The name becomes the OpenAPI operationId (stable across refactors of the handler method). The operation's
         // summary comes from GetSystemInfo's XML <summary> (.NET 10 copies XML docs into the OpenAPI document).
+        // Anonymous on purpose: the login page footer shows the build version (ADR-0012, R3). Every anonymous /api
+        // endpoint must be on ADR-0012's list; AnonymousSurfaceTests enforces it.
         group.MapGet("/info", GetSystemInfo)
-            .WithName("GetSystemInfo");
+            .WithName("GetSystemInfo")
+            .AllowAnonymous();
 
         return group;
     }

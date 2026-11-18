@@ -10,7 +10,7 @@ QA R3 asked whether `/api/system/info` stays anonymous.
 ## Decision
 - **Middleware, not endpoint filter.** `Api/Http/CsrfHeaderMiddleware`, registered right after
   `UseStatusCodePages()` and **before** `UseAuthentication()`. For request paths under `/api` (segment match:
-  `/api` or `/api/...`) whose method is not GET/HEAD/OPTIONS/TRACE, it requires header `X-Console-Request` with value
+  `/api` or `/api/...`) whose method is not GET/HEAD/OPTIONS, it requires header `X-Console-Request` with value
   `1`; otherwise it writes 403 ProblemDetails (`code` `Auth.CsrfHeaderMissing`, `detail` "Missing CSRF header") and
   stops. Why: an endpoint filter runs after routing and parameter binding, so a malformed body without the header gets
   400 instead of 403, and unmatched routes and the OAuth callback middleware are not covered. The middleware is also
@@ -29,3 +29,11 @@ QA R3 asked whether `/api/system/info` stays anonymous.
 ## Consequences
 - BACKEND.md "HTTP API" convention changes: the CSRF check is middleware; the `/api` group carries authorization.
 - `GET` endpoints must stay side-effect free (they are not CSRF-protected). `/api/auth/login` only starts a redirect.
+
+## Amendment (2026-11-19, T-0011 review)
+- **Exempt methods are GET/HEAD/OPTIONS only** (as in contract §1). TRACE was listed originally; it is removed so
+  the exemption list stays minimal and fails closed: the SPA never sends TRACE, browsers can't, and if a TRACE route
+  ever appeared it would be protected like every other unsafe method.
+- **Placement, precisely:** minimal hosting's implicit `UseRouting()` *matches* the endpoint before any user
+  middleware, so the check does not run "before routing". It runs before authentication and before the endpoint
+  executes (binding, filters, handler), which is what the guarantees above rely on.

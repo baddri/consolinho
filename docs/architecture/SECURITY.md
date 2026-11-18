@@ -16,8 +16,10 @@ it holds, so these rules are strict.
 - Session: FleetConsole cookie `FleetConsole.Session`, `HttpOnly`, `Secure` (except the plain-http dev profile),
   `SameSite=Lax` (needed for the OAuth callback), sliding expiration (8h default). Revalidated against the DB every
   `Auth:RevalidationInterval` (60 s): deactivated users and users whose **security stamp** changed (rotated on
-  deactivation) are signed out; role/read-only claims are refreshed (ADR-0009). For `/api` the cookie handler answers
-  401/403 ProblemDetails, never redirects.
+  deactivation) are signed out; role/read-only claims are refreshed (ADR-0009). The cookie handler answers challenges
+  and forbids with 401/403 ProblemDetails (`Auth.Unauthenticated`/`Auth.Forbidden`) and never redirects — app-wide,
+  not only under `/api`: the Api has no login page, and SPA routes, static files and health endpoints never challenge.
+  The OAuth login challenge uses the separate `OpenShift` scheme and is unaffected.
 - Admins come from two sources (ADR-0009): assigned in the admin UI, or configuration (`Auth:BootstrapAdminUsers`,
   `Auth:AdminGroups`) evaluated **at login only** — removal from the admin group takes effect at the next login; an
   urgent removal is a deactivation. Configuration admins are the recovery path if the last admin is lost.
@@ -29,11 +31,12 @@ it holds, so these rules are strict.
   image; the Api must not reference it — architecture test). Its client secret is an obviously fake dev value.
 
 ## CSRF
-- `SameSite=Lax` + every `/api` request with a method other than GET/HEAD/OPTIONS/TRACE must carry
+- `SameSite=Lax` + every `/api` request with a method other than GET/HEAD/OPTIONS must carry
   `X-Console-Request: 1` (forces a CORS preflight; no CORS is enabled, so cross-site requests can't send it).
-  Enforced by `CsrfHeaderMiddleware` **before** routing, body binding and authentication, for all such requests
-  including anonymous endpoints and unknown routes → 403 `Auth.CsrfHeaderMissing` (ADR-0012). GET endpoints must
-  therefore stay side-effect free.
+  Enforced by `CsrfHeaderMiddleware` **before** authentication and before any endpoint runs (body binding), for all such requests
+  including anonymous endpoints and unknown routes → 403 `Auth.CsrfHeaderMissing` (ADR-0012). The exemption list is
+  deliberately minimal (TRACE, CONNECT and any other method need the header). GET endpoints must therefore stay
+  side-effect free.
 - WebSocket upgrades (exec/logs) validate the `Origin` header against the configured public URL.
 
 ## Authorization

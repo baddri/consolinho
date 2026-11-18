@@ -63,6 +63,20 @@ discovery, `PublicOrigin`, test hosting), ADR-0012 (anonymous list).
   - `CapturedLogs` (in-memory `ILoggerProvider` registered by `ApiFactory`) and `TokenLeakScanner.AssertAbsent(secret,
     params string[] haystacks)` — used for AUTH-3 here and CRED-2 in T-0018..T-0021.
 
+**From T-0011 (architect review, 2026-11-19)** — what T-0011 left for this task:
+- Session settings class is `Api/Auth/ConsoleSessionOptions` (renamed from `SessionOptions` in T-0011's review; section
+  `Auth`, `SessionLifetime`, `RevalidationInterval`). Build principals only with `SessionPrincipalFactory.Create`.
+- `SessionValidator` must also `RejectPrincipal()` + sign out when `SessionPrincipalFactory.TryRead` fails (malformed or
+  old-format ticket). Otherwise the endpoint layer sees an authenticated cookie identity while `ICurrentUser` reports
+  anonymous, and the two layers disagree (the pipeline still fails closed with 401, but `/me` must not 200).
+- **Real-host 401:** T-0011 tested the API-friendly 401/403 only on a minimal TestServer host
+  (`Auth/AuthenticationSetupTests`). Add an `ApiFactory` integration test: anonymous `GET /api/auth/me` → 401,
+  `application/problem+json`, `code` `Auth.Unauthenticated`, `traceId` present, **no `Location` header**.
+- **Enum assertion:** `OpenApiDocumentTests` has a placeholder comment; replace it with an assertion that
+  `CurrentUser.role` is `type: string` with `enum: ["admin", "user"]` (camelCase, no integers).
+- Flip `Mapped` to `true` for `GET /api/auth/login` and `POST /api/auth/logout` in
+  `Integration/AnonymousSurfaceTests.cs` (`/api/auth/callback` stays unlisted: OAuth middleware, not an endpoint).
+
 ## Acceptance criteria
 - [ ] AUTH-1 full flow via emulator lands on the original return URL with a session cookie.
 - [ ] AUTH-2 ≥ 4 malicious return URLs (`https://evil.example`, `//evil.example`, `/\evil.example`, `javascript:alert(1)`,

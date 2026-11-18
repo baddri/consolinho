@@ -35,6 +35,10 @@ export interface components {
             errors?: {
                 [key: string]: string[];
             };
+            /** @description Stable machine-readable error code (`<Area>.<Reason>`, e.g. `Auth.ReadOnly`). Absent on framework errors such as malformed JSON. */
+            code?: string;
+            /** @description W3C trace context of the request (traceparent format), for correlating the error with server logs. */
+            traceId?: string;
         };
         ProblemDetails: {
             type?: null | string;
@@ -43,6 +47,10 @@ export interface components {
             status?: null | number;
             detail?: null | string;
             instance?: null | string;
+            /** @description Stable machine-readable error code (`<Area>.<Reason>`, e.g. `Auth.ReadOnly`). Absent on framework errors such as malformed JSON. */
+            code?: string;
+            /** @description W3C trace context of the request (traceparent format), for correlating the error with server logs. */
+            traceId?: string;
         };
         /** @description Build and environment information about this FleetConsole deployment. */
         SystemInfo: {

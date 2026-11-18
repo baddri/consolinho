@@ -19,14 +19,16 @@ public static class DependencyInjection
     /// <para><b>Pipeline order</b> (outermost first; behaviors run in registration order — BACKEND.md):</para>
     /// <list type="number">
     ///   <item><c>LoggingBehavior</c> — activity + outcome/timing log for every request.</item>
-    ///   <item><c>AuthorizationBehavior</c> — <c>IRequireAuthenticated</c>/<c>IRequireRole</c> (CP1, not yet registered).</item>
+    ///   <item><c>AuthorizationBehavior</c> — <c>IRequireAuthenticated</c>/<c>IRequireRole</c>/<c>IAdminRequest</c> → 401/403.</item>
     ///   <item><c>ValidationBehavior</c> — FluentValidation → validation <c>Result</c>.</item>
-    ///   <item><c>ReadOnlyGuardBehavior</c> — <c>IMutatingCommand</c> for read-only users (CP1, not yet registered).</item>
+    ///   <item><c>ReadOnlyGuardBehavior</c> — <c>IMutatingCommand</c> refused for globally read-only users (403).</item>
     ///   <item><c>CachingBehavior</c> — <c>ICacheableQuery</c> (future).</item>
     ///   <item><c>UnitOfWorkBehavior</c> — commands only; saves after a successful handler.</item>
     /// </list>
     /// <para>Everything is scoped so handlers and behaviors share the request's unit of work and current user.
-    /// Ports (<c>IUnitOfWork</c>, <c>IClock</c>, <c>ICurrentUser</c>) are registered by Infrastructure/Api.</para>
+    /// Ports (<c>IUnitOfWork</c>, <c>IClock</c>, <c>ICurrentUser</c>) are registered by Infrastructure/Api; the
+    /// authorization and read-only behaviors are only constructed for requests that declare those markers, so other
+    /// requests run without an <c>ICurrentUser</c>.</para>
     /// </remarks>
     /// <param name="services">The service collection.</param>
     /// <returns>The same collection, for chaining.</returns>
@@ -40,9 +42,9 @@ public static class DependencyInjection
 
         // Pipeline — order matters, see remarks. Keep the slots for future behaviors so insertion points stay obvious.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
-        // (CP1) services.AddScoped(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-        // (CP1) services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ReadOnlyGuardBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ReadOnlyGuardBehavior<,>));
         // (future) services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
 

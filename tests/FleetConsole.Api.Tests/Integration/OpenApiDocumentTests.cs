@@ -65,6 +65,23 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         status.TryGetProperty("pattern", out _).ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData("ProblemDetails")]
+    [InlineData("HttpValidationProblemDetails")]
+    public async Task ProblemSchemas_DeclareCodeAndTraceIdExtensions(string schema)
+    {
+        // Contract §1 (orchestrator amendment): the extensions must reach the frontend's generated types.
+        var document = await GetDocumentAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas")
+            .GetProperty(schema).GetProperty("properties");
+        properties.GetProperty("code").GetProperty("type").GetString().ShouldBe("string");
+        properties.GetProperty("traceId").GetProperty("type").GetString().ShouldBe("string");
+    }
+
+    // Enums: AddApiJson registers JsonStringEnumConverter (camelCase, no integers). No enum appears in a schema yet;
+    // T-0015 (CurrentUser.role) adds the assertion that the document renders string enums ("admin", "user").
+
     [Fact]
     public async Task Document_HasNoServers()
     {

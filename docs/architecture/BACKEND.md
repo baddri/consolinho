@@ -26,7 +26,7 @@ An architecture test (`tests/FleetConsole.Api.Tests/ArchitectureTests.cs`, NetAr
 
 ```
 Domain/
-  Common/      Entity<TId>, AggregateRoot<TId> (+ Version), IDomainEvent, Error, Result, Guard
+  Common/      Entity<TId>, AggregateRoot<TId> (+ Version), IDomainEvent, Error, Result, Guard, DnsLabel (internal)
   Users/       User (aggregate), UserId, Username, UserRole, UserStatus, UserErrors, events
   Clusters/    Cluster (aggregate), ClusterId, ClusterName, ApiServerEndpoint (url + CaBundle + skipTls), ClusterEnvironment
   Credentials/ Credential (aggregate), CredentialId, CredentialName, EncryptedToken (opaque bytes), TokenFingerprint,
@@ -46,6 +46,12 @@ Domain/
 - Cross-aggregate rules that need data from the database (last active admin, one grant per user+cluster) are enforced by
   aggregate methods that take the facts as arguments (`user.Deactivate(actingUserId, activeWritableAdminCount)`,
   `Grant.Create(..., clustersUserAlreadyHasGrantsOn, ...)`); handlers read the facts through repositories.
+- Display names an aggregate does not own but its events need (e.g. the cluster name on credential events) are passed
+  to the raising method as arguments (`credential.Rotate(..., clusterName, ...)`, `grant.Revoke(GrantLabels)`).
+- Value-object factories return `Result<T>`. A factory that validates **one** request field returns a plain
+  `Error.Validation(code, message)` (`ClusterName`, `CredentialName`, `Username`); validators put its message on that
+  field. A factory that validates **several** fields together (`ApiServerEndpoint`, which includes `CaBundle`) returns a
+  `ValidationError` keyed by the request's JSON field names, so validators/handlers can return it unchanged.
 
 ## Application: CQRS
 
@@ -80,6 +86,8 @@ in registration order. Handlers and validators are registered by assembly scanni
 3. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
 4. `ReadOnlyGuardBehavior` — commands marked `IMutatingCommand` fail with `Auth.ReadOnly` (403) for globally read-only
    users (ADM-2). Every admin command is `IAdminRequest` + `IMutatingCommand`; admin queries are only `IAdminRequest`.
+   `IMutatingCommand` extends `IRequireAuthenticated`, so a mutating command always needs a session: anonymous callers
+   get 401 from `AuthorizationBehavior` and never reach this guard, where `IsReadOnly` would be `false` for them.
 5. *(future)* `CachingBehavior` — queries implementing `ICacheableQuery`.
 6. `UnitOfWorkBehavior` — commands only (constrained on `IBaseCommand`, so the container never builds it for
    queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`
@@ -131,8 +139,9 @@ validator's property paths converted to the JSON naming policy (camelCase per se
   endpoints opt out explicitly with `.AllowAnonymous()` and must be in ADR-0012's list (a test enforces it).
   Admin endpoints live in `Api/Endpoints/Admin/<Feature>AdminEndpoints.cs`, mapped into the `/api/admin` group
   (`AdminEndpoints`, policy `Admin`).
-- **CSRF** is middleware (`Http/CsrfHeaderMiddleware`), not an endpoint filter: it runs before routing, binding and
-  authentication for every unsafe method under `/api` (ADR-0012).
+- **CSRF** is middleware (`Http/CsrfHeaderMiddleware`), not an endpoint filter: it runs before authentication and
+  before any endpoint executes (so before body binding; minimal hosting's implicit route *matching* happens earlier but
+  has no effect) for every unsafe method under `/api` (ADR-0012).
 - **API shape conventions** (ADR-0013, contract `docs/specs/CP1-api-contract.md`): natural keys in URLs, one command per
   endpoint (explicit transitions, no generic PATCH), `version` on every editable representation, enums as camelCase
   strings, plain arrays for bounded lists and `{ items, nextCursor }` for the audit log, 201/200/204 rules, unknown
@@ -147,6 +156,8 @@ validator's property paths converted to the JSON naming policy (camelCase per se
   (`Results<Ok<T>, ProblemHttpResult>` …), plus `.WithName("<OperationId>")`. Success schemas come from those types.
 - Error responses (400 `HttpValidationProblemDetails`, 401/403/404/409/500 `ProblemDetails`) are declared **once** on
   the `/api` group, not per endpoint. Some operations therefore list statuses they never return; that is accepted.
+  The `code` and `traceId` extension members are added to both schemas by `Http/ProblemDetailsSchemaTransformer`
+  (optional in the schema: framework errors carry no `code`).
 - `UseStatusCodePages()` gives bodiless 4xx/5xx responses (unknown route 404, 405, auth challenges) a ProblemDetails body.
   The Kubernetes proxy route must disable it per request (`IStatusCodePagesFeature.Enabled = false`) so upstream
   responses pass through untouched.
@@ -172,7 +183,7 @@ Application/Proxy/
   KubernetesRequestInfo        // parser: "/apis/apps/v1/namespaces/x/deployments/y/scale" → structured
   Policies/
     MutationGuardPolicy        // denies mutations when grant is ReadOnly or user is globally read-only
-  ResolveClusterAccess/        // query: (userId, clusterSlug) → ClusterAccess (endpoint, token, mode)
+  ResolveClusterAccess/        // query: (userId, clusterName) → ClusterAccess (endpoint, token, mode)
 Infrastructure/Kubernetes/
   ClusterTlsHandlerFactory     // SocketsHttpHandler per ClusterConnection with CA-bundle trust + TLS error capture (CP1, ADR-0011)
   ClusterHttpClientPool        // cached HttpMessageInvoker per cluster (built by the factory), invalidated on change

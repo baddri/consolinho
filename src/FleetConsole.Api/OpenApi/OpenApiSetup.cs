@@ -1,3 +1,4 @@
+using FleetConsole.Api.Http;
 using Microsoft.AspNetCore.OpenApi;
 
 namespace FleetConsole.Api.OpenApi;
@@ -14,7 +15,8 @@ namespace FleetConsole.Api.OpenApi;
 /// <para>XML doc comments on endpoint handlers and DTOs are copied into the document (summaries/descriptions), so
 /// write those for API consumers.</para>
 /// <para>Success response schemas come from the typed results endpoints return (<c>ToHttpResult()</c>); error
-/// responses are declared once on the <c>/api</c> group (see <c>ApiEndpoints</c>).</para>
+/// responses are declared once on the <c>/api</c> group (see <c>ApiEndpoints</c>), and their <c>code</c>/<c>traceId</c>
+/// extension members by <see cref="ProblemDetailsSchemaTransformer"/>.</para>
 /// </remarks>
 public static class OpenApiSetup
 {
@@ -34,6 +36,9 @@ public static class OpenApiSetup
                 var id = OpenApiOptions.CreateDefaultSchemaReferenceId(typeInfo);
                 return id is { Length: > 3 } && id.EndsWith(DtoSuffix, StringComparison.Ordinal) ? id[..^DtoSuffix.Length] : id;
             };
+
+            // ProblemDetails extension members (code, traceId) are part of the error contract (contract §1).
+            options.AddSchemaTransformer<ProblemDetailsSchemaTransformer>();
 
             // Host-independent document; see remarks.
             options.AddDocumentTransformer((document, _, _) =>

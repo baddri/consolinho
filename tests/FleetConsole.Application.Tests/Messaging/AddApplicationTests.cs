@@ -17,7 +17,14 @@ public sealed class AddApplicationTests
             .Select(d => d.ImplementationType)
             .ToArray();
 
-        behaviors.ShouldBe([typeof(LoggingBehavior<,>), typeof(ValidationBehavior<,>), typeof(UnitOfWorkBehavior<,>)]);
+        behaviors.ShouldBe(
+        [
+            typeof(LoggingBehavior<,>),
+            typeof(AuthorizationBehavior<,>),
+            typeof(ValidationBehavior<,>),
+            typeof(ReadOnlyGuardBehavior<,>),
+            typeof(UnitOfWorkBehavior<,>),
+        ]);
         services.Where(d => d.ServiceType == typeof(IPipelineBehavior<,>)).ShouldAllBe(d => d.Lifetime == ServiceLifetime.Scoped);
     }
 

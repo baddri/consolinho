@@ -102,6 +102,11 @@ public sealed class CredentialsOptions { public int ExpiryWarningDays { get; set
   .PersistKeysToDbContext<ConsoleDbContext>()`; when `DataProtection:KeyEncryptionCertificatePath` is set, load the
   PFX (+ optional password file) and `ProtectKeysWithCertificate`; outside Development without it, log a startup
   warning (CP3 makes it mandatory). `DataProtectionTokenProtector` uses purpose `FleetConsole.Credentials.v1`.
+  **From T-0011 (architect review, 2026-11-19):** the session cookie (`FleetConsole.Session`, T-0011) currently uses
+  the default, non-persisted key ring, so sessions die on restart and can't be shared across replicas. The cookie
+  handler resolves the app-wide `IDataProtectionProvider`, so this setup fixes it without touching `Api/Auth`; add a
+  test that the cookie scheme's ticket protector comes from the persisted ring (e.g. a ticket issued by one host
+  instance is accepted by a second instance over the same database).
 - Repositories `internal sealed` in `Persistence/Repositories/`; `ReadModel` over the context with `AsNoTracking()`.
 - Migration `IdentityAndAdministration` (one migration for all of CP1's model).
 
