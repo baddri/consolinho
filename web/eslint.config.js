@@ -12,20 +12,59 @@ import tseslint from 'typescript-eslint';
  * - `shared/` knows nothing about features or the app.
  * - a feature imports `shared/`, its own files, and other features only through their public `index.ts`.
  * - `app/` wires features together, again only through their `index.ts`.
+ * - `mocks/` (MSW mock backend, ADR-0016) builds on `shared/` only; `app/` may import it (mock-mode bootstrap in
+ *   `main.tsx`), and so may `test/`.
  * - `test/` helpers may use anything public.
  */
 const boundaryElements = [
   { type: 'app', pattern: 'src/app' },
   { type: 'shared', pattern: 'src/shared/*', capture: ['module'] },
   { type: 'feature', pattern: 'src/features/*', capture: ['featureName'] },
+  { type: 'mocks', pattern: 'src/mocks' },
   { type: 'test', pattern: 'src/test' },
+];
+
+/**
+ * No direct DOM access (FRONTEND.md "UI conventions"): DOM lookups are banned everywhere, and reaching the document
+ * through `window`/`globalThis`/`self` is banned like the bare `document` global (see `noDocumentGlobal`).
+ */
+const domMessage = 'No direct DOM access; use React refs or PatternFly (docs/architecture/FRONTEND.md).';
+const domLookupBans = [
+  'querySelector',
+  'querySelectorAll',
+  'getElementById',
+  'getElementsByClassName',
+  'getElementsByTagName',
+].map((property) => ({ object: 'document', property, message: domMessage }));
+const documentViaGlobalBans = ['window', 'globalThis', 'self'].map((object) => ({
+  object,
+  property: 'document',
+  message: domMessage,
+}));
+const noDocumentGlobal = ['error', { name: 'document', message: domMessage }];
+
+/** Files allowed to touch `document`: React mount point, theme class on <html>, tests. DOM lookups stay banned. */
+const documentAllowedFiles = [
+  'src/app/main.tsx',
+  'src/shared/theme/ThemeProvider.tsx',
+  'src/**/*.test.{ts,tsx}',
+  'src/test/**',
 ];
 
 /** Allows importing another feature only through its public entry point. */
 const featurePublicApi = { to: { element: { type: 'feature', fileInternalPath: 'index.ts' } } };
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules', 'src/shared/api/schema.gen.ts'] },
+  {
+    ignores: [
+      'dist',
+      'coverage',
+      'node_modules',
+      'src/shared/api/schema.gen.ts',
+      // Provisional transcription in openapi-typescript format (ADR-0016), deleted by T-0043.
+      'src/shared/api/schema.contract.ts',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx}'],
@@ -54,21 +93,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // No direct DOM access: go through React/PatternFly. (The theme class on <html> is the one documented exception.)
-      'no-restricted-properties': [
-        'error',
-        ...[
-          'querySelector',
-          'querySelectorAll',
-          'getElementById',
-          'getElementsByClassName',
-          'getElementsByTagName',
-        ].map((property) => ({
-          object: 'document',
-          property,
-          message: 'No direct DOM access; use React refs or PatternFly.',
-        })),
-      ],
+      // No direct DOM access: go through React/PatternFly. Exceptions: `documentAllowedFiles` below.
+      'no-restricted-globals': noDocumentGlobal,
+      'no-restricted-properties': ['error', ...domLookupBans, ...documentViaGlobalBans],
       'boundaries/dependencies': [
         'error',
         {
@@ -87,13 +114,22 @@ export default tseslint.config(
               from: { element: { type: 'app' } },
               allow: [{ to: { element: { type: 'shared' } } }, featurePublicApi],
             },
+            { from: { element: { type: 'app' } }, allow: { to: { element: { type: 'mocks' } } } },
+            { from: { element: { type: 'mocks' } }, allow: { to: { element: { type: 'shared' } } } },
             {
               from: { element: { type: 'test' } },
-              allow: [{ to: { element: { types: ['app', 'shared'] } } }, featurePublicApi],
+              allow: [{ to: { element: { types: ['app', 'shared', 'mocks'] } } }, featurePublicApi],
             },
           ],
         },
       ],
+    },
+  },
+  {
+    files: documentAllowedFiles,
+    rules: {
+      'no-restricted-globals': 'off',
+      'no-restricted-properties': ['error', ...domLookupBans],
     },
   },
   {
