@@ -27,7 +27,7 @@
 | T-0026 | done | — | committed (2 rounds) |
 | T-0023 | done | — | committed (2 rounds) |
 | T-0024 | in_review | frontend-architect | shared UI kit |
-| T-0044 | in_progress | backend-engineer | ReadOnlyGuard before Validation (main tree) |
+| T-0044 | done | — | committed |
 | T-0025 | in_progress | frontend-engineer | shared forms (F2) |
 | next | todo | | T-0012 after T-0008+T-0010; after T-0013+T-0014: T-0015 (W5), then W6 admin APIs; FE T-0024, T-0025 after T-0023 |
 
