@@ -4,16 +4,17 @@
 
 ```
  Browser (PatternFly SPA)
-   │  cookie session (HttpOnly, SameSite=Strict) + X-Console-Request header
+   │  cookie session (HttpOnly, SameSite=Lax) + X-Console-Request header
    ▼
  FleetConsole.Api  (one container, hosted on an OpenShift cluster)
-   ├── /api/auth/*            login / logout / me
+   ├── /api/auth/*            login (→ host cluster OpenShift OAuth) / callback / logout / me
    ├── /api/admin/*           users, clusters, SA credentials, grants, audit  (CQRS, Admin role)
    ├── /api/clusters          clusters the current user may use (for the switcher)
    ├── /api/clusters/{cluster}/k8s/{**path}   ──► Kubernetes/OpenShift API server of {cluster}
    │        resolve grant → policies (mutation guard, audit, …) → strip client auth → add Bearer <SA token> → stream
    └── /*                     built SPA (static files, index.html fallback)
    │
+   ├── Host cluster OpenShift OAuth server (login only; token discarded after reading users/~)
    ├── PostgreSQL: users, clusters, encrypted SA tokens, grants, audit log, Data Protection keys
    └── 40 × OpenShift API servers (https://api.<cluster>:6443)
 ```
@@ -22,7 +23,7 @@
 
 | Term | Meaning |
 |---|---|
-| **User** | A FleetConsole login. Role `Admin` or `User`. Can be globally read-only. |
+| **User** | A person known by their **OpenShift username on the host cluster** (login via OCP OAuth, ADR-0007). Role `Admin` or `User`. Can be globally read-only or deactivated. |
 | **Cluster** | A registered OpenShift cluster: slug name (used in URLs), display name, API URL, CA bundle, environment tag (prod/staging/dev…) |
 | **Credential** | A ServiceAccount token for one cluster, stored encrypted. Write-only: never returned to any client after save. Can be shared by many users. |
 | **Grant** | Links a User to a Cluster through a Credential, with an **AccessMode** (`ReadOnly` / `ReadWrite`). At most one grant per (user, cluster). |

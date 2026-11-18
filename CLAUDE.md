@@ -17,6 +17,7 @@ the admin assigned to that user for that cluster**. An admin area manages users,
 | Backend | .NET 10, ASP.NET Core minimal APIs, **Aspire 13** (AppHost + ServiceDefaults) |
 | Architecture | DDD (Domain / Application / Infrastructure / Api), CQRS with an **in-house dispatcher + pipeline behaviors** |
 | Proxy | YARP `IHttpForwarder` (direct forwarding; streaming, watch, WebSocket exec/logs) |
+| Login | **OpenShift OAuth of the host cluster** (server-side auth code flow, ADR-0007); dev uses the in-repo emulator `FleetConsole.DevOAuth` |
 | Persistence | PostgreSQL via EF Core (Npgsql); SA tokens encrypted with ASP.NET Data Protection |
 | Validation | FluentValidation |
 | Tests (BE) | xUnit v3, Shouldly, NSubstitute, Testcontainers (Postgres), WebApplicationFactory |

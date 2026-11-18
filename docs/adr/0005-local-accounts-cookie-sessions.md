@@ -1,5 +1,5 @@
 # 0005 — Local accounts with cookie sessions; OIDC later
-**Status:** Accepted (2026-11-18)
+**Status:** Superseded by 0007 (2026-11-18)
 
 ## Context
 Admins manage users in the console itself. SSO may come later.

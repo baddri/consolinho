@@ -73,6 +73,10 @@ In those cases: record in HANDOVER "Needs human", continue with other unblocked 
 
 Subagents do **not** commit, do not edit HANDOVER.md or ROADMAP.md, and do not spawn other agents.
 
+**Agent registration fallback:** project agents in `.claude/agents/` are loaded at session start. If the Agent tool
+reports the type as not found (e.g. agents edited mid-session), spawn `general-purpose` and begin the prompt with
+"First read `.claude/agents/<name>.md` and adopt that role and its rules completely."
+
 ## Commits & branches
 
 - Branch per checkpoint: `cp/<n>-<slug>`. Commit per approved task. Conventional commits with task id.

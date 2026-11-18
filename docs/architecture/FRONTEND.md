@@ -46,7 +46,7 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 ## Routing — the URL is the context
 
 ```
-/login
+/login                                         # "Log in with OpenShift" → full-page redirect to /api/auth/login?returnUrl=…
 /c/:cluster/overview
 /c/:cluster/search
 /c/:cluster/ns/:namespace/:resource            # list (namespace "all" = all namespaces)

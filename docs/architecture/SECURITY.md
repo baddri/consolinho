@@ -3,15 +3,18 @@
 FleetConsole holds ServiceAccount tokens for ~40 clusters. A compromise of the console is a compromise of every token
 it holds, so these rules are strict.
 
-## Authentication (users → FleetConsole)
-- Local accounts (ADR-0005): passwords hashed with ASP.NET Core `PasswordHasher` (PBKDF2), login rate-limited,
-  generic error messages. OIDC can be added later behind the same `ICurrentUser` abstraction.
-- Session: cookie auth, `HttpOnly`, `Secure`, `SameSite=Strict`, sliding expiration (8h default), revalidated against
-  the DB on a short interval so deactivating a user takes effect quickly (security stamp).
-- First admin bootstrapped from configuration (`Bootstrap:AdminUsername` + password from a Secret) only when no users exist.
+## Authentication (users → FleetConsole) — ADR-0007
+- Login via the **host cluster's OpenShift OAuth server** (authorization code + PKCE, scope `user:info`), handled
+  server-side. Identity = `users/~` on the host API server. The OCP access token is discarded right after; never stored.
+- `state`/PKCE validated by the ASP.NET OAuth handler; redirect URI fixed by configuration (no open redirects; the
+  post-login `returnUrl` must be a local path).
+- Session: FleetConsole cookie, `HttpOnly`, `Secure`, `SameSite=Lax` (needed for the OAuth callback), sliding
+  expiration (8h default), revalidated against the DB on a short interval so deactivating a user takes effect quickly.
+- Admins bootstrapped from config (`Auth:BootstrapAdminUsers`, `Auth:AdminGroups`). Auto-provisioning of new users is configurable.
+- Dev uses the in-repo OCP OAuth emulator (`FleetConsole.DevOAuth`); it must never be deployed (not in the container image).
 
 ## CSRF
-- `SameSite=Strict` + every non-GET `/api` request must carry `X-Console-Request: 1` (forces a CORS preflight; no CORS
+- `SameSite=Lax` + every non-GET `/api` request must carry `X-Console-Request: 1` (forces a CORS preflight; no CORS
   is enabled, so cross-site requests can't send it).
 - WebSocket upgrades (exec/logs) validate the `Origin` header against the configured public URL.
 

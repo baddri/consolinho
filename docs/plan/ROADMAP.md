@@ -27,8 +27,12 @@ the human. Status: `planned` → `in_progress` → `done`.
 - Root `README.md` with dev setup (podman notes).
 
 ## CP1 — Identity & administration
-Local login/logout/me, bootstrap admin, cookie session + CSRF header, roles. Admin CRUD for **users** (create,
-deactivate, reset password, global read-only flag), **clusters** (register, edit, enable/disable, env tag, CA bundle),
+**Fixed requirement from the human (2026-11-18): login uses OpenShift OAuth of the host cluster** — see ADR-0007; the
+CP1 spec must include it. For development, use the in-repo OCP OAuth emulator `FleetConsole.DevOAuth` (wired in AppHost).
+
+Login via OCP OAuth (authorize → callback → users/~ → FleetConsole cookie session), logout, `/api/auth/me`,
+auto-provisioning (configurable), bootstrap admins/admin groups from config, CSRF header, roles, session revalidation.
+Admin CRUD for **users** (pre-create, promote/demote admin, deactivate, global read-only flag, last login, OCP groups seen), **clusters** (register, edit, enable/disable, env tag, CA bundle),
 **credentials** (add/rotate/delete SA token per cluster, write-only, fingerprint, JWT expiry), **grants** (user ↔ cluster
 ↔ credential, ReadOnly/ReadWrite), "test connection" (calls `/version` + SelfSubjectRulesReview with the token),
 audit log of admin actions. Admin UI pages for all of it.
