@@ -565,10 +565,10 @@ fleetconsole-dev`, `ClientSecret = dev-only-not-a-secret`, `Auth:AdminGroups = [
 | Key | Default | Notes |
 |---|---|---|
 | `Console:PublicOrigin` | dev: `http://localhost:5180` (AppHost overrides with the Vite URL) | Required outside Development. Browser-visible origin; OAuth `redirect_uri` base. |
-| `Auth:OpenShift:HostApiServerUrl` | — (AppHost injects DevOAuth URL) | Required. Host cluster API server, e.g. `https://api.host.example.com:6443`. |
+| `Auth:OpenShift:HostApiServerUrl` | — (AppHost injects DevOAuth URL) | Required. Host cluster API server, e.g. `https://api.host.example.com:6443`. Outside Development this and all OAuth endpoints (static or discovered) must be `https` (startup error). |
 | `Auth:OpenShift:ClientId` / `ClientSecret` | — | Prod: `system:serviceaccount:<ns>:<sa>` / SA token from a Secret. |
 | `Auth:OpenShift:AuthorizationEndpoint` / `TokenEndpoint` | null | Optional; skip discovery. Must be set together (startup error otherwise). |
-| `Auth:OpenShift:CaBundlePath` | null | CA for the host API/OAuth server. |
+| `Auth:OpenShift:CaBundlePath` | null | CA for the host API/OAuth server. Replaces system trust; must cover the API server and the OAuth route. Must contain ≥1 readable PEM certificate (startup error). |
 | `Auth:OpenShift:SkipTlsVerify` | false | Development only (startup error elsewhere). |
 | `Auth:AutoProvision` | `true` (Q1) | |
 | `Auth:BootstrapAdminUsers` | `[]` | Usernames. |
