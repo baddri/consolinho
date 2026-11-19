@@ -1,7 +1,7 @@
 import { Button, Content, PageSection, Title } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { UserListItem } from '@/shared/api';
 import {
   FilterToolbar,
@@ -11,8 +11,10 @@ import {
   useUrlFilters,
   type SortValue,
 } from '@/shared/table';
-import { ErrorState } from '@/shared/ui';
+import { ActionButton, ErrorState } from '@/shared/ui';
+import { useAdminAccess } from '../useAdminAccess';
 import { useUsers } from './api';
+import { CreateUserModal } from './CreateUserModal';
 import { ReadOnlyFilter } from './ReadOnlyFilter';
 import { matchesUserFilters, ROLE_OPTIONS, STATUS_OPTIONS, USER_FILTERS } from './userFilters';
 import { USER_COLUMN_COUNT, UserRow } from './UserRow';
@@ -32,10 +34,13 @@ const NO_USERS: UserListItem[] = [];
  * (USR-1). Filters live in the URL (`?q=&role=&status=&readOnly=`) so filtered views are linkable; sorting is by
  * username (default) or last login, client-side. Read-only admins see the same page (ADM-2).
  *
- * T-0031 adds the toolbar's "Add user" action and the row kebab. Lazy-loaded by `routes.tsx`.
+ * The toolbar's "Add user" opens `CreateUserModal`; each row's kebab offers `useUserActions` (USR-2..6). For
+ * read-only admins both stay visible but aria-disabled with the reason. Lazy-loaded by `routes.tsx`.
  */
 export function UsersListPage() {
   const { data, error, isPending, refetch } = useUsers();
+  const { readOnlyReason } = useAdminAccess();
+  const [isCreateOpen, setCreateOpen] = useState(false);
   const { values, setText, toggle, setSingle, clear, clearAll } = useUrlFilters(USER_FILTERS);
 
   const users = data ?? NO_USERS;
@@ -82,8 +87,13 @@ export function UsersListPage() {
             <ReadOnlyFilter value={values.readOnly} onChange={(value) => setSingle('readOnly', value)} />
           }
           onClearAll={clearAll}
-          // T-0031: `actions` gets the "Add user" button.
+          actions={
+            <ActionButton disabledReason={readOnlyReason} onClick={() => setCreateOpen(true)}>
+              Add user
+            </ActionButton>
+          }
         />
+        <CreateUserModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
         <Table aria-label="Users" variant="compact">
           <Thead>
             <Tr>

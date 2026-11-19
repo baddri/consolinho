@@ -1,7 +1,7 @@
 ---
 id: T-0031
 title: Admin user actions — create user, promote/demote, read-only, deactivate/reactivate
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 1
 depends_on: [T-0030, T-0025]
@@ -57,19 +57,39 @@ Endpoints (contract §7.2): `POST /api/admin/users` (`CreateUserRequest` → 201
   retries with the fresh version. Success toasts: "alice is now an administrator", "alice deactivated", …
 
 ## Acceptance criteria
-- [ ] USR-2: create `newbie` → POST with CSRF header → toast + detail page; duplicate `alice` → inline field error with
+- [x] USR-2: create `newbie` → POST with CSRF header → toast + detail page; duplicate `alice` → inline field error with
       the 409 detail; invalid `a/b` → client error; server 400 on `username` shown inline.
-- [ ] USR-3 + ADR-0017: `admin` (config only) offers Promote and a disabled Demote with the USR-6 tooltip naming the
+- [x] USR-3 + ADR-0017: `admin` (config only) offers Promote and a disabled Demote with the USR-6 tooltip naming the
       group (list and detail); `carol` (assigned) offers Demote, no Promote; `alice` offers Promote only.
-- [ ] USR-4: deactivate dialog text names user and N; reactivate restores Active.
-- [ ] USR-5: read-only toggle with explanation. ADM-5: self actions disabled; MSW `Users.LastAdmin` shown in dialog.
-- [ ] ADM-4: a 409 `Concurrency.Conflict` shows the detail inline and a second confirm succeeds.
-- [ ] ADM-2/QG-3: as `ines` every action and "Add user" is visible, aria-disabled, tooltip "Your account is
+- [x] USR-4: deactivate dialog text names user and N; reactivate restores Active.
+- [x] USR-5: read-only toggle with explanation. ADM-5: self actions disabled; MSW `Users.LastAdmin` shown in dialog.
+- [x] ADM-4: a 409 `Concurrency.Conflict` shows the detail inline and a second confirm succeeds.
+- [x] ADM-2/QG-3: as `ines` every action and "Add user" is visible, aria-disabled, tooltip "Your account is
       read-only", and no request is sent.
-- [ ] TSDoc. Build, lint, tests green.
+- [x] TSDoc. Build, lint, tests green.
 
 ## Work log
+- 2026-11-19 frontend-engineer: started; MSW user handlers already exist (T-0042), wiring hooks/dialogs/list.
+- 2026-11-20 frontend-engineer: hooks, CreateUserModal, UserActionDialogs, useUserActions, list wiring + 9 tests;
+  check-fe green (359 tests). Detail-page half of the list/detail ACs is ready for T-0032 (same hook).
 
 ## Review
+- 2026-11-20 frontend-architect, round 1: **APPROVE**. check-fe green (30 files / 359 tests). Deviations accepted:
+  `{ items, dialog }` (hook owns the confirm, T-0032 reuses it); detail-page ACs verified via T-0032; reason
+  precedence read-only > config admin > self matches USR-6/ADM-5. Invalidation (users prefix on 409, `me` on 403
+  ReadOnly/Forbidden), row `version`, CSRF via middleware, aria-disabled + tooltips, TSDoc, no `any`: all good.
+- Nit (optional): `web/src/features/admin/users/CreateUserModal.tsx:74-75` — `ConflictAlert` can never show on a
+  create; drop it rather than keep dead UI with an explanatory comment.
+- Nit (optional): `web/src/features/admin/users/UserActionDialogs.tsx:108` — config-source formatting duplicates
+  `UserRoleLabels`; consider a shared helper if a third caller appears.
 
 ## Handover notes
+- `useUserActions(user)` returns `{ items, dialog }` (not bare `ActionItem[]`): the hook owns the confirmation, so
+  callers render `{dialog}` next to their menu. `items` are `IAction`-compatible (row `ActionsColumn`); T-0032 maps
+  them to `DropdownItem`s (`itemKey`, `title`, `onClick`, `isDanger`, `isAriaDisabled`, `tooltipProps`).
+- Disabled-reason precedence: read-only admin (all items) > config admin (Demote, USR-6 text) > self (Demote,
+  Deactivate). Disabled `onClick` is a no-op, so no request even if PF lets the click through.
+- Each dialog (`UserActionDialogs.tsx`) mounts only while open and sends the passed user's `version`; any 409
+  invalidates `adminKeys.users()` so the retry uses the refetched version; 403 ReadOnly/Forbidden refetches `me`.
+- `useUser(username)` added for T-0032. "Grant access to clusters" item intentionally absent until T-0040.
+- MSW user handlers already existed (T-0042); no mock changes needed. Create submit button is labelled "Create".

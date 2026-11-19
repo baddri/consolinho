@@ -1,10 +1,11 @@
 import { Label } from '@patternfly/react-core';
-import { Td, Tr } from '@patternfly/react-table';
+import { ActionsColumn, Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { UserListItem } from '@/shared/api';
 import { LabelList, RelativeTime } from '@/shared/ui';
 import { UserRoleLabels } from './UserRoleLabels';
 import { UserStatusLabel } from './UserStatusLabel';
+import { useUserActions } from './useUserActions';
 
 /** Number of columns of the users table, including the trailing actions column. */
 export const USER_COLUMN_COUNT = 9;
@@ -17,9 +18,11 @@ const EMPTY = '—';
 
 /**
  * One row of the users list (USR-1). `dataLabel`s repeat the column names for PatternFly's stacked mobile layout.
- * The trailing action cell is empty until T-0031 adds the row kebab (`ActionsColumn`).
+ * The trailing kebab (`ActionsColumn`) offers the user's actions from `useUserActions`; their dialog renders in the
+ * row (it is a portalled modal) and confirms with the row's `version`.
  */
 export function UserRow({ user }: { user: UserListItem }) {
+  const { items, dialog } = useUserActions(user);
   return (
     <Tr>
       <Td dataLabel="Username">
@@ -56,8 +59,10 @@ export function UserRow({ user }: { user: UserListItem }) {
           EMPTY
         )}
       </Td>
-      {/* T-0031: row actions (`ActionsColumn`) go here. */}
-      <Td isActionCell />
+      <Td isActionCell>
+        <ActionsColumn items={items} />
+        {dialog}
+      </Td>
     </Tr>
   );
 }
