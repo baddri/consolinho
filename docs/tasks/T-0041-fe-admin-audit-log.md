@@ -5,7 +5,7 @@ status: todo
 owner: frontend-engineer
 checkpoint: 1
 depends_on: [T-0028, T-0026, T-0024]
-paths: [web/src/features/admin/audit/]
+paths: [web/src/features/admin/audit/, web/src/shared/table/, web/src/features/admin/users/UsersListPage.tsx, web/src/features/admin/users/ReadOnlyFilter.tsx]
 review_rounds: 0
 ---
 
@@ -42,6 +42,14 @@ p.nextCursor ?? undefined`, `limit` 50.
 - States: skeleton rows; 400 on bad filter (e.g. hand-edited `from`) → `ErrorState` with the detail + Clear filters;
   empty → "No audit entries match these filters" + Clear filters (spec §5).
 - Read-only admins have full access (AUD-5); no mutating controls exist (AUD-3).
+- **Single-select filter extraction (architect 2026-11-19, from T-0030 review):** T-0030 built
+  `features/admin/users/ReadOnlyFilter.tsx` (PF `ToolbarFilter` + `Select`, removable label, picking the selected
+  option again clears it). The category select is its second consumer: move it to
+  `shared/table/SingleSelectFilter.tsx` (`{ categoryName: string; options: FilterOption[]; value?: string;
+  onChange: (value?: string) => void }`, exported from `@/shared/table`), switch `UsersListPage` to it, delete
+  `ReadOnlyFilter.tsx`, and move its behaviour test into `tableKit.test.tsx` (replacing the demo `StatusFilter`).
+  The users page tests must stay green unchanged. This task's paths therefore also include
+  `web/src/shared/table/` and `web/src/features/admin/users/{UsersListPage.tsx,ReadOnlyFilter.tsx}`.
 
 ## Acceptance criteria
 - [ ] AUD-2: rows show time, actor (system label), action, target, cluster, summary; expanding shows details JSON

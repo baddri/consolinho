@@ -26,9 +26,10 @@ Endpoints (contract §7.2): `POST /api/admin/users` (`CreateUserRequest` → 201
 - Hooks in `users/api.ts`: `useUser(username)` (`adminKeys.user`), `useCreateUser`, `useChangeUserRole`,
   `useSetUserReadOnly`, `useDeactivateUser`, `useReactivateUser` — on success `setQueryData(adminKeys.user(u), dto)`
   + invalidate `adminKeys.all` (ADR-0015 §6); 403 `Auth.ReadOnly`/`Auth.Forbidden` also invalidate `me`.
-- **`version` source:** `UserListItem` has no `version` (see NOTES/contract gap). Dialogs opened from the list call
-  `queryClient.fetchQuery(useUser options)` when confirming, then send the fresh `version`; from the detail page the
-  loaded `UserDetail.version` is used.
+- **`version` source:** `UserListItem` carries `version` (contract §7.1 amendment 2026-11-18), so dialogs send the
+  `version` of the row (list) or of the loaded `UserDetail` (detail page) — no extra fetch of the detail when
+  confirming. A stale version yields 409 `Concurrency.Conflict` (handled below). (Architect 2026-11-19, superseding
+  the earlier "fetch detail for version" note.)
 - `CreateUserModal` (RHF + zod, `users/CreateUserForm.schema.ts`): `username` (required, ≤ 253, no `/`, `%`,
   whitespace or control chars, not `.`, `..`, `~`; helper "Exact OpenShift username, case-sensitive."), `role`
   radio User/Admin (default User), `isReadOnly` checkbox. `applyServerErrors` with
@@ -40,8 +41,9 @@ Endpoints (contract §7.2): `POST /api/admin/users` (`CreateUserRequest` → 201
     role so it is kept if they leave that group."
   - **Demote** — shown when `role === 'admin'`. Enabled only when `!isAdminViaConfiguration`; otherwise visible but
     aria-disabled with USR-6 tooltip "Admin granted by configuration (`<adminConfigurationSource>`). Change the
-    configuration to remove." (list items lack the source → generic "Admin granted by configuration. Change the
-    configuration to remove."). Self → disabled "You can't demote or deactivate yourself."
+    configuration to remove." — list items carry `adminConfigurationSource` too (contract §7.1), so list and
+    detail show the same text; build it from T-0030's `adminViaConfigurationText(source)` in `UserRoleLabels.tsx`
+    (generic wording only when the source is `null`). Self → disabled "You can't demote or deactivate yourself."
   - **Set read-only / Remove read-only** — confirm with USR-5 text "Read-only applies on every cluster regardless of
     grant mode (enforced by the proxy from CP2) and blocks admin changes for admins."
   - **Deactivate** (status ≠ deactivated; self disabled) — danger `ConfirmModal`: "Deactivate `alice`? They will be
@@ -58,7 +60,7 @@ Endpoints (contract §7.2): `POST /api/admin/users` (`CreateUserRequest` → 201
 - [ ] USR-2: create `newbie` → POST with CSRF header → toast + detail page; duplicate `alice` → inline field error with
       the 409 detail; invalid `a/b` → client error; server 400 on `username` shown inline.
 - [ ] USR-3 + ADR-0017: `admin` (config only) offers Promote and a disabled Demote with the USR-6 tooltip naming the
-      group (detail) ; `carol` (assigned) offers Demote, no Promote; `alice` offers Promote only.
+      group (list and detail); `carol` (assigned) offers Demote, no Promote; `alice` offers Promote only.
 - [ ] USR-4: deactivate dialog text names user and N; reactivate restores Active.
 - [ ] USR-5: read-only toggle with explanation. ADM-5: self actions disabled; MSW `Users.LastAdmin` shown in dialog.
 - [ ] ADM-4: a 409 `Concurrency.Conflict` shows the detail inline and a second confirm succeeds.
