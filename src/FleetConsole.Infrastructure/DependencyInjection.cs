@@ -1,6 +1,7 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Application.Abstractions.Persistence;
+using FleetConsole.Application.Auth;
 using FleetConsole.Application.Credentials;
 using FleetConsole.Infrastructure.Crypto;
 using FleetConsole.Infrastructure.Events;
@@ -19,7 +20,7 @@ namespace FleetConsole.Infrastructure;
 /// Registers the Infrastructure adapters for the Application ports: the EF Core <see cref="ConsoleDbContext"/> (also the
 /// <see cref="IUnitOfWork"/>), the repositories, <see cref="IReadModel"/>, <see cref="IClock"/>,
 /// <see cref="IDomainEventDispatcher"/>, Data Protection with <see cref="ITokenProtector"/>, the
-/// <see cref="CredentialsOptions"/> and the Kubernetes <see cref="IClusterProbeClient"/>.
+/// <see cref="CredentialsOptions"/>, the login <see cref="AuthOptions"/> and the Kubernetes <see cref="IClusterProbeClient"/>.
 /// Called once by the Api composition root.
 /// </summary>
 public static class DependencyInjection
@@ -86,6 +87,17 @@ public static class DependencyInjection
             .BindConfiguration(CredentialsOptions.SectionName)
             .Validate(o => o.ExpiryWarningDays >= 0, "Credentials:ExpiryWarningDays must not be negative.")
             .Validate(o => o.ConnectionTestTimeout > TimeSpan.Zero, "Credentials:ConnectionTestTimeout must be positive.")
+            .ValidateOnStart();
+
+        // Login options (contract §12, section "Auth"; T-0014). The host-cluster adapters that need Auth:OpenShift are
+        // registered separately by AddOpenShiftIdentity (Program.cs, T-0015), so hosts without login config still start.
+        builder.Services.AddOptions<AuthOptions>()
+            .BindConfiguration(AuthOptions.SectionName)
+            .Validate(o => o.BootstrapAdminUsers.All(u => !string.IsNullOrWhiteSpace(u)), "Auth:BootstrapAdminUsers must not contain blank entries.")
+            .Validate(o => o.AdminGroups.All(g => !string.IsNullOrWhiteSpace(g)), "Auth:AdminGroups must not contain blank entries.")
+            .Validate(
+                o => !o.AdminGroups.Any(g => g is not null && OpenShiftGroups.IsVirtual(g)),
+                "Auth:AdminGroups must not contain virtual system:* groups (every OpenShift user is in them).")
             .ValidateOnStart();
 
         return builder;

@@ -39,6 +39,12 @@ internal static class ServiceProviderBuilder
             services.AddSingleton<IClock, FixedClock>();
             services.AddScoped<IAuditEntryRepository, CapturingAuditEntryRepository>();
             services.AddScoped<ICurrentUser>(_ => FakeCurrentUser.Anonymous);
+
+            // Ports of the login use cases (T-0014), so validate-on-build can construct their handlers
+            // (IOptions<AuthOptions> needs the options services the host normally adds).
+            services.AddOptions();
+            services.AddScoped<IUserRepository, Auth.InMemoryUserRepository>();
+            services.AddScoped<IReadModel, Auth.InMemoryReadModel>();
         }
 
         if (withApplicationPipeline)
