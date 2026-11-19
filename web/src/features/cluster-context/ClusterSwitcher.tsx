@@ -9,7 +9,7 @@ import {
 } from '@patternfly/react-core';
 import { useState, type Ref } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ClusterEnvironmentLabel } from './ClusterEnvironmentLabel';
+import { EnvironmentLabel } from '@/shared/ui';
 import { clusterSwitchPath } from './clusterSwitchPath';
 import { PLACEHOLDER_CLUSTERS } from './clusters';
 import { useActiveCluster } from './useActiveCluster';
@@ -51,7 +51,7 @@ export function ClusterSwitcher() {
             <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
               <FlexItem>{active.name}</FlexItem>
               <FlexItem>
-                <ClusterEnvironmentLabel environment={active.environment} />
+                <EnvironmentLabel environment={active.environment} isCompact />
               </FlexItem>
             </Flex>
           ) : (
@@ -67,7 +67,7 @@ export function ClusterSwitcher() {
             <Flex spaceItems={{ default: 'spaceItemsSm' }}>
               <FlexItem>{cluster.name}</FlexItem>
               <FlexItem>
-                <ClusterEnvironmentLabel environment={cluster.environment} />
+                <EnvironmentLabel environment={cluster.environment} isCompact />
               </FlexItem>
             </Flex>
           </SelectOption>

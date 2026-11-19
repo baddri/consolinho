@@ -83,11 +83,13 @@ in registration order. Handlers and validators are registered by assembly scanni
 2. `AuthorizationBehavior` — requests implement `IRequireAuthenticated`, `IRequireRole` (`UserRole RequiredRole`) or,
    for every admin use case, `IAdminRequest` (supplies `RequiredRole => UserRole.Admin`); anonymous →
    `Auth.Unauthenticated` (401), missing role → `Auth.Forbidden` (403). Constrained on `IRequireAuthenticated`.
-3. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
-4. `ReadOnlyGuardBehavior` — commands marked `IMutatingCommand` fail with `Auth.ReadOnly` (403) for globally read-only
+3. `ReadOnlyGuardBehavior` — commands marked `IMutatingCommand` fail with `Auth.ReadOnly` (403) for globally read-only
    users (ADM-2). Every admin command is `IAdminRequest` + `IMutatingCommand`; admin queries are only `IAdminRequest`.
    `IMutatingCommand` extends `IRequireAuthenticated`, so a mutating command always needs a session: anonymous callers
    get 401 from `AuthorizationBehavior` and never reach this guard, where `IsReadOnly` would be `false` for them.
+   It runs **before** validation (contract §7 check order: CSRF → 401 → `Auth.Forbidden` → `Auth.ReadOnly` → field
+   validation), so a read-only admin gets `Auth.ReadOnly`, never field errors.
+4. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
 5. *(future)* `CachingBehavior` — queries implementing `ICacheableQuery`.
 6. `UnitOfWorkBehavior` — commands only (constrained on `IBaseCommand`, so the container never builds it for
    queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`

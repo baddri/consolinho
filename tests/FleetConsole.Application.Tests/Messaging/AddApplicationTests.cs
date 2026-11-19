@@ -21,8 +21,8 @@ public sealed class AddApplicationTests
         [
             typeof(LoggingBehavior<,>),
             typeof(AuthorizationBehavior<,>),
-            typeof(ValidationBehavior<,>),
             typeof(ReadOnlyGuardBehavior<,>),
+            typeof(ValidationBehavior<,>),
             typeof(UnitOfWorkBehavior<,>),
         ]);
         services.Where(d => d.ServiceType == typeof(IPipelineBehavior<,>)).ShouldAllBe(d => d.Lifetime == ServiceLifetime.Scoped);

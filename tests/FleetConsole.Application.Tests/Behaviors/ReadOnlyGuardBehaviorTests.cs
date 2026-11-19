@@ -61,12 +61,25 @@ public sealed class ReadOnlyGuardBehaviorTests
     }
 
     [Fact]
-    public async Task MutatingCommand_ReadOnlyAdminWithInvalidInput_ReturnsValidationErrorsFirst()
+    public async Task MutatingCommand_ReadOnlyAdminWithInvalidInput_ReturnsReadOnlyWithoutRunningValidator()
     {
-        // Documented order: Authorization → Validation → ReadOnlyGuard.
-        var (result, _) = await SendAsync(new AdminMutatingCommand(""), FakeCurrentUser.SignedIn(UserRole.Admin, isReadOnly: true), new FakeUnitOfWork());
+        // Contract §7 check order: 401 → Auth.Forbidden → Auth.ReadOnly → field validation.
+        var (result, log) = await SendAsync(new AdminMutatingCommand(""), FakeCurrentUser.SignedIn(UserRole.Admin, isReadOnly: true), new FakeUnitOfWork());
+
+        result.Error.ShouldBe(AuthErrors.ReadOnly);
+        log.Entries.ShouldNotContain("validator");
+        log.Entries.ShouldNotContain("handler");
+    }
+
+    [Fact]
+    public async Task MutatingCommand_WritableAdminWithInvalidInput_ReturnsValidationErrors()
+    {
+        // Control for the test above: the same invalid command from a writable admin does reach validation.
+        var (result, log) = await SendAsync(new AdminMutatingCommand(""), FakeCurrentUser.SignedIn(UserRole.Admin), new FakeUnitOfWork());
 
         result.Error.ShouldBeOfType<ValidationError>();
+        log.Entries.ShouldContain("validator");
+        log.Entries.ShouldNotContain("handler");
     }
 
     [Fact]

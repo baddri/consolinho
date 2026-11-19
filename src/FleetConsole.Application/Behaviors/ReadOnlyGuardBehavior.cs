@@ -9,10 +9,11 @@ namespace FleetConsole.Application.Behaviors;
 /// mutating pass through, so a read-only admin (auditor persona) can still browse Administration.
 /// </summary>
 /// <remarks>
-/// <para>Runs after <c>AuthorizationBehavior</c> and <c>ValidationBehavior</c>. <see cref="IMutatingCommand"/> implies
-/// <see cref="IRequireAuthenticated"/>, so an anonymous caller always gets 401 first, never a pass; a non-admin gets 403
-/// <c>Auth.Forbidden</c> first; a read-only admin sees field errors before the read-only refusal, which
-/// matches the documented pipeline order (BACKEND.md).</para>
+/// <para>Runs after <c>AuthorizationBehavior</c> and before <c>ValidationBehavior</c>, implementing the contract §7
+/// check order (401 → <c>Auth.Forbidden</c> → <c>Auth.ReadOnly</c> → field validation). <see cref="IMutatingCommand"/>
+/// implies <see cref="IRequireAuthenticated"/>, so an anonymous caller always gets 401 first, never a pass; a non-admin
+/// gets 403 <c>Auth.Forbidden</c> first; a read-only admin gets <c>Auth.ReadOnly</c> even for an invalid body, so
+/// validators never run for them (BACKEND.md pipeline order).</para>
 /// <para>The <see cref="IMutatingCommand"/> constraint makes the container skip it for every other request. Like
 /// <see cref="AuthorizationBehavior{TRequest, TResponse}"/> it leaves <typeparamref name="TResponse"/> unconstrained so a
 /// misdeclared response type fails loudly rather than bypassing the guard.</para>
