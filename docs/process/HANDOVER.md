@@ -32,7 +32,8 @@
 | T-0025 | done | — | committed (2 rounds) |
 | T-0027 | done | — | committed |
 | T-0028 | done | — | committed; bundle entry 23 kB |
-| T-0045 | in_progress | frontend-engineer | small session follow-ups |
+| T-0045 | done | — | committed |
+| T-0029 | in_progress | frontend-engineer | cluster switcher, landing, no-clusters pages (F5) |
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
