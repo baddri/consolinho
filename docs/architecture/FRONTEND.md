@@ -157,6 +157,10 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 - No DOM access: the global `document` and `window.document` / `globalThis.document` / `self.document` are
   lint-forbidden outside `app/main.tsx`, `shared/theme/ThemeProvider.tsx` and test files. Full-page navigation uses
   links (`<a href>`), not `location` assignments.
+  The one allowed imperative pattern is **focus delegation through a ref the component owns**: when a PatternFly
+  control doesn't forward refs, the adapter may wrap it in its own element and call `focus()` on the first control
+  inside that element (`useWrapperFocusRef`, `shared/forms`). The lookup must start from that ref, never from
+  `document`, and may only read and focus. It must not change attributes, classes or structure.
 - Every page handles loading (Skeleton), error (ErrorState with retry), empty (EmptyState) explicitly.
 - Destructive actions use a confirm modal that names the resource and cluster.
 - Respect `useCanI` to hide/disable actions the user can't perform; still handle 403 gracefully.
