@@ -195,10 +195,284 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the credentials of all clusters, sorted by expiry (soonest first; no or unknown expiry last), then cluster
+         *     and credential name.
+         */
+        get: operations["ListCredentials"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists one cluster's credentials, sorted by name. Fails with 404 Clusters.NotFound. */
+        get: operations["ListClusterCredentials"];
+        put?: never;
+        /**
+         * Stores a ServiceAccount token for the cluster, encrypted and write-only; the response shows its fingerprint and
+         *     JWT metadata. Fails with 404 Clusters.NotFound or 409 Credentials.NameTaken.
+         */
+        post: operations["AddCredential"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/credentials/{credentialId}/token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replaces the credential's token in place: the id and all grants are kept, the stored last test is cleared, and no
+         *     connection test runs. Fails with 404 Clusters.NotFound / Credentials.NotFound; a stale version with 409
+         *     Concurrency.Conflict.
+         */
+        put: operations["RotateCredentialToken"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/credentials/{credentialId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deletes a credential that no grant uses. Fails with 404 Clusters.NotFound / Credentials.NotFound, or 409
+         *     Credentials.InUse while grants use it (re-assign or revoke them first).
+         */
+        delete: operations["DeleteCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists all clusters, sorted by name, with credential expiry, grant count and last connection test roll-ups. */
+        get: operations["ListClusters"];
+        put?: never;
+        /** Registers a cluster. Fails with 409 Clusters.NameTaken when the name exists. */
+        post: operations["RegisterCluster"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns one cluster including its CA certificates. Fails with 404 Clusters.NotFound for an unknown name. */
+        get: operations["GetCluster"];
+        /**
+         * Replaces the cluster's editable settings. Changing the API URL, CA bundle or skip-TLS flag marks earlier
+         *     connection tests stale. A stale version fails with 409 Concurrency.Conflict.
+         */
+        put: operations["UpdateCluster"];
+        post?: never;
+        /**
+         * Deletes a disabled cluster together with its credentials and grants. Fails with 409 Clusters.NotDisabled while
+         *     the cluster is enabled.
+         */
+        delete: operations["DeleteCluster"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enables a cluster: granted users see it in the switcher again. A stale version fails with 409
+         *     Concurrency.Conflict.
+         */
+        post: operations["EnableCluster"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disables a cluster: it disappears from the switcher and access through it stops; credentials and grants are
+         *     kept. A stale version fails with 409 Concurrency.Conflict.
+         */
+        post: operations["DisableCluster"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists audit entries newest first, one page at a time. Filters are optional and combined with AND. Pass the
+         *     nextCursor of a page as cursor to get the next (older) page; pages stay consistent while new entries are written.
+         */
+        get: operations["ListAuditEntries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Adds a ServiceAccount credential to a cluster. The token is write-only: it is never returned. */
+        AddCredentialRequest: {
+            /** @description The credential name, unique within the cluster: 1 to 63 characters, lowercase letters, digits and '-', starting and ending with a letter or digit. */
+            name: string;
+            /** @description Optional description, at most 1000 characters. */
+            description: null | string;
+            /** @description The ServiceAccount token. Surrounding whitespace is trimmed; then it must be non-empty, at most 16384 characters, printable ASCII without spaces or line breaks. JWT and opaque tokens are accepted. */
+            token: string;
+        };
+        /**
+         * @description Coarse grouping of audit entries for the audit-log filter (AUD-4). Derived from the action prefix by
+         *     AuditEntry AuditEntry.Record(AuditActor actor, string action, AuditTargetType targetType, string? targetId, string targetName, string? clusterName, string summary, string? correlationId, string detailsJson, DateTimeOffset occurredAt, string? relatedUsername = null), never chosen by callers, so category and action cannot disagree.
+         * @enum {string}
+         */
+        AuditCategory: "auth" | "users" | "clusters" | "credentials" | "grants";
+        /** @description One audit log entry: who did what to which object, when, and in which request. */
+        AuditEntry: {
+            /**
+             * Format: uuid
+             * @description The entry id.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the action happened.
+             */
+            occurredAt: string;
+            /** @description Who acted: a username, or "system (config)". */
+            actor: string;
+            /** @description Whether FleetConsole itself acted (e.g. a role change from configuration at login). */
+            actorIsSystem: boolean;
+            /** @description What happened, e.g. user.deactivated (see the action list in the API contract). */
+            action: string;
+            /** @description The filter category, matching the action prefix. */
+            category: components["schemas"]["AuditCategory"];
+            /** @description The kind of object the entry is about. */
+            targetType: components["schemas"]["AuditTargetType"];
+            /** @description Identifier of the target (a GUID or a name); informational, null when there is none. */
+            targetId: null | string;
+            /** @description Display name of the target at the time of the action (kept after deletion). */
+            targetName: string;
+            /** @description The cluster the action concerns, if any. */
+            clusterName: null | string;
+            /** @description One human-readable sentence describing the action. */
+            summary: string;
+            /** @description W3C trace id (32 hex characters) of the request that caused the action, if any. */
+            correlationId: null | string;
+            details: null | components["schemas"]["JsonElement"];
+        };
+        /** @description One page of the audit log, newest first. */
+        AuditPage: {
+            /** @description The entries of this page, newest first. */
+            items: components["schemas"]["AuditEntry"][];
+            /** @description Pass as cursor to get the next (older) page; null when this is the last page. */
+            nextCursor: null | string;
+        };
+        /**
+         * @description The kind of object an audit entry is about; tells the UI how to interpret string? AuditEntry.TargetId.
+         * @enum {string}
+         */
+        AuditTargetType: "session" | "user" | "cluster" | "credential" | "grant";
+        /** @description One certificate of a cluster's CA bundle. */
+        CaCertificate: {
+            /** @description The subject distinguished name. */
+            subject: string;
+            /** @description The issuer distinguished name. */
+            issuer: string;
+            /**
+             * Format: date-time
+             * @description Start of validity (UTC).
+             */
+            notBefore: string;
+            /**
+             * Format: date-time
+             * @description End of validity (UTC).
+             */
+            notAfter: string;
+            /** @description Validity now: expired, expiring within 30 days, or ok. */
+            expiryStatus: components["schemas"]["CertificateExpiryStatus"];
+            /** @description SHA-256 fingerprint as uppercase, colon-separated hex (as printed by openssl x509 -fingerprint -sha256). */
+            sha256Fingerprint: string;
+        };
+        /** @enum {string} */
+        CapabilityLevel: "clusterAdmin" | "clusterWideEdit" | "clusterWideView" | "limited";
+        /**
+         * @description Validity of a CA certificate at the time of the request; certificates are flagged 30 days before they expire.
+         * @enum {string}
+         */
+        CertificateExpiryStatus: "ok" | "expiringSoon" | "expired";
         /** @description Promotes (admin) or demotes (user) a user. */
         ChangeUserRoleRequest: {
             /** @description The requested role. */
@@ -208,6 +482,133 @@ export interface components {
              * @description The user's version from its last representation.
              */
             version: number;
+        };
+        /** @description A registered cluster with all its settings. */
+        ClusterDetail: {
+            /** @description The cluster name: URL slug, unique and immutable. */
+            name: string;
+            /** @description Human-friendly name; equals the name when none was given. */
+            displayName: string;
+            /** @description Production, staging or development. */
+            environment: components["schemas"]["ClusterEnvironment"];
+            /** @description The API server URL (https, host and port, no trailing slash). */
+            apiUrl: string;
+            /** @description Link to the cluster's own web console, or null. */
+            webConsoleUrl: null | string;
+            /** @description Free-text description, or null. */
+            description: null | string;
+            /** @description The PEM CA bundle used to verify the API server (not secret), or null for the system trust store. */
+            caBundle: null | string;
+            /** @description The certificates of the CA bundle; empty when there is none. */
+            caCertificates: components["schemas"]["CaCertificate"][];
+            /** @description Whether TLS verification is switched off for this cluster. */
+            skipTlsVerify: boolean;
+            /** @description How the API server's certificate is verified (derived from the CA bundle and the skip flag). */
+            tlsMode: components["schemas"]["ClusterTlsMode"];
+            /** @description Whether granted users see and can use the cluster. */
+            isEnabled: boolean;
+            /**
+             * Format: int32
+             * @description Number of ServiceAccount credentials stored for the cluster.
+             */
+            credentialCount: number;
+            /**
+             * Format: int32
+             * @description Number of users with access (one grant per user and cluster).
+             */
+            grantCount: number;
+            /**
+             * Format: date-time
+             * @description When the API URL, CA bundle or skip flag last changed; connection tests from before this time are stale.
+             */
+            connectionSettingsChangedAt: string;
+            /**
+             * Format: date-time
+             * @description When the cluster was registered.
+             */
+            createdAt: string;
+            /** @description Who registered the cluster. */
+            createdBy: string;
+            /**
+             * Format: date-time
+             * @description When an administrator last changed the cluster, or null.
+             */
+            updatedAt: null | string;
+            /** @description Who last changed the cluster, or null. */
+            updatedBy: null | string;
+            /**
+             * Format: uint32
+             * @description Concurrency version; send it back with edits and enable/disable.
+             */
+            version: number;
+        };
+        /**
+         * @description The fixed environment classification of a cluster (Q5). Drives the coloured environment label in the switcher and
+         *     admin pages and the production warnings (CLU-3, GRANT-2). Serialized as camelCase JSON strings.
+         * @enum {string}
+         */
+        ClusterEnvironment: "production" | "staging" | "development";
+        /** @description A row of the administration cluster list. */
+        ClusterListItem: {
+            /** @description The cluster name: URL slug, unique and immutable. */
+            name: string;
+            /** @description Human-friendly name; equals the name when none was given. */
+            displayName: string;
+            /** @description Production, staging or development. */
+            environment: components["schemas"]["ClusterEnvironment"];
+            /** @description The API server URL (https, host and port, no trailing slash). */
+            apiUrl: string;
+            /** @description Whether granted users see and can use the cluster. */
+            isEnabled: boolean;
+            /** @description How the API server's certificate is verified; skipVerify should be flagged. */
+            tlsMode: components["schemas"]["ClusterTlsMode"];
+            /**
+             * Format: int32
+             * @description Number of ServiceAccount credentials stored for the cluster.
+             */
+            credentialCount: number;
+            worstCredentialExpiryStatus: null | components["schemas"]["CredentialExpiryStatus"];
+            /**
+             * Format: int32
+             * @description Number of users with access (one grant per user and cluster).
+             */
+            grantCount: number;
+            lastTest: null | components["schemas"]["ConnectionTestSummary"];
+            /** @description The credential that newest test ran with, or null. */
+            lastTestCredentialName: null | string;
+            /**
+             * Format: uint32
+             * @description Concurrency version; send it back with enable/disable.
+             */
+            version: number;
+        };
+        /**
+         * @description How FleetConsole verifies a cluster API server's TLS certificate. Derived from ApiServerEndpoint (never
+         *     stored on its own) and shown in the cluster list and audit entries (CLU-3, CLU-7).
+         * @enum {string}
+         */
+        ClusterTlsMode: "caBundle" | "systemTrust" | "skipVerify";
+        /** @enum {string} */
+        ConnectionTestStep: "reachability" | "authentication" | "identity" | "openShiftVersion" | "capabilities";
+        /**
+         * @description The last stored connection test result of a credential (TEST-5), as shown in cluster, credential and grant views.
+         *     Shared by several queries (contract §3); build it with ConnectionTestSummaryDto? ConnectionTestSummaryMapping.ToDto(ConnectionTestSummary? summary, DateTimeOffset connectionSettingsChangedAt).
+         */
+        ConnectionTestSummary: {
+            /**
+             * Format: date-time
+             * @description When the test ran.
+             */
+            testedAt: string;
+            /** @description Whether no step failed (warnings allowed). */
+            succeeded: boolean;
+            failedStep: null | components["schemas"]["ConnectionTestStep"];
+            headline: null | components["schemas"]["CapabilityLevel"];
+            /**
+             * @description Whether the cluster's connection settings changed after the test ran (CLU-4), so the result
+             *                 may no longer describe the current configuration.
+             */
+            isStale: boolean;
         };
         /** @description Pre-creates a user before their first login. */
         CreateUserRequest: {
@@ -221,6 +622,89 @@ export interface components {
              */
             isReadOnly?: boolean;
         };
+        /** @description A ServiceAccount credential of a cluster: safe metadata only. The token is write-only and never returned. */
+        Credential: {
+            /**
+             * Format: uuid
+             * @description The credential id.
+             */
+            id: string;
+            /** @description The name of the credential's cluster. */
+            clusterName: string;
+            /** @description The display name of the credential's cluster. */
+            clusterDisplayName: string;
+            /** @description The environment of the credential's cluster. */
+            clusterEnvironment: components["schemas"]["ClusterEnvironment"];
+            /** @description Whether the credential's cluster is enabled. */
+            clusterIsEnabled: boolean;
+            /** @description The credential name, unique within its cluster. */
+            name: string;
+            /** @description Optional description. */
+            description: null | string;
+            /** @description Short identifier of the current token: the first 8 lowercase hex characters of its SHA-256. */
+            fingerprint: string;
+            /** @description Whether the token is a JWT (identity and expiry known) or opaque (unknown). */
+            tokenType: components["schemas"]["TokenType"];
+            /** @description The ServiceAccount as "namespace/name" when the token's subject is a ServiceAccount; otherwise null. */
+            serviceAccount: null | string;
+            /** @description The token's raw subject claim; null for opaque tokens or when absent. */
+            subject: null | string;
+            /**
+             * Format: date-time
+             * @description When the token was issued (JWT iat), if known. Read without signature validation.
+             */
+            issuedAt: null | string;
+            /**
+             * Format: date-time
+             * @description When the token expires (JWT exp); null when it has no expiry or it is unknown.
+             */
+            expiresAt: null | string;
+            /** @description The expiry state now; expiringSoon means within expiryWarningDays. */
+            expiryStatus: components["schemas"]["CredentialExpiryStatus"];
+            /**
+             * Format: int32
+             * @description The configured "expiring soon" window in days.
+             */
+            expiryWarningDays: number;
+            /**
+             * Format: date-time
+             * @description When the credential was added.
+             */
+            createdAt: string;
+            /** @description Who added the credential. */
+            createdBy: string;
+            /**
+             * Format: date-time
+             * @description When the token was last rotated; null if never.
+             */
+            rotatedAt: null | string;
+            /** @description Who last rotated the token; null if never. */
+            rotatedBy: null | string;
+            lastTest: null | components["schemas"]["ConnectionTestSummary"];
+            /**
+             * Format: int32
+             * @description How many grants use this credential.
+             */
+            grantCount: number;
+            /**
+             * Format: int32
+             * @description How many of those grants are read-write.
+             */
+            readWriteGrantCount: number;
+            /**
+             * Format: uint32
+             * @description Concurrency version; send it back when rotating the token.
+             */
+            version: number;
+        };
+        /**
+         * @description A credential's expiry state at a point in time (CRED-4), computed by CredentialExpiryStatus TokenMetadata.StatusAt(DateTimeOffset now, TimeSpan warningWindow) and never
+         *     stored, because it changes with the clock. Severity for "worst status" displays is, from worst:
+         *     CredentialExpiryStatus.Expired, CredentialExpiryStatus.ExpiringSoon, CredentialExpiryStatus.Unknown, CredentialExpiryStatus.NoExpiry, CredentialExpiryStatus.Ok
+         *     (contract §3); that is not the declaration order.
+         * @enum {string}
+         */
+        CredentialExpiryStatus: "ok" | "expiringSoon" | "expired" | "noExpiry" | "unknown";
         /** @description The signed-in user. */
         CurrentUser: {
             /** @description The OpenShift username. */
@@ -253,6 +737,7 @@ export interface components {
             /** @description W3C trace context of the request (traceparent format), for correlating the error with server logs. */
             traceId?: string;
         };
+        JsonElement: unknown;
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -264,6 +749,40 @@ export interface components {
             code?: string;
             /** @description W3C trace context of the request (traceparent format), for correlating the error with server logs. */
             traceId?: string;
+        };
+        /** @description Registers a cluster. */
+        RegisterClusterRequest: {
+            /** @description Unique, immutable name: lowercase letters, digits and '-', 1 to 40 characters, starting and ending with a letter or digit. */
+            name: string;
+            /** @description Display name, at most 100 characters; blank defaults to the name. */
+            displayName: null | string;
+            /** @description The API server URL: absolute https URL with host and optional port, no path, query or fragment. */
+            apiUrl: string;
+            /** @description The cluster's environment (required). */
+            environment: components["schemas"]["ClusterEnvironment"];
+            /** @description Optional absolute https link to the cluster's web console, at most 2048 characters. */
+            webConsoleUrl: null | string;
+            /** @description Optional description, at most 1000 characters. */
+            description: null | string;
+            /** @description Optional PEM bundle of CA certificates to trust (at most 256 KiB); blank means system trust. */
+            caBundle: null | string;
+            /** @description Skip TLS certificate verification; not allowed together with a CA bundle. */
+            skipTlsVerify: boolean;
+            /**
+             * @description Whether granted users see the cluster right away (default true).
+             * @default true
+             */
+            isEnabled?: boolean;
+        };
+        /** @description Replaces a credential's token in place; the credential id and its grants are kept. */
+        RotateCredentialTokenRequest: {
+            /** @description The new ServiceAccount token, with the same rules as when adding a credential. */
+            token: string;
+            /**
+             * Format: uint32
+             * @description The credential's version from its last representation.
+             */
+            version: number;
         };
         /** @description Sets or clears a user's global read-only flag. */
         SetUserReadOnlyRequest: {
@@ -281,6 +800,33 @@ export interface components {
             version: string;
             /** @description The hosting environment name, e.g. `Development` or `Production`. */
             environment: string;
+        };
+        /**
+         * @description What kind of token a credential holds, as detected when it was added or rotated (CRED-3).
+         * @enum {string}
+         */
+        TokenType: "jwt" | "opaque";
+        /** @description Replaces all editable settings of a cluster; the name can't be changed. */
+        UpdateClusterRequest: {
+            /** @description Display name, at most 100 characters; blank defaults to the name. */
+            displayName: null | string;
+            /** @description The API server URL: absolute https URL with host and optional port, no path, query or fragment. */
+            apiUrl: string;
+            /** @description The cluster's environment (required). */
+            environment: components["schemas"]["ClusterEnvironment"];
+            /** @description Optional absolute https link to the cluster's web console; blank removes it. */
+            webConsoleUrl: null | string;
+            /** @description Optional description, at most 1000 characters; blank removes it. */
+            description: null | string;
+            /** @description Optional PEM bundle of CA certificates to trust (at most 256 KiB); blank means system trust. */
+            caBundle: null | string;
+            /** @description Skip TLS certificate verification; not allowed together with a CA bundle. */
+            skipTlsVerify: boolean;
+            /**
+             * Format: uint32
+             * @description The cluster's version from its last representation.
+             */
+            version: number;
         };
         /** @description A user with everything the Administration user detail page shows. */
         UserDetail: {
@@ -1188,6 +1734,1035 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Credential"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListClusterCredentials: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Credential"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    AddCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Credential"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RotateCredentialToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+                /** @description The credential id. */
+                credentialId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RotateCredentialTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Credential"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+                /** @description The credential id. */
+                credentialId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListClusters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterListItem"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RegisterCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterClusterRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateClusterRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeleteCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    EnableCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DisableCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListAuditEntries: {
+        parameters: {
+            query?: {
+                actor?: string;
+                user?: string;
+                category?: string;
+                cluster?: string;
+                target?: string;
+                from?: string;
+                to?: string;
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPage"];
                 };
             };
             /** @description Bad Request */

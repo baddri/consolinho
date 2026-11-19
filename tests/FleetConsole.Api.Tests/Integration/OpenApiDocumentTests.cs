@@ -101,6 +101,42 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         values.Select(v => v.GetString()).ShouldBe(["admin", "user"], ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task EnumComponents_NeverContainNull()
+    {
+        // T-0047: .NET 10 builds a shared enum component from a nullable property (ConnectionTestStep?) and appends null
+        // to its values, which would make every use of the enum nullable in the generated TS types.
+        // StringEnumSchemaTransformer strips it; nullability stays on the referencing property.
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        var enums = schemas.EnumerateObject().Where(s => s.Value.TryGetProperty("enum", out _)).ToArray();
+        enums.Select(s => s.Name).ShouldContain("ConnectionTestStep");
+        enums.Select(s => s.Name).ShouldContain("CapabilityLevel");
+        foreach (var component in enums)
+        {
+            component.Value.GetProperty("enum").EnumerateArray().ShouldAllBe(
+                v => v.ValueKind == JsonValueKind.String, $"{component.Name} has a non-string enum value");
+            component.Value.GetProperty("type").ValueKind.ShouldBe(JsonValueKind.String, $"{component.Name} type is not plain");
+            component.Value.GetProperty("type").GetString().ShouldBe("string");
+        }
+    }
+
+    [Theory]
+    [InlineData("failedStep", "ConnectionTestStep")]
+    [InlineData("headline", "CapabilityLevel")]
+    public async Task NullableEnumProperties_StayNullableAtTheReference(string property, string enumSchema)
+    {
+        var document = await GetDocumentAsync();
+
+        var oneOf = document.GetProperty("components").GetProperty("schemas").GetProperty("ConnectionTestSummary")
+            .GetProperty("properties").GetProperty(property).GetProperty("oneOf").EnumerateArray().ToArray();
+
+        oneOf.Where(s => s.TryGetProperty("type", out _)).Select(s => s.GetProperty("type").GetString()).ShouldBe(["null"]);
+        oneOf.Where(s => s.TryGetProperty("$ref", out _)).Select(s => s.GetProperty("$ref").GetString())
+            .ShouldBe([$"#/components/schemas/{enumSchema}"]);
+    }
+
     [Theory]
     [InlineData("/api/auth/login", "get", "Login")]
     [InlineData("/api/auth/logout", "post", "Logout")]
