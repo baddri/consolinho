@@ -34,7 +34,8 @@
 | T-0028 | done | — | committed; bundle entry 23 kB |
 | T-0045 | done | — | committed |
 | T-0029 | done | — | committed (2 rounds) |
-| T-0030 | in_progress | frontend-engineer | admin users list (F5) |
+| T-0030 | done | — | committed |
+| T-0046 | todo | frontend-engineer | BUG: flaky router landing test under load — fix before CP1 VERIFY |
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
