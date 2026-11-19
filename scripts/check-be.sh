@@ -6,7 +6,9 @@ set -uo pipefail
 # Target the checkout you are in (lets worktrees on older bases call the main tree's copy of this script).
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")/.." && pwd))"; cd "$ROOT"
 # Logs live in the checkout's git dir: per-worktree, never tracked, no .gitignore needed.
-LOGS="$(cd "$ROOT" && git rev-parse --path-format=absolute --git-path checks 2>/dev/null || echo "$ROOT/.checks")"; mkdir -p "$LOGS"
+LOGS="$(cd "$ROOT" && git rev-parse --path-format=absolute --git-path checks 2>/dev/null || echo "$ROOT/.checks")"; # One sub-directory per run so concurrent agents' runs never overwrite each other's logs; keep the newest 20.
+LOGS="$LOGS/$(date +%Y%m%d-%H%M%S)-$$"; mkdir -p "$LOGS"
+ls -1dt "$(dirname "$LOGS")"/*/ 2>/dev/null | tail -n +21 | xargs -r rm -rf
 export DOCKER_HOST="${DOCKER_HOST:-unix:///run/user/$(id -u)/podman/podman.sock}"
 export TESTCONTAINERS_RYUK_DISABLED=true DOTNET_NOLOGO=1 DOTNET_CLI_TELEMETRY_OPTOUT=1
 RUN_TESTS=1; [[ "${1:-}" == "--no-test" ]] && { RUN_TESTS=0; shift; }

@@ -5,7 +5,9 @@ set -uo pipefail
 # Target the checkout you are in (lets worktrees on older bases call the main tree's copy of this script).
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || (cd "$(dirname "$0")/.." && pwd))"; cd "$ROOT/web"
 # Logs live in the checkout's git dir: per-worktree, never tracked, no .gitignore needed.
-LOGS="$(cd "$ROOT" && git rev-parse --path-format=absolute --git-path checks 2>/dev/null || echo "$ROOT/.checks")"; mkdir -p "$LOGS"
+LOGS="$(cd "$ROOT" && git rev-parse --path-format=absolute --git-path checks 2>/dev/null || echo "$ROOT/.checks")"; # One sub-directory per run so concurrent agents' runs never overwrite each other's logs; keep the newest 20.
+LOGS="$LOGS/$(date +%Y%m%d-%H%M%S)-$$"; mkdir -p "$LOGS"
+ls -1dt "$(dirname "$LOGS")"/*/ 2>/dev/null | tail -n +21 | xargs -r rm -rf
 fail=0
 step() { # name, max lines, command...
   local name=$1 max=$2; shift 2
