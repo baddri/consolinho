@@ -9,7 +9,7 @@
 - **CP0 Foundations: DONE** (tag `cp-0`).
 - **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
   ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
-- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0031, T-0032, T-0033, T-0042, T-0045, T-0046 (frontend); T-0016, T-0017, T-0018 (session 2; T-0017/18 merged from worktrees, no worktrees left).
+- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0031..T-0034, T-0042, T-0045, T-0046 (frontend); T-0016, T-0017, T-0018, T-0021, T-0047 (session 2; T-0017/18 merged from worktrees, no worktrees left).
   Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
 
 ## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
@@ -27,8 +27,9 @@ committing either.
 **Session 2 stopped by usage limit (2026-11-19)** — in flight when stopped (check each task file's status/Handover notes):
 - T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
 - T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
-- schema.gen.ts NOT yet regenerated for T-0017/18: blocked by T-0047 (nullable enum components break web typecheck). QA leak-scan `/clusters` endpoints still open.
-- In flight: T-0021 (audit query API, built, in backend-architect review — main tree); T-0034 (cluster form) + T-0041 (audit log page) frontend-engineers in main tree. T-0047 queued after T-0021 review (avoid concurrent BE builds).
+- schema.gen.ts regenerated for T-0016..T-0021 (T-0047). QA leak-scan `/clusters` endpoints still open.
+- In flight: T-0019 grants API (backend-engineer, main tree); T-0020 connection tests (backend-engineer, own worktree — merge after review, then regen schema); T-0041 audit log page (frontend-engineer, finishing ReadOnlyFilter→SingleSelectFilter + AUD-4 flake).
+- New follow-ups filed: T-0048 (audit `category` param as AuditCategory in OpenAPI), T-0049 (shared FileUploadField + CA field a11y).
 - Optional follow-ups from reviews: T-0033 nits (deleted-cluster toast in T-0035, version-in-body test, status-filter test); T-0032 aria-labelledby nit.
 
 ## Next actions (resume here)
