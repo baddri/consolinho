@@ -10,6 +10,7 @@ export {
   type ToolbarSearch,
 } from './FilterToolbar';
 export { matchesText } from './matchesText';
+export { SingleSelectFilter, type SingleSelectFilterProps } from './SingleSelectFilter';
 export {
   TableEmptyRow,
   TableSkeletonRows,

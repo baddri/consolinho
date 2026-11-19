@@ -1,29 +1,30 @@
 import { MenuToggle, Select, SelectList, SelectOption, ToolbarFilter } from '@patternfly/react-core';
 import { useState } from 'react';
-import { READ_ONLY_OPTIONS } from './userFilters';
+import type { FilterOption } from './FilterToolbar';
 
-/** Props for {@link ReadOnlyFilter}. */
-export interface ReadOnlyFilterProps {
-  /** `yes`, `no` or `undefined` (no filter). */
-  value: string | undefined;
+/** Props for {@link SingleSelectFilter}. */
+export interface SingleSelectFilterProps {
+  /** Category name shown on the toggle ("Filter by …") and on the removable label group. */
+  categoryName: string;
+  options: FilterOption[];
+  /** Selected option value; `undefined` = no filter. */
+  value?: string;
   /** Sets the filter; `undefined` removes it. */
   onChange: (value?: string) => void;
 }
 
-const CATEGORY = 'Read only';
-
-const labelFor = (value: string) => READ_ONLY_OPTIONS.find((o) => o.value === value)?.label ?? value;
-
 /**
- * Single-choice "Read only" filter of the users toolbar, passed to `FilterToolbar` as `filterItems` so its removable
- * label shares the toolbar's label collapse and "Clear all filters". Picking the selected option again clears it.
+ * Single-choice filter ("Read only", audit "Category", …) for `FilterToolbar`'s `filterItems`, so its removable label
+ * shares the toolbar's label collapse and "Clear all filters". Picking the selected option again clears it. Pair with
+ * a `single` filter of `useUrlFilters` (`setSingle`).
  */
-export function ReadOnlyFilter({ value, onChange }: ReadOnlyFilterProps) {
+export function SingleSelectFilter({ categoryName, options, value, onChange }: SingleSelectFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const labelFor = (v: string) => options.find((o) => o.value === v)?.label ?? v;
 
   return (
     <ToolbarFilter
-      categoryName={CATEGORY}
+      categoryName={categoryName}
       labels={value ? [{ key: value, node: labelFor(value) }] : []}
       deleteLabel={() => onChange(undefined)}
       deleteLabelGroup={() => onChange(undefined)}
@@ -40,16 +41,16 @@ export function ReadOnlyFilter({ value, onChange }: ReadOnlyFilterProps) {
         toggle={(toggleRef) => (
           <MenuToggle
             ref={toggleRef}
-            aria-label={`Filter by ${CATEGORY}`}
+            aria-label={`Filter by ${categoryName}`}
             isExpanded={isOpen}
             onClick={() => setIsOpen((open) => !open)}
           >
-            {CATEGORY}
+            {categoryName}
           </MenuToggle>
         )}
       >
         <SelectList>
-          {READ_ONLY_OPTIONS.map((option) => (
+          {options.map((option) => (
             <SelectOption key={option.value} value={option.value}>
               {option.label}
             </SelectOption>

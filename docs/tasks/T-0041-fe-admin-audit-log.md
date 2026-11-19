@@ -1,7 +1,7 @@
 ---
 id: T-0041
 title: Audit log viewer (/admin/audit) — URL filters, keyset "Load more", expandable details
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 1
 depends_on: [T-0028, T-0026, T-0024]
@@ -52,17 +52,42 @@ p.nextCursor ?? undefined`, `limit` 50.
   `web/src/shared/table/` and `web/src/features/admin/users/{UsersListPage.tsx,ReadOnlyFilter.tsx}`.
 
 ## Acceptance criteria
-- [ ] AUD-2: rows show time, actor (system label), action, target, cluster, summary; expanding shows details JSON
+- [x] AUD-2: rows show time, actor (system label), action, target, cluster, summary; expanding shows details JSON
       and correlation id.
-- [ ] AUD-4: each filter writes the URL and sends the matching query param; `/admin/audit?user=alice` and
+- [x] AUD-4: each filter writes the URL and sends the matching query param; `/admin/audit?user=alice` and
       `?cluster=prod-eu-1` deep links pre-filter; presets send `from` ≈ now − range (`timeRange` unit tests with a
       fixed `now`); custom range sends both bounds.
-- [ ] AUD-4: "Load more" appends the next page via `cursor` without duplicates (MSW fixture of 120 entries → 3
+- [x] AUD-4: "Load more" appends the next page via `cursor` without duplicates (MSW fixture of 120 entries → 3
       pages); key does not change between pages.
-- [ ] AUD-5: works for `ines`. QG-3 loading/empty/error. TSDoc. Build, lint, tests green.
+- [x] AUD-5: works for `ines`. QG-3 loading/empty/error. TSDoc. Build, lint, tests green.
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; users-page switch to SingleSelectFilter deferred (orchestrator: users/ owned by concurrent agents).
+- 2026-11-20 frontend-engineer: audit page, filters (typeaheads, category, debounced target, presets/custom), keyset
+  "Load more", expandable rows; `shared/table/SingleSelectFilter` + kit test. check-fe.sh green (413 tests).
+- 2026-11-20 frontend-engineer: UsersListPage → SingleSelectFilter, ReadOnlyFilter.tsx deleted; typeahead arrow-key
+  nav; filter test split per filter (timeout under load). Audit file 3x in a row + full gate 2x green (416).
 
 ## Review
+- 2026-11-20 frontend-architect, round 1: **APPROVE**. `scripts/check-fe.sh` green (36 files / 416 tests).
+  URL is the source of truth (single `setTimeRange` update is correct); key = resolved request with `now` captured
+  per filter-set mount, 1 cache entry across 3 pages verified by test; dedupe in `flattenPages` is harmless belt-and-braces.
+  `SingleSelectFilter` API matches the design; users page switched, `ReadOnlyFilter.tsx` deleted. Typeahead a11y checked
+  against PF source (caret-only `onClick`, `id` lands on the `role="option"` element). No `any`, TSDoc complete.
+  Optional nits:
+  - `audit/TypeaheadFilter.tsx:109` — combobox lacks `aria-controls` → give `SelectList` an `id` and reference it (PF typeahead example does).
+  - `audit/AuditFilters.tsx:100,104` — `effectiveRange(values)` computed twice; hoist to a const.
+  - `audit/DateTimeField.tsx:54` — a new "To" date defaults to 00:00, excluding that day; consider 23:59 for the upper bound.
+  - `audit/AuditLogPage.test.tsx:231` — "shows skeleton rows" test never asserts the skeleton; assert it before the error appears or rename.
 
 ## Handover notes
+- Files: `audit/{api.ts,auditFilters.ts,timeRange.ts,AuditLogPage.tsx,AuditFilters.tsx,AuditEntryRow.tsx,
+  TypeaheadFilter.tsx,DateTimeField.tsx}` + tests; `shared/table/SingleSelectFilter.tsx` (exported, demo test uses it).
+- `UsersListPage` uses `SingleSelectFilter`; `ReadOnlyFilter.tsx` deleted; users tests unchanged and green.
+- Stable key: `AuditResults` is keyed by `auditFiltersKey(values)`; `useAuditRequest` captures `now` in a `useState`
+  initializer on mount (react-hooks/purity forbids `Date.now()` in render), so a filter change = fresh `now`.
+- `from`/`to` without `range` are treated as custom (hand-written links still apply → server 400 shown with field errors).
+- Range changes go through `setTimeRange` (one `setSearchParams`), since two `useUrlFilters` setters in one event clobber.
+- Typeahead: Select `variant="typeahead"` (else PF moves focus into the menu on ArrowDown); Up/Down highlight via
+  `isFocused` + `aria-activedescendant`, Enter applies highlight or free text.
+- `details` rendered via `formatDetails` (null → nothing, objects pretty-printed, scalars JSON-quoted).

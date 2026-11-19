@@ -1,13 +1,14 @@
-import { Button, MenuToggle, Select, SelectList, SelectOption, ToolbarFilter } from '@patternfly/react-core';
+import { Button } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { act, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router';
 import {
   FilterToolbar,
   matchesText,
+  SingleSelectFilter,
   TableEmptyRow,
   TableSkeletonRows,
   useClientSort,
@@ -47,51 +48,10 @@ const ACCESSORS = {
   lastSeen: (c: DemoCluster) => c.lastSeen,
 };
 
-const STATUS_LABELS: Record<string, string> = { enabled: 'Enabled', disabled: 'Disabled' };
-
-/**
- * A page-supplied single-select filter passed through `filterItems` (what the users page does for read-only and
- * the audit page for category): its label lives in the same toolbar, so "Clear all filters" covers it.
- */
-function StatusFilter({ value, onChange }: { value: string | undefined; onChange: (v?: string) => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <ToolbarFilter
-      categoryName="Status"
-      labels={value ? [{ key: value, node: STATUS_LABELS[value] }] : []}
-      deleteLabel={() => onChange(undefined)}
-      deleteLabelGroup={() => onChange(undefined)}
-    >
-      <Select
-        isOpen={isOpen}
-        selected={value}
-        onSelect={(_event, v) => {
-          onChange(String(v));
-          setIsOpen(false);
-        }}
-        onOpenChange={setIsOpen}
-        toggle={(toggleRef) => (
-          <MenuToggle
-            ref={toggleRef}
-            aria-label="Filter by Status"
-            isExpanded={isOpen}
-            onClick={() => setIsOpen((open) => !open)}
-          >
-            Status
-          </MenuToggle>
-        )}
-      >
-        <SelectList>
-          {Object.entries(STATUS_LABELS).map(([key, label]) => (
-            <SelectOption key={key} value={key}>
-              {label}
-            </SelectOption>
-          ))}
-        </SelectList>
-      </Select>
-    </ToolbarFilter>
-  );
-}
+const STATUS_OPTIONS = [
+  { value: 'enabled', label: 'Enabled' },
+  { value: 'disabled', label: 'Disabled' },
+];
 
 /** A minimal admin list page built only from the kit, the way feature pages will use it. */
 function DemoList({ rows }: { rows?: DemoCluster[] }) {
@@ -124,7 +84,14 @@ function DemoList({ rows }: { rows?: DemoCluster[] }) {
             onClear: () => clear('env'),
           },
         ]}
-        filterItems={<StatusFilter value={values.status} onChange={(v) => setSingle('status', v)} />}
+        filterItems={
+          <SingleSelectFilter
+            categoryName="Status"
+            options={STATUS_OPTIONS}
+            value={values.status}
+            onChange={(v) => setSingle('status', v)}
+          />
+        }
         onClearAll={clearAll}
         actions={<Button>Register cluster</Button>}
       />
@@ -266,6 +233,17 @@ describe('admin list kit (demo list)', () => {
     expect(router.state.location.search).toBe('?keep=1');
     expect(screen.queryByRole('list', { name: 'Status' })).not.toBeInTheDocument();
     expect(visibleNames()).toHaveLength(4);
+  });
+
+  it('single-select filter: picking the selected option again clears it', async () => {
+    const { user, router } = renderDemo('/admin/clusters?status=enabled');
+
+    expect(within(filterLabels('Status')).getByText('Enabled')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Filter by Status' }));
+    await user.click(screen.getByRole('option', { name: 'Enabled' }));
+
+    expect(router.state.location.search).toBe('');
+    expect(screen.queryByRole('list', { name: 'Status' })).not.toBeInTheDocument();
   });
 
   it('"Clear all filters" resets every declared filter and keeps other params', async () => {

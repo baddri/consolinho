@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import type { UserListItem } from '@/shared/api';
 import {
   FilterToolbar,
+  SingleSelectFilter,
   TableEmptyRow,
   TableSkeletonRows,
   useClientSort,
@@ -15,8 +16,13 @@ import { ActionButton, ErrorState } from '@/shared/ui';
 import { useAdminAccess } from '../useAdminAccess';
 import { useUsers } from './api';
 import { CreateUserModal } from './CreateUserModal';
-import { ReadOnlyFilter } from './ReadOnlyFilter';
-import { matchesUserFilters, ROLE_OPTIONS, STATUS_OPTIONS, USER_FILTERS } from './userFilters';
+import {
+  matchesUserFilters,
+  READ_ONLY_OPTIONS,
+  ROLE_OPTIONS,
+  STATUS_OPTIONS,
+  USER_FILTERS,
+} from './userFilters';
 import { USER_COLUMN_COUNT, UserRow } from './UserRow';
 
 type SortColumn = 'username' | 'lastLogin';
@@ -84,7 +90,12 @@ export function UsersListPage() {
             },
           ]}
           filterItems={
-            <ReadOnlyFilter value={values.readOnly} onChange={(value) => setSingle('readOnly', value)} />
+            <SingleSelectFilter
+              categoryName="Read only"
+              options={READ_ONLY_OPTIONS}
+              value={values.readOnly}
+              onChange={(value) => setSingle('readOnly', value)}
+            />
           }
           onClearAll={clearAll}
           actions={
