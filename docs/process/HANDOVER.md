@@ -9,7 +9,7 @@
   Backend 137 tests, frontend 51 tests, `aspire run` verified incl. real browser.
 - CP0 had no product-owner ACCEPT step (technical checkpoint, spec written by orchestrator).
 - CP1 loop step: **BUILD**. Design complete: backend T-0007..T-0021 (waves W1–W7), frontend T-0022..T-0043 (groups F1–F10),
-  ADR-0008..0017, contract `docs/specs/CP1-api-contract.md` (with orchestrator amendments 2026-11-18).
+  ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (with orchestrator amendments 2026-11-18).
 - Human requirement recorded for CP1: login via **host-cluster OpenShift OAuth** (ADR-0007), dev uses in-repo emulator `FleetConsole.DevOAuth`.
 
 ## In flight
@@ -22,7 +22,7 @@
 | T-0012 | done | — | 4c7f114 |
 | T-0013 | done | — | merged 810565c (worktree removed) |
 | T-0014 | done | — | 6f1793a (2 rounds) |
-| T-0015 | in_progress | backend-engineer | Api login/callback/logout/me endpoints, session validator, harness (W5, critical path) |
+| T-0015 | in_progress | backend-engineer | round 1 fixes (token-exchange tests, non-object JSON, log level, MetadataChanged removal, UserRole doc) |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
@@ -35,11 +35,11 @@
 | T-0045 | done | — | committed |
 | T-0029 | done | — | committed (2 rounds) |
 | T-0030 | done | — | committed |
-| T-0046 | todo | frontend-engineer | BUG: flaky router landing test under load — fix before CP1 VERIFY |
-| next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
+| T-0046 | in_progress | frontend-engineer | BUG: flaky router landing test under load |
+| T-0042 | in_progress | frontend-engineer | `npm run dev:mock` (browser MSW worker) — lets the human click through the UI without backend |
+| next | todo | | after T-0015: W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE F5/F6: T-0031, T-0033, T-0034, T-0041 … |
 
 ## Next actions (CP1)
-0. **Human asked to pause after T-0030 (2026-11-19).** Finish in-flight T-0015, T-0029, T-0030 (review + commit), then stop. Start nothing new until the human says continue.
 1. T-0015 (W5) → review → commit. Then W6 admin APIs T-0016..T-0019, T-0021 (3 at a time; shared files: AdminEndpoints.cs, DI files, schema.gen.ts), then T-0020.
 2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
 3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
