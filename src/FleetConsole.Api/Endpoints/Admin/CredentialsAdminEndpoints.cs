@@ -3,10 +3,13 @@ using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Credentials;
 using FleetConsole.Application.Credentials.AddCredential;
+using FleetConsole.Application.Credentials.ConnectionTesting;
 using FleetConsole.Application.Credentials.DeleteCredential;
 using FleetConsole.Application.Credentials.GetCredential;
 using FleetConsole.Application.Credentials.ListCredentials;
 using FleetConsole.Application.Credentials.RotateCredentialToken;
+using FleetConsole.Application.Credentials.TestCredential;
+using FleetConsole.Application.Credentials.TestToken;
 using FleetConsole.Domain.Common;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -15,7 +18,8 @@ namespace FleetConsole.Api.Endpoints.Admin;
 /// <summary>
 /// ServiceAccount credential administration (contract §8.3–§8.4, CRED-1..8): the fleet-wide list
 /// <c>/api/admin/credentials</c> and the per-cluster routes under <c>/api/admin/clusters/{name}/credentials</c>.
-/// The connection-test routes under the same prefix are mapped by T-0020.
+/// The connection tests (TEST-1..5, ADR-0011): <c>…/credentials/{credentialId}/test</c> and
+/// <c>/api/admin/clusters/{name}/test-token</c>.
 /// </summary>
 /// <remarks>
 /// <para><b>Tokens are write-only</b> (CRED-2, SECURITY.md): the endpoints trim the token from the request body and wrap
@@ -40,6 +44,9 @@ public static class CredentialsAdminEndpoints
         credentials.MapPost("", AddCredential).WithName("AddCredential");
         credentials.MapPut("/{credentialId:guid}/token", RotateCredentialToken).WithName("RotateCredentialToken");
         credentials.MapDelete("/{credentialId:guid}", DeleteCredential).WithName("DeleteCredential");
+        credentials.MapPost("/{credentialId:guid}/test", TestCredential).WithName("TestCredential");
+
+        admin.MapPost("/clusters/{name}/test-token", TestToken).WithTags("Credentials").WithName("TestToken");
 
         return credentials;
     }
@@ -136,6 +143,52 @@ public static class CredentialsAdminEndpoints
         string name, Guid credentialId, IDispatcher dispatcher, CancellationToken cancellationToken) =>
         (await dispatcher.Send(new DeleteCredentialCommand(name, credentialId), cancellationToken).ConfigureAwait(false))
             .ToHttpResult();
+
+    /// <summary>
+    /// Tests a stored credential against its cluster (also when the cluster is disabled) and stores the outcome as the
+    /// credential's last test. A failed test is a 200 whose steps say what failed. Fails with 404 Clusters.NotFound /
+    /// Credentials.NotFound.
+    /// </summary>
+    /// <param name="name">The cluster name.</param>
+    /// <param name="credentialId">The credential id.</param>
+    /// <param name="request">The test options.</param>
+    /// <param name="dispatcher">The CQRS dispatcher.</param>
+    /// <param name="cancellationToken">Request-aborted token.</param>
+    /// <returns>200 with the test result.</returns>
+    internal static async Task<Results<Ok<ConnectionTestResultDto>, ProblemHttpResult>> TestCredential(
+        string name, Guid credentialId, TestCredentialRequest request, IDispatcher dispatcher, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // The time budget (Credentials:ConnectionTestTimeout) is applied by ConnectionTester on top of this token.
+        return (await dispatcher.Send(
+            new TestCredentialCommand(name, credentialId, ToNamespace(request.InspectNamespace)),
+            cancellationToken).ConfigureAwait(false)).ToHttpResult();
+    }
+
+    /// <summary>
+    /// Tests a token that is not stored (before adding or rotating a credential). Nothing is saved except an audit entry
+    /// with the token's fingerprint. A failed test is a 200 whose steps say what failed. Fails with 404 Clusters.NotFound,
+    /// or 400 when credentialId is not a credential of the cluster.
+    /// </summary>
+    /// <param name="name">The cluster name.</param>
+    /// <param name="request">The token and test options.</param>
+    /// <param name="dispatcher">The CQRS dispatcher.</param>
+    /// <param name="cancellationToken">Request-aborted token.</param>
+    /// <returns>200 with the test result.</returns>
+    internal static async Task<Results<Ok<ConnectionTestResultDto>, ProblemHttpResult>> TestToken(
+        string name, TestTokenRequest request, IDispatcher dispatcher, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return (await dispatcher.Send(
+            new TestTokenCommand(name, ToSensitiveToken(request.Token), request.CredentialId, ToNamespace(request.InspectNamespace)),
+            cancellationToken).ConfigureAwait(false)).ToHttpResult();
+    }
+
+    // A blank inspectNamespace (an empty form field) means "don't inspect"; anything else is validated as given.
+    private static string? ToNamespace(string? inspectNamespace) =>
+        string.IsNullOrWhiteSpace(inspectNamespace) ? null : inspectNamespace.Trim();
 
     // Contract §8.4: the token is trimmed, then validated (TokenValidationRules). A missing JSON property arrives as
     // null and becomes empty, so validation answers "Token is required." instead of a framework error.

@@ -28,16 +28,19 @@ public sealed record ResourceAttributes(
 /// <param name="Reason">The authorizer's optional explanation (e.g. the RBAC binding that allowed it).</param>
 public sealed record AccessReviewResult(bool Allowed, string? Reason);
 
-/// <summary>One resource rule from a SelfSubjectRulesReview: these verbs on these resources are allowed.</summary>
+/// <summary>
+/// One resource rule from a SelfSubjectRulesReview: these verbs on these resources are allowed. Not named
+/// <c>ResourceRule</c>: that is the API schema name of <c>ResourceRuleDto</c> (contract §8.5, SchemaNamingTests).
+/// </summary>
 /// <param name="Verbs">Allowed verbs.</param>
 /// <param name="ApiGroups">API groups the rule applies to (empty string = core).</param>
 /// <param name="Resources">Resources (and <c>resource/subresource</c>) the rule applies to.</param>
 /// <param name="ResourceNames">If non-empty, the rule only applies to these object names.</param>
-public sealed record ResourceRule(
+public sealed record KubernetesResourceRule(
     IReadOnlyList<string> Verbs, IReadOnlyList<string> ApiGroups, IReadOnlyList<string> Resources, IReadOnlyList<string> ResourceNames);
 
 /// <summary>The API server's answer to a SelfSubjectRulesReview for one namespace.</summary>
 /// <param name="Incomplete">True when some authorizer could not enumerate rules; the list may then be missing permissions.</param>
 /// <param name="EvaluationError">The authorizer's error, if any, when <paramref name="Incomplete"/> is true.</param>
 /// <param name="Rules">The allowed resource rules.</param>
-public sealed record RulesReviewResult(bool Incomplete, string? EvaluationError, IReadOnlyList<ResourceRule> Rules);
+public sealed record RulesReviewResult(bool Incomplete, string? EvaluationError, IReadOnlyList<KubernetesResourceRule> Rules);

@@ -148,7 +148,7 @@ internal sealed partial class ClusterProbeSession : IClusterProbeSession
                     status.Incomplete,
                     string.IsNullOrEmpty(status.EvaluationError) ? null : status.EvaluationError,
                     (status.ResourceRules ?? [])
-                        .Select(rule => new ResourceRule(
+                        .Select(rule => new KubernetesResourceRule(
                             rule.Verbs ?? [], rule.ApiGroups ?? [], rule.Resources ?? [], rule.ResourceNames ?? []))
                         .ToList())
                 : null,

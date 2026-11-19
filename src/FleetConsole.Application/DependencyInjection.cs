@@ -3,6 +3,7 @@ using FleetConsole.Application.Abstractions.Events;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Audit;
 using FleetConsole.Application.Behaviors;
+using FleetConsole.Application.Credentials.ConnectionTesting;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -46,6 +47,9 @@ public static class DependencyInjection
         // Audit (ADR-0008): pre-commit domain event handlers + the audit trail they record through.
         services.AddDomainEventHandlers(ApplicationAssembly.Assembly);
         services.AddScoped<IAuditTrail, AuditTrail>();
+
+        // Connection tests (ADR-0011): step orchestration shared by the TestCredential and TestToken handlers.
+        services.AddScoped<ConnectionTester>();
 
         // Pipeline — order matters, see remarks. Keep the slots for future behaviors so insertion points stay obvious.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));

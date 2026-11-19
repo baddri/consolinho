@@ -53,6 +53,9 @@ internal static class ServiceProviderBuilder
             services.AddScoped(_ => Substitute.For<ICredentialRepository>());
             services.AddScoped(_ => Substitute.For<IGrantRepository>());
             services.AddSingleton(_ => Substitute.For<ITokenProtector>());
+
+            // Port of the connection tests (T-0020); ConnectionTesterTests use their own scripted fake.
+            services.AddSingleton(_ => Substitute.For<FleetConsole.Application.Abstractions.Kubernetes.IClusterProbeClient>());
         }
 
         if (withApplicationPipeline)
