@@ -8,6 +8,8 @@ import {
   unwrapNoContent,
   type ClusterDetail,
   type ClusterListItem,
+  type RegisterClusterRequest,
+  type UpdateClusterRequest,
   type VersionRequest,
 } from '@/shared/api';
 import { adminKeys } from '../queryKeys';
@@ -30,6 +32,45 @@ export function useCluster(name: string) {
     queryKey: adminKeys.cluster(name),
     queryFn: ({ signal }): Promise<ClusterDetail> =>
       unwrap(apiClient.GET('/api/admin/clusters/{name}', { params: { path: { name } }, signal })),
+  });
+}
+
+/**
+ * `POST /api/admin/clusters` (CLU-1..3): registers a cluster (201 `ClusterDetail`; 409 `Clusters.NameTaken`). The
+ * new detail is cached under its key and, like every lifecycle change, the admin prefix and the switcher list are
+ * invalidated (an enabled cluster the admin holds a grant on would appear there).
+ */
+export function useRegisterCluster() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: RegisterClusterRequest): Promise<ClusterDetail> =>
+      unwrap(apiClient.POST('/api/admin/clusters', { body })),
+    onSuccess: (cluster) => {
+      queryClient.setQueryData(adminKeys.cluster(cluster.name), cluster);
+      invalidateAfterSuccess(queryClient);
+    },
+    onError: (error) => invalidateAfterError(queryClient, error),
+  });
+}
+
+/** Variables of {@link useUpdateCluster}: the route's cluster name plus the full `UpdateClusterRequest` body. */
+export type UpdateClusterVariables = UpdateClusterRequest & { name: string };
+
+/**
+ * `PUT /api/admin/clusters/{name}` (CLU-4, ADM-4): full replacement of the editable fields with the optimistic
+ * `version`; 409 `Concurrency.Conflict` when it is stale. Success also refreshes the switcher list, which shows
+ * (and orders by) display name and environment (T-0029 review).
+ */
+export function useUpdateCluster() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, ...body }: UpdateClusterVariables): Promise<ClusterDetail> =>
+      unwrap(apiClient.PUT('/api/admin/clusters/{name}', { params: { path: { name } }, body })),
+    onSuccess: (cluster) => {
+      queryClient.setQueryData(adminKeys.cluster(cluster.name), cluster);
+      invalidateAfterSuccess(queryClient);
+    },
+    onError: (error) => invalidateAfterError(queryClient, error),
   });
 }
 

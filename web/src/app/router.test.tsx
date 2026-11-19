@@ -70,11 +70,11 @@ describe('routes', () => {
   it.each([
     ['/admin/users', 'Users', {}],
     ['/admin/clusters', 'Clusters', {}],
-    ['/admin/clusters/new', 'Add cluster', {}],
+    ['/admin/clusters/new', 'Register cluster', {}],
     ['/admin/clusters/dev-1', 'Cluster details', { name: 'dev-1', tab: 'details' }],
     ['/admin/clusters/dev-1/credentials', 'Cluster details', { name: 'dev-1', tab: 'credentials' }],
     ['/admin/clusters/dev-1/access', 'Cluster details', { name: 'dev-1', tab: 'access' }],
-    ['/admin/clusters/dev-1/edit', 'Edit cluster', { name: 'dev-1' }],
+    ['/admin/clusters/dev-1/edit', 'Edit dev-1', {}],
     ['/admin/credentials', 'Credentials', {}],
     ['/admin/audit', 'Audit log', {}],
   ])('renders %s', async (path, title, params) => {
