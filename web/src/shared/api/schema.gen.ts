@@ -79,10 +79,148 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lists all users, sorted by username. */
+        get: operations["ListUsers"];
+        put?: never;
+        /** Pre-creates a user before their first login. Fails with 409 Users.UsernameTaken when the username exists. */
+        post: operations["CreateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns one user. Fails with 404 Users.NotFound for an unknown username. */
+        get: operations["GetUser"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Promotes (admin) or demotes (user) a user. Promoting a user who is admin only via configuration records the
+         *     assignment so it survives leaving the admin group. Demote fails with 409 Users.AdminViaConfiguration,
+         *     Users.SelfChange or Users.LastAdmin; a stale version with 409 Concurrency.Conflict.
+         */
+        put: operations["ChangeUserRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/read-only": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Sets or clears a user's global read-only flag. Fails with 409 Users.LastAdmin when no active writable
+         *     administrator would remain; a stale version with 409 Concurrency.Conflict.
+         */
+        put: operations["SetUserReadOnly"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivates a user: login is refused and their sessions end within the revalidation interval. Grants are kept.
+         *     Fails with 409 Users.SelfChange or Users.LastAdmin; a stale version with 409 Concurrency.Conflict.
+         */
+        post: operations["DeactivateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/reactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reactivates a deactivated user; their grants apply again. Sessions from before the deactivation stay ended. A
+         *     stale version fails with 409 Concurrency.Conflict.
+         */
+        post: operations["ReactivateUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Promotes (admin) or demotes (user) a user. */
+        ChangeUserRoleRequest: {
+            /** @description The requested role. */
+            role: components["schemas"]["UserRole"];
+            /**
+             * Format: uint32
+             * @description The user's version from its last representation.
+             */
+            version: number;
+        };
+        /** @description Pre-creates a user before their first login. */
+        CreateUserRequest: {
+            /** @description The OpenShift username, exactly as OpenShift reports it: 1 to 253 characters, case-sensitive, without '/', '%', whitespace or control characters, and not '.', '..' or '~'. */
+            username: string;
+            /** @description The initial role (default user). */
+            role?: components["schemas"]["UserRole"];
+            /**
+             * @description Whether the user starts globally read-only (default false).
+             * @default false
+             */
+            isReadOnly?: boolean;
+        };
         /** @description The signed-in user. */
         CurrentUser: {
             /** @description The OpenShift username. */
@@ -127,6 +265,16 @@ export interface components {
             /** @description W3C trace context of the request (traceparent format), for correlating the error with server logs. */
             traceId?: string;
         };
+        /** @description Sets or clears a user's global read-only flag. */
+        SetUserReadOnlyRequest: {
+            /** @description The requested value. */
+            isReadOnly: boolean;
+            /**
+             * Format: uint32
+             * @description The user's version from its last representation.
+             */
+            version: number;
+        };
         /** @description Build and environment information about this FleetConsole deployment. */
         SystemInfo: {
             /** @description The deployed build version, e.g. `1.0.0+3f2c1ab` (the suffix is the git commit). */
@@ -134,12 +282,108 @@ export interface components {
             /** @description The hosting environment name, e.g. `Development` or `Production`. */
             environment: string;
         };
+        /** @description A user with everything the Administration user detail page shows. */
+        UserDetail: {
+            /** @description The OpenShift username (exact, case-sensitive). */
+            username: string;
+            /** @description The OpenShift full name from the last login, or null when unknown or not set. */
+            displayName: null | string;
+            /** @description The effective role: admin when assigned by an administrator or granted by configuration. */
+            role: components["schemas"]["UserRole"];
+            /** @description Whether configuration (user list or admin group) made the user an administrator at their last login. Such a user can't be demoted. */
+            isAdminViaConfiguration: boolean;
+            /** @description Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false. */
+            isAdminByAssignment: boolean;
+            /** @description Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't. */
+            adminConfigurationSource: null | string;
+            /** @description pending (never logged in), active, or deactivated. */
+            status: components["schemas"]["UserStatus"];
+            /** @description Whether the user is globally read-only. */
+            isReadOnly: boolean;
+            /**
+             * Format: int32
+             * @description Number of clusters the user has been granted access to.
+             */
+            grantCount: number;
+            /**
+             * Format: date-time
+             * @description When the user last logged in; null before the first login.
+             */
+            lastLoginAt: null | string;
+            /** @description The user's OpenShift groups at the last login (empty before the first login). */
+            groups: string[];
+            /**
+             * Format: date-time
+             * @description When the user record was created.
+             */
+            createdAt: string;
+            /** @description The administrator who pre-created the user, or the user's own name when created at their first login. */
+            createdBy: string;
+            /**
+             * Format: uint32
+             * @description Concurrency token: send it back with every change to this user.
+             */
+            version: number;
+        };
+        /** @description A user as shown in the Administration user list. */
+        UserListItem: {
+            /** @description The OpenShift username (exact, case-sensitive). */
+            username: string;
+            /** @description The OpenShift full name from the last login, or null when unknown or not set. */
+            displayName: null | string;
+            /** @description The effective role: admin when assigned by an administrator or granted by configuration. */
+            role: components["schemas"]["UserRole"];
+            /** @description Whether configuration (user list or admin group) made the user an administrator at their last login. Such a user can't be demoted. */
+            isAdminViaConfiguration: boolean;
+            /** @description Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false. */
+            isAdminByAssignment: boolean;
+            /** @description Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't. */
+            adminConfigurationSource: null | string;
+            /** @description pending (never logged in), active, or deactivated. */
+            status: components["schemas"]["UserStatus"];
+            /** @description Whether the user is globally read-only. */
+            isReadOnly: boolean;
+            /**
+             * Format: int32
+             * @description Number of clusters the user has been granted access to.
+             */
+            grantCount: number;
+            /**
+             * Format: date-time
+             * @description When the user last logged in; null before the first login.
+             */
+            lastLoginAt: null | string;
+            /** @description The user's OpenShift groups at the last login (empty before the first login). */
+            groups: string[];
+            /**
+             * Format: uint32
+             * @description Concurrency token: send it back with every change to this user.
+             */
+            version: number;
+        };
         /**
          * @description The user's effective FleetConsole role: admin if assigned by an administrator or granted by configuration, otherwise
          *     user.
-         * @enum {unknown}
+         * @enum {string}
          */
         UserRole: "user" | "admin";
+        /**
+         * @description Lifecycle state of a user: pending (created by an administrator, never logged in), active, or deactivated.
+         * @enum {string}
+         */
+        UserStatus: "pending" | "active" | "deactivated";
+        /**
+         * @description Body of a state transition that has no other input (deactivate, reactivate, enable, disable, …): the
+         *     `version` of the representation the client last saw. A stale version is answered with 409
+         *     `Concurrency.Conflict`.
+         */
+        VersionRequest: {
+            /**
+             * Format: uint32
+             * @description The resource's `version` from its last representation.
+             */
+            version: number;
+        };
     };
     responses: never;
     parameters: never;
@@ -386,6 +630,564 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemInfo"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListUsers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserListItem"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUserRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift username (URL-encoded). */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ChangeUserRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift username (URL-encoded). */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeUserRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    SetUserReadOnly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift username (URL-encoded). */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetUserReadOnlyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    DeactivateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift username (URL-encoded). */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReactivateUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift username (URL-encoded). */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VersionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDetail"];
                 };
             };
             /** @description Bad Request */

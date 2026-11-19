@@ -84,8 +84,7 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
     {
         // AddApiJson registers JsonStringEnumConverter (camelCase, no integers; ADR-0013). CurrentUser.role is the first
         // enum in the contract; the schema may be inline or a $ref to a shared enum schema. Microsoft.AspNetCore.OpenApi
-        // (.NET 10) emits string enums as { "enum": [...] } without "type"; openapi-typescript turns that into a string
-        // union. If a "type" is present, it must be "string".
+        // (.NET 10) emits string enums without "type"; StringEnumSchemaTransformer adds "type": "string".
         var document = await GetDocumentAsync();
         var schemas = document.GetProperty("components").GetProperty("schemas");
 
@@ -95,10 +94,7 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
             role = schemas.GetProperty(reference.GetString()!["#/components/schemas/".Length..]);
         }
 
-        if (role.TryGetProperty("type", out var type))
-        {
-            type.GetString().ShouldBe("string");
-        }
+        role.GetProperty("type").GetString().ShouldBe("string");
 
         var values = role.GetProperty("enum").EnumerateArray().ToArray();
         values.ShouldAllBe(v => v.ValueKind == JsonValueKind.String);
@@ -129,6 +125,43 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ShouldBe(
             ["username", "displayName", "role", "isReadOnly", "groups", "isAdminViaConfiguration", "adminConfigurationSource"],
             ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData("/api/admin/users", "get", "ListUsers")]
+    [InlineData("/api/admin/users", "post", "CreateUser")]
+    [InlineData("/api/admin/users/{username}", "get", "GetUser")]
+    [InlineData("/api/admin/users/{username}/role", "put", "ChangeUserRole")]
+    [InlineData("/api/admin/users/{username}/read-only", "put", "SetUserReadOnly")]
+    [InlineData("/api/admin/users/{username}/deactivate", "post", "DeactivateUser")]
+    [InlineData("/api/admin/users/{username}/reactivate", "post", "ReactivateUser")]
+    public async Task UserOperations_HaveContractOperationIds(string path, string method, string operationId)
+    {
+        var document = await GetDocumentAsync();
+
+        var operation = document.GetProperty("paths").GetProperty(path).GetProperty(method);
+        operation.GetProperty("operationId").GetString().ShouldBe(operationId);
+        operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Users");
+    }
+
+    [Fact]
+    public async Task UserSchemas_DropTheDtoSuffix_AndPublishStatusAsStringEnum()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        document.GetProperty("paths").GetProperty("/api/admin/users").GetProperty("get")
+            .GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json")
+            .GetProperty("schema").GetProperty("items").GetProperty("$ref").GetString()
+            .ShouldBe("#/components/schemas/UserListItem");
+        var detail = schemas.GetProperty("UserDetail");
+        detail.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ShouldContain("version");
+        schemas.TryGetProperty("UserDetailDto", out _).ShouldBeFalse();
+
+        var status = schemas.GetProperty("UserStatus");
+        status.GetProperty("type").GetString().ShouldBe("string");
+        status.GetProperty("enum").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(["pending", "active", "deactivated"], ignoreOrder: true);
     }
 
     [Fact]

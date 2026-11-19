@@ -40,6 +40,9 @@ public static class OpenApiSetup
             // ProblemDetails extension members (code, traceId) are part of the error contract (contract §1).
             options.AddSchemaTransformer<ProblemDetailsSchemaTransformer>();
 
+            // Enums are camelCase strings (ADR-0013 §6); state the type explicitly in their schemas.
+            options.AddSchemaTransformer<StringEnumSchemaTransformer>();
+
             // Host-independent document; see remarks.
             options.AddDocumentTransformer((document, _, _) =>
             {
