@@ -69,9 +69,6 @@ describe('routes', () => {
   // Every admin route resolves to its lazily loaded page module (placeholders until the page tasks land).
   it.each([
     ['/admin/users', 'Users', {}],
-    ['/admin/users/alice', 'User details', { username: 'alice', tab: 'details' }],
-    ['/admin/users/alice/access', 'User details', { username: 'alice', tab: 'access' }],
-    ['/admin/users/kube%3Aadmin', 'User details', { username: 'kube:admin', tab: 'details' }],
     ['/admin/clusters', 'Clusters', {}],
     ['/admin/clusters/new', 'Add cluster', {}],
     ['/admin/clusters/dev-1', 'Cluster details', { name: 'dev-1', tab: 'details' }],
@@ -89,6 +86,17 @@ describe('routes', () => {
     } else {
       expect(screen.queryByRole('term')).not.toBeInTheDocument();
     }
+  });
+
+  // The user detail page (T-0032) titles itself with the decoded username, also for an unknown user (404 state).
+  it.each([
+    ['/admin/users/alice', 'alice'],
+    ['/admin/users/alice/access', 'alice'],
+    ['/admin/users/kube%3Aadmin', 'kube:admin'],
+  ])('renders %s', async (path, title) => {
+    renderApp(path);
+
+    expect(await screen.findByRole('heading', { name: title, level: 1 })).toBeInTheDocument();
   });
 
   it('renders the login page outside the shell', async () => {

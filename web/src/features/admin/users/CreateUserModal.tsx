@@ -5,7 +5,6 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import {
   CheckboxField,
-  ConflictAlert,
   FormProblemAlert,
   RadioGroupField,
   TextField,
@@ -71,8 +70,6 @@ function CreateUserForm({ titleId, onClose }: { titleId: string; onClose: () => 
       <ModalHeader title="Add user" labelId={titleId} />
       <ModalBody>
         <Form id={formId} noValidate onSubmit={(event) => void submit(event)}>
-          {/* A create has no version, so a conflict alert never shows; rendered for the uniform form pattern. */}
-          <ConflictAlert problem={problem} onReload={() => form.reset(CREATE_USER_DEFAULTS)} />
           <FormProblemAlert problem={problem} />
           <TextField
             control={form.control}
