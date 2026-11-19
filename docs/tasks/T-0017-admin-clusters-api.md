@@ -1,7 +1,7 @@
 ---
 id: T-0017
 title: Admin clusters API — list, detail, register, update, enable/disable, delete
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0015]
@@ -90,21 +90,55 @@ See T-0015's handover notes for details.
   run `npm run typecheck` (ADR-0016).
 
 ## Acceptance criteria
-- [ ] Integration tests for each endpoint: happy path, 400 (each rule of contract §8.2 incl. bad PEM, `http://` URL,
+- [x] Integration tests for each endpoint: happy path, 400 (each rule of contract §8.2 incl. bad PEM, `http://` URL,
       URL with path, skip+CA), 404, 409 (`NameTaken`, `NotDisabled`, stale version).
-- [ ] CLU-2 detail returns subject/issuer/expiry per CA cert (generated test certs incl. one expiring in < 30 days).
-- [ ] CLU-4 API URL/CA/skip change marks seeded credential tests stale in list (`lastTest.isStale`); other edits don't.
-- [ ] CLU-5 disable/enable keeps grants and credentials; CLU-6 delete removes credentials + grants and audits
+- [x] CLU-2 detail returns subject/issuer/expiry per CA cert (generated test certs incl. one expiring in < 30 days).
+- [x] CLU-4 API URL/CA/skip change marks seeded credential tests stale in list (`lastTest.isStale`); other edits don't.
+- [x] CLU-5 disable/enable keeps grants and credentials; CLU-6 delete removes credentials + grants and audits
       `cluster.deleted` with counts; CLU-7 list fields incl. `worstCredentialExpiryStatus`, `grantCount`, `tlsMode`.
-- [ ] `cluster.updated` audit lists changed field names and never CA content (AUD-1).
-- [ ] Read-only admin 403 on commands (ADM-2). `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
+- [x] `cluster.updated` audit lists changed field names and never CA content (AUD-1).
+- [ ] Read-only admin 403 on commands (ADM-2) ✔. Build and tests green ✔. `schema.gen.ts` **not** regenerated (orchestrator
+      regenerates after merge; worktree has no node_modules).
 
 ## Contract amendments (orchestrator 2026-11-18)
 - `ClusterListItemDto` gains `Version` (uint) — contract §8.1.
 - Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
 
 ## Work log
+- 2026-11-19 backend-engineer: started in worktree `agent-a9928235423746737` (b1f8062); read docs, contract §8.1–8.2, T-0012/T-0015 notes.
+- 2026-11-19 backend-engineer: interrupted mid-task (Application layer partly written); resumed same day.
+- 2026-11-19 backend-engineer: finished Enable/Disable/Delete, `ClustersAdminEndpoints.cs` + `ClusterRequests.cs`, one call in
+  `AdminEndpoints.cs`; unit + 70 integration tests. Outside `paths`: `Application.Tests/ServiceProviderBuilder.cs` registers the
+  cluster/credential/grant repository fakes (validate-on-build). `check-be.sh` green.
 
 ## Review
+**Round 1 — backend-architect, 2026-11-20: APPROVE.** `check-be.sh` green (323/242/492). Contract §8.1/8.2 met; CA
+validation via `ApiServerEndpoint.Create` (private key / bad PEM tested); audit and logs carry no CA content (LoggingBehavior
+logs only names/codes); delete pre-check + cascade + counts tested; no-op transitions/updates write no audit; version check +
+xmin; list and detail are single EF statements. `[JsonRequired] environment` → codeless framework 400 is consistent with
+contract §1 ("framework 400s … have no `code`") and marks the field required in OpenAPI — accepted.
+Merge hazards (orchestrator, when merging onto `cp/1-identity-admin`, which already has T-0016 + T-0018):
+- `src/FleetConsole.Api/Endpoints/Admin/AdminEndpoints.cs:30` — conflicts with the Users + Credentials lines — keep all three calls.
+- `tests/FleetConsole.Application.Tests/ServiceProviderBuilder.cs:50-53` — T-0018 registers the same three ports (+ `ITokenProtector`) — merge into one block (keep `InMemoryClusterRepository`, one substitute each, `ITokenProtector`); don't leave duplicate registrations.
+- Emulator admin pool (60) is now shared by users + credentials + clusters tests — run the full `check-be.sh` after the merge.
+Optional nits:
+- `tests/.../Admin/Clusters/ClusterTestSupport.cs:148` — fingerprint derivation duplicated; after merge use T-0018's `TokenFingerprints.Compute`.
+- `src/FleetConsole.Application/Clusters/ListClusters/ListClustersHandler.cs:35` — projecting `c.Endpoint` materializes and X.509-parses every CA bundle per list call; projecting `Url`/`SkipTlsVerify`/`CaBundle != null` would avoid it (fine at ~40 clusters).
+- `tests/.../Admin/Clusters/RegisterClusterTests.cs:139` — private-key test could also assert the key line is absent from `factory.Logs.AllText`.
+- `src/FleetConsole.Application/Clusters/DisableCluster/DisableClusterCommand.cs:6` — summary line not wrapped like its siblings.
 
 ## Handover notes
+**State:** in_review, `check-be.sh` green (Domain 323, Application 242, Api 492). Not committed. `schema.gen.ts` not regenerated.
+- **Decisions:** `environment` is `[JsonRequired]` on both request records → missing/unknown value = 400 ProblemDetails from body
+  binding (no `code`/`errors`, like other malformed bodies), never a silent `production` default. Schema stays non-nullable.
+  `displayName`/`description`/`webConsoleUrl` are trimmed (contract silent; blank → null); length limits apply after trimming.
+  `webConsoleUrl` is returned as entered (`Uri.OriginalString`, no added trailing `/`). Enable/disable on a cluster already in
+  that state = 200, no audit entry (Domain no-op).
+- **EF:** the list projection (grant-count subquery + nested credential collection with complex `Metadata`/`LastTest`) translates;
+  proven by `ClusterQueriesTests` against Postgres (EF throws on client evaluation).
+- **Tests:** `Integration/Admin/Clusters/ClusterTestSupport.cs` shares ONE writable admin and ONE read-only admin per factory
+  (emulator admin pool is 60 for the whole collection; per-test admins exhausted it) and seeds grantees as offline users. Also has
+  JWT-credential and `RecordTest` seeding helpers T-0018 may reuse.
+- **Merge:** `AdminEndpoints.cs` gets one line `admin.MapClustersAdminEndpoints();` (T-0016 adds its users line next to it);
+  `ServiceProviderBuilder.cs` +3 registrations (T-0016/T-0018 may touch the same block).
+- **Follow-ups for orchestrator:** regenerate `schema.gen.ts` + `npm run typecheck` after merge.
