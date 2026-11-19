@@ -13,7 +13,11 @@ describe('merged API types (ADR-0016)', () => {
   it('takes generated paths when they exist and contract paths otherwise', () => {
     expectTypeOf<paths['/api/system/info']>().toEqualTypeOf<Gen.paths['/api/system/info']>();
     expectTypeOf<paths['/api/auth/me']>().toEqualTypeOf<Gen.paths['/api/auth/me']>();
-    expectTypeOf<paths['/api/clusters']>().toEqualTypeOf<Contract.paths['/api/clusters']>();
+    expectTypeOf<paths['/api/clusters']>().toEqualTypeOf<Gen.paths['/api/clusters']>();
+    // Contract-only until T-0020 (connection tests) lands; then T-0043 retires this contract fallback check.
+    expectTypeOf<paths['/api/admin/clusters/{name}/test-token']>().toEqualTypeOf<
+      Contract.paths['/api/admin/clusters/{name}/test-token']
+    >();
   });
 
   it('takes generated schemas when they exist and contract schemas otherwise', () => {

@@ -31,6 +31,7 @@ public static class AdminEndpoints
         admin.MapCredentialsAdminEndpoints();
         admin.MapClustersAdminEndpoints();
         admin.MapAuditAdminEndpoints();
+        admin.MapGrantsAdminEndpoints();
 
         return admin;
     }

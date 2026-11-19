@@ -1,7 +1,7 @@
 ---
 id: T-0019
 title: Grants API (single, bulk, change, revoke, per-user/per-cluster lists) and GET /api/clusters for the switcher
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0015]
@@ -84,25 +84,52 @@ See T-0015's handover notes for details.
   run `npm run typecheck` (ADR-0016).
 
 ## Acceptance criteria
-- [ ] GRANT-1: second grant 409 `Grants.AlreadyExists` with the spec message; credential of another cluster → 400
+- [x] GRANT-1: second grant 409 `Grants.AlreadyExists` with the spec message; credential of another cluster → 400
       on `credentialId`; unknown user/cluster/credential → 400 field errors.
-- [ ] GRANT-3: change mode/credential (+ stale version 409), revoke 204, both audited with old→new details.
-- [ ] GRANT-4: bulk success writes N grants + N audit entries; one bad item → 400 listing every bad item by index and
+- [x] GRANT-3: change mode/credential (+ stale version 409), revoke 204, both audited with old→new details.
+- [x] GRANT-4: bulk success writes N grants + N audit entries; one bad item → 400 listing every bad item by index and
       **nothing** written (assert DB and audit count unchanged).
-- [ ] GRANT-5: grants of disabled clusters, deactivated users, expired credentials still listed with
+- [x] GRANT-5: grants of disabled clusters, deactivated users, expired credentials still listed with
       `clusterIsEnabled`/`userStatus`/`credentialExpiryStatus` reflecting it. GRANT-6: admin without grants gets `[]`
       from `/api/clusters`.
-- [ ] SW-1: `/api/clusters` filters disabled clusters and deactivated users, applies effective mode for globally
+- [x] SW-1: `/api/clusters` filters disabled clusters and deactivated users, applies effective mode for globally
       read-only users, sorts production→staging→development then name, exposes no API URL/CA/credential fields
       (assert JSON property set); 401 anonymous.
-- [ ] CRED-2: `TokenLeakScanner` (T-0015) run over grant responses. Read-only admin 403 on commands.
-- [ ] `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
+- [x] CRED-2: `TokenLeakScanner` (T-0015) run over grant responses. Read-only admin 403 on commands.
+- [x] `schema.gen.ts` regenerated. Build, lint and tests green (rule 4). (BE green; FE typecheck red only in stale `schema.test.ts:16`, see Work log.)
 
 ## Contract amendments (orchestrator 2026-11-18)
 - Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
 
 ## Work log
+- 2026-11-20 backend-engineer: started; Application/Grants use cases + GrantProjection, endpoints, tests.
+- 2026-11-20 backend-engineer: done. Added `GetGrantQuery` (single re-query for create/update) beside `GetGrantsByIdsQuery`.
+  Bulk atomicity = one `SaveChanges` (already one transaction), no explicit transaction needed. `schema.gen.ts`
+  regenerated; `npm run typecheck` fails only in `web/src/shared/api/schema.test.ts:16` (asserts `/api/clusters` is still
+  contract-only; now generated) — FE test needs updating, not an Api deviation. check-be green (594 Api tests).
 
 ## Review
+- 2026-11-20 backend-architect, round 1: **APPROVE**. check-be green (323/370/594). Engineer notes accepted: one
+  `SaveChanges` = one transaction with the audit rows; bulk stages grants only after all items pass (test asserts DB +
+  audit unchanged); unique/FK races → 409 via `UnitOfWorkBehavior`; row version backs the pre-check; stricter effective
+  mode matches contract §6 ("grant readOnly OR user globally read-only"); `BulkGrantItem` reuse is documented.
+  Optional nits (no re-review):
+  - `src/FleetConsole.Application/Grants/BulkGrant/BulkGrantHandler.cs:101` — `else` assumes any other `Grant.Create`
+    failure is AlreadyExists; match `GrantErrors.AlreadyExists` code explicitly and return the error otherwise.
+  - `src/FleetConsole.Api/Endpoints/ClustersEndpoints.cs:200` — add `ArgumentNullException.ThrowIfNull(api)` like the
+    sibling mappers.
 
 ## Handover notes
+- Application: `Grants/{ListUserGrants,ListClusterGrants,GetGrant,GetGrantsByIds,CreateGrant,BulkGrant,UpdateGrant,RevokeGrant}`;
+  `GrantProjection` = one SQL statement (grants⋈users⋈clusters⋈credentials), expiry status/test staleness in memory.
+  `GrantLookup` holds field messages, `ConcurrencyConflict`, audit labels (3 repo reads by id for change/revoke).
+- Field errors are built in handlers as `ValidationError` (C# paths `Items[3].ClusterName`); create collects all three
+  unknown references at once; `CredentialNotInCluster` → field error, `AlreadyExists` → 409 (single) / item field (bulk).
+- `BulkGrantItem` lives in `Application/Grants/BulkGrant/BulkGrantCommand.cs` and is reused by the Api's
+  `BulkGrantRequest`, so the OpenAPI document has exactly one `BulkGrantItem` schema (contract name).
+- Lists sort ordinally in memory: user grants by cluster name, cluster grants by username (contract is silent).
+- `/api/clusters` effective mode is readOnly if grant, session (`ICurrentUser.IsReadOnly`) **or** stored user is
+  read-only (stricter of the two, visible before session revalidation). Deactivated users filtered in SQL too.
+- Validator: duplicate clusters marked on 2nd+ occurrence (`items[i].clusterName` "Cluster listed twice.").
+- FE follow-up: `web/src/shared/api/schema.test.ts:16` must switch `/api/clusters` to `Gen.paths` (or another
+  not-yet-generated path) — left untouched per scope.

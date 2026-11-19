@@ -41,6 +41,7 @@ public static class ApiEndpoints
 
         api.MapAuthEndpoints();
         api.MapSystemEndpoints();
+        api.MapClustersEndpoints();
         api.MapAdminEndpoints();
 
         return api;

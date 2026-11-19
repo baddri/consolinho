@@ -79,6 +79,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/clusters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the enabled clusters the signed-in user has a grant on, sorted by environment (production, staging,
+         *     development) then name, with the effective access mode (readOnly when the user is globally read-only). Empty when
+         *     the user has no grants, administrators included.
+         */
+        get: operations["ListMyClusters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/users": {
         parameters: {
             query?: never;
@@ -207,6 +228,66 @@ export interface paths {
          *     and credential name.
          */
         get: operations["ListCredentials"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists a user's grants sorted by cluster name, including grants of disabled clusters and expired credentials.
+         *     Fails with 404 Users.NotFound.
+         */
+        get: operations["ListUserGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{username}/grants/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gives a user access to several clusters at once, all or nothing. Item problems are 400 field errors keyed by the
+         *     item index (for example items[3].clusterName); then nothing is written. Fails with 404 Users.NotFound.
+         */
+        post: operations["BulkGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the grants on a cluster sorted by username, including grants of deactivated users and expired credentials.
+         *     Fails with 404 Clusters.NotFound.
+         */
+        get: operations["ListClusterGrants"];
         put?: never;
         post?: never;
         delete?: never;
@@ -380,10 +461,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gives a user access to a cluster through one of its credentials. Unknown user, cluster or credential, or a
+         *     credential of another cluster, are 400 field errors; a second grant for the same user and cluster is 409
+         *     Grants.AlreadyExists.
+         */
+        post: operations["CreateGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/grants/{grantId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Changes a grant's access mode and/or credential. An unknown credential or one of another cluster is a 400 field
+         *     error on credentialId. Fails with 404 Grants.NotFound; a stale version with 409 Concurrency.Conflict.
+         */
+        put: operations["UpdateGrant"];
+        post?: never;
+        /** Revokes a grant; takes no version. Fails with 404 Grants.NotFound. */
+        delete: operations["RevokeGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description A cluster the signed-in user may switch to, as the cluster switcher shows it. */
+        AccessibleCluster: {
+            /** @description The cluster name (the key in console URLs). */
+            name: string;
+            /** @description The display name. */
+            displayName: string;
+            /** @description The environment. */
+            environment: components["schemas"]["ClusterEnvironment"];
+            /** @description The effective access mode: readOnly if the grant is read-only or the user is globally read-only. */
+            accessMode: components["schemas"]["AccessMode"];
+            /** @description The cluster's own web console, if configured. */
+            webConsoleUrl: null | string;
+        };
+        /**
+         * @description What a grant lets the user do on its cluster (GRANT-1). Enforced by FleetConsole's proxy (CP2 mutation guard) on top of
+         *     whatever the credential's token itself allows.
+         * @enum {string}
+         */
+        AccessMode: "readOnly" | "readWrite";
         /** @description Adds a ServiceAccount credential to a cluster. The token is write-only: it is never returned. */
         AddCredentialRequest: {
             /** @description The credential name, unique within the cluster: 1 to 63 characters, lowercase letters, digits and '-', starting and ending with a letter or digit. */
@@ -445,6 +587,23 @@ export interface components {
          * @enum {string}
          */
         AuditTargetType: "session" | "user" | "cluster" | "credential" | "grant";
+        /** @description One cluster of a bulk grant. */
+        BulkGrantItem: {
+            /** @description The cluster; unique within the request. */
+            clusterName: string;
+            /**
+             * Format: uuid
+             * @description The credential to use on that cluster; must belong to it.
+             */
+            credentialId: string;
+        };
+        /** @description Gives one user access to several clusters at once; either every item becomes a grant or nothing is written. */
+        BulkGrantRequest: {
+            /** @description The access mode of every created grant. */
+            accessMode: components["schemas"]["AccessMode"];
+            /** @description 1 to 100 clusters with the credential to use on each; each cluster at most once. */
+            items: components["schemas"]["BulkGrantItem"][];
+        };
         /** @description One certificate of a cluster's CA bundle. */
         CaCertificate: {
             /** @description The subject distinguished name. */
@@ -610,6 +769,20 @@ export interface components {
              */
             isStale: boolean;
         };
+        /** @description Gives a user access to a cluster through one of the cluster's ServiceAccount credentials. */
+        CreateGrantRequest: {
+            /** @description The user; must exist (deactivated users may be granted). */
+            username: string;
+            /** @description The cluster; must exist (disabled clusters may be granted). */
+            clusterName: string;
+            /**
+             * Format: uuid
+             * @description A credential of that cluster.
+             */
+            credentialId: string;
+            /** @description Whether the user may change resources; read-only when omitted. */
+            accessMode?: components["schemas"]["AccessMode"];
+        };
         /** @description Pre-creates a user before their first login. */
         CreateUserRequest: {
             /** @description The OpenShift username, exactly as OpenShift reports it: 1 to 253 characters, case-sensitive, without '/', '%', whitespace or control characters, and not '.', '..' or '~'. */
@@ -722,6 +895,67 @@ export interface components {
             /** @description Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't. */
             adminConfigurationSource: null | string;
         };
+        /**
+         * @description A user's access to one cluster through a ServiceAccount credential, with the state of user, cluster and credential
+         *     so the UI can mark grants of deactivated users, disabled clusters and expired credentials.
+         */
+        Grant: {
+            /**
+             * Format: uuid
+             * @description The grant id.
+             */
+            id: string;
+            /** @description The granted user. */
+            username: string;
+            /** @description The granted user's display name, if known. */
+            userDisplayName: null | string;
+            /** @description The granted user's status; grants of deactivated users are kept. */
+            userStatus: components["schemas"]["UserStatus"];
+            /** @description The cluster the grant gives access to. */
+            clusterName: string;
+            /** @description The cluster's display name. */
+            clusterDisplayName: string;
+            /** @description The cluster's environment. */
+            clusterEnvironment: components["schemas"]["ClusterEnvironment"];
+            /** @description Whether the cluster is enabled; grants of disabled clusters are kept. */
+            clusterIsEnabled: boolean;
+            /**
+             * Format: uuid
+             * @description The credential whose token is used for this user on the cluster.
+             */
+            credentialId: string;
+            /** @description The credential's name. */
+            credentialName: string;
+            /** @description The credential's expiry state now. */
+            credentialExpiryStatus: components["schemas"]["CredentialExpiryStatus"];
+            /**
+             * Format: date-time
+             * @description When the credential's token expires; null when it has no expiry or it is unknown.
+             */
+            credentialExpiresAt: null | string;
+            credentialLastTest: null | components["schemas"]["ConnectionTestSummary"];
+            /** @description Whether the user may change resources on the cluster. */
+            accessMode: components["schemas"]["AccessMode"];
+            /**
+             * Format: date-time
+             * @description When the grant was created.
+             */
+            grantedAt: string;
+            /** @description Who created the grant. */
+            grantedBy: string;
+            /**
+             * Format: date-time
+             * @description When the grant was last changed; null if never.
+             */
+            updatedAt: null | string;
+            /** @description Who last changed the grant; null if never. */
+            updatedBy: null | string;
+            /**
+             * Format: uint32
+             * @description Concurrency version; send it back when changing the grant.
+             */
+            version: number;
+        };
         HttpValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -825,6 +1059,21 @@ export interface components {
             /**
              * Format: uint32
              * @description The cluster's version from its last representation.
+             */
+            version: number;
+        };
+        /** @description Changes a grant's access mode and/or credential. */
+        UpdateGrantRequest: {
+            /** @description The new access mode. */
+            accessMode: components["schemas"]["AccessMode"];
+            /**
+             * Format: uuid
+             * @description The credential to use from now on (may be the current one); must belong to the grant's cluster.
+             */
+            credentialId: string;
+            /**
+             * Format: uint32
+             * @description The grant's version from its last representation.
              */
             version: number;
         };
@@ -1176,6 +1425,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SystemInfo"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListMyClusters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccessibleCluster"][];
                 };
             };
             /** @description Bad Request */
@@ -1808,6 +2131,242 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Credential"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListUserGrants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The username. */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    BulkGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The username. */
+                username: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListClusterGrants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
                 };
             };
             /** @description Bad Request */
@@ -2764,6 +3323,242 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AuditPage"];
                 };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    UpdateGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grant id. */
+                grantId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    RevokeGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The grant id. */
+                grantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Bad Request */
             400: {
