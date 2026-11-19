@@ -31,14 +31,17 @@
 | T-0044 | done | — | committed |
 | T-0025 | done | — | committed (2 rounds) |
 | T-0027 | done | — | committed |
-| T-0028 | in_progress | frontend-engineer | admin shell, lazy routes, RequireAdmin, vendor chunks (F4) |
-| T-0045 | todo | frontend-engineer | small session follow-ups (after T-0028) |
+| T-0028 | done | — | committed; bundle entry 23 kB |
+| T-0045 | in_progress | frontend-engineer | small session follow-ups |
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
 1. T-0015 (W5) → review → commit. Then W6 admin APIs T-0016..T-0019, T-0021 (3 at a time; shared files: AdminEndpoints.cs, DI files, schema.gen.ts), then T-0020.
 2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
 3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
+
+## Open for product owner at ACCEPT
+- Nav naming: sidebar "Admin" vs spec ADM-3 "Administration" (cluster nav already has "Administration").
 
 ## Needs human
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
@@ -58,6 +61,7 @@
 - Agent worktrees with no changes are auto-deleted when the agent stops (e.g. on a usage limit) — a resumed agent may find its worktree gone.
 - Follow-up F1 (from T-0013 review): harden AuditEntry.Actor against shared instances (EF complex type or copy in `AuditEntry.Record`).
 - Worktree tasks: reviewers review in the worktree path; orchestrator commits there and merges into `cp/1-identity-admin` (DI files may conflict trivially).
+- CP3 follow-up from T-0028 review: chunk-load failure after redeploy → "new version available — reload" instead of RouteErrorPage.
 - CP3 follow-up from T-0014 review: in-cluster host CA bundle = SA `ca.crt` + ingress CA for the OAuth route (`openshift-config-managed/default-ingress-cert`) or public root; OAuth metadata refresh (cached for process life).
 - CP3 follow-ups from T-0012 review: make DP-cert-missing warning (EventId 3200) a startup error in prod; support key-encryption cert rotation; ops runbook.
 - CP2 follow-ups from T-0010: pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies.
