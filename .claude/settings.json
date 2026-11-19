@@ -22,7 +22,9 @@
       "Bash(podman images:*)",
       "Bash(podman build:*)",
       "Bash(podman logs:*)",
-      "Bash(oc version:*)"
+      "Bash(oc version:*)",
+      "Bash(scripts/check-be.sh:*)",
+      "Bash(scripts/check-fe.sh:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
@@ -32,6 +34,23 @@
       "Bash(oc scale:*)",
       "Bash(kubectl delete:*)",
       "Bash(kubectl apply:*)"
+    ]
+  },
+  "enabledPlugins": {
+    "csharp-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-bulk-cat.py"
+          }
+        ]
+      }
     ]
   }
 }

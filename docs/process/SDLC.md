@@ -59,9 +59,11 @@ In those cases: record in HANDOVER "Needs human", continue with other unblocked 
 
 ## Delegation contract (every subagent prompt includes)
 
-1. The task file path(s) and the instruction to read `CLAUDE.md` + the relevant architecture doc first.
+1. The task file path(s), and a **context pack** so the agent doesn't rediscover what the orchestrator knows:
+   the relevant architecture-doc sections (by heading), 1–3 exemplar files to copy patterns from, and known gotchas.
+   Don't tell agents to read `CLAUDE.md` — it is already loaded. Keep the prompt short; point to files, don't paste them.
 2. Scope boundary: which directories it may change.
-3. Required checks to run before finishing (from CLAUDE.md rule 4).
+3. Required checks to run before finishing: `scripts/check-be.sh` / `scripts/check-fe.sh` (CLAUDE.md rule 4).
 4. Before returning: update the task file (status, **Work log**, **Handover notes**: what's done, what's not, gotchas).
 5. Final report format:
    ```
@@ -79,6 +81,11 @@ files with `rm`; read-only git (`status`, `diff`, `log`, `show`) is fine. Worktr
 **Agent registration fallback:** project agents in `.claude/agents/` are loaded at session start. If the Agent tool
 reports the type as not found (e.g. agents edited mid-session), spawn `general-purpose` and begin the prompt with
 "First read `.claude/agents/<name>.md` and adopt that role and its rules completely."
+
+**Reviews:** give the reviewer the exact file list / diff range and the engineer's CHECKS line. The reviewer reads
+the diff (`git diff -- <paths>`, plus new files) and only the surrounding code it needs; it runs the check scripts once.
+**Fix rounds:** prefer `SendMessage` to the same engineer agent when it is still running in this session (its context
+is warm and cached); start a new agent only across sessions, with the findings list + task file.
 
 ## Commits & branches
 

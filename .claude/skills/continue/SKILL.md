@@ -12,7 +12,12 @@ You are the **orchestrator**. Follow `docs/process/SDLC.md` exactly.
 3. Determine the loop step for the current checkpoint (SPEC / DESIGN / BUILD / VERIFY / ACCEPT / CLOSE) and continue it.
    - Delegate via the Agent tool to the project agents (`ocp-product-owner`, `backend-architect`, `frontend-architect`,
      `backend-engineer`, `frontend-engineer`, `qa-engineer`) using the delegation contract in SDLC.md.
+   - Every delegation prompt carries a short **context pack** (SDLC.md delegation contract): doc sections by heading,
+     1–3 exemplar files, known gotchas. Never ask agents to read `CLAUDE.md` (already loaded) or a whole spec.
    - Parallelise only tasks with disjoint paths (max 3), otherwise run sequentially or with `isolation: worktree`.
+   - Fix rounds: `SendMessage` the same engineer if it is still alive this session; otherwise a new agent with the
+     findings + task file.
+   - Keep your own context lean too: read agent reports, not their diffs, unless committing needs it.
    - After each engineer task: architect review → fix rounds (max 2) → commit `<type>(<scope>): <summary> [T-nnnn]` →
      set task `status: done` → update HANDOVER.md.
 4. Keep going without asking the human until the checkpoint closes (merge to main, tag `cp-<n>`) or a "Needs human"

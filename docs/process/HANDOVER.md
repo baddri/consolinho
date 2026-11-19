@@ -52,6 +52,11 @@ committing either.
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
 
 ## Gotchas
+- **Token discipline (2026-11-19):** check scripts `scripts/check-{be,fe}.sh` (full logs in `.git/checks/`), `LSP` tool via
+  project plugins csharp-lsp + typescript-lsp (binaries: `csharp-ls` 0.28.0 dotnet tool symlinked into `~/.local/bin` —
+  0.29.0 fails to install; `typescript-language-server` in `~/.local`), hook `.claude/hooks/guard-bulk-cat.py` blocks
+  unfiltered `cat` > 40 KB. Delegation prompts carry a *context pack* (SDLC.md).
+  Worktrees on older bases lack `scripts/`: run `/home/bad/works/console/scripts/check-*.sh` from inside the worktree.
 - **Subagents: read-only git only** in the shared tree (SDLC.md). Orchestrator commits by explicit paths.
 - Project agents (`.claude/agents/`) are available natively in a new session. Usage limits stop agents mid-task — within a
   session resume with SendMessage; across sessions start a new agent from the task file's Handover notes.
