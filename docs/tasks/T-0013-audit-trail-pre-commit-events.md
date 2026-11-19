@@ -1,12 +1,12 @@
 ---
 id: T-0013
 title: Audit trail — pre-commit domain event dispatch, event-to-entry mapping, atomicity tests
-status: in_review
+status: done
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0012]
 paths: [src/FleetConsole.Application/Abstractions/Events/, src/FleetConsole.Application/Abstractions/IDomainEventDispatcher.cs, src/FleetConsole.Application/Abstractions/IUnitOfWork.cs, src/FleetConsole.Application/Abstractions/Persistence/ConcurrencyConflictException.cs, src/FleetConsole.Application/Audit/, src/FleetConsole.Application/DependencyInjection.cs, src/FleetConsole.Infrastructure/Events/, src/FleetConsole.Infrastructure/Persistence/ConsoleDbContext.cs, src/FleetConsole.Infrastructure/Persistence/PendingDomainEvents.cs, src/FleetConsole.Infrastructure/DependencyInjection.cs, tests/FleetConsole.Application.Tests/Audit/, tests/FleetConsole.Api.Tests/Persistence/, tests/FleetConsole.Api.Tests/Events/]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -144,6 +144,55 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
   `AuditTrail` now copies explicit actors (`record.Actor with { }`). A regression test was added for it.
 
 ## Review
+**2026-11-19 — backend-architect — round 1: APPROVE**
+
+Reviewed `git diff a2b890d a4c35ca` (the T-0013 commit; `63537c4..a4c35ca` also contains unrelated branch history) and
+the merged state 8f076fa. `dotnet build FleetConsole.slnx -warnaserror`: 0 errors/0 warnings. `dotnet test
+FleetConsole.slnx` (podman): Domain 323, Application 167, Api 277, all green.
+
+Checked and accepted:
+- **ADR-0008 atomicity.** `ConsoleDbContext.SaveChangesAsync` captures → dispatches → asserts → `base.SaveChangesAsync`
+  (one transaction) → clears. Entries are staged in the same context. The retrying execution strategy retries only
+  `base.SaveChangesAsync`, so a retry does not dispatch twice. Tests (a)–(e) are real-Postgres tests, and they are
+  meaningful: (a) proves one transaction through equal `xmin`, (b) goes through the `IUnitOfWork` translation, and in
+  (c)/(d) the audit handler has already staged its entry before the abort.
+- **Dispatch-before-save and no cascades.** `EnsureNoEventsRaisedSince` also catches events on aggregates that had none
+  at capture (count defaults to 0). The message names the aggregate and the events.
+- **Translation.** 23503 → `ConcurrencyConflictException`, and the message names only the constraint. 23505 is
+  unchanged. 23001 and handler exceptions propagate untranslated. All three have tests.
+- **Mapping.** All 19 events are checked against contract §10: actions, categories/targets and `details` property sets
+  (the tests assert exact property sets). Every event carries only primitives and fingerprint strings. The reflection
+  test guards against token-bearing properties. `credential.*` details contain fingerprints only. `auth.login`
+  details are `{groups, provisioned}`. Promote/demote follows `NewRole` (ADR-0017).
+- **RelatedUsername.** It is set for every `user.*` and `grant.*` entry, null for `auth.login`, `cluster.*` and
+  `credential.*`, and asserted in the handler tests.
+- **Engineer's open choices: confirmed.** (1) `auth.login` has target Session, `targetId` = user id, `targetName` =
+  username and RelatedUsername null. The `user` filter already matches it through the actor. T-0014 must use the same
+  convention for `auth.logout` and `auth.login_denied` (`targetId` null when the user isn't registered, actor
+  `AuditActor.Anonymous(claimedUsername)`). (2) Target ids are aggregate GUIDs in "D" format. (3) Null members are kept
+  in `details`, so each action has a stable shape. The contract shows `configurationSource: null` too.
+- **Actor fail-closed.** Correct for AUD-1. Impact on T-0014: every event on the login path (`UserProvisioned`,
+  `UserLoggedIn`, configuration `UserRoleChanged`) carries an explicit actor, and the regression test saves them
+  without a session. That path works. Impact on T-0016–T-0021: HTTP tests have a session, so nothing changes for them.
+  Seeding below HTTP must use `CreateSignedInScope()`. I added this to the BACKEND.md testing table (tiny doc fix).
+- **Shared `AuditActor` fix.** `record.Actor with { }` in `AuditTrail` is correct, and the regression test covers it.
+  ADR-0008 §3 makes `AuditTrail` the only place entries are composed. Hardening is therefore **not required now**; see
+  follow-up F1.
+- **CA1711.** A local, justified `SuppressMessage` on the contract type named by ADR-0008. Accepted.
+- **Edits outside paths.** All are justified and minimal: doc comments in Domain/`UnitOfWorkBehavior`, the design-time
+  factory (forced by the `NoOp` deletion, now fails loudly), BACKEND.md (requested), and the Application test
+  container (forced by `ValidateOnBuild`).
+
+Optional nits (no change required):
+- `src/FleetConsole.Application/Audit/EventHandlers/CredentialAuditHandler.cs:75`: when `Succeeded == false` and
+  `FailedStep == null` (the Domain doesn't forbid it), the summary reads "failed at step ". Fall back to "failed".
+- `tests/FleetConsole.Api.Tests/Persistence/TestSession.cs`: move it to shared test infrastructure (`Integration/`)
+  when T-0016+ seed data from other folders.
+
+Follow-ups (orchestrator: track, not part of this task):
+- F1 (CP1 polish or CP3): make shared actor instances safe at the persistence boundary. Map `AuditEntry.Actor` as an
+  EF complex type, which has value semantics and allows shared instances (check that the `actor_name` index is still
+  supported), or copy the actor in `AuditEntry.Record`. Then drop the copy in `AuditTrail`.
 
 ## Handover notes
 - **Flow:** `UnitOfWorkBehavior` → `IUnitOfWork.SaveChangesAsync` (translation wrapper) → `ConsoleDbContext.SaveChangesAsync`:

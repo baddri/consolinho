@@ -263,7 +263,7 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 | Domain | Pure unit tests of invariants |
 | Application | Handler tests with in-memory fakes of ports (not EF in-memory provider); behavior tests |
 | Proxy policies | Table-driven unit tests over `KubernetesRequestInfo` + access mode |
-| Api | `WebApplicationFactory` + Testcontainers Postgres (`PostgresFixture`, one DB per factory variant) + the DevOAuth emulator in-process (`ApiFactory.LoginAsAsync(username)`), `TestData` seeding, `CapturedLogs` + `TokenLeakScanner` for secret-leak assertions, and a **fake kube-apiserver** (`Fakes/FakeKubeApiServer`, Kestrel with real TLS) for connection tests and, in CP2, forwarded headers/paths/streaming |
+| Api | `WebApplicationFactory` + Testcontainers Postgres (`PostgresFixture`, one DB per factory variant) + the DevOAuth emulator in-process (`ApiFactory.LoginAsAsync(username)`), `TestData` seeding (saves below HTTP go through `factory.Services.CreateSignedInScope()`: saving dispatches audit events and `AuditTrail` fails closed without an actor), `CapturedLogs` + `TokenLeakScanner` for secret-leak assertions, and a **fake kube-apiserver** (`Fakes/FakeKubeApiServer`, Kestrel with real TLS) for connection tests and, in CP2, forwarded headers/paths/streaming |
 | Architecture | Layer dependency rules |
 
 ## Documentation style
