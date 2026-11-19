@@ -22,7 +22,7 @@
 | T-0012 | done | — | 4c7f114 |
 | T-0013 | done | — | merged 810565c (worktree removed) |
 | T-0014 | done | — | 6f1793a (2 rounds) |
-| T-0015 | in_progress | backend-engineer | round 1 fixes (token-exchange tests, non-object JSON, log level, MetadataChanged removal, UserRole doc) |
+| T-0015 | done | — | committed (2 rounds; ADR-0018). README hunk goes with T-0042 |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
@@ -65,6 +65,7 @@
 - Agent worktrees with no changes are auto-deleted when the agent stops (e.g. on a usage limit) — a resumed agent may find its worktree gone.
 - Follow-up F1 (from T-0013 review): harden AuditEntry.Actor against shared instances (EF complex type or copy in `AuditEntry.Record`).
 - Worktree tasks: reviewers review in the worktree path; orchestrator commits there and merges into `cp/1-identity-admin` (DI files may conflict trivially).
+- CP3 follow-up from T-0015 review: enforce in code that the callback URL (code/state) never reaches request-line logs or OTel `url.query` (today only config: `Microsoft.AspNetCore`=Warning).
 - CP3 follow-up from T-0028 review: chunk-load failure after redeploy → "new version available — reload" instead of RouteErrorPage.
 - CP3 follow-up from T-0014 review: in-cluster host CA bundle = SA `ca.crt` + ingress CA for the OAuth route (`openshift-config-managed/default-ingress-cert`) or public root; OAuth metadata refresh (cached for process life).
 - CP3 follow-ups from T-0012 review: make DP-cert-missing warning (EventId 3200) a startup error in prod; support key-encryption cert rotation; ops runbook.
