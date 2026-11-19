@@ -9,7 +9,7 @@
 - **CP0 Foundations: DONE** (tag `cp-0`).
 - **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
   ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
-- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0031..T-0034, T-0042, T-0045, T-0046 (frontend); T-0016, T-0017, T-0018, T-0021, T-0047 (session 2; T-0017/18 merged from worktrees, no worktrees left).
+- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0031..T-0034, T-0041, T-0042, T-0045, T-0046 (frontend); T-0016, T-0017, T-0018, T-0021, T-0047 (session 2; T-0017/18 merged from worktrees, no worktrees left).
   Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
 
 ## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
@@ -28,9 +28,9 @@ committing either.
 - T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
 - T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
 - schema.gen.ts regenerated for T-0016..T-0021 (T-0047). QA leak-scan `/clusters` endpoints still open.
-- In flight: T-0019 grants API (backend-engineer, main tree); T-0020 connection tests (backend-engineer, own worktree — merge after review, then regen schema); T-0041 audit log page (frontend-engineer, finishing ReadOnlyFilter→SingleSelectFilter + AUD-4 flake).
+- In flight: T-0019 grants API (backend-engineer, main tree); T-0020 connection tests (backend-engineer, own worktree — merge after review, then regen schema); T-0035 cluster detail (frontend-engineer, main tree).
 - New follow-ups filed: T-0048 (audit `category` param as AuditCategory in OpenAPI), T-0049 (shared FileUploadField + CA field a11y).
-- Optional follow-ups from reviews: T-0033 nits (deleted-cluster toast in T-0035, version-in-body test, status-filter test); T-0032 aria-labelledby nit.
+- Optional follow-ups from reviews: T-0033 nits (deleted-cluster toast in T-0035, version-in-body test, status-filter test); T-0032 aria-labelledby nit; T-0041 nits (typeahead aria-controls, "To" date defaults 00:00 → consider 23:59, skeleton test name).
 
 ## Next actions (resume here)
 1. `git status` + `git worktree list`; read Handover notes of T-0042, T-0046, T-0016, and (inside each worktree) T-0017, T-0018.
