@@ -28,7 +28,7 @@ committing either.
 
 **Session 2 stopped by usage limit (2026-11-19)** — in flight when stopped (check each task file's status/Handover notes):
 - T-0017 clusters API: engineer still working in its worktree (rulings: EF-translated list, `environment` required → 400, trim names).
-- T-0018 credentials API: engineer DONE (`in_review`, worktree); backend-architect round-1 review was running — re-run if no verdict in task file.
+- T-0018 credentials API: APPROVED round 1 (verdict in worktree task file) — ready to commit in worktree + merge; nits: dedupe ServiceProviderBuilder port stubs at merge, `{credentialId:guid}` bare 404 convention.
 - T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
 - T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
 - After merging T-0017/18: regenerate schema.gen.ts (flag now in gen-api.mjs), QA leak-scan `/clusters` endpoints.
