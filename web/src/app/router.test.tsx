@@ -1,4 +1,6 @@
 import { screen } from '@testing-library/react';
+import { routes } from '@/app/router';
+import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { renderApp } from '@/test/render';
 
 /** Reads the placeholder page's route-parameter description list (`<dl>`) as a plain object. */
@@ -9,14 +11,29 @@ async function routeParams(): Promise<Record<string, string>> {
 }
 
 describe('routes', () => {
-  // Landing details (last cluster, no clusters) are covered in features/cluster-context.
-  it("redirects / to the overview of the user's first granted cluster", async () => {
-    const { router } = renderApp('/');
+  // The admin pages are lazy route modules; load them once up front so no test pays their first import inside a
+  // `findBy*` wait (that made this file flaky under load, T-0046).
+  beforeAll(() => preloadLazyRoutes(routes));
 
-    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/dev-1/overview');
-    expect(await routeParams()).toEqual({ cluster: 'dev-1' });
-  });
+  // Landing details (last cluster, no clusters) are covered in features/cluster-context.
+  // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
+  it(
+    "redirects / to the overview of the user's first granted cluster",
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const { router } = renderApp('/');
+
+      expect(
+        await screen.findByRole(
+          'heading',
+          { name: 'Overview', level: 1 },
+          { timeout: COLD_START_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/c/dev-1/overview');
+      expect(await routeParams()).toEqual({ cluster: 'dev-1' });
+    },
+  );
 
   it('renders a namespaced resource list with its params', async () => {
     renderApp('/c/dev-1/ns/default/deployments');

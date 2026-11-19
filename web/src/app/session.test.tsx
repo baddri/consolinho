@@ -1,6 +1,7 @@
 import { act, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
+import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { problem, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
@@ -25,26 +26,35 @@ const unauthenticated = () =>
   problem(401, { code: 'Auth.Unauthenticated', detail: 'Authentication required.' });
 
 describe('session handling (ADR-0014)', () => {
-  it('sends a visitor without a session to /login with the deep link as return URL, without a loop (AUTH-1/12)', async () => {
-    setMockUser(null);
-    const meCalls = spyOnMe();
-    const { router } = renderApp('/c/prod-eu-1/ns/default/pods?x=1');
+  // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
+  it(
+    'sends a visitor without a session to /login with the deep link as return URL, without a loop (AUTH-1/12)',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      setMockUser(null);
+      const meCalls = spyOnMe();
+      const { router } = renderApp('/c/prod-eu-1/ns/default/pods?x=1');
 
-    const login = await screen.findByRole('link', { name: 'Log in with OpenShift' });
-    expect(login).toHaveAttribute(
-      'href',
-      '/api/auth/login?returnUrl=%2Fc%2Fprod-eu-1%2Fns%2Fdefault%2Fpods%3Fx%3D1',
-    );
-    expect(router.state.location.pathname).toBe('/login');
-    // A first visit is not an ended session: no "session ended" message.
-    expect(router.state.location.search).not.toContain('reason');
-    expect(screen.queryByRole('heading', { name: /alert:/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Global' })).not.toBeInTheDocument();
+      const login = await screen.findByRole(
+        'link',
+        { name: 'Log in with OpenShift' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      expect(login).toHaveAttribute(
+        'href',
+        '/api/auth/login?returnUrl=%2Fc%2Fprod-eu-1%2Fns%2Fdefault%2Fpods%3Fx%3D1',
+      );
+      expect(router.state.location.pathname).toBe('/login');
+      // A first visit is not an ended session: no "session ended" message.
+      expect(router.state.location.search).not.toContain('reason');
+      expect(screen.queryByRole('heading', { name: /alert:/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Global' })).not.toBeInTheDocument();
 
-    // Only the session guard asked `me`; the login page never does, so it cannot loop.
-    await screen.findByText(/^FleetConsole 0\.0\.0-test/);
-    expect(meCalls).toHaveBeenCalledTimes(1);
-  });
+      // Only the session guard asked `me`; the login page never does, so it cannot loop.
+      await screen.findByText(/^FleetConsole 0\.0\.0-test/);
+      expect(meCalls).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it('shows a spinner while the session loads', async () => {
     renderApp('/c/dev-1/overview');

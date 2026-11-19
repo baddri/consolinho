@@ -1,16 +1,21 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { delay, http } from 'msw';
+import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { mockDb, problem, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
+import { adminRoute } from '../routes';
 
 /** All fixture usernames in server order (sorted by username). */
 const ALL_USERS = ['admin', 'alice', 'bob', 'carol', 'dave', 'ines', 'pending-paul'];
 
-/** Waits until the users table shows data rows and returns it. */
-async function findUsersTable() {
-  const table = await screen.findByRole('grid', { name: 'Users' });
+/**
+ * Waits until the users table shows data rows and returns it. `timeout` widens the wait for the table itself (the
+ * first full-app render of the file, `COLD_START_TIMEOUT_MS`).
+ */
+async function findUsersTable(timeout?: number) {
+  const table = await screen.findByRole('grid', { name: 'Users' }, { timeout });
   await within(table).findByRole('link', { name: 'admin' });
   return table;
 }
@@ -37,12 +42,16 @@ function rowOf(table: HTMLElement, username: string): HTMLElement {
 beforeEach(() => mockViewportWidth(1440));
 
 describe('UsersListPage (USR-1)', () => {
-  it('renders every column from the fixtures', async () => {
+  // The page is a lazy route module; load it up front so no test pays its first import inside a `findBy*` (T-0046).
+  beforeAll(() => preloadLazyRoutes([adminRoute]));
+
+  // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
+  it('renders every column from the fixtures', { timeout: COLD_START_TEST_TIMEOUT_MS }, async () => {
     const alice = mockDb.users.find((u) => u.username === 'alice');
     if (alice) alice.groups = ['sre', 'oncall', 'platform', 'dba', 'network'];
     renderApp('/admin/users');
 
-    const table = await findUsersTable();
+    const table = await findUsersTable(COLD_START_TIMEOUT_MS);
     expect(visibleUsernames(table)).toEqual(ALL_USERS);
     expect(screen.getByRole('heading', { name: 'Users', level: 1 })).toBeInTheDocument();
     expect(within(table).getByRole('link', { name: 'pending-paul' })).toHaveAttribute(
@@ -96,12 +105,15 @@ describe('UsersListPage (USR-1)', () => {
     const { user, router } = renderApp('/admin/users');
     const table = await findUsersTable();
 
-    await user.type(screen.getByRole('textbox', { name: 'Search users' }), 'auditors');
+    // Paste, not type: every keystroke re-renders the table and updates the URL, which under load pushed this test
+    // past Vitest's 5 s timeout. One input event per value is ~3x faster; `delay: null` made no difference (T-0046).
+    await user.click(screen.getByRole('textbox', { name: 'Search users' }));
+    await user.paste('auditors');
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['ines']));
     expect(router.state.location.search).toBe('?q=auditors');
 
     await user.clear(screen.getByRole('textbox', { name: 'Search users' }));
-    await user.type(screen.getByRole('textbox', { name: 'Search users' }), 'carol op');
+    await user.paste('carol op');
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['carol']));
   });
 

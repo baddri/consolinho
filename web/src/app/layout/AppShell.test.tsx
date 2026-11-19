@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
 import { renderApp } from '@/test/render';
@@ -15,17 +16,24 @@ async function openSidebar(user: UserEvent) {
 }
 
 describe('AppShell', () => {
-  it('renders the masthead with brand, cluster switcher, theme toggle and user menu', async () => {
-    renderApp('/c/dev-1/overview');
+  // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
+  it(
+    'renders the masthead with brand, cluster switcher, theme toggle and user menu',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      renderApp('/c/dev-1/overview');
 
-    expect(await screen.findByRole('link', { name: 'FleetConsole' })).toBeInTheDocument();
-    expect(
-      await screen.findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' }),
-    ).toHaveTextContent('dev');
-    expect(screen.getByRole('button', { name: 'Light theme' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dark theme' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Fleet Admin Admin' })).toBeInTheDocument();
-  });
+      expect(
+        await screen.findByRole('link', { name: 'FleetConsole' }, { timeout: COLD_START_TIMEOUT_MS }),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' }),
+      ).toHaveTextContent('dev');
+      expect(screen.getByRole('button', { name: 'Light theme' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dark theme' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Fleet Admin Admin' })).toBeInTheDocument();
+    },
+  );
 
   it('renders OCP-like navigation sections and an admin section', async () => {
     const { user } = renderApp('/c/dev-1/overview');

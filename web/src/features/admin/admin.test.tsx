@@ -1,9 +1,10 @@
 import { screen, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
+import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
-import { adminKeys, useAdminAccess } from './index';
+import { adminKeys, adminRoute, useAdminAccess } from './index';
 
 /** jsdom has no layout, so PatternFly starts with the sidebar closed; open it like a user would. */
 async function openSidebar(user: UserEvent) {
@@ -23,20 +24,33 @@ function spyOnRequests(): string[] {
 }
 
 describe('admin area access (ADM-3)', () => {
-  it('shows the no-access page to a non-admin without calling admin endpoints', async () => {
-    setMockUser('alice');
-    const requests = spyOnRequests();
-    renderApp('/admin/users');
+  // React Router loads a matched route's lazy page module even when RequireAdmin then hides it; load them up front so
+  // no test pays the first import inside a `findBy*` wait (T-0046).
+  beforeAll(() => preloadLazyRoutes([adminRoute]));
 
-    expect(
-      await screen.findByRole('heading', { name: "You don't have access to Administration", level: 1 }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Ask a FleetConsole administrator if you need access.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
-    expect(screen.queryByRole('heading', { name: 'Users' })).not.toBeInTheDocument();
-    expect(requests).toContain('/api/auth/me');
-    expect(requests.filter((path) => path.startsWith('/api/admin'))).toEqual([]);
-  });
+  // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
+  it(
+    'shows the no-access page to a non-admin without calling admin endpoints',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      setMockUser('alice');
+      const requests = spyOnRequests();
+      renderApp('/admin/users');
+
+      expect(
+        await screen.findByRole(
+          'heading',
+          { name: "You don't have access to Administration", level: 1 },
+          { timeout: COLD_START_TIMEOUT_MS },
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Ask a FleetConsole administrator if you need access.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
+      expect(screen.queryByRole('heading', { name: 'Users' })).not.toBeInTheDocument();
+      expect(requests).toContain('/api/auth/me');
+      expect(requests.filter((path) => path.startsWith('/api/admin'))).toEqual([]);
+    },
+  );
 
   it('also hides unknown admin paths behind the no-access page for a non-admin', async () => {
     setMockUser('alice');
@@ -114,7 +128,13 @@ describe('adminKeys', () => {
     expect(adminKeys.userGrants('alice')).toEqual(['api', 'admin', 'users', 'alice', 'grants']);
     expect(adminKeys.clusters()).toEqual(['api', 'admin', 'clusters']);
     expect(adminKeys.cluster('dev-1')).toEqual(['api', 'admin', 'clusters', 'dev-1']);
-    expect(adminKeys.clusterCredentials('dev-1')).toEqual(['api', 'admin', 'clusters', 'dev-1', 'credentials']);
+    expect(adminKeys.clusterCredentials('dev-1')).toEqual([
+      'api',
+      'admin',
+      'clusters',
+      'dev-1',
+      'credentials',
+    ]);
     expect(adminKeys.clusterGrants('dev-1')).toEqual(['api', 'admin', 'clusters', 'dev-1', 'grants']);
     expect(adminKeys.credentials()).toEqual(['api', 'admin', 'credentials']);
     expect(adminKeys.audit({ category: 'users', limit: 50 })).toEqual([
