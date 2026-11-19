@@ -574,7 +574,7 @@ fleetconsole-dev`, `ClientSecret = dev-only-not-a-secret`, `Auth:AdminGroups = [
 | `Auth:BootstrapAdminUsers` | `[]` | Usernames. |
 | `Auth:AdminGroups` | `[]` (dev: `["fleetconsole-admins"]`) | OCP group names. `system:*` entries are refused at startup (every user is in them). |
 | `Auth:SessionLifetime` | `08:00:00` | Sliding. |
-| `Auth:RevalidationInterval` | `00:01:00` (Q4) | |
+| `Auth:RevalidationInterval` | `00:01:00` (Q4) | `0` = revalidate on every request. |
 | `Credentials:ExpiryWarningDays` | `14` (Q11) | |
 | `Credentials:ConnectionTestTimeout` | `00:00:15` | |
 | `DataProtection:KeyEncryptionCertificatePath` (+ `...PasswordPath`) | null | Protects the key ring at rest (ADR-0004). Warning at startup when absent outside Development; required from CP3. |

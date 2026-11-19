@@ -23,3 +23,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0015 | Forms, server validation errors, version conflicts and mutation feedback | Accepted |
 | 0016 | Contract-first API types and an MSW mock backend for frontend work | Accepted |
 | 0017 | Promote always records the admin assignment (refines 0009) | Accepted |
+| 0018 | OpenShift OAuth handler: live endpoints, configured redirect URI, classified token exchange (refines 0010) | Accepted |

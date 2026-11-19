@@ -1,5 +1,5 @@
 # 0010 — OpenShift OAuth handler wiring and the DevOAuth emulator
-**Status:** Accepted (2026-11-18) · **Refines:** 0007
+**Status:** Accepted (2026-11-18) · **Refines:** 0007 · **Refined by:** 0018
 
 ## Context
 ADR-0007 decides *what* (server-side auth code + PKCE against the host cluster's OAuth server, identity from

@@ -62,6 +62,33 @@ Contract §3, §8.1, §8.2 (records, validation, semantics). ADR-0013. Domain fr
   with the 30-day window, same boundaries as `TokenMetadata.StatusAt` (`notAfter <= now` expired,
   `notAfter - now <= window` expiringSoon). `isStale` → `ConnectionTestSummary.IsStaleSince`.
 
+**From T-0015 (architect review, 2026-11-19)** — the integration-test harness (`tests/FleetConsole.Api.Tests/Integration/`).
+See T-0015's handover notes for details.
+- Test classes use `[Collection(ApiCollectionDefinition.Name)]` and take the shared `ApiFactory factory`. Tests in the
+  collection run sequentially over **one shared database**, so use unique names (the helpers generate them) and never
+  assume an empty table.
+- **Logging in:** `await factory.LoginAsAsync(username)` returns a browser client (cookies, no auto-redirect,
+  `X-Console-Request: 1`) that holds a session. Users must exist in the emulator. Use `factory.NewUsername()` for a
+  regular user and `factory.NewAdminUsername()` for an admin **by configuration** (group `fleetconsole-admins`; can't be
+  demoted → 409 `Users.AdminViaConfiguration`). For an admin **by assignment**, first
+  `var u = await factory.Data.UserAsync(role: UserRole.Admin)`, then `LoginAsAsync(u.Username)`. For a read-only admin,
+  add `isReadOnly: true`. Shipped users (`admin/alice/bob/ines`) are shared by all tests: use them for read-only
+  assertions only.
+- **Seeding below HTTP:** `factory.Data` (`TestData`): `UserAsync`, `DeactivateAsync`, `ReactivateAsync`,
+  `SetReadOnlyAsync`, `SetRoleAsync`, `ClusterAsync`, `CredentialAsync` (encrypted via `ITokenProtector`; returns the
+  plaintext token for CRED-2 scans), `GrantAsync`, `FindUserAsync`, `AuditEntriesAsync(name)`. Each call saves in its own
+  signed-in scope (actor `test-data`), so seeding writes audit entries too. Filter audit assertions by name or action.
+- **Other configuration** (e.g. `Auth:RevalidationInterval=00:00:00` so a role/read-only change is visible on the next
+  request): `await using var host = await factory.CreateVariantAsync(overrides)` gives its own database and emulator.
+  Each variant costs a migration run (~1 s). Create it once per class (`IAsyncLifetime`), not per test.
+- **Secret leaks (CRED-2):** `TokenLeakScanner.AssertAbsent(secret, haystacks...)` over response bodies,
+  `await TokenLeakScanner.DumpDatabaseAsync(factory.ConnectionString, ct)` (plaintext must not be in the DB) and
+  `factory.Logs.AllText` (Debug and above).
+- **Errors through HTTP:** assert `status`, `application/problem+json` and `code` (e.g. 401 `Auth.Unauthenticated`
+  without a session, 403 `Auth.Forbidden` for non-admins, 403 `Auth.CsrfHeaderMissing` when the header is removed).
+- After adding endpoints, regenerate `web/src/shared/api/schema.gen.ts` (`cd web && npm run gen:api`, Api running) and
+  run `npm run typecheck` (ADR-0016).
+
 ## Acceptance criteria
 - [ ] Integration tests for each endpoint: happy path, 400 (each rule of contract §8.2 incl. bad PEM, `http://` URL,
       URL with path, skip+CA), 404, 409 (`NameTaken`, `NotDisabled`, stale version).
