@@ -28,6 +28,7 @@ public static class AdminEndpoints
 
         // Feature tasks add one Map<Feature>AdminEndpoints() call each (T-0016 users, T-0017 clusters, ...).
         admin.MapUsersAdminEndpoints();
+        admin.MapCredentialsAdminEndpoints();
 
         return admin;
     }

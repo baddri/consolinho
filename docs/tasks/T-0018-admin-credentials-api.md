@@ -1,11 +1,11 @@
 ---
 id: T-0018
 title: Admin credentials API — add, rotate, delete, per-cluster and fleet lists, JWT metadata, write-only guarantees
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0015]
-paths: [src/FleetConsole.Application/Credentials/, src/FleetConsole.Api/Endpoints/Admin/CredentialsAdminEndpoints.cs, src/FleetConsole.Api/Endpoints/Admin/CredentialRequests.cs, src/FleetConsole.Api/Endpoints/Admin/AdminEndpoints.cs, tests/FleetConsole.Application.Tests/Credentials/, tests/FleetConsole.Api.Tests/Integration/Admin/Credentials/, web/src/shared/api/schema.gen.ts]
+paths: [src/FleetConsole.Application/Credentials/, src/FleetConsole.Api/Endpoints/Admin/CredentialsAdminEndpoints.cs, src/FleetConsole.Api/Endpoints/Admin/CredentialRequests.cs, src/FleetConsole.Api/Endpoints/Admin/AdminEndpoints.cs, tests/FleetConsole.Application.Tests/Credentials/, tests/FleetConsole.Api.Tests/Integration/Admin/Credentials/, tests/FleetConsole.Api.Tests/Integration/TestData.cs, tests/FleetConsole.Application.Tests/ServiceProviderBuilder.cs, web/src/shared/api/schema.gen.ts]
 review_rounds: 0
 ---
 
@@ -86,23 +86,48 @@ See T-0015's handover notes for details.
   to `paths`) so seeded and API-created credentials can't diverge.
 
 ## Acceptance criteria
-- [ ] Integration tests: add (JWT with exp/iat/sub → metadata, `serviceAccount` "ns/name"; opaque `sha256~...` →
+- [x] Integration tests: add (JWT with exp/iat/sub → metadata, `serviceAccount` "ns/name"; opaque `sha256~...` →
       `tokenType: opaque`, status `unknown`), 400 token rules (empty, internal whitespace, > 16 KiB), 409 `NameTaken`,
       rotate keeps id + grants and audits old→new fingerprint, stale version 409, delete unused 204, delete used 409.
-- [ ] CRED-2: after add **and** rotate, the bodies of `GET /api/admin/credentials`, `/clusters`, `/clusters/{name}`,
+- [x] CRED-2: after add **and** rotate, the bodies of `GET /api/admin/credentials`, `/clusters`, `/clusters/{name}`,
       `/clusters/{name}/credentials` don't contain the token (T-0015's `TokenLeakScanner`; `/clusters` and
       `/clusters/{name}` only if T-0017 has merged — otherwise QA covers them); captured logs don't either.
-- [ ] CRED-4 expiry statuses incl. `expiringSoon` at `ExpiryWarningDays` boundary (fake clock).
-- [ ] CRED-7 fleet list sorted by expiry ascending, nulls last.
-- [ ] Unit tests for `TokenInspector` (malformed segments, non-JSON, missing claims, numeric date edge cases).
+- [x] CRED-4 expiry statuses incl. `expiringSoon` at `ExpiryWarningDays` boundary (fake clock).
+- [x] CRED-7 fleet list sorted by expiry ascending, nulls last.
+- [x] Unit tests for `TokenInspector` (malformed segments, non-JSON, missing claims, numeric date edge cases).
 - [ ] Read-only admin 403 on commands. `schema.gen.ts` regenerated. Build, lint and tests green (rule 4).
+      (403 + build/tests done; `schema.gen.ts` regeneration left to the orchestrator after merge, as instructed.)
 
 ## Contract amendments (orchestrator 2026-11-18)
 - `CredentialDto` gains `ExpiryWarningDays` (int, from `Credentials:ExpiryWarningDays`) — contract §8.3.
 - Contract-first FE types (ADR-0016): after regenerating `schema.gen.ts`, also run `cd web && npm run typecheck`. A failure means the Api deviates from the contract — report it in NOTES, don't patch web/ silently.
 
 ## Work log
+- 2026-11-19 backend-engineer: started in worktree `agent-af76dd13c9f3efd52` (from b1f8062); Application layer written, then paused (session end).
+- 2026-11-19 backend-engineer: resumed. Api endpoints + requests, unit tests (inspector, fingerprint, validators, handlers),
+  integration tests (incl. CRED-2 leak scan, CRED-4 manual clock, CRED-7), TestData → TokenFingerprints/TokenInspector.
+  Outside paths (minimal): ServiceProviderBuilder registers substitutes for the new handlers' ports. check-be green.
 
 ## Review
+**Round 1 — backend-architect, 2026-11-19: APPROVE.** check-be green (build ok; 323 + 260 + 442 tests).
+Token only as `SensitiveString`/fingerprint in commands, DTOs, audit, validation messages and exceptions; projection never
+selects the ciphertext; CRED-2 scan covers bodies (incl. a 400), DB dump and logs. Delete race: grants→credentials FK
+`NoAction` → 23503 → 409 `Concurrency.Conflict`. Version check + `xmin`, one audit event per change, no N+1. Layering ok.
+Optional nits (no re-review needed):
+- tests/FleetConsole.Application.Tests/ServiceProviderBuilder.cs:51-54 — T-0016/T-0017 likely register the same ports (`IClusterRepository`, `IGrantRepository`) — at merge, keep one block of port registrations, no duplicates.
+- src/FleetConsole.Api/Endpoints/Admin/CredentialsAdminEndpoints.cs:41-42 — `{credentialId:guid}` makes a malformed id a bare routing 404, not ProblemDetails `Credentials.NotFound`. Align with whatever T-0016/T-0017 do for route ids (follow-up if a convention is needed).
+- Orchestrator: regenerate `schema.gen.ts` + `npm run typecheck` after the T-0016/17/18 merge (last AC still open by design).
 
 ## Handover notes
+**State: in_review.** Worktree `agent-af76dd13c9f3efd52`, uncommitted. `scripts/check-be.sh` green (Testcontainers on podman).
+- Api: `Endpoints/Admin/CredentialsAdminEndpoints.cs` (tag `Credentials`, OperationIds per contract; `GET /credentials` on the admin
+  group, the rest in group `/clusters/{name}/credentials`), `CredentialRequests.cs`; one line in `AdminEndpoints.cs`.
+  Endpoint trims the token (null → "") and wraps it in `SensitiveString`; add/rotate re-query `GetCredentialQuery`.
+- Rulings applied: token trimmed by the endpoint, then required → no whitespace → ≤16384 → printable ASCII (fixed messages).
+  JWT with a present but unreadable `exp` → `Opaque`/`unknown` (documented in `TokenInspector` remarks); an **absent** `exp`
+  stays `noExpiry` as the Domain/contract define it.
+- Merge points with T-0016/T-0017: `AdminEndpoints.cs` (one `Map…` line) and `ServiceProviderBuilder.cs` (4 substitute
+  registrations — dedupe if the other tasks add the same ports).
+- `TestData.CredentialAsync` now uses `TokenFingerprints.Compute` + `TokenInspector.Inspect` (seeded JWTs get metadata).
+- Not done: `schema.gen.ts` regeneration + `npm run typecheck` (orchestrator after merge). CRED-2 scan of `/clusters` and
+  `/clusters/{name}` waits for T-0017 (QA). EF translation of `CredentialProjection` verified against Postgres by the tests.
