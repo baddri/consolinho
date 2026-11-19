@@ -14,3 +14,13 @@ public sealed record AddCredentialRequest(string Name, string? Description, stri
 /// <param name="Token">The new ServiceAccount token, with the same rules as when adding a credential.</param>
 /// <param name="Version">The credential's version from its last representation.</param>
 public sealed record RotateCredentialTokenRequest(string Token, uint Version);
+
+/// <summary>Runs a connection test of a stored credential.</summary>
+/// <param name="InspectNamespace">Optional namespace to list the credential's access rules in (a DNS label, at most 63 characters). Empty means none.</param>
+public sealed record TestCredentialRequest(string? InspectNamespace);
+
+/// <summary>Runs a connection test of a token that is not stored. Nothing is saved except an audit entry with the token's fingerprint.</summary>
+/// <param name="Token">The ServiceAccount token to test, with the same rules as when adding a credential.</param>
+/// <param name="CredentialId">Optional: the credential of this cluster whose token is being replaced; its grants produce the access-mode hints.</param>
+/// <param name="InspectNamespace">Optional namespace to list the token's access rules in (a DNS label, at most 63 characters). Empty means none.</param>
+public sealed record TestTokenRequest(string Token, Guid? CredentialId, string? InspectNamespace);
