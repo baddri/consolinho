@@ -131,6 +131,8 @@ loading/error/empty states, filtering, sorting, pagination and watch updates.
 ## Session and permissions (ADR-0014)
 
 - `useCurrentUser()` (`GET /api/auth/me`) is the only source of identity, role and read-only state.
+- Logout and session end navigate to `/login` first (`flushSync`), then `clearSessionCache` drops every unobserved
+  query and all mutations. Only anonymous data may be observed outside `RequireSession` (ADR-0014 amendment).
 - Mutating admin controls stay visible; when not allowed they are `isAriaDisabled` with a tooltip giving the reason
   (`useAdminAccess().readOnlyReason`, or a row-specific reason). Server 403s are still shown with their `detail`.
 

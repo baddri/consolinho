@@ -1,6 +1,6 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { AdminPage } from '@/features/admin';
-import { LoginPage } from '@/features/auth';
+import { LoginPage, RequireSession } from '@/features/auth';
 import { DEFAULT_CLUSTER } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
 import { ResourceDetailsPage, ResourceListPage } from '@/features/resources';
@@ -15,34 +15,40 @@ import { RouteErrorPage } from './RouteErrorPage';
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   {
-    path: '/',
-    element: <AppShell />,
+    // Everything except /login needs a session (ADR-0014 §3); a 401 is handled globally by the QueryClient.
+    element: <RequireSession />,
     errorElement: <RouteErrorPage />,
     children: [
       {
-        index: true,
-        element: <Navigate to={`/c/${encodeURIComponent(DEFAULT_CLUSTER)}/overview`} replace />,
-      },
-      {
-        path: 'c/:cluster',
+        path: '/',
+        element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="overview" replace /> },
-          { path: 'overview', element: <OverviewPage /> },
-          { path: 'search', element: <SearchPage /> },
-          { path: 'ns/:namespace/:resource', element: <ResourceListPage /> },
-          { path: 'ns/:namespace/:resource/:name', element: <ResourceDetailsPage /> },
-          { path: 'cluster/:resource', element: <ResourceListPage /> },
-          { path: 'cluster/:resource/:name', element: <ResourceDetailsPage /> },
+          {
+            index: true,
+            element: <Navigate to={`/c/${encodeURIComponent(DEFAULT_CLUSTER)}/overview`} replace />,
+          },
+          {
+            path: 'c/:cluster',
+            children: [
+              { index: true, element: <Navigate to="overview" replace /> },
+              { path: 'overview', element: <OverviewPage /> },
+              { path: 'search', element: <SearchPage /> },
+              { path: 'ns/:namespace/:resource', element: <ResourceListPage /> },
+              { path: 'ns/:namespace/:resource/:name', element: <ResourceDetailsPage /> },
+              { path: 'cluster/:resource', element: <ResourceListPage /> },
+              { path: 'cluster/:resource/:name', element: <ResourceDetailsPage /> },
+            ],
+          },
+          {
+            path: 'admin',
+            children: [
+              { index: true, element: <Navigate to="users" replace /> },
+              { path: ':section', element: <AdminPage /> },
+            ],
+          },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
-      {
-        path: 'admin',
-        children: [
-          { index: true, element: <Navigate to="users" replace /> },
-          { path: ':section', element: <AdminPage /> },
-        ],
-      },
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ];

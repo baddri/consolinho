@@ -23,7 +23,7 @@ describe('AppShell', () => {
     );
     expect(screen.getByRole('button', { name: 'Light theme' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dark theme' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'User menu' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fleet Admin Admin' })).toBeInTheDocument();
   });
 
   it('renders OCP-like navigation sections and an admin section', async () => {

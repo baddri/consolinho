@@ -12,9 +12,9 @@ import {
   ToolbarItem,
 } from '@patternfly/react-core';
 import { Link, type LinkProps } from 'react-router';
+import { UserMenu } from '@/features/auth';
 import { ClusterSwitcher } from '@/features/cluster-context';
 import { ThemeToggle } from './ThemeToggle';
-import { UserMenu } from './UserMenu';
 
 /** Brand link rendered by `MastheadLogo`; keeps navigation client-side. */
 function HomeLink(props: Omit<LinkProps, 'to'>) {

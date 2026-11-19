@@ -47,3 +47,19 @@ considered; both duplicate what TanStack Query already does for server state.
 - One extra `me` request per minute of focus; negligible.
 - Tests cover the redirect once (router-level, MSW 401) instead of per page.
 - The read-only pattern is uniform and lint-reviewable: grep for `canMutate`/`readOnlyReason`.
+
+## Amendment (2026-11-19, T-0027 review)
+- **Cache clearing is `clearSessionCache(queryClient)`, not `queryClient.clear()`** (§2 and §5). Sequence: navigate
+  to `/login` with `{ replace: true, flushSync: true }`, then call `clearSessionCache`, which removes every query
+  **without observers** and clears the mutation cache. Why: React Router commits navigations in a transition, so after
+  the navigate promise resolves the guarded tree may still be mounted and would refetch `me` (a second request, i.e. a
+  potential loop) if the cache were cleared then; with `flushSync` the login page is already mounted and `clear()`
+  would orphan its in-flight anonymous `system/info` query (its observer never receives data). Removing only
+  unobserved queries after the committed navigation drops the whole guarded tree's data and keeps the login page
+  working.
+- **Invariant this relies on (review rule):** nothing outside `RequireSession` may observe a query holding
+  user- or cluster-specific data. Only anonymous data (today `['api','system','info']`) may be observed by the login
+  page, providers or other unguarded components. Tests assert the cache after logout/session end is exactly
+  `[['api','system','info']]`; extend that assertion, don't weaken it, when the login page gains a query.
+- The loop guard also ignores a 401 while a navigation **to** `/login` is pending, so several requests failing
+  together redirect once.
