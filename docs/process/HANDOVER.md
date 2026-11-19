@@ -37,6 +37,7 @@
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
+0. **Human asked to pause after T-0030 (2026-11-19).** Finish in-flight T-0015, T-0029, T-0030 (review + commit), then stop. Start nothing new until the human says continue.
 1. T-0015 (W5) → review → commit. Then W6 admin APIs T-0016..T-0019, T-0021 (3 at a time; shared files: AdminEndpoints.cs, DI files, schema.gen.ts), then T-0020.
 2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
 3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
