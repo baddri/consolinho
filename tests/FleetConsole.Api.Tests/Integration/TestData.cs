@@ -1,8 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
 using FleetConsole.Api.Tests.Persistence;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Persistence;
+using FleetConsole.Application.Credentials.Tokens;
 using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Audit;
 using FleetConsole.Domain.Clusters;
@@ -114,7 +113,10 @@ public sealed class TestData(ApiFactory factory)
         return new SeededCluster(cluster.Id, clusterName.Value);
     }
 
-    /// <summary>Adds a credential to a cluster, with the token encrypted by the host's <see cref="ITokenProtector"/>.</summary>
+    /// <summary>
+    /// Adds a credential to a cluster, with the token encrypted by the host's <see cref="ITokenProtector"/> and the same
+    /// fingerprint and metadata derivation as the add endpoint, so seeded and API-created credentials can't diverge.
+    /// </summary>
     /// <param name="clusterName">The cluster.</param>
     /// <param name="token">The plaintext token; an obviously fake unique one when null.</param>
     /// <param name="name">The credential name; unique when null.</param>
@@ -132,8 +134,8 @@ public sealed class TestData(ApiFactory factory)
             CredentialName.Create(name ?? $"cred-{Unique()}").Value,
             description: "Seeded by TestData",
             services.GetRequiredService<ITokenProtector>().Protect(new SensitiveString(plaintext)),
-            Fingerprint(plaintext),
-            TokenMetadata.Opaque,
+            TokenFingerprints.Compute(new SensitiveString(plaintext)),
+            TokenInspector.Inspect(new SensitiveString(plaintext)),
             Actor,
             Now);
         services.GetRequiredService<ICredentialRepository>().Add(credential);
@@ -219,11 +221,6 @@ public sealed class TestData(ApiFactory factory)
             throw new InvalidOperationException($"TestData change refused: {result.Error.Code} {result.Error.Message}");
         }
     }
-
-    // Display fingerprint for seeded tokens: first 8 hex chars of SHA-256 (T-0018 owns the production rule; seeded
-    // credentials only need a valid value).
-    private static TokenFingerprint Fingerprint(string token) =>
-        TokenFingerprint.Create(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)))[..8]).Value;
 }
 
 /// <summary>A seeded user.</summary>

@@ -45,6 +45,13 @@ internal static class ServiceProviderBuilder
             services.AddOptions();
             services.AddScoped<IUserRepository, Auth.InMemoryUserRepository>();
             services.AddScoped<IReadModel, Auth.InMemoryReadModel>();
+
+            // Ports of the credential use cases (T-0018). Substitutes: these tests only need the handlers to be
+            // constructible; the handler tests in Credentials/ create their own fakes.
+            services.AddScoped(_ => NSubstitute.Substitute.For<IClusterRepository>());
+            services.AddScoped(_ => NSubstitute.Substitute.For<ICredentialRepository>());
+            services.AddScoped(_ => NSubstitute.Substitute.For<IGrantRepository>());
+            services.AddSingleton(_ => NSubstitute.Substitute.For<ITokenProtector>());
         }
 
         if (withApplicationPipeline)
