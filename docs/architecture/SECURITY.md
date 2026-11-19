@@ -27,6 +27,10 @@ it holds, so these rules are strict.
   can't demote or deactivate themselves (ADM-5).
 - Auto-provisioning of new users is configurable (`Auth:AutoProvision`, default true; provisioned users have no grants).
 - Host API/OAuth server TLS: system trust or `Auth:OpenShift:CaBundlePath`; `SkipTlsVerify` is refused outside Development.
+  A CA bundle **replaces** system trust for both the API server and the OAuth route, so in cluster it must contain the
+  SA `ca.crt` plus the CA that signs the OAuth route (ingress CA, or the public root). Outside Development the host API
+  server and the OAuth endpoints (static or discovered) must be `https`: the client secret, codes and access tokens
+  travel there. The `openshift-host` HTTP client has no retries (authorization codes are single-use).
 - Dev uses the in-repo OCP OAuth emulator (`FleetConsole.DevOAuth`); it must never be deployed (not in the container
   image; the Api must not reference it — architecture test). Its client secret is an obviously fake dev value.
 

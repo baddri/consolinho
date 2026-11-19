@@ -5,7 +5,7 @@ status: todo
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0009, T-0011, T-0013, T-0014]
-paths: [src/FleetConsole.Api/Auth/, src/FleetConsole.Api/Endpoints/AuthEndpoints.cs, src/FleetConsole.Api/Endpoints/ApiEndpoints.cs, src/FleetConsole.Api/Program.cs, src/FleetConsole.Api/appsettings*.json, src/FleetConsole.AppHost/AppHost.cs, tests/FleetConsole.Api.Tests/Integration/, tests/FleetConsole.Api.Tests/Auth/, web/src/shared/api/schema.gen.ts, README.md]
+paths: [src/FleetConsole.Api/Auth/, src/FleetConsole.Api/Endpoints/AuthEndpoints.cs, src/FleetConsole.Api/Endpoints/ApiEndpoints.cs, src/FleetConsole.Api/Program.cs, src/FleetConsole.Api/appsettings*.json, src/FleetConsole.AppHost/AppHost.cs, tests/FleetConsole.Api.Tests/Integration/, tests/FleetConsole.Api.Tests/Auth/, tests/FleetConsole.Api.Tests/Persistence/ApiHostOverDatabase.cs, web/src/shared/api/schema.gen.ts, README.md]
 review_rounds: 0
 ---
 
@@ -76,6 +76,28 @@ discovery, `PublicOrigin`, test hosting), ADR-0012 (anonymous list).
   `CurrentUser.role` is `type: string` with `enum: ["admin", "user"]` (camelCase, no integers).
 - Flip `Mapped` to `true` for `GET /api/auth/login` and `POST /api/auth/logout` in
   `Integration/AnonymousSurfaceTests.cs` (`/api/auth/callback` stays unlisted: OAuth middleware, not an endpoint).
+
+**From T-0014 (architect review, 2026-11-19)** — what T-0014 left for this task:
+- Call `builder.AddOpenShiftIdentity()` (`FleetConsole.Infrastructure.Identity`) in `Program.cs` after
+  `AddInfrastructure()`. From then on, **every host built from `Program`** fails startup without valid
+  `Auth:OpenShift:*`: `HostApiServerUrl`, `ClientId` and `ClientSecret` are required, the static endpoints must be set
+  both or neither, and `https` is required outside Development (T-0014 review fix).
+- Put the test values in `ApiFactory` via `UseSetting`, not only in `appsettings.Development.json`. They must also
+  reach the hosts derived from it with `UseEnvironment("Production")` (`Integration/ExceptionPipelineTests`, which
+  doesn't load the Development file), and `Persistence/ApiHostOverDatabase.cs` (added to `paths`). Minimum set: see
+  `tests/FleetConsole.Api.Tests/Identity/IdentityTestHost.DevConfiguration()`. For Production-environment hosts use an
+  `https://*.invalid` `HostApiServerUrl` **plus both static endpoints**, so the warm-up makes no outbound call and
+  validation passes. For Development hosts point `HostApiServerUrl` at the in-process DevOAuth and override the
+  `OpenShiftHostHttpClient.Name` primary handler (see `IdentityTestHost`).
+- Use the `OpenShiftHostHttpClient.Name` client as the OAuth backchannel. It has no retries and a 10 s timeout; don't add
+  any handler that retries.
+- `LoginOutcomeDto.User` is `SignedInUserDto?` (not `SessionUserDto`); map it to the Api's `SessionUser`. Denials are
+  successful results. A racing first login can return 409 `Persistence.DuplicateKey` → treat it as `failed`.
+- `OnRemoteFailure`: `ExternalIdentityUnavailableException` → `unavailable`; `InvalidOperationException` from
+  `IExternalIdentityClient` → `failed`.
+- `GetSessionStateQuery` → `Users.NotFound` for a missing user: `SessionValidator` must reject. `GetCurrentUserQuery`
+  → `Auth.Unauthenticated` when the session's user row is missing (ruled: 401, not 404).
+- `MetadataChanged` fires once (the first successful discovery; never for static endpoints).
 
 ## Acceptance criteria
 - [ ] AUTH-1 full flow via emulator lands on the original return URL with a session cookie.
