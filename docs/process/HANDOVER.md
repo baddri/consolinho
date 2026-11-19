@@ -2,23 +2,21 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-19 (session ended by human mid-wave) · **Current checkpoint:** CP1 — Identity & administration ·
+**Last updated:** 2026-11-19 (session 2, in progress) · **Current checkpoint:** CP1 — Identity & administration ·
 **Branch:** `cp/1-identity-admin`
 
 ## Where we are
 - **CP0 Foundations: DONE** (tag `cp-0`).
 - **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
   ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
-- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0045 (frontend).
+- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0042, T-0045, T-0046 (frontend).
   Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
 
 ## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
-Five tasks were interrupted. Each **task file has a Work log + Handover notes** written at stop time — read them first.
+T-0042/T-0046 committed (session 2). Backend tasks resumed by new agents in session 2. Each **task file has a Work log + Handover notes** written at stop time — read them first.
 
 | Task | Where the WIP lives | State at stop |
 |---|---|---|
-| T-0042 `npm run dev:mock` | main tree: `web/package.json`, `web/vite.config.ts`, `web/msw/`, `web/src/mocks/browser.ts`, `web/src/app/main.tsx`, `web/src/app/session.ts`, `web/eslint.config.js`, `web/.prettierignore`, **moved** `features/auth/{returnUrl,loginPath}*` → `web/src/shared/auth/`, `features/auth/{index.ts,LoginPage.tsx}`, README tail section, FRONTEND.md | Round-1 fixes DONE, last checks green. Left: optional browser recheck → re-run checks → `in_review` → frontend-architect round 2 |
-| T-0046 flaky FE tests | main tree: `web/src/test/coldStart.ts`, `web/src/app/{router,session}.test.tsx`, `web/src/app/layout/AppShell.test.tsx`, `web/src/features/admin/admin.test.tsx`, `web/src/features/admin/users/UsersListPage.test.tsx`, FRONTEND.md testing bullet | Work DONE; stress check 10/10 green (one pair invalidated by T-0042's file move, re-run green). Left: re-run checks → `in_review` → frontend-architect review |
 | T-0016 admin users API | main tree: `src/FleetConsole.Application/Users/`, `Api/Endpoints/Admin/{UsersAdminEndpoints,UserRequests,AdminEndpoints}.cs`, `Api/OpenApi/{StringEnumSchemaTransformer,OpenApiSetup}.cs` | All 7 use cases + endpoints written, Application+Api projects build. Left: full build (EF translation of `UserRow` projection), all tests, `Enums_AreCamelCaseStrings` tighten, regenerate schema.gen.ts |
 | T-0017 admin clusters API | **worktree** `.claude/worktrees/agent-a9928235423746737` (branch `worktree-agent-a9928235423746737`, base b1f8062) | Get/List/Register/Update use cases written. Left: Enable/Disable/Delete, Api endpoints, ServiceProviderBuilder fakes, all tests, schema regen (worktree needs `npm ci`). Open: EF translation of list projection; make `environment` required (400 not default); confirm trimming of displayName/description |
 | T-0018 admin credentials API | **worktree** `.claude/worktrees/agent-af76dd13c9f3efd52` (branch `worktree-agent-af76dd13c9f3efd52`, base b1f8062) | Application layer written (tokens/fingerprint/inspector, DTO with `expiryWarningDays`, 5 use cases), builds alone. Left: Api endpoints, ServiceProviderBuilder registration (likely merge conflict with T-0016/17), tests incl. TokenLeakScanner, `TestData` → `TokenFingerprints.Compute`, schema regen. Deviations to rule on: unreadable JWT `exp` → opaque/`unknown`; printable-ASCII token rule |
