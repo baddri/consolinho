@@ -71,9 +71,6 @@ describe('routes', () => {
     ['/admin/users', 'Users', {}],
     ['/admin/clusters', 'Clusters', {}],
     ['/admin/clusters/new', 'Register cluster', {}],
-    ['/admin/clusters/dev-1', 'Cluster details', { name: 'dev-1', tab: 'details' }],
-    ['/admin/clusters/dev-1/credentials', 'Cluster details', { name: 'dev-1', tab: 'credentials' }],
-    ['/admin/clusters/dev-1/access', 'Cluster details', { name: 'dev-1', tab: 'access' }],
     ['/admin/clusters/dev-1/edit', 'Edit dev-1', {}],
     ['/admin/credentials', 'Credentials', {}],
     ['/admin/audit', 'Audit log', {}],
@@ -88,11 +85,15 @@ describe('routes', () => {
     }
   });
 
-  // The user detail page (T-0032) titles itself with the decoded username, also for an unknown user (404 state).
+  // The user (T-0032) and cluster (T-0035) detail pages title themselves with the decoded route name, also for an
+  // unknown one (404 state); tab selection is covered by their page tests.
   it.each([
     ['/admin/users/alice', 'alice'],
     ['/admin/users/alice/access', 'alice'],
     ['/admin/users/kube%3Aadmin', 'kube:admin'],
+    ['/admin/clusters/dev-1', 'dev-1'],
+    ['/admin/clusters/dev-1/credentials', 'dev-1'],
+    ['/admin/clusters/dev-1/access', 'dev-1'],
   ])('renders %s', async (path, title) => {
     renderApp(path);
 

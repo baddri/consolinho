@@ -158,6 +158,24 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
     expect(screen.getByRole('dialog', { name: /Delete dev-2/ })).toBeInTheDocument();
   });
 
+  it('T-0033 review: an action on a cluster deleted meanwhile closes the dialog with a toast', async () => {
+    const { user } = renderApp('/admin/clusters');
+    const table = await findClustersTable();
+
+    await openKebab(user, table, 'dev-1');
+    await user.click(screen.getByRole('menuitem', { name: 'Disable' }));
+    const dialog = await screen.findByRole('dialog', { name: /Disable dev-1/ });
+    mockDb.clusters.splice(
+      mockDb.clusters.findIndex((c) => c.name === 'dev-1'),
+      1,
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Disable' }));
+
+    expect(await screen.findByText('Cluster dev-1 no longer exists')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(within(table).queryByRole('link', { name: 'dev-1' })).not.toBeInTheDocument());
+  });
+
   it('Edit navigates to the edit form', async () => {
     const { user, router } = renderApp('/admin/clusters');
     const table = await findClustersTable();

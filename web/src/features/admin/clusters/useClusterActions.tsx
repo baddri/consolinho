@@ -32,14 +32,25 @@ export interface ClusterActions {
   dialog: ReactNode;
 }
 
+/** Callbacks of {@link useClusterActions} for pages that must react to the cluster going away. */
+export interface ClusterActionsOptions {
+  /** Runs after a successful delete (the detail page navigates away). */
+  onDeleted?: () => void;
+  /** Runs instead of the dialogs' own "no longer exists" toast when an action answers 404 (deleted meanwhile). */
+  onGone?: () => void;
+}
+
 /**
  * Builds the lifecycle actions of one cluster (CLU-5/6, ADM-2) and owns the dialog they open, so the list kebab and
  * the detail page offer the same items with the same reasons: Edit, Enable or Disable by state, Delete
  * (aria-disabled while enabled). A read-only admin gets every item aria-disabled with the read-only reason; a
- * disabled item's click is a no-op. `onDeleted` runs after a successful delete (the detail page navigates away).
+ * disabled item's click is a no-op. See {@link ClusterActionsOptions} for the delete / 404 callbacks.
  * "Test connection" is added by T-0038.
  */
-export function useClusterActions(cluster: ClusterTarget, onDeleted?: () => void): ClusterActions {
+export function useClusterActions(
+  cluster: ClusterTarget,
+  { onDeleted, onGone }: ClusterActionsOptions = {},
+): ClusterActions {
   const { readOnlyReason } = useAdminAccess();
   const navigate = useNavigate();
   const [open, setOpen] = useState<ClusterActionKind | null>(null);
@@ -79,9 +90,9 @@ export function useClusterActions(cluster: ClusterTarget, onDeleted?: () => void
 
   const close = () => setOpen(null);
   let dialog: ReactNode = null;
-  if (open === 'disable') dialog = <DisableClusterModal cluster={cluster} onClose={close} />;
-  if (open === 'enable') dialog = <EnableClusterModal cluster={cluster} onClose={close} />;
+  if (open === 'disable') dialog = <DisableClusterModal cluster={cluster} onClose={close} onGone={onGone} />;
+  if (open === 'enable') dialog = <EnableClusterModal cluster={cluster} onClose={close} onGone={onGone} />;
   if (open === 'delete')
-    dialog = <DeleteClusterModal cluster={cluster} onClose={close} onDeleted={onDeleted} />;
+    dialog = <DeleteClusterModal cluster={cluster} onClose={close} onDeleted={onDeleted} onGone={onGone} />;
   return { items, dialog };
 }

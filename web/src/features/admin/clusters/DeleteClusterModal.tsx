@@ -3,6 +3,7 @@ import { ConfirmModal, EnvironmentLabel, useToast } from '@/shared/ui';
 import { useDeleteCluster } from './api';
 import { plural } from './clusterTarget';
 import type { ClusterModalProps } from './DisableClusterModal';
+import { useClusterGoneHandler } from './useClusterGone';
 
 /** Props for {@link DeleteClusterModal}. */
 export interface DeleteClusterModalProps extends ClusterModalProps {
@@ -12,12 +13,14 @@ export interface DeleteClusterModalProps extends ClusterModalProps {
 
 /**
  * CLU-6 delete confirmation: danger, the user must type the cluster name, and the body states how many credentials
- * and grants go with it. A 409 `Clusters.NotDisabled` (enabled meanwhile) is shown inline with the server's detail.
+ * and grants go with it. A 409 `Clusters.NotDisabled` (enabled meanwhile) is shown inline with the server's detail; a 404
+ * (deleted meanwhile) closes the dialog via `useClusterGoneHandler`.
  */
-export function DeleteClusterModal({ cluster, onClose, onDeleted }: DeleteClusterModalProps) {
+export function DeleteClusterModal({ cluster, onClose, onDeleted, onGone }: DeleteClusterModalProps) {
   const mutation = useDeleteCluster();
   const toast = useToast();
   const { name, environment, credentialCount, grantCount } = cluster;
+  const onError = useClusterGoneHandler(name, onClose, onGone);
   const confirm = () =>
     mutation.mutate(name, {
       onSuccess: () => {
@@ -25,6 +28,7 @@ export function DeleteClusterModal({ cluster, onClose, onDeleted }: DeleteCluste
         onDeleted?.();
         onClose();
       },
+      onError,
     });
   return (
     <ConfirmModal
