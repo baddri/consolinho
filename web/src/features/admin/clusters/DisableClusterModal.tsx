@@ -1,0 +1,48 @@
+import { Content } from '@patternfly/react-core';
+import { ConfirmModal, EnvironmentLabel, useToast } from '@/shared/ui';
+import { useDisableCluster } from './api';
+import { plural, type ClusterTarget } from './clusterTarget';
+
+/** Props of the cluster lifecycle dialogs. Mount them only while open; they close themselves after success. */
+export interface ClusterModalProps {
+  cluster: ClusterTarget;
+  onClose: () => void;
+}
+
+/**
+ * CLU-5 disable confirmation: names the cluster, its environment and how many users lose it from their switcher
+ * (`grantCount`). Danger variant for production. Sends the given representation's `version`; failures stay inline.
+ */
+export function DisableClusterModal({ cluster, onClose }: ClusterModalProps) {
+  const mutation = useDisableCluster();
+  const toast = useToast();
+  const { name, environment, grantCount, version } = cluster;
+  const confirm = () =>
+    mutation.mutate(
+      { name, version },
+      {
+        onSuccess: () => {
+          toast.success(`Cluster ${name} disabled`);
+          onClose();
+        },
+      },
+    );
+  return (
+    <ConfirmModal
+      isOpen
+      title={`Disable ${name}`}
+      titleLabel={<EnvironmentLabel environment={environment} isCompact />}
+      confirmLabel="Disable"
+      variant={environment === 'production' ? 'danger' : 'primary'}
+      isPending={mutation.isPending}
+      error={mutation.error}
+      onConfirm={confirm}
+      onClose={onClose}
+    >
+      <Content component="p">
+        {`Disable ${name} (${environment})? ${plural(grantCount, 'user')} will no longer see it in the cluster ` +
+          'switcher. Grants and credentials are kept.'}
+      </Content>
+    </ConfirmModal>
+  );
+}
