@@ -1,5 +1,5 @@
 import { Navigate, type RouteObject } from 'react-router';
-import { AdminPage } from '@/features/admin';
+import { adminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { DEFAULT_CLUSTER } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
@@ -39,13 +39,8 @@ export const routes: RouteObject[] = [
               { path: 'cluster/:resource/:name', element: <ResourceDetailsPage /> },
             ],
           },
-          {
-            path: 'admin',
-            children: [
-              { index: true, element: <Navigate to="users" replace /> },
-              { path: ':section', element: <AdminPage /> },
-            ],
-          },
+          // Admin pages are lazy route modules in their own chunks, gated by RequireAdmin (ADM-3).
+          adminRoute,
           { path: '*', element: <NotFoundPage /> },
         ],
       },
