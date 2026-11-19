@@ -10,6 +10,6 @@ public interface IHasDomainEvents
     /// <summary>Events raised since the aggregate was loaded or last cleared, in the order they were raised.</summary>
     IReadOnlyCollection<IDomainEvent> DomainEvents { get; }
 
-    /// <summary>Forgets pending events. Called by the unit of work once they have been handed to the dispatcher.</summary>
+    /// <summary>Forgets pending events. Called by the unit of work once the save that dispatched them succeeded.</summary>
     void ClearDomainEvents();
 }

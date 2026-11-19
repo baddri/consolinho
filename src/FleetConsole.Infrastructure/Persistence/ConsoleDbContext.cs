@@ -19,13 +19,18 @@ namespace FleetConsole.Infrastructure.Persistence;
 /// <see cref="IEntityTypeConfiguration{TEntity}"/> in this assembly, picked up automatically.
 /// </summary>
 /// <remarks>
-/// <para><b>Domain events:</b> every async save collects the events raised by tracked aggregates before saving and, once
-/// the save succeeded, clears them and hands them to <see cref="IDomainEventDispatcher"/>. Synchronous
-/// <c>SaveChanges</c> is refused for application data because event dispatch is asynchronous; the one exception is the
-/// Data Protection key repository, which stores new keys synchronously in a context of its own.</para>
-/// <para><b>Commit races:</b> through <see cref="IUnitOfWork"/>, a stale <c>xmin</c> surfaces as
-/// <see cref="ConcurrencyConflictException"/> and a unique violation (SQLSTATE 23505) as
-/// <see cref="DuplicateKeyException"/>, so the Application can map them to 409s without knowing EF Core.</para>
+/// <para><b>Domain events (ADR-0008):</b> every async save captures the events raised by tracked aggregates, hands them
+/// to <see cref="IDomainEventDispatcher"/> <em>before</em> writing (the pre-commit handlers stage audit entries in this
+/// same context), checks that no handler raised a new event, writes everything in one transaction, and only then clears
+/// the events. A failed write persists neither the change nor its audit entries; the staged entities stay tracked, so
+/// the context must be discarded, never saved again. Synchronous <c>SaveChanges</c> is refused for application data
+/// because event dispatch is asynchronous; the one exception is the Data Protection key repository, which stores new
+/// keys synchronously in a context of its own.</para>
+/// <para><b>Commit races:</b> through <see cref="IUnitOfWork"/>, a stale <c>xmin</c> and a foreign key violation
+/// (SQLSTATE 23503, a concurrent delete or insert of a referenced/referencing row) surface as
+/// <see cref="ConcurrencyConflictException"/>, and a unique violation (23505) as <see cref="DuplicateKeyException"/>,
+/// so the Application can map them to 409s without knowing EF Core. Exceptions thrown by event handlers and a
+/// <c>restrict_violation</c> (23001; users are never deleted) are bugs and are not translated.</para>
 /// <para><b>Value objects and ids</b> are mapped once, by type, in <see cref="ConfigureConventions"/>; enums are stored as
 /// their names (text), so the database stays readable and reordering an enum can't corrupt data.</para>
 /// <para><b>Data Protection:</b> the context is also the <see cref="IDataProtectionKeyContext"/> that persists the key
@@ -46,7 +51,7 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
 
     /// <summary>Creates the context. Resolved from DI; tests and design-time tools build it the same way.</summary>
     /// <param name="options">Provider options, built with <see cref="ConfigureProvider"/>.</param>
-    /// <param name="domainEventDispatcher">Receives domain events after successful saves.</param>
+    /// <param name="domainEventDispatcher">Receives domain events before each save writes (pre-commit handlers).</param>
     public ConsoleDbContext(DbContextOptions<ConsoleDbContext> options, IDomainEventDispatcher domainEventDispatcher)
         : base(options)
     {
@@ -74,15 +79,19 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     /// <summary>
-    /// Commits the command's changes (see <see cref="SaveChangesAsync(bool, CancellationToken)"/>) and translates the two
-    /// expected commit failures into the Application's persistence exceptions.
+    /// Commits the command's changes, including the pre-commit domain event dispatch (see
+    /// <see cref="SaveChangesAsync(bool, CancellationToken)"/>), and translates the expected commit-time races into the
+    /// Application's persistence exceptions.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task that completes when the changes are durable.</returns>
-    /// <exception cref="ConcurrencyConflictException">A row to update or delete changed (or vanished) since it was loaded.</exception>
+    /// <exception cref="ConcurrencyConflictException">A row to update or delete changed (or vanished) since it was loaded,
+    /// or a foreign key rejected the write because of a concurrent delete or insert (SQLSTATE 23503).</exception>
     /// <exception cref="DuplicateKeyException">A unique index rejected the write.</exception>
     async Task IUnitOfWork.SaveChangesAsync(CancellationToken cancellationToken)
     {
+        // Only database errors are translated: an exception from an event handler (dispatch runs inside this call) is a
+        // bug and propagates unchanged, so it becomes a 500.
         try
         {
             await SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -95,32 +104,48 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
         {
             throw DuplicateKeyException.ForConstraint(postgres.ConstraintName, exception);
         }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation } postgres)
+        {
+            // Every 23503 CP1 can produce is a lost race (e.g. a grant inserted for a credential deleted meanwhile): the
+            // client reloads and retries, as for a stale version. The message names the constraint only, never values.
+            // 23001 (restrict_violation) is deliberately not caught: users are never deleted, so it is a bug.
+            throw new ConcurrencyConflictException(
+                $"A concurrent change or delete violated foreign key '{postgres.ConstraintName}'.", exception);
+        }
     }
 
-    /// <summary>Saves changes, then dispatches the domain events raised by the saved aggregates.</summary>
+    /// <summary>
+    /// Saves changes with pre-commit domain event dispatch (ADR-0008): captures the pending events of tracked
+    /// aggregates, dispatches them (handlers stage audit entries in this context), asserts that no handler raised a new
+    /// event, writes everything in one transaction, then clears the events.
+    /// </summary>
     /// <param name="acceptAllChangesOnSuccess">See <see cref="DbContext.SaveChangesAsync(bool, CancellationToken)"/>.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The number of state entries written.</returns>
+    /// <exception cref="InvalidOperationException">An event handler raised a new domain event.</exception>
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         var pending = PendingDomainEvents.Capture(ChangeTracker);
 
-        var written = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
-
-        var domainEvents = pending.TakeEvents();
-        if (domainEvents.Count > 0)
+        if (pending.Events.Count > 0)
         {
-            await _domainEventDispatcher.DispatchAsync(domainEvents, cancellationToken).ConfigureAwait(false);
+            await _domainEventDispatcher.DispatchAsync(pending.Events, cancellationToken).ConfigureAwait(false);
+            pending.EnsureNoEventsRaisedSince(ChangeTracker);
         }
 
+        // One SaveChanges = one transaction: the aggregates' changes and the staged audit entries commit together.
+        var written = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
+
+        pending.Clear();
         return written;
     }
 
     /// <summary>
     /// Synchronous save, allowed <b>only</b> for Data Protection keys: ASP.NET Core's EF key repository creates a context
     /// in its own scope and calls <c>SaveChanges()</c> when it generates a key, and it has no async path. Any other
-    /// pending change (aggregates, audit entries) is refused, because committing it needs the asynchronous domain event
-    /// dispatch of <see cref="SaveChangesAsync(bool, CancellationToken)"/>.
+    /// pending change (aggregates, audit entries) is refused, because committing it needs the asynchronous pre-commit
+    /// domain event dispatch of <see cref="SaveChangesAsync(bool, CancellationToken)"/>; saving it here would skip the
+    /// audit trail.
     /// </summary>
     /// <param name="acceptAllChangesOnSuccess">See <see cref="DbContext.SaveChanges(bool)"/>.</param>
     /// <returns>The number of state entries written.</returns>

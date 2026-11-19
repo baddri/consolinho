@@ -27,7 +27,7 @@ public sealed class TokenProtectionTests(ApiFactory factory)
         var token = FakeToken();
         var cluster = NewCluster();
         Credential credential = null!;
-        await using (var scope = factory.Services.CreateAsyncScope())
+        await using (var scope = factory.Services.CreateSignedInScope())
         {
             var sp = scope.ServiceProvider;
             sp.GetRequiredService<IClusterRepository>().Add(cluster);
@@ -42,7 +42,7 @@ public sealed class TokenProtectionTests(ApiFactory factory)
         Contains(stored, Encoding.UTF8.GetBytes(token[..16])).ShouldBeFalse("not even a prefix of the token may be stored");
         Contains(stored, Encoding.Unicode.GetBytes(token[..16])).ShouldBeFalse();
 
-        await using (var scope = factory.Services.CreateAsyncScope())
+        await using (var scope = factory.Services.CreateSignedInScope())
         {
             var sp = scope.ServiceProvider;
             var loaded = (await sp.GetRequiredService<ICredentialRepository>().GetByIdAsync(credential.Id, Ct))!;

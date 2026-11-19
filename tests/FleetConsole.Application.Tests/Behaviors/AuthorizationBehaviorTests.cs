@@ -106,7 +106,7 @@ public sealed class AuthorizationBehaviorTests
     public async Task UnmarkedRequest_RunsWithoutAnyCurrentUserRegistered()
     {
         // The IRequireAuthenticated constraint means the container never constructs the behavior for other requests.
-        await using var provider = ServiceProviderBuilder.Build();
+        await using var provider = ServiceProviderBuilder.Build(withAuditPorts: false);
         await using var scope = provider.CreateAsyncScope();
 
         var result = await scope.ServiceProvider.GetRequiredService<IDispatcher>().Send(new EchoQuery("x"), Ct);

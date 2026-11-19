@@ -10,7 +10,7 @@ namespace FleetConsole.Application.Audit;
 /// <remarks>
 /// Called from the pre-commit audit event handlers (<c>Application/Audit/EventHandlers</c>) and, for actions that change
 /// no aggregate (denied login, logout, testing an unsaved token), from the command handler itself, which then returns a
-/// successful result so <c>UnitOfWorkBehavior</c> saves the entry. Implemented by T-0013 (<c>AuditTrail</c>).
+/// successful result so <c>UnitOfWorkBehavior</c> saves the entry. Implemented by <see cref="AuditTrail"/> (scoped).
 /// </remarks>
 public interface IAuditTrail
 {
@@ -33,6 +33,9 @@ public interface IAuditTrail
 /// <c>{}</c>. Never put secrets in it: fingerprints only.</param>
 /// <param name="Actor">Who acted; <see langword="null"/> means the current user (e.g. <see cref="AuditActor.Configuration"/>
 /// or the logging-in user are passed explicitly).</param>
+/// <param name="RelatedUsername">The user the action is about besides the actor: the target user's username for every
+/// <c>user.*</c> entry, the granted user's username for every <c>grant.*</c> entry, <see langword="null"/> otherwise.
+/// Stored on the entry so the audit log's <c>user</c> filter is an indexed match (contract §10).</param>
 public sealed record AuditRecord(
     string Action,
     AuditTargetType TargetType,
@@ -41,4 +44,5 @@ public sealed record AuditRecord(
     string? ClusterName,
     string Summary,
     object? Details = null,
-    AuditActor? Actor = null);
+    AuditActor? Actor = null,
+    string? RelatedUsername = null);

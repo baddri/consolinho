@@ -230,14 +230,14 @@ public sealed class RepositoryAndReadModelTests(ApiFactory factory)
 
     private async Task SaveAsync(Action<IServiceProvider> stage)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         stage(scope.ServiceProvider);
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
     }
 
     private async Task<T> InScopeAsync<T>(Func<IServiceProvider, Task<T>> action)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         return await action(scope.ServiceProvider);
     }
 }
