@@ -9,7 +9,7 @@
 - **CP0 Foundations: DONE** (tag `cp-0`).
 - **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
   ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
-- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0042, T-0045, T-0046 (frontend).
+- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0042, T-0045, T-0046 (frontend); T-0016 (session 2).
   Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
 
 ## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
@@ -17,7 +17,6 @@ T-0042/T-0046 committed (session 2). Backend tasks resumed by new agents in sess
 
 | Task | Where the WIP lives | State at stop |
 |---|---|---|
-| T-0016 admin users API | main tree: `src/FleetConsole.Application/Users/`, `Api/Endpoints/Admin/{UsersAdminEndpoints,UserRequests,AdminEndpoints}.cs`, `Api/OpenApi/{StringEnumSchemaTransformer,OpenApiSetup}.cs` | All 7 use cases + endpoints written, Application+Api projects build. Left: full build (EF translation of `UserRow` projection), all tests, `Enums_AreCamelCaseStrings` tighten, regenerate schema.gen.ts |
 | T-0017 admin clusters API | **worktree** `.claude/worktrees/agent-a9928235423746737` (branch `worktree-agent-a9928235423746737`, base b1f8062) | Get/List/Register/Update use cases written. Left: Enable/Disable/Delete, Api endpoints, ServiceProviderBuilder fakes, all tests, schema regen (worktree needs `npm ci`). Open: EF translation of list projection; make `environment` required (400 not default); confirm trimming of displayName/description |
 | T-0018 admin credentials API | **worktree** `.claude/worktrees/agent-af76dd13c9f3efd52` (branch `worktree-agent-af76dd13c9f3efd52`, base b1f8062) | Application layer written (tokens/fingerprint/inspector, DTO with `expiryWarningDays`, 5 use cases), builds alone. Left: Api endpoints, ServiceProviderBuilder registration (likely merge conflict with T-0016/17), tests incl. TokenLeakScanner, `TestData` → `TokenFingerprints.Compute`, schema regen. Deviations to rule on: unreadable JWT `exp` → opaque/`unknown`; printable-ASCII token rule |
 
@@ -25,6 +24,14 @@ T-0042/T-0046 committed (session 2). Backend tasks resumed by new agents in sess
 part is already committed). `docs/architecture/FRONTEND.md` has edits from both T-0042 and T-0046 — commit it with whichever
 lands first. The T-0042 file move means T-0046's and T-0042's web changes should be checked together (full web checks) before
 committing either.
+
+
+**Session 2 stopped by usage limit (2026-11-19)** — in flight when stopped (check each task file's status/Handover notes):
+- T-0017 clusters API: engineer still working in its worktree (rulings: EF-translated list, `environment` required → 400, trim names).
+- T-0018 credentials API: engineer DONE (`in_review`, worktree); backend-architect round-1 review was running — re-run if no verdict in task file.
+- T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
+- T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
+- After merging T-0017/18: regenerate schema.gen.ts (flag now in gen-api.mjs), QA leak-scan `/clusters` endpoints.
 
 ## Next actions (resume here)
 1. `git status` + `git worktree list`; read Handover notes of T-0042, T-0046, T-0016, and (inside each worktree) T-0017, T-0018.
