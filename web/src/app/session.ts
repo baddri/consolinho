@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { DataRouter } from 'react-router';
-import { clearSessionCache, currentUserQueryKey, isLoginPath, sanitizeReturnUrl } from '@/features/auth';
+import { clearSessionCache, currentUserQueryKey } from '@/features/auth';
+import { isLoginPath, sanitizeReturnUrl } from '@/shared/auth';
 import { createQueryClient, type QueryClientOptions } from './queryClient';
 
 /** The parts of a data router the 401 handler needs (browser router in the app, memory router in tests). */

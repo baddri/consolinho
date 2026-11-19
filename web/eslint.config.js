@@ -12,8 +12,8 @@ import tseslint from 'typescript-eslint';
  * - `shared/` knows nothing about features or the app.
  * - a feature imports `shared/`, its own files, and other features only through their public `index.ts`.
  * - `app/` wires features together, again only through their `index.ts`.
- * - `mocks/` (MSW mock backend, ADR-0016) builds on `shared/` only; `app/` may import it (mock-mode bootstrap in
- *   `main.tsx`), and so may `test/`.
+ * - `mocks/` (MSW mock backend, ADR-0016) builds on `shared/` only; of `app/`, only `main.tsx` may import it (mock-mode
+ *   bootstrap, T-0042), and `test/` may too.
  * - `test/` helpers may use anything public.
  */
 const boundaryElements = [
@@ -61,6 +61,8 @@ export default tseslint.config(
       'coverage',
       'node_modules',
       'src/shared/api/schema.gen.ts',
+      // Generated MSW worker script (`npx msw init msw`), served only in mock mode.
+      'msw',
       // Provisional transcription in openapi-typescript format (ADR-0016), deleted by T-0043.
       'src/shared/api/schema.contract.ts',
     ],
@@ -88,7 +90,10 @@ export default tseslint.config(
     settings: {
       'boundaries/elements': boundaryElements,
       'boundaries/include': ['src/**/*'],
-      'boundaries/files': [{ pattern: 'src/**/*.test.{ts,tsx}', category: 'test-file' }],
+      'boundaries/files': [
+        { pattern: 'src/**/*.test.{ts,tsx}', category: 'test-file' },
+        { pattern: 'src/app/main.tsx', category: 'mock-bootstrap' },
+      ],
       'import/resolver': { typescript: { project: './tsconfig.app.json' } },
     },
     rules: {
@@ -114,7 +119,11 @@ export default tseslint.config(
               from: { element: { type: 'app' } },
               allow: [{ to: { element: { type: 'shared' } } }, featurePublicApi],
             },
-            { from: { element: { type: 'app' } }, allow: { to: { element: { type: 'mocks' } } } },
+            // Mock mode (`npm run dev:mock`) starts the MSW browser worker from the entry point only.
+            {
+              from: { file: { categories: 'mock-bootstrap' } },
+              allow: { to: { element: { type: 'mocks' } } },
+            },
             { from: { element: { type: 'mocks' } }, allow: { to: { element: { type: 'shared' } } } },
             {
               from: { element: { type: 'test' } },

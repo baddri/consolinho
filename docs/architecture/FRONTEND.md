@@ -21,6 +21,8 @@ web/src/
     api/                  # openapi-fetch client for /api (generated schema in api/schema.gen.ts), error → ProblemDetails
                           #   baseUrl = page origin: OpenAPI paths already include the /api prefix (Api maps MapGroup("/api"))
                           #   errors.ts (ApiError, unwrap), schema.ts (merged types, ADR-0016), types.ts (named aliases)
+    auth/                 # login-navigation contract rules (§4.1, ADR-0014 §4): sanitizeReturnUrl, buildLoginUrl, isLoginPath.
+                          #   Pure, relative imports only — also used by app/session.ts, mocks/browser.ts, vite.config.ts
     forms/                # RHF ⇄ PatternFly field adapters, applyServerErrors, FormProblemAlert, ConflictAlert (ADR-0015)
     table/                # admin list kit: useUrlFilters, FilterToolbar, useClientSort, TableStateRows
     k8s/                  # Kubernetes data layer over the proxy
@@ -34,7 +36,7 @@ web/src/
     hooks/  utils/
   mocks/                  # MSW mock backend from the contract types: fixtures/, db.ts, session.ts, handlers/, browser.ts (ADR-0016)
   features/
-    auth/                 # LoginPage, RequireSession, useCurrentUser, UserMenu, useLogout, buildLoginUrl (ADR-0014)
+    auth/                 # LoginPage, RequireSession, useCurrentUser, UserMenu, useLogout (ADR-0014)
     cluster-context/      # ClusterSwitcher, useAccessibleClusters, ClusterGate, LandingRedirect, NoClustersPage,
                           #   useActiveCluster (from URL), NamespaceSelector (CP2), recent clusters
     resources/            # generic resource browser — the core engine
@@ -48,7 +50,7 @@ web/src/
 ```
 
 Boundary elements (ESLint): `app`, `shared/*`, `feature/*`, `mocks` (imports `shared` only), `test` (imports
-`app`, `shared`, `mocks`, feature public APIs). `app/main.tsx` may dynamically import `mocks/browser` in mock mode.
+`app`, `shared`, `mocks`, feature public APIs). Of `app`, only `main.tsx` may import `mocks` (dynamic import of `mocks/browser` in mock mode).
 
 Rule: a feature may import from `shared/` and from another feature's **public `index.ts`** only. ESLint
 (`import/no-restricted-paths` or `eslint-plugin-boundaries`) enforces this.
@@ -179,6 +181,13 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 - Unit/component: Vitest + RTL + MSW (mock `/api/...` and `/api/clusters/:c/k8s/...`). FleetConsole API mocks come
   from `src/mocks` (typed with `openapi-msw`, stateful in-memory db reset after each test; `setMockUser()` switches
   persona). Tests override single endpoints with `server.use(...)` for error cases.
-- `npm run dev:mock` runs the SPA against the MSW browser worker, without the backend (ADR-0016).
+- `npm run dev:mock` runs the SPA against the MSW browser worker, without the backend (ADR-0016, T-0042). Persona:
+  `?mockUser=<admin|alice|bob|ines|carol|none>` on any URL (kept in `sessionStorage` for the tab), else
+  `VITE_MOCK_USER`, else `admin`. The worker script lives in `web/msw/` (Vite `publicDir` in mock mode only), so it
+  never reaches `dist/`; the `MODE === 'mock'` branch in `main.tsx` is removed from production builds.
 - Each generic page and descriptor has at least a render test with fixture data.
+- Load-proof page tests (`src/test/coldStart.ts`): the first full-app render of a file gets `COLD_START_TIMEOUT_MS` on
+  its first `findBy*` (test option `timeout: COLD_START_TEST_TIMEOUT_MS`); files that visit lazy routes call
+  `beforeAll(() => preloadLazyRoutes(...))`. Fill search/filter inputs with `user.paste` (one input event) unless the
+  test is about keystrokes; `delay: null` does not help when each keystroke re-renders. Never raise global timeouts.
 - E2E (later): Playwright against `aspire run` with a fake apiserver.

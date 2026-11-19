@@ -106,9 +106,25 @@ emulator of exactly the endpoints the Api uses (`/.well-known/oauth-authorizatio
 that URL and the client credentials differ ([ADR-0010](docs/adr/0010-openshift-oauth-handler-and-devoauth-emulator.md),
 contract in [docs/specs/CP1-api-contract.md §11](docs/specs/CP1-api-contract.md)).
 
-To log in (once the Api's login is wired, T-0015): open the **web** URL, click **Log in**, and the browser lands on the
-emulator's page *"FleetConsole DevOAuth — pick a user"*. Click a user to sign in as them, or **Cancel** to test the
-cancelled-login path. There is no password.
+To log in: open the **web** URL, click **Log in**, and the browser lands on the emulator's page *"FleetConsole DevOAuth
+— pick a user"*. Click a user to sign in as them, or **Cancel** to test the cancelled-login path. There is no password.
+The emulator redirects back to `<web URL>/api/auth/callback`: the AppHost injects the Vite URL into the Api as
+`Console__PublicOrigin`, the base of the OAuth `redirect_uri` (the Api can't see that origin behind Vite's proxy). The
+session cookie `FleetConsole.Session` is then set on the web URL; `GET /api/auth/me` shows who you are.
+
+Running the Api alone (`dotnet run --project src/FleetConsole.Api`) uses `appsettings.Development.json` instead: public
+origin `http://localhost:5180`, emulator at `http://localhost:5190` (start `src/FleetConsole.DevOAuth` too), client
+`fleetconsole-dev`, admin group `fleetconsole-admins`. Outside Development, `Console:PublicOrigin` and
+`Auth:OpenShift:*` are required and must be `https` ([contract §12](docs/specs/CP1-api-contract.md)).
+
+A quick check without a browser (replace `<web>` with the web URL from `aspire describe`):
+
+```bash
+curl -s -o /dev/null -w '%{redirect_url}\n' -c jar -b jar '<web>/api/auth/login?returnUrl=%2F'   # → emulator authorize URL
+# POST that URL's query parameters plus username=admin to http://localhost:5190/oauth/authorize, then GET the
+# returned callback URL with the same cookie jar; afterwards:
+curl -s -b jar '<web>/api/auth/me'                                                                   # → {"username":"admin",...}
+```
 
 | User | Full name | OpenShift groups | Typical use |
 |---|---|---|---|
@@ -191,3 +207,22 @@ docs/                                architecture, ADRs, roadmap, specs, tasks, 
   [docs/process/HANDOVER.md](docs/process/HANDOVER.md): current state
 - [docs/tasks/](docs/tasks/): one file per task
 - [docs/dev/TROUBLESHOOTING.md](docs/dev/TROUBLESHOOTING.md): problems we've hit and their fixes
+
+## Try the UI without a backend
+
+```bash
+cd web && npm run dev:mock
+```
+
+The SPA runs against the in-browser mock backend ([MSW](https://mswjs.io), the same mocks the frontend tests use,
+ADR-0016); no Api, database or podman is needed. Open the URL Vite prints.
+
+- **Persona:** you start signed in as `admin`. Switch with `?mockUser=<name>` on any URL (remembered for the browser
+  tab) or at startup with `VITE_MOCK_USER=<name> npm run dev:mock`. Personas: `admin` (config admin), `carol`
+  (admin), `ines` (read-only admin), `alice` (read-only on prod-eu-1, read-write on staging-eu-1), `bob` (no clusters),
+  `none` (signed out).
+- **Data is in memory:** changes work until the next page reload, which resets everything to the fixtures.
+- **Login is simulated:** there is no OpenShift OAuth. "Log in with OpenShift" just reloads the app as the current
+  persona, so "Log out" followed by "Log in" works, but you cannot pick a user on the login page.
+- Mocks are dev-only: `npm run build` contains neither MSW nor `mockServiceWorker.js` (served from `web/msw/` in mock
+  mode only). Regenerate the worker after an `msw` upgrade with `cd web && npx msw init msw --no-save`.

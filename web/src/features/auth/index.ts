@@ -2,8 +2,6 @@
 export { LoginPage } from './LoginPage';
 export { RequireSession } from './RequireSession';
 export { clearSessionCache } from './clearSessionCache';
-export { isLoginPath } from './loginPath';
-export { buildLoginUrl, sanitizeReturnUrl } from './returnUrl';
 export { currentUserQueryKey, useCurrentUser } from './useCurrentUser';
 export { useLogout } from './useLogout';
 export { UserMenu } from './UserMenu';

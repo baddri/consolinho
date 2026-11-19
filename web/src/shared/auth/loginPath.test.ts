@@ -9,7 +9,10 @@ describe('isLoginPath', () => {
     },
   );
 
-  it.each(['/', '/loginx', '/logins', '/c/prod/login', 'login', '//login', ''])('does not match %s', (path) => {
-    expect(isLoginPath(path)).toBe(false);
-  });
+  it.each(['/', '/loginx', '/logins', '/c/prod/login', 'login', '//login', ''])(
+    'does not match %s',
+    (path) => {
+      expect(isLoginPath(path)).toBe(false);
+    },
+  );
 });

@@ -9,8 +9,8 @@ import {
 } from '@patternfly/react-core';
 import { useSearchParams } from 'react-router';
 import { useSystemInfo } from '@/shared/api';
+import { buildLoginUrl } from '@/shared/auth';
 import { loginMessage } from './loginMessage';
-import { buildLoginUrl } from './returnUrl';
 
 /** Footer line with the deployed version (anonymous `GET /api/system/info`); omitted while loading or on failure. */
 function VersionFooterItem() {
