@@ -94,9 +94,10 @@ in registration order. Handlers and validators are registered by assembly scanni
    implementation (`ConsoleDbContext`) owns domain events: it collects them from tracked `IHasDomainEvents` aggregates,
    hands them to the `IDomainEventDispatcher` port **before** writing (handlers stage audit entries in the same
    context), writes everything in one transaction, then clears them (ADR-0008). Collection needs the change tracker, so
-   it lives in Infrastructure, not in the behavior. The behavior maps `ConcurrencyConflictException` →
-   409 `Concurrency.Conflict` and `DuplicateKeyException` → 409 `Persistence.DuplicateKey` (races the handler's own
-   checks couldn't see).
+   it lives in Infrastructure, not in the behavior. The behavior maps `ConcurrencyConflictException` (stale `xmin`, or
+   a foreign key violation 23503 from a concurrent delete/insert) → 409 `Concurrency.Conflict` and
+   `DuplicateKeyException` → 409 `Persistence.DuplicateKey` (races the handler's own checks couldn't see). Exceptions
+   from event handlers and a 23001 `restrict_violation` are bugs and stay 500s.
 
 Behaviors that apply to a subset of requests use **generic constraints** (e.g. `where TRequest : IBaseCommand`); MS DI
 skips open-generic registrations whose constraints the request does not satisfy.
@@ -241,7 +242,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   events, dispatches them to `IDomainEventHandler<T>`s **before** the write (handlers may only stage entities such as
   audit entries — no `SaveChanges`, no network I/O, no new events; the context throws if a handler raises one), writes
   everything in one transaction, and clears the events after success. A failed write persists neither the change nor
-  its audit entries. Synchronous `SaveChanges` throws `NotSupportedException` for application data; only Data
+  its audit entries; the staged entities stay tracked, so the context is discarded with its scope and never saved
+  again (the events would be dispatched twice). Synchronous `SaveChanges` throws `NotSupportedException` for application data; only Data
   Protection key rows (its EF key repository saves synchronously) may be saved that way. Post-commit side effects
   (cache invalidation) will be a separate, later stage.
 - **Data Protection** key ring lives in Postgres (`data_protection_keys`, `ConsoleDbContext : IDataProtectionKeyContext`);

@@ -1,5 +1,7 @@
 using System.Reflection;
+using FleetConsole.Application.Abstractions.Events;
 using FleetConsole.Application.Abstractions.Messaging;
+using FleetConsole.Application.Audit;
 using FleetConsole.Application.Behaviors;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +42,10 @@ public static class DependencyInjection
         services.AddRequestHandlers(ApplicationAssembly.Assembly);
         services.AddValidatorsFromAssembly(ApplicationAssembly.Assembly, ServiceLifetime.Scoped, includeInternalTypes: true);
 
+        // Audit (ADR-0008): pre-commit domain event handlers + the audit trail they record through.
+        services.AddDomainEventHandlers(ApplicationAssembly.Assembly);
+        services.AddScoped<IAuditTrail, AuditTrail>();
+
         // Pipeline — order matters, see remarks. Keep the slots for future behaviors so insertion points stay obvious.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
@@ -79,6 +85,31 @@ public static class DependencyInjection
                     "Each request must have exactly one handler.");
             }
 
+            services.AddScoped(contract, implementation);
+        }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers every concrete, non-generic class in <paramref name="assembly"/> (including internal ones) as a scoped
+    /// <see cref="IDomainEventHandler{TEvent}"/> for each event type it handles. An event may have several handlers;
+    /// the <c>IDomainEventDispatcher</c> resolves all of them from the request scope before the write (ADR-0008).
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="assembly">The assembly to scan.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    internal static IServiceCollection AddDomainEventHandlers(this IServiceCollection services, Assembly assembly)
+    {
+        var registrations =
+            from type in assembly.GetTypes()
+            where type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false }
+            from contract in type.GetInterfaces()
+            where contract.IsGenericType && contract.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>)
+            select (Contract: contract, Implementation: type);
+
+        foreach (var (contract, implementation) in registrations)
+        {
             services.AddScoped(contract, implementation);
         }
 

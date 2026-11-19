@@ -5,6 +5,7 @@ using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
 using FleetConsole.Domain.Users;
+using FleetConsole.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -13,9 +14,10 @@ using static FleetConsole.Api.Tests.Persistence.PersistenceTestData;
 namespace FleetConsole.Api.Tests.Persistence;
 
 /// <summary>
-/// Database-enforced rules: unique natural keys surface as <see cref="DuplicateKeyException"/>, stale <c>xmin</c> as
-/// <see cref="ConcurrencyConflictException"/> (both through <see cref="IUnitOfWork"/>), and the CP1 foreign keys
-/// (cluster deletion cascades, credentials in use can't be deleted, users can't be deleted).
+/// Database-enforced rules: unique natural keys surface as <see cref="DuplicateKeyException"/>, stale <c>xmin</c> and
+/// foreign key races (23503) as <see cref="ConcurrencyConflictException"/> (all through <see cref="IUnitOfWork"/>), and
+/// the CP1 foreign keys (cluster deletion cascades, credentials in use can't be deleted, users can't be deleted; the
+/// latter's 23001 is a bug and is not translated).
 /// </summary>
 [Collection(ApiCollectionDefinition.Name)]
 public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
@@ -95,8 +97,8 @@ public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
         var user = NewUser();
         await SaveAsync(sp => sp.GetRequiredService<IUserRepository>().Add(user));
 
-        await using var first = factory.Services.CreateAsyncScope();
-        await using var second = factory.Services.CreateAsyncScope();
+        await using var first = factory.Services.CreateSignedInScope();
+        await using var second = factory.Services.CreateSignedInScope();
         var firstCopy = (await first.ServiceProvider.GetRequiredService<IUserRepository>().GetByIdAsync(user.Id, Ct))!;
         var secondCopy = (await second.ServiceProvider.GetRequiredService<IUserRepository>().GetByIdAsync(user.Id, Ct))!;
 
@@ -118,8 +120,8 @@ public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
         var cluster = NewCluster();
         await SaveAsync(sp => sp.GetRequiredService<IClusterRepository>().Add(cluster));
 
-        await using var first = factory.Services.CreateAsyncScope();
-        await using var second = factory.Services.CreateAsyncScope();
+        await using var first = factory.Services.CreateSignedInScope();
+        await using var second = factory.Services.CreateSignedInScope();
         var editing = (await first.ServiceProvider.GetRequiredService<IClusterRepository>().GetByIdAsync(cluster.Id, Ct))!;
         var deleting = (await second.ServiceProvider.GetRequiredService<IClusterRepository>().GetByIdAsync(cluster.Id, Ct))!;
 
@@ -161,7 +163,7 @@ public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
             sp.GetRequiredService<IGrantRepository>().Add(NewGrant(alice, survivor, survivingCredential));
         });
 
-        await using (var scope = factory.Services.CreateAsyncScope())
+        await using (var scope = factory.Services.CreateSignedInScope())
         {
             var sp = scope.ServiceProvider;
             var loaded = (await sp.GetRequiredService<IClusterRepository>().GetByIdAsync(cluster.Id, Ct))!;
@@ -185,9 +187,10 @@ public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task DeletingCredentialStillUsedByAGrant_Fails()
+    public async Task DeletingCredentialStillUsedByAGrant_RaisesConcurrencyConflictException()
     {
         // CRED-6 backstop: the handler refuses first (MarkForDeletion with the grant count); the foreign key refuses too.
+        // Reaching the foreign key means a grant was added after the handler counted: a race, so 409 Concurrency.Conflict.
         var user = NewUser();
         var cluster = NewCluster();
         Credential credential = null!;
@@ -200,15 +203,80 @@ public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
             sp.GetRequiredService<IGrantRepository>().Add(NewGrant(user, cluster, credential));
         });
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICredentialRepository>();
         repository.Remove((await repository.GetByIdAsync(credential.Id, Ct))!);
+
+        var exception = await Should.ThrowAsync<ConcurrencyConflictException>(
+            () => scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct));
+
+        exception.InnerException.ShouldBeAssignableTo<DbUpdateException>()!.InnerException
+            .ShouldBeOfType<PostgresException>().SqlState.ShouldBe(PostgresErrorCodes.ForeignKeyViolation);
+        exception.Message.ShouldContain("fk_grants_credentials_credential_id");
+        (await CountAsync("select count(*) from credentials where id = @id", credential.Id.Value)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task InsertingGrantWhoseCredentialWasDeletedMeanwhile_RaisesConcurrencyConflictException_AndWritesNoAuditEntry()
+    {
+        // The race: a grant command validated the credential, then another admin deleted it before the grant committed.
+        var user = NewUser();
+        var cluster = NewCluster();
+        Credential credential = null!;
+        await SaveAsync(sp =>
+        {
+            sp.GetRequiredService<IUserRepository>().Add(user);
+            sp.GetRequiredService<IClusterRepository>().Add(cluster);
+            credential = NewCredential(cluster, sp.GetRequiredService<ITokenProtector>());
+            sp.GetRequiredService<ICredentialRepository>().Add(credential);
+        });
+
+        await using var granting = factory.Services.CreateSignedInScope();
+        var grant = NewGrant(user, cluster, credential);
+        granting.ServiceProvider.GetRequiredService<IGrantRepository>().Add(grant);
+
+        await using (var deleting = factory.Services.CreateSignedInScope())
+        {
+            var credentials = deleting.ServiceProvider.GetRequiredService<ICredentialRepository>();
+            var loaded = (await credentials.GetByIdAsync(credential.Id, Ct))!;
+            loaded.MarkForDeletion(grantCount: 0, cluster.Name.Value).IsSuccess.ShouldBeTrue();
+            credentials.Remove(loaded);
+            await deleting.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
+        }
+
+        var exception = await Should.ThrowAsync<ConcurrencyConflictException>(
+            () => granting.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct));
+
+        exception.InnerException.ShouldBeAssignableTo<DbUpdateException>()!.InnerException
+            .ShouldBeOfType<PostgresException>().SqlState.ShouldBe(PostgresErrorCodes.ForeignKeyViolation);
+        (await CountAsync("select count(*) from grants where id = @id", grant.Id.Value)).ShouldBe(0);
+        (await CountAsync("select count(*) from audit_entries where target_id = @id::text", grant.Id.Value))
+            .ShouldBe(0, "the grant.created entry is rolled back with the grant");
+    }
+
+    [Fact]
+    public async Task RestrictViolation_IsNotTranslated()
+    {
+        // 23001: users are never deleted by the application, so deleting one with grants is a bug and must stay a 500.
+        var user = NewUser();
+        var cluster = NewCluster();
+        await SaveAsync(sp =>
+        {
+            sp.GetRequiredService<IUserRepository>().Add(user);
+            sp.GetRequiredService<IClusterRepository>().Add(cluster);
+            var credential = NewCredential(cluster, sp.GetRequiredService<ITokenProtector>());
+            sp.GetRequiredService<ICredentialRepository>().Add(credential);
+            sp.GetRequiredService<IGrantRepository>().Add(NewGrant(user, cluster, credential));
+        });
+
+        await using var scope = factory.Services.CreateSignedInScope();
+        var db = scope.ServiceProvider.GetRequiredService<ConsoleDbContext>();
+        db.Remove((await scope.ServiceProvider.GetRequiredService<IUserRepository>().GetByIdAsync(user.Id, Ct))!);
 
         var exception = await Should.ThrowAsync<DbUpdateException>(
             () => scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct));
 
-        exception.InnerException.ShouldBeOfType<PostgresException>().SqlState.ShouldBe(PostgresErrorCodes.ForeignKeyViolation);
-        (await CountAsync("select count(*) from credentials where id = @id", credential.Id.Value)).ShouldBe(1);
+        exception.InnerException.ShouldBeOfType<PostgresException>().SqlState.ShouldBe(PostgresErrorCodes.RestrictViolation);
     }
 
     [Fact]
@@ -239,14 +307,14 @@ public sealed class ConstraintAndConcurrencyTests(ApiFactory factory)
 
     private async Task SaveAsync(Action<IServiceProvider> stage)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         stage(scope.ServiceProvider);
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
     }
 
     private async Task<T> LoadAsync<T>(Func<IServiceProvider, Task<T>> load)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         return await load(scope.ServiceProvider);
     }
 

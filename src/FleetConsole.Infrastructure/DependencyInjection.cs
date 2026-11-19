@@ -67,7 +67,7 @@ public static class DependencyInjection
         builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
         builder.Services.AddScoped<IGrantRepository, GrantRepository>();
         builder.Services.AddScoped<IAuditEntryRepository, AuditEntryRepository>();
-        builder.Services.AddScoped<IDomainEventDispatcher, NoOpDomainEventDispatcher>();
+        builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         builder.Services.AddSingleton<IClock, SystemClock>();
 
         // Kubernetes: the TLS handler factory is stateless and shared (CP2's client pool will use it too); the probe

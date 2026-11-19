@@ -1,4 +1,5 @@
-using FleetConsole.Infrastructure.Events;
+using FleetConsole.Application.Abstractions;
+using FleetConsole.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -16,6 +17,16 @@ internal sealed class DesignTimeConsoleDbContextFactory : IDesignTimeDbContextFa
     {
         var options = new DbContextOptionsBuilder<ConsoleDbContext>();
         ConsoleDbContext.ConfigureProvider(options, connectionString: null);
-        return new ConsoleDbContext(options.Options, new NoOpDomainEventDispatcher());
+        return new ConsoleDbContext(options.Options, new DesignTimeDomainEventDispatcher());
+    }
+
+    /// <summary>
+    /// The tooling only reads the model and never saves, so there is nothing to dispatch; refusing makes an accidental
+    /// save through a design-time context fail loudly instead of skipping the audit trail.
+    /// </summary>
+    private sealed class DesignTimeDomainEventDispatcher : IDomainEventDispatcher
+    {
+        public Task DispatchAsync(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("The design-time ConsoleDbContext is for EF tooling only and never saves.");
     }
 }

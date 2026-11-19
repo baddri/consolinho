@@ -1,7 +1,7 @@
 ---
 id: T-0013
 title: Audit trail — pre-commit domain event dispatch, event-to-entry mapping, atomicity tests
-status: todo
+status: in_review
 owner: backend-engineer
 checkpoint: 1
 depends_on: [T-0012]
@@ -101,24 +101,77 @@ public interface IDomainEventHandler<in TEvent> where TEvent : IDomainEvent
   because the scope ends with the request. Don't retry a save on the same context.
 
 ## Acceptance criteria
-- [ ] AUD-1 / QA R5 integration tests (real Postgres, real `ConsoleDbContext` + repositories + dispatcher):
+- [x] AUD-1 / QA R5 integration tests (real Postgres, real `ConsoleDbContext` + repositories + dispatcher):
       (a) saving a `User` created via `PreCreate` writes the user and exactly one `user.created` entry in one
       transaction; (b) a failing save (duplicate username) writes neither user nor audit entry; (c) a throwing event
       handler aborts the save — nothing written; (d) a handler that raises a new event triggers the
       `InvalidOperationException`; (e) events are cleared after a successful save (second save writes no extra entry).
-- [ ] Unit tests per audit handler: action, category, target, cluster, actor rule, `details` JSON shape (contract §10),
+- [x] Unit tests per audit handler: action, category, target, cluster, actor rule, `details` JSON shape (contract §10),
       and that no `details` or summary contains token material (fingerprints only).
-- [ ] Coverage test green.
-- [ ] `AuditRecord.RelatedUsername` is set for every `user.*` and `grant.*` entry and is null otherwise (handler tests).
-- [ ] SQLSTATE 23503 at commit becomes `ConcurrencyConflictException`, so the behavior returns 409 `Concurrency.Conflict` (integration tests: deleting a credential that is in use; inserting a grant whose credential was deleted). 23001 is not translated.
-- [ ] Docs: BACKEND.md Persistence/Pipeline text matches the code (architect pre-updated it; fix drift).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4).
+- [x] Coverage test green.
+- [x] `AuditRecord.RelatedUsername` is set for every `user.*` and `grant.*` entry and is null otherwise (handler tests).
+- [x] SQLSTATE 23503 at commit becomes `ConcurrencyConflictException`, so the behavior returns 409 `Concurrency.Conflict` (integration tests: deleting a credential that is in use; inserting a grant whose credential was deleted). 23001 is not translated.
+- [x] Docs: BACKEND.md Persistence/Pipeline text matches the code (architect pre-updated it; fix drift).
+- [x] Build, lint and tests green (CLAUDE.md rule 4).
 
 ## Contract amendments (orchestrator)
 - Audit entries store a related-username column (target user for `user.*`, the grant's user for `grant.*`, null otherwise), indexed, so contract §10 `user` filter = actor OR related username (orchestrator 2026-11-19).
 
 ## Work log
+- 2026-11-19 (backend-engineer): started in worktree; read ADR-0008/0017, contract §2/§10, BACKEND.md, T-0012 code.
+- 2026-11-19 (backend-engineer): resumed after rate-limit pause (only this file had changed). Implemented
+  `IDomainEventHandler<T>`, `DomainEventDispatcher` (NoOp deleted), pre-commit dispatch in `ConsoleDbContext` with the
+  no-new-events assertion, 23503 → `ConcurrencyConflictException`, `AuditTrail`, `AuditRecord.RelatedUsername`, the
+  four audit handlers (19 events), unit, coverage and integration tests. Build -warnaserror and all tests are green on podman.
+- Edits outside `paths`, kept minimal:
+  - `Domain/Common/{AggregateRoot,IDomainEvent,IHasDomainEvents}.cs`: doc comments only. They said "after the save"; the
+    task asks for the AggregateRoot remarks to change.
+  - `Application/Behaviors/UnitOfWorkBehavior.cs`: doc comment only (FK races, pre-commit dispatch).
+  - `Infrastructure/Persistence/DesignTimeConsoleDbContextFactory.cs`: it used `NoOpDomainEventDispatcher`, which the
+    task deletes. It now has a private dispatcher that throws, because EF tooling never saves.
+  - `docs/architecture/BACKEND.md`: Pipeline step 6 (23503, and 23001 not translated); Persistence (never re-save a
+    failed context).
+  - `tests/FleetConsole.Application.Tests/ServiceProviderBuilder.cs` + one line in `AuthorizationBehaviorTests`. That
+    test suite builds its container with `ValidateOnBuild`, which now validates the audit handlers → `AuditTrail` →
+    `ICurrentUser`/`IClock`/`IAuditEntryRepository`. The builder registers fakes for them (`withAuditPorts`, default
+    on). The one test that proves "runs with no ICurrentUser registered" opts out, and validate-on-build is off for it.
+  - Existing persistence tests (`AggregateRoundTrip`, `ConstraintAndConcurrency`, `RepositoryAndReadModel`,
+    `TokenProtection`) now save through `factory.Services.CreateSignedInScope()` (new `Persistence/TestSession.cs`).
+    Saving an aggregate dispatches its events, and `AuditTrail` fails closed when there is no actor.
+- Bug found and fixed: `AuditActor.Configuration` is a static instance, and EF maps `AuditEntry.Actor` as an
+  owned type. When two entries in one save shared it, only one of them got the `actor_*` columns, and the save failed
+  with a not-null violation. This showed up when several users with configuration role changes were saved in one save.
+  `AuditTrail` now copies explicit actors (`record.Actor with { }`). A regression test was added for it.
 
 ## Review
 
 ## Handover notes
+- **Flow:** `UnitOfWorkBehavior` → `IUnitOfWork.SaveChangesAsync` (translation wrapper) → `ConsoleDbContext.SaveChangesAsync`:
+  `PendingDomainEvents.Capture` → `DomainEventDispatcher.DispatchAsync` (resolves `IDomainEventHandler<T>` from the
+  scope, cached closed-generic invoker per event type) → `EnsureNoEventsRaisedSince` (throws `InvalidOperationException`
+  naming the aggregate type and the new events) → `base.SaveChangesAsync` → `Clear()`.
+- **Translation:** `DbUpdateConcurrencyException` and 23503 → `ConcurrencyConflictException`. The 23503 message names
+  the constraint only. 23505 → `DuplicateKeyException`. 23001 and handler exceptions are not translated.
+- **Actors:** `AuditTrail` uses the explicit `AuditRecord.Actor` (copied), or else `ICurrentUser`. If there is neither,
+  it throws `InvalidOperationException`. **Consequence for every later task:** any code path that saves aggregates
+  without a session must only raise events with explicit actors. Today that is true for the login events
+  (`UserProvisioned`, `UserLoggedIn`, configuration `UserRoleChanged`), which is what T-0014 needs. Any other save
+  outside an authenticated request fails closed. Integration tests that save below HTTP need
+  `factory.Services.CreateSignedInScope()` (`tests/FleetConsole.Api.Tests/Persistence/TestSession.cs`).
+- **Mapping choices not spelled out in the contract** (reviewer please confirm):
+  - `auth.login` target is the session, with `targetId` = user id, `targetName` = username, and RelatedUsername null
+    (it is not a `user.*` entry; the user is the actor).
+  - Target ids are the aggregate GUIDs (`"D"` format) for user, cluster, credential and grant.
+  - Details keep `null` members (e.g. `configurationSource: null`, `failedStep: null`) so each action has a stable shape.
+- **Summaries:** one sentence, e.g. "Granted alice ReadOnly on prod-eu-1 via fleet-view" and "Promoted bob to
+  administrator by configuration (group x)".
+- **Tests:** handler tests check the exact property set of `details`, which also guards against token material. A
+  reflection test checks that no event has an `EncryptedToken`, `byte[]` or `*Token*` string property. The coverage test
+  `AuditCoverageTests` also checks that `AddApplication` registers the handlers. The atomicity tests (a)–(e) are in
+  `Persistence/AuditAtomicityTests.cs`; (c) and (d) use `factory.WithWebHostBuilder` to add an extra handler. QA R5
+  end to end across all four aggregates is in `Events/DomainEventDispatchIntegrationTests.cs`.
+- **Merge:** the DI edits are one block after validator scanning in Application (does not touch T-0044's pipeline
+  reorder) and one line in Infrastructure (`NoOp…` → `DomainEventDispatcher`). T-0014 may add lines next to them.
+- **Follow-up suggestion (not done):** `AuditEntryRepository.Add` or `AuditEntry.Record` could defend against shared
+  actor instances themselves, so callers that build `AuditEntry` directly are safe too. Today only `AuditTrail` and the
+  tests build entries.

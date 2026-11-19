@@ -230,7 +230,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
             repository.Add(system);
         });
 
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         var readModel = scope.ServiceProvider.GetRequiredService<IReadModel>();
         var loaded = await readModel.FirstOrDefaultAsync(readModel.AuditEntries.Where(a => a.Id == entry.Id), Ct);
         var loadedSystem = await readModel.FirstOrDefaultAsync(readModel.AuditEntries.Where(a => a.Id == system.Id), Ct);
@@ -266,7 +266,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         await SaveAsync(sp => sp.GetRequiredService<IClusterRepository>().Add(cluster));
         var created = cluster.Version;
 
-        await using (var scope = factory.Services.CreateAsyncScope())
+        await using (var scope = factory.Services.CreateSignedInScope())
         {
             var loaded = (await scope.ServiceProvider.GetRequiredService<IClusterRepository>().GetByIdAsync(cluster.Id, Ct))!;
             loaded.Version.ShouldBe(created);
@@ -284,14 +284,14 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
 
     private async Task SaveAsync(Action<IServiceProvider> stage)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         stage(scope.ServiceProvider);
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
     }
 
     private async Task<T> LoadAsync<T>(Func<IServiceProvider, Task<T>> load)
     {
-        await using var scope = factory.Services.CreateAsyncScope();
+        await using var scope = factory.Services.CreateSignedInScope();
         var result = await load(scope.ServiceProvider);
         // Sanity check that the load really went to the database: the fresh scope tracked exactly what it loaded.
         scope.ServiceProvider.GetRequiredService<ConsoleDbContext>().ChangeTracker.Entries().Count().ShouldBeLessThanOrEqualTo(1);
