@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-18 · **Current checkpoint:** CP1 — Identity & administration · **Branch:** `cp/1-identity-admin`
+**Last updated:** 2026-11-19 · **Current checkpoint:** CP1 — Identity & administration · **Branch:** `cp/1-identity-admin`
 
 ## Where we are
 - **CP0 Foundations: DONE** (tasks T-0001..T-0006, QA report `docs/specs/CP0-qa-report.md`, all 9 criteria met).
@@ -20,8 +20,8 @@
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
 | T-0011 | done | — | 72a46f8 (2 rounds) |
 | T-0012 | done | — | 4c7f114 |
-| T-0013 | in_progress | backend-engineer | audit trail, pre-commit events (W4, worktree) |
-| T-0014 | in_progress | backend-engineer | login use cases + identity adapters (W4, worktree) |
+| T-0013 | in_progress | backend-engineer | audit trail, pre-commit events (W4, worktree `.claude/worktrees/agent-a04c27862eec1e898`) |
+| T-0014 | in_progress | backend-engineer | login use cases + identity adapters (W4, worktree `.claude/worktrees/agent-aec729b183c5122cc`) |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
@@ -29,16 +29,12 @@
 | T-0024 | in_review | frontend-architect | shared UI kit |
 | T-0044 | done | — | committed |
 | T-0025 | in_progress | frontend-engineer | shared forms (F2) |
-| next | todo | | T-0012 after T-0008+T-0010; after T-0013+T-0014: T-0015 (W5), then W6 admin APIs; FE T-0024, T-0025 after T-0023 |
+| next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
-1. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
-   - audit: post-commit event dispatch vs outbox (ADR); integration test of domain-event dispatch with first aggregate (QA R5)
-   - OAuth callback under `/api/auth/...` (Vite proxies only `/api`); DevOAuth emulator project in AppHost + in-process for tests
-   - backend CSRF filter on `/api` non-GET + test (QA R2); decide whether `/api/system/info` stays anonymous (QA R3)
-   - replace temporary `IRequireRole.RequiredRole: string` / `ICurrentUser.UserId: Guid?` with domain types
-   - HTTP-level validation/malformed-body tests with first command endpoint (QA R6)
-2. BUILD → VERIFY → ACCEPT (product owner) → CLOSE per `docs/process/SDLC.md`.
+1. Finish W4: review T-0013/T-0014 in their worktrees → commit in worktree → merge into `cp/1-identity-admin` (resolve DI conflicts; T-0044 changed Application DI order) → build+test on merged branch.
+2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
+3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
 
 ## Needs human
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
