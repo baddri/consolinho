@@ -39,6 +39,7 @@ public static class ApiEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
+        api.MapAuthEndpoints();
         api.MapSystemEndpoints();
         api.MapAdminEndpoints();
 

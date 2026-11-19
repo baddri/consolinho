@@ -20,8 +20,7 @@ namespace FleetConsole.Infrastructure.Identity;
 /// <see langword="null"/> at once, so a dead host can't make every login wait for a timeout.</para>
 /// <para><b>Scheme:</b> discovered endpoints must be <c>https</c> unless the host URL itself is <c>http</c> (which the
 /// options validator allows in Development only); otherwise the document is rejected like a failed load.</para>
-/// <para><b>Concurrency:</b> singleton; one load at a time (callers arriving meanwhile wait for it and share its result).
-/// <see cref="MetadataChanged"/> is raised after the value is published, outside the lock.</para>
+/// <para><b>Concurrency:</b> singleton; one load at a time (callers arriving meanwhile wait for it and share its result).</para>
 /// </remarks>
 internal sealed partial class OAuthServerMetadataProvider : IOAuthServerMetadataProvider, IDisposable
 {
@@ -62,9 +61,6 @@ internal sealed partial class OAuthServerMetadataProvider : IOAuthServerMetadata
             _current = new OAuthServerMetadata(_options.AuthorizationEndpoint!, _options.TokenEndpoint!);
         }
     }
-
-    /// <inheritdoc />
-    public event Action? MetadataChanged;
 
     /// <inheritdoc />
     public OAuthServerMetadata? Current => _current;
@@ -111,7 +107,6 @@ internal sealed partial class OAuthServerMetadataProvider : IOAuthServerMetadata
             _loadGate.Release();
         }
 
-        MetadataChanged?.Invoke();
         return loaded;
     }
 

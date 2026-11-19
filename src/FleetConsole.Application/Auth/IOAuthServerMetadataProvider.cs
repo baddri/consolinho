@@ -7,8 +7,9 @@ namespace FleetConsole.Application.Auth;
 /// </summary>
 /// <remarks>
 /// Implemented by the singleton <c>Infrastructure/Identity/OAuthServerMetadataProvider</c> and warmed at startup.
-/// <c>GET /api/auth/login</c> awaits <see cref="GetAsync"/> before challenging; the Api's OAuth options read
-/// <see cref="Current"/> and are rebuilt when <see cref="MetadataChanged"/> fires.
+/// <c>GET /api/auth/login</c> awaits <see cref="GetAsync"/> before challenging; the Api's OAuth handler reads the
+/// endpoints when it uses them (<see cref="Current"/> at the challenge, <see cref="GetAsync"/> at the code exchange),
+/// so no change notification is needed (ADR-0018).
 /// </remarks>
 public interface IOAuthServerMetadataProvider
 {
@@ -22,10 +23,4 @@ public interface IOAuthServerMetadataProvider
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The metadata, or <see langword="null"/> while unavailable.</returns>
     ValueTask<OAuthServerMetadata?> GetAsync(CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Raised when the metadata first loads or changes, so the Api can evict its cached OAuth options
-    /// (<c>IOptionsMonitorCache</c>). Not raised for static configuration, which is available from the start.
-    /// </summary>
-    event Action? MetadataChanged;
 }

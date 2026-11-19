@@ -79,8 +79,57 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         properties.GetProperty("traceId").GetProperty("type").GetString().ShouldBe("string");
     }
 
-    // Enums: AddApiJson registers JsonStringEnumConverter (camelCase, no integers). No enum appears in a schema yet;
-    // T-0015 (CurrentUser.role) adds the assertion that the document renders string enums ("admin", "user").
+    [Fact]
+    public async Task Enums_AreCamelCaseStrings()
+    {
+        // AddApiJson registers JsonStringEnumConverter (camelCase, no integers; ADR-0013). CurrentUser.role is the first
+        // enum in the contract; the schema may be inline or a $ref to a shared enum schema. Microsoft.AspNetCore.OpenApi
+        // (.NET 10) emits string enums as { "enum": [...] } without "type"; openapi-typescript turns that into a string
+        // union. If a "type" is present, it must be "string".
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        var role = schemas.GetProperty("CurrentUser").GetProperty("properties").GetProperty("role");
+        if (role.TryGetProperty("$ref", out var reference))
+        {
+            role = schemas.GetProperty(reference.GetString()!["#/components/schemas/".Length..]);
+        }
+
+        if (role.TryGetProperty("type", out var type))
+        {
+            type.GetString().ShouldBe("string");
+        }
+
+        var values = role.GetProperty("enum").EnumerateArray().ToArray();
+        values.ShouldAllBe(v => v.ValueKind == JsonValueKind.String);
+        values.Select(v => v.GetString()).ShouldBe(["admin", "user"], ignoreOrder: true);
+    }
+
+    [Theory]
+    [InlineData("/api/auth/login", "get", "Login")]
+    [InlineData("/api/auth/logout", "post", "Logout")]
+    [InlineData("/api/auth/me", "get", "GetCurrentUser")]
+    public async Task AuthOperations_HaveContractOperationIds(string path, string method, string operationId)
+    {
+        var document = await GetDocumentAsync();
+
+        document.GetProperty("paths").GetProperty(path).GetProperty(method)
+            .GetProperty("operationId").GetString().ShouldBe(operationId);
+    }
+
+    [Fact]
+    public async Task CurrentUser_IsTheTyped200SchemaOfMe()
+    {
+        var document = await GetDocumentAsync();
+
+        document.GetProperty("paths").GetProperty("/api/auth/me").GetProperty("get")
+            .GetProperty("responses").GetProperty("200").GetProperty("content").GetProperty("application/json")
+            .GetProperty("schema").GetProperty("$ref").GetString().ShouldBe("#/components/schemas/CurrentUser");
+        var schema = document.GetProperty("components").GetProperty("schemas").GetProperty("CurrentUser");
+        schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ShouldBe(
+            ["username", "displayName", "role", "isReadOnly", "groups", "isAdminViaConfiguration", "adminConfigurationSource"],
+            ignoreOrder: true);
+    }
 
     [Fact]
     public async Task Document_HasNoServers()

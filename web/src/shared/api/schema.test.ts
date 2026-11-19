@@ -12,7 +12,8 @@ const GRANT_ID = '9b2d4c7e-1a3f-4e5b-8c6d-0f1e2a3b4c5d';
 describe('merged API types (ADR-0016)', () => {
   it('takes generated paths when they exist and contract paths otherwise', () => {
     expectTypeOf<paths['/api/system/info']>().toEqualTypeOf<Gen.paths['/api/system/info']>();
-    expectTypeOf<paths['/api/auth/me']>().toEqualTypeOf<Contract.paths['/api/auth/me']>();
+    expectTypeOf<paths['/api/auth/me']>().toEqualTypeOf<Gen.paths['/api/auth/me']>();
+    expectTypeOf<paths['/api/clusters']>().toEqualTypeOf<Contract.paths['/api/clusters']>();
   });
 
   it('takes generated schemas when they exist and contract schemas otherwise', () => {

@@ -23,7 +23,8 @@ public sealed class ConsoleSessionOptions
 
     /// <summary>
     /// How often a session is checked against the database (<c>Auth:RevalidationInterval</c>, default 60 seconds,
-    /// AUTH-11). Used by the session validator (T-0015). Must be shorter than <see cref="SessionLifetime"/>.
+    /// AUTH-11) by <see cref="SessionValidator"/>. Must be shorter than <see cref="SessionLifetime"/>; zero checks on
+    /// every request (integration tests use it to observe changes immediately).
     /// </summary>
     public TimeSpan RevalidationInterval { get; set; } = TimeSpan.FromSeconds(60);
 }

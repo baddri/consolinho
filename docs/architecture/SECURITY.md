@@ -67,6 +67,12 @@ it holds, so these rules are strict.
   step, capability headline, time) is stored. Testing an unsaved token stores nothing but an audit entry with its
   fingerprint.
 - Tokens are never logged. Logging enrichers/redaction remove `Authorization` headers; proxy logs record path and status only.
+- Request URLs can carry secrets in the query (OAuth callback `code`/`state`). ASP.NET Core's request-line log
+  (`Microsoft.AspNetCore.Hosting.Diagnostics`, Information) quotes the full URL. It must stay off in production. Today
+  that relies on the `Microsoft.AspNetCore: Warning` default in `appsettings.json`, which a provider-specific level can
+  override (CP3 follow-up: enforce it in code or redact the query, and check the OpenTelemetry `url.query` redaction).
+  The OAuth handler's own loggers are capped at Warning in code (`WarningOnlyLoggerFactory`, ADR-0018), so the remote
+  `error_description` is never logged.
 - Decrypted tokens live only for the duration of a request (and, if caching is added, in a short-TTL in-memory cache only).
 
 ## Proxy hardening

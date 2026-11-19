@@ -22,13 +22,11 @@ public sealed class OAuthServerMetadataProviderTests : IAsyncLifetime
     public async ValueTask DisposeAsync() => await _devOAuth.DisposeAsync();
 
     [Fact]
-    public async Task Discovery_LoadsEndpointsFromTheEmulator_AndRaisesMetadataChangedOnce()
+    public async Task Discovery_LoadsEndpointsFromTheEmulator_AndCachesThem()
     {
         var handler = new SwitchableHandler(() => _devOAuth.Server.CreateHandler());
         using var host = IdentityTestHost.Build(IdentityTestHost.DevConfiguration(), () => handler, clock: _clock);
         var provider = host.Services.GetRequiredService<IOAuthServerMetadataProvider>();
-        var changed = 0;
-        provider.MetadataChanged += () => changed++;
 
         provider.Current.ShouldBeNull();
         var metadata = await provider.GetAsync(Ct);
@@ -37,7 +35,6 @@ public sealed class OAuthServerMetadataProviderTests : IAsyncLifetime
         metadata.ShouldBe(new OAuthServerMetadata(new Uri("http://localhost/oauth/authorize"), new Uri("http://localhost/oauth/token")));
         again.ShouldBeSameAs(metadata);
         provider.Current.ShouldBeSameAs(metadata);
-        changed.ShouldBe(1);
         handler.Calls.ShouldBe(1, "a successful load is cached");
     }
 
@@ -47,8 +44,6 @@ public sealed class OAuthServerMetadataProviderTests : IAsyncLifetime
         var handler = new SwitchableHandler(() => _devOAuth.Server.CreateHandler()) { Down = true };
         using var host = IdentityTestHost.Build(IdentityTestHost.DevConfiguration(), () => handler, logs: _logs, clock: _clock);
         var provider = host.Services.GetRequiredService<IOAuthServerMetadataProvider>();
-        var changed = 0;
-        provider.MetadataChanged += () => changed++;
 
         (await provider.GetAsync(Ct)).ShouldBeNull();
         _logs.Entries.ShouldContain(e => e.EventId == 3310 && e.Level == Microsoft.Extensions.Logging.LogLevel.Warning);
@@ -63,7 +58,6 @@ public sealed class OAuthServerMetadataProviderTests : IAsyncLifetime
         _clock.Advance(TimeSpan.FromSeconds(2));
         (await provider.GetAsync(Ct)).ShouldNotBeNull().TokenEndpoint.ShouldBe(new Uri("http://localhost/oauth/token"));
         handler.Calls.ShouldBe(2);
-        changed.ShouldBe(1);
     }
 
     [Fact]
@@ -109,14 +103,18 @@ public sealed class OAuthServerMetadataProviderTests : IAsyncLifetime
         var handler = new BlockingHandler(release, () => _devOAuth.Server.CreateHandler());
         using var host = IdentityTestHost.Build(IdentityTestHost.DevConfiguration(), () => handler, clock: _clock);
         var provider = host.Services.GetRequiredService<IOAuthServerMetadataProvider>();
-        var loaded = new TaskCompletionSource();
-        provider.MetadataChanged += () => loaded.TrySetResult();
 
         await host.StartAsync(Ct).WaitAsync(TimeSpan.FromSeconds(5), Ct);
         provider.Current.ShouldBeNull("discovery is still blocked; startup did not wait for it");
 
         release.Release();
-        await loaded.Task.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+        // The warm-up publishes Current when its load completes; poll for it (bounded).
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (provider.Current is null && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(20, Ct);
+        }
+
         provider.Current.ShouldNotBeNull();
         await host.StopAsync(Ct);
     }

@@ -15,14 +15,14 @@ namespace FleetConsole.Api.Tests.Integration;
 public sealed class AnonymousSurfaceTests(ApiFactory factory)
 {
     /// <summary>
-    /// ADR-0012's complete anonymous surface. <c>Mapped: false</c> entries don't exist yet; the task that adds the
-    /// endpoint flips the flag (T-0015 for the auth endpoints). <c>GET /api/auth/callback</c> is not listed: it is
-    /// handled by the OAuth middleware, not a mapped endpoint.
+    /// ADR-0012's complete anonymous surface. <c>Mapped: false</c> would mark an entry whose endpoint doesn't exist yet
+    /// (none since T-0015). <c>GET /api/auth/callback</c> is not listed: it is handled by the OAuth middleware, not a
+    /// mapped endpoint.
     /// </summary>
     private static readonly (string Endpoint, bool Mapped)[] Adr0012AnonymousEndpoints =
     [
-        ("GET /api/auth/login", false),
-        ("POST /api/auth/logout", false),
+        ("GET /api/auth/login", true),
+        ("POST /api/auth/logout", true),
         ("GET /api/system/info", true),
     ];
 

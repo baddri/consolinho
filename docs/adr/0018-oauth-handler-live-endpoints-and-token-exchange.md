@@ -35,7 +35,7 @@ implemented them on ASP.NET Core 10:
   (RFC 7636 §4.5). It is sent once, over the `openshift-host` client, which has no retries because codes are single-use.
   Outcomes:
   - network error or client timeout → throws `OAuthServerUnavailableException` → `unavailable`;
-  - HTTP 5xx → `Failed(OAuthServerUnavailableException)` → `unavailable`;
+  - HTTP 5xx or 429 → `Failed(OAuthServerUnavailableException)` → `unavailable`;
   - other non-2xx (RFC 6749 §5.2: `invalid_grant`, `invalid_client`, …) → `Failed(AuthenticationFailureException)` →
     `failed`;
   - 2xx whose body is not a JSON object → `failed`;
@@ -49,8 +49,10 @@ implemented them on ASP.NET Core 10:
   from the OAuth leg (state items, verifier, redirect) reaches the session ticket.
 - **Framework log of remote text:** `RemoteAuthenticationHandler` logs every failure's `Message` at Information
   ("Error from RemoteAuthentication"). For authorize-leg errors, that message includes the server's
-  `error_description`/`error_uri`. The Api raises the minimum level of the handler's log category so that text is not
-  logged. Our own EventId 2200 entry (outcome, exception type, trace id) is the record of the failure.
+  `error_description`/`error_uri`. The handler gets its loggers from `WarningOnlyLoggerFactory`, which drops everything
+  below Warning in the logger itself. A logging filter rule is not enough, because provider-specific rules
+  (`Logging:Console:LogLevel`, …) win over category rules. Our own EventId 2200 entry (outcome, exception type, trace
+  id) is the record of the failure.
 
 ## Consequences
 - One more overridden method (`ExchangeCodeAsync`, ~60 lines) than ADR-0010 planned. If a future ASP.NET Core makes

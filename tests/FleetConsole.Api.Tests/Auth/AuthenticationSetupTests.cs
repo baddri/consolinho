@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FleetConsole.Api.Auth;
 using FleetConsole.Api.Http;
+using FleetConsole.Api.Tests.Identity;
+using FleetConsole.Application.Abstractions;
 using FleetConsole.Domain.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -18,8 +20,9 @@ namespace FleetConsole.Api.Tests.Auth;
 
 /// <summary>
 /// The cookie scheme and policies from <see cref="AuthenticationSetup"/> on a minimal in-memory host (no database):
-/// API-friendly 401/403 ProblemDetails, cookie attributes (ADR-0009), the Admin policy, option validation. The real
-/// app has no protected endpoint before T-0015, so these run against test endpoints.
+/// API-friendly 401/403 ProblemDetails, cookie attributes (ADR-0009), the Admin policy, option validation, against test
+/// endpoints. Revalidation never becomes due here (sign-in marks the session validated; default interval), so no
+/// dispatcher is needed. The real host's behaviour is covered by the integration tests (<c>AuthEndpointsTests</c>).
 /// </summary>
 public sealed class AuthenticationSetupTests
 {
@@ -119,6 +122,15 @@ public sealed class AuthenticationSetupTests
     }
 
     [Fact]
+    public async Task RevalidationIntervalZero_IsAllowed()
+    {
+        // Zero = revalidate every request; the integration tests use it to observe changes immediately (AUTH-11).
+        await using var app = await StartAsync(configuration: new() { ["Auth:RevalidationInterval"] = "00:00:00" });
+
+        app.Services.GetRequiredService<IOptions<ConsoleSessionOptions>>().Value.RevalidationInterval.ShouldBe(TimeSpan.Zero);
+    }
+
+    [Fact]
     public async Task ConsoleSessionOptions_HaveAdr0009Defaults()
     {
         await using var app = await StartAsync();
@@ -132,6 +144,7 @@ public sealed class AuthenticationSetupTests
     [Theory]
     [InlineData("Auth:SessionLifetime", "00:00:00")]
     [InlineData("Auth:RevalidationInterval", "-00:00:01")]
+    [InlineData("Auth:RevalidationInterval", "08:00:00")]
     [InlineData("Auth:RevalidationInterval", "09:00:00")]
     public async Task InvalidConsoleSessionOptions_FailStartup(string key, string value)
     {
@@ -147,6 +160,7 @@ public sealed class AuthenticationSetupTests
         builder.WebHost.UseTestServer();
         builder.Configuration.AddInMemoryCollection(configuration ?? []);
         builder.Services.AddApiProblemDetails();
+        builder.Services.AddSingleton<IClock>(new ManualClock());
         builder.AddApiAuthentication();
 
         var app = builder.Build();
