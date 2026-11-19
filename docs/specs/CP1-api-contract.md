@@ -136,7 +136,7 @@ public sealed record CurrentUserDto(
     string? DisplayName,              // OCP fullName from last login
     UserRole Role,
     bool IsReadOnly,
-    IReadOnlyList<string> Groups,     // OCP groups at last login
+    IReadOnlyList<string> Groups,     // OCP groups at last login; never contains `system:*` virtual groups (filtered at login)
     bool IsAdminViaConfiguration,
     string? AdminConfigurationSource); // e.g. "group fleetconsole-admins" | "user list"; null when not via config
 ```
@@ -567,12 +567,12 @@ fleetconsole-dev`, `ClientSecret = dev-only-not-a-secret`, `Auth:AdminGroups = [
 | `Console:PublicOrigin` | dev: `http://localhost:5180` (AppHost overrides with the Vite URL) | Required outside Development. Browser-visible origin; OAuth `redirect_uri` base. |
 | `Auth:OpenShift:HostApiServerUrl` | — (AppHost injects DevOAuth URL) | Required. Host cluster API server, e.g. `https://api.host.example.com:6443`. |
 | `Auth:OpenShift:ClientId` / `ClientSecret` | — | Prod: `system:serviceaccount:<ns>:<sa>` / SA token from a Secret. |
-| `Auth:OpenShift:AuthorizationEndpoint` / `TokenEndpoint` | null | Optional; skip discovery. |
+| `Auth:OpenShift:AuthorizationEndpoint` / `TokenEndpoint` | null | Optional; skip discovery. Must be set together (startup error otherwise). |
 | `Auth:OpenShift:CaBundlePath` | null | CA for the host API/OAuth server. |
 | `Auth:OpenShift:SkipTlsVerify` | false | Development only (startup error elsewhere). |
 | `Auth:AutoProvision` | `true` (Q1) | |
 | `Auth:BootstrapAdminUsers` | `[]` | Usernames. |
-| `Auth:AdminGroups` | `[]` (dev: `["fleetconsole-admins"]`) | OCP group names. |
+| `Auth:AdminGroups` | `[]` (dev: `["fleetconsole-admins"]`) | OCP group names. `system:*` entries are refused at startup (every user is in them). |
 | `Auth:SessionLifetime` | `08:00:00` | Sliding. |
 | `Auth:RevalidationInterval` | `00:01:00` (Q4) | |
 | `Credentials:ExpiryWarningDays` | `14` (Q11) | |
