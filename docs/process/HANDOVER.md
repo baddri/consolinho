@@ -37,10 +37,13 @@
 | T-0030 | done | — | committed |
 | T-0046 | in_progress | frontend-engineer | BUG: flaky router landing test under load |
 | T-0042 | in_progress | frontend-engineer | `npm run dev:mock` (browser MSW worker) — lets the human click through the UI without backend |
-| next | todo | | after T-0015: W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE F5/F6: T-0031, T-0033, T-0034, T-0041 … |
+| T-0016 | in_progress | backend-engineer | admin users API (W6, main tree) |
+| T-0017 | in_progress | backend-engineer | admin clusters API (W6, worktree) |
+| T-0018 | in_progress | backend-engineer | admin credentials API (W6, worktree) |
+| next | todo | | W6 rest: T-0019, T-0021; then T-0020; FE F5/F6: T-0031, T-0033, T-0034, T-0041 … |
 
 ## Next actions (CP1)
-1. T-0015 (W5) → review → commit. Then W6 admin APIs T-0016..T-0019, T-0021 (3 at a time; shared files: AdminEndpoints.cs, DI files, schema.gen.ts), then T-0020.
+1. W6: review T-0016/17/18 → merge worktrees (regenerate schema.gen.ts after merging) → T-0019, T-0021 → T-0020.
 2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
 3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
 
