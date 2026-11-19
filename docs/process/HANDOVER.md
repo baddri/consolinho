@@ -20,8 +20,8 @@
 | T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
 | T-0011 | done | — | 72a46f8 (2 rounds) |
 | T-0012 | done | — | 4c7f114 |
-| T-0013 | in_progress | backend-engineer | audit trail, pre-commit events (W4, worktree `.claude/worktrees/agent-a04c27862eec1e898`) |
-| T-0014 | todo | backend-engineer | starts in MAIN tree after T-0013 merged (needs IAuditTrail). Rulings: `AddOpenShiftIdentity()` called by T-0015; filter `system:*` at login; no retries on openshift-host client |
+| T-0013 | done | — | merged 810565c (worktree removed) |
+| T-0014 | in_progress | backend-engineer | main tree. Rulings: `AddOpenShiftIdentity()` called by T-0015; filter `system:*` at login; no retries on openshift-host client |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
@@ -33,7 +33,7 @@
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
-1. Finish W4: review T-0013 in its worktree → commit there → merge into `cp/1-identity-admin` (resolve DI conflicts; T-0044 changed Application DI order) → build+test → then T-0014 in main tree.
+1. Finish W4: T-0014 → review → commit. Then T-0015 (W5).
 2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
 3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
 
@@ -52,6 +52,7 @@
 - API JSON uses strict number handling (quoted numbers → 400).
 - DbContext uses retrying execution strategy: explicit transactions must run inside `CreateExecutionStrategy().ExecuteAsync`.
 - Agent worktrees with no changes are auto-deleted when the agent stops (e.g. on a usage limit) — a resumed agent may find its worktree gone.
+- Follow-up F1 (from T-0013 review): harden AuditEntry.Actor against shared instances (EF complex type or copy in `AuditEntry.Record`).
 - Worktree tasks: reviewers review in the worktree path; orchestrator commits there and merges into `cp/1-identity-admin` (DI files may conflict trivially).
 - CP3 follow-ups from T-0012 review: make DP-cert-missing warning (EventId 3200) a startup error in prod; support key-encryption cert rotation; ops runbook.
 - CP2 follow-ups from T-0010: pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies.
