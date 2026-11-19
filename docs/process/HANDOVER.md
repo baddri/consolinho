@@ -21,7 +21,8 @@
 | T-0011 | done | — | 72a46f8 (2 rounds) |
 | T-0012 | done | — | 4c7f114 |
 | T-0013 | done | — | merged 810565c (worktree removed) |
-| T-0014 | in_progress | backend-engineer | round 1 fixes: https outside dev, CA PEM validation, bounded users/~ body |
+| T-0014 | done | — | 6f1793a (2 rounds) |
+| T-0015 | in_progress | backend-engineer | Api login/callback/logout/me endpoints, session validator, harness (W5, critical path) |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
@@ -35,7 +36,7 @@
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
-1. Finish W4: T-0014 → review → commit. Then T-0015 (W5).
+1. T-0015 (W5) → review → commit. Then W6 admin APIs T-0016..T-0019, T-0021 (3 at a time; shared files: AdminEndpoints.cs, DI files, schema.gen.ts), then T-0020.
 2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
 3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
 
