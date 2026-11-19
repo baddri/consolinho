@@ -24,3 +24,7 @@ follow established patterns. Set the task `status: in_progress` and add a dated 
 Run `cd web && npm run lint && npm run typecheck && npm test -- --run && npm run build`; all must pass. Tick acceptance
 criteria, set `status: in_review`, write **Handover notes**. Do not commit; do not edit HANDOVER.md/ROADMAP.md.
 Return the report format from `docs/process/SDLC.md`.
+
+**Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
+`git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;
+read-only git (`status`, `diff`, `log`, `show`) is fine.

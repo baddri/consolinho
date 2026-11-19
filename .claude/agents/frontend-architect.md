@@ -24,3 +24,7 @@ the task file's **Review** section: `APPROVE` or `CHANGES_REQUESTED` with `path:
 Request changes only for real issues; list nits as optional.
 
 Do not commit. Return the report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
+
+**Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
+`git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;
+read-only git (`status`, `diff`, `log`, `show`) is fine.

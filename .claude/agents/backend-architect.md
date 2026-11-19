@@ -30,3 +30,7 @@ not personal taste. Small nits: list as optional.
 
 You may make tiny doc/comment fixes yourself during review; anything else goes back to the engineer.
 Do not commit. Return the report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
+
+**Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
+`git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;
+read-only git (`status`, `diff`, `log`, `show`) is fine.

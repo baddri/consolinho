@@ -21,7 +21,7 @@
 | T-0011 | done | — | 72a46f8 (2 rounds) |
 | T-0012 | done | — | 4c7f114 |
 | T-0013 | done | — | merged 810565c (worktree removed) |
-| T-0014 | in_progress | backend-engineer | main tree. Rulings: `AddOpenShiftIdentity()` called by T-0015; filter `system:*` at login; no retries on openshift-host client |
+| T-0014 | in_review | backend-architect | login use cases + identity adapters (main tree) |
 | T-0008 | done | — | 7d5d641 |
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
@@ -29,7 +29,7 @@
 | T-0024 | done | — | committed (2 rounds) |
 | T-0044 | done | — | committed |
 | T-0025 | done | — | committed (2 rounds) |
-| T-0027 | in_progress | frontend-engineer | session, login page, 401 handling, user menu (F3) |
+| T-0027 | in_review | frontend-architect | session, login page, 401 handling, user menu |
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
 
 ## Next actions (CP1)
@@ -41,6 +41,7 @@
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
 
 ## Gotchas
+- Commit 6c2262f (T-0025) accidentally includes T-0027's staged deletion of `app/layout/UserMenu.tsx` → that single commit doesn't build alone; fixed by the T-0027 commit.
 - Usage limits can stop agents mid-task: resume them with SendMessage (work on disk is kept), don't respawn.
 - No docker: podman. Export `DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock TESTCONTAINERS_RYUK_DISABLED=true ASPIRE_CONTAINER_RUNTIME=podman` (fish: `$(id -u)`, not `$UID`).
 - Background runs: `aspire start --launch-profile http && aspire wait web`; stop with `aspire stop`. Api on :5180; web port changes per run (`aspire describe`).

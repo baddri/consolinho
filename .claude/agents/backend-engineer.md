@@ -27,3 +27,7 @@ Run `dotnet build FleetConsole.slnx -warnaserror` and `dotnet test FleetConsole.
 can't reach podman, say so explicitly — never fake a pass). Tick acceptance criteria, set `status: in_review`, write
 **Handover notes**. Do not commit; do not edit HANDOVER.md/ROADMAP.md. Return the report format from
 `docs/process/SDLC.md`.
+
+**Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
+`git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;
+read-only git (`status`, `diff`, `log`, `show`) is fine.

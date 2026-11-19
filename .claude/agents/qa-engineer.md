@@ -22,3 +22,7 @@ Read `CLAUDE.md`, the checkpoint spec in `docs/specs/`, the checkpoint's task fi
 
 Write the report to `docs/specs/CP<n>-qa-report.md` (traceability table, defects, risks). Do not commit. Return the
 report format from `docs/process/SDLC.md`; STATUS is `done` only if no blocking defects remain.
+
+**Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
+`git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;
+read-only git (`status`, `diff`, `log`, `show`) is fine.

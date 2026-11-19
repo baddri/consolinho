@@ -72,6 +72,9 @@ In those cases: record in HANDOVER "Needs human", continue with other unblocked 
    ```
 
 Subagents do **not** commit, do not edit HANDOVER.md or ROADMAP.md, and do not spawn other agents.
+**Subagents never run git commands that change the index, HEAD or stash** (`git add`, `git rm`, `git stash`, `git checkout`,
+`git reset`, `git restore --staged`, `git commit`) in the shared tree: other agents' uncommitted work lives there. Delete
+files with `rm`; read-only git (`status`, `diff`, `log`, `show`) is fine. Worktree agents may use git only inside their worktree.
 
 **Agent registration fallback:** project agents in `.claude/agents/` are loaded at session start. If the Agent tool
 reports the type as not found (e.g. agents edited mid-session), spawn `general-purpose` and begin the prompt with
