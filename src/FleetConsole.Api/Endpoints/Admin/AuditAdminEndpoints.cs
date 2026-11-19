@@ -1,6 +1,8 @@
 using FleetConsole.Api.Http;
 using FleetConsole.Application.Abstractions.Messaging;
+using FleetConsole.Api.OpenApi;
 using FleetConsole.Application.Audit.ListAuditEntries;
+using FleetConsole.Domain.Audit;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -26,7 +28,11 @@ public static class AuditAdminEndpoints
 
         var audit = admin.MapGroup("/audit").WithTags("Audit");
 
-        audit.MapGet("", ListAuditEntries).WithName("ListAuditEntries");
+        // category is bound as a string so an unknown value is a 400 keyed "category" from the validator (contract §10),
+        // but published as AuditCategory so clients see the allowed values (T-0048).
+        audit.MapGet("", ListAuditEntries)
+            .WithName("ListAuditEntries")
+            .WithQueryParameterSchema<AuditCategory>("category");
 
         return audit;
     }

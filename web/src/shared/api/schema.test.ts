@@ -186,9 +186,13 @@ describe('apiClient covers every CP1 contract route', () => {
         body: {},
       });
       void apiClient.GET('/api/admin/audit', {
-        // category is bound as a string and validated server-side (contract §10, T-0021); limit is typed.
         // @ts-expect-error -- limit must be a number
         params: { query: { limit: 'fifty' } },
+      });
+      void apiClient.GET('/api/admin/audit', {
+        // category is bound as a string server-side but documented as AuditCategory (T-0048).
+        // @ts-expect-error -- unknown audit category
+        params: { query: { category: 'everything' } },
       });
     };
     expect(typeOnly).toBeTypeOf('function');

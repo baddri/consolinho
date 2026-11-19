@@ -225,6 +225,23 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
             .ShouldBe(["version", "environment"], ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task AuditCategoryQueryParameter_ReferencesTheAuditCategoryEnum()
+    {
+        // T-0048: bound as a string (unknown values are a 400 keyed "category"), published as the enum.
+        var document = await GetDocumentAsync();
+
+        var category = document.GetProperty("paths").GetProperty("/api/admin/audit").GetProperty("get")
+            .GetProperty("parameters").EnumerateArray()
+            .Single(p => p.GetProperty("name").GetString() == "category" && p.GetProperty("in").GetString() == "query");
+        category.GetProperty("schema").GetProperty("$ref").GetString().ShouldBe("#/components/schemas/AuditCategory");
+
+        var component = document.GetProperty("components").GetProperty("schemas").GetProperty("AuditCategory");
+        component.GetProperty("type").GetString().ShouldBe("string");
+        component.GetProperty("enum").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(["auth", "users", "clusters", "credentials", "grants"], ignoreOrder: true);
+    }
+
     private async Task<JsonElement> GetDocumentAsync()
     {
         using var client = factory.CreateApiClient();

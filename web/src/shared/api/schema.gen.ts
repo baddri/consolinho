@@ -3301,7 +3301,7 @@ export interface operations {
             query?: {
                 actor?: string;
                 user?: string;
-                category?: string;
+                category?: components["schemas"]["AuditCategory"];
                 cluster?: string;
                 target?: string;
                 from?: string;

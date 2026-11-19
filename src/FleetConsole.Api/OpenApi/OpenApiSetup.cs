@@ -43,6 +43,9 @@ public static class OpenApiSetup
             // Enums are camelCase strings (ADR-0013 §6); state the type explicitly in their schemas.
             options.AddSchemaTransformer<StringEnumSchemaTransformer>();
 
+            // String-bound query parameters documented as their enum (WithQueryParameterSchema<T>, T-0048).
+            options.AddOperationTransformer<QueryParameterSchemaOperationTransformer>();
+
             // Host-independent document; see remarks.
             options.AddDocumentTransformer((document, _, _) =>
             {

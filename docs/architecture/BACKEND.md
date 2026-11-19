@@ -168,6 +168,8 @@ validator's property paths converted to the JSON naming policy (camelCase per se
   The Kubernetes proxy route must disable it per request (`IStatusCodePagesFeature.Enabled = false`) so upstream
   responses pass through untouched.
 - Enums are serialized as camelCase strings (`JsonStringEnumConverter`, no integer values; ADR-0013).
+  A query parameter bound as `string` (so the validator can key an unknown value by its name) is still published as
+  its enum with `.WithQueryParameterSchema<TEnum>("name")` (`Api/OpenApi/`); the validator must enforce the values.
 - JSON uses ASP.NET web defaults **with strict number handling** (`JsonNumberHandling.Strict`): numbers are never
   read from or documented as strings, so generated TS types stay `number`. A quoted number in a request body is a
   400 (ProblemDetails via status-code pages). Configured in `Api/Http/JsonSetup.AddApiJson()`.
