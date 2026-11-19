@@ -2,50 +2,48 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-19 · **Current checkpoint:** CP1 — Identity & administration · **Branch:** `cp/1-identity-admin`
+**Last updated:** 2026-11-19 (session ended by human mid-wave) · **Current checkpoint:** CP1 — Identity & administration ·
+**Branch:** `cp/1-identity-admin`
 
 ## Where we are
-- **CP0 Foundations: DONE** (tasks T-0001..T-0006, QA report `docs/specs/CP0-qa-report.md`, all 9 criteria met).
-  Backend 137 tests, frontend 51 tests, `aspire run` verified incl. real browser.
-- CP0 had no product-owner ACCEPT step (technical checkpoint, spec written by orchestrator).
-- CP1 loop step: **BUILD**. Design complete: backend T-0007..T-0021 (waves W1–W7), frontend T-0022..T-0043 (groups F1–F10),
-  ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (with orchestrator amendments 2026-11-18).
-- Human requirement recorded for CP1: login via **host-cluster OpenShift OAuth** (ADR-0007), dev uses in-repo emulator `FleetConsole.DevOAuth`.
+- **CP0 Foundations: DONE** (tag `cp-0`).
+- **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
+  ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
+- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0045 (frontend).
+  Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
 
-## In flight
-| Task | Status | Owner | Note |
-|---|---|---|---|
-| T-0007 | done | — | 23817e0 (2 rounds; ADR-0017 promote ruling) |
-| T-0009 | done | — | b90a5bc |
-| T-0010 | done | — | committed (2 rounds; https-only enforced in adapter) |
-| T-0011 | done | — | 72a46f8 (2 rounds) |
-| T-0012 | done | — | 4c7f114 |
-| T-0013 | done | — | merged 810565c (worktree removed) |
-| T-0014 | done | — | 6f1793a (2 rounds) |
-| T-0015 | done | — | committed (2 rounds; ADR-0018). README hunk goes with T-0042 |
-| T-0008 | done | — | 7d5d641 |
-| T-0022 | done | — | 2baea45 |
-| T-0026 | done | — | committed (2 rounds) |
-| T-0023 | done | — | committed (2 rounds) |
-| T-0024 | done | — | committed (2 rounds) |
-| T-0044 | done | — | committed |
-| T-0025 | done | — | committed (2 rounds) |
-| T-0027 | done | — | committed |
-| T-0028 | done | — | committed; bundle entry 23 kB |
-| T-0045 | done | — | committed |
-| T-0029 | done | — | committed (2 rounds) |
-| T-0030 | done | — | committed |
-| T-0046 | in_progress | frontend-engineer | BUG: flaky router landing test under load |
-| T-0042 | in_progress | frontend-engineer | `npm run dev:mock` (browser MSW worker) — lets the human click through the UI without backend |
-| T-0016 | in_progress | backend-engineer | admin users API (W6, main tree) |
-| T-0017 | in_progress | backend-engineer | admin clusters API (W6, worktree) |
-| T-0018 | in_progress | backend-engineer | admin credentials API (W6, worktree) |
-| next | todo | | W6 rest: T-0019, T-0021; then T-0020; FE F5/F6: T-0031, T-0033, T-0034, T-0041 … |
+## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
+Five tasks were interrupted. Each **task file has a Work log + Handover notes** written at stop time — read them first.
 
-## Next actions (CP1)
-1. W6: review T-0016/17/18 → merge worktrees (regenerate schema.gen.ts after merging) → T-0019, T-0021 → T-0020.
-2. Continue BUILD by waves (task files list `depends_on`); FE groups F3+ after F2.
-3. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
+| Task | Where the WIP lives | State at stop |
+|---|---|---|
+| T-0042 `npm run dev:mock` | main tree: `web/package.json`, `web/vite.config.ts`, `web/msw/`, `web/src/mocks/browser.ts`, `web/src/app/main.tsx`, `web/src/app/session.ts`, `web/eslint.config.js`, `web/.prettierignore`, **moved** `features/auth/{returnUrl,loginPath}*` → `web/src/shared/auth/`, `features/auth/{index.ts,LoginPage.tsx}`, README tail section, FRONTEND.md | Round-1 fixes DONE, last checks green. Left: optional browser recheck → re-run checks → `in_review` → frontend-architect round 2 |
+| T-0046 flaky FE tests | main tree: `web/src/test/coldStart.ts`, `web/src/app/{router,session}.test.tsx`, `web/src/app/layout/AppShell.test.tsx`, `web/src/features/admin/admin.test.tsx`, `web/src/features/admin/users/UsersListPage.test.tsx`, FRONTEND.md testing bullet | Work DONE; stress check 10/10 green (one pair invalidated by T-0042's file move, re-run green). Left: re-run checks → `in_review` → frontend-architect review |
+| T-0016 admin users API | main tree: `src/FleetConsole.Application/Users/`, `Api/Endpoints/Admin/{UsersAdminEndpoints,UserRequests,AdminEndpoints}.cs`, `Api/OpenApi/{StringEnumSchemaTransformer,OpenApiSetup}.cs` | All 7 use cases + endpoints written, Application+Api projects build. Left: full build (EF translation of `UserRow` projection), all tests, `Enums_AreCamelCaseStrings` tighten, regenerate schema.gen.ts |
+| T-0017 admin clusters API | **worktree** `.claude/worktrees/agent-a9928235423746737` (branch `worktree-agent-a9928235423746737`, base b1f8062) | Get/List/Register/Update use cases written. Left: Enable/Disable/Delete, Api endpoints, ServiceProviderBuilder fakes, all tests, schema regen (worktree needs `npm ci`). Open: EF translation of list projection; make `environment` required (400 not default); confirm trimming of displayName/description |
+| T-0018 admin credentials API | **worktree** `.claude/worktrees/agent-af76dd13c9f3efd52` (branch `worktree-agent-af76dd13c9f3efd52`, base b1f8062) | Application layer written (tokens/fingerprint/inspector, DTO with `expiryWarningDays`, 5 use cases), builds alone. Left: Api endpoints, ServiceProviderBuilder registration (likely merge conflict with T-0016/17), tests incl. TokenLeakScanner, `TestData` → `TokenFingerprints.Compute`, schema regen. Deviations to rule on: unreadable JWT `exp` → opaque/`unknown`; printable-ASCII token rule |
+
+**Commit hygiene:** commit each task by explicit paths, never `git add -A`. `README.md` = T-0042 tail section only (T-0015's
+part is already committed). `docs/architecture/FRONTEND.md` has edits from both T-0042 and T-0046 — commit it with whichever
+lands first. The T-0042 file move means T-0046's and T-0042's web changes should be checked together (full web checks) before
+committing either.
+
+## Next actions (resume here)
+1. `git status` + `git worktree list`; read Handover notes of T-0042, T-0046, T-0016, and (inside each worktree) T-0017, T-0018.
+2. Resume each interrupted task with a **new** agent of the same type, pointing it at its task file's Handover notes
+   (worktree tasks: tell the agent the worktree path and to work only there).
+3. Reviews: T-0042 round 2 + T-0046 (frontend-architect); T-0016/17/18 round 1 (backend-architect; worktree reviews inside the worktree).
+4. Merge worktrees after approval: commit inside the worktree → `git merge --no-ff` into `cp/1-identity-admin` → expect
+   conflicts in `Api/Endpoints/Admin/AdminEndpoints.cs`, DI files, `schema.gen.ts` → resolve, **regenerate schema.gen.ts**
+   (Api running) + `cd web && npm run typecheck` → full backend + frontend checks → `git worktree remove` + delete branch.
+5. Then W6 rest: T-0019 (grants + GET /api/clusters), T-0021 (audit query) → T-0020 (connection test).
+   Frontend next: T-0031, T-0033, T-0034, T-0041, then T-0032, T-0035…; T-0043 (integration) last.
+6. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
+
+## How the human can test (current state)
+- `dotnet test FleetConsole.slnx` / `cd web && npm test -- --run`.
+- `aspire run` → real login via DevOAuth (users admin/alice/bob/ines); admin data APIs land with T-0016..T-0021.
+- After T-0042 lands: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`) — whole UI without backend.
 
 ## Open for product owner at ACCEPT
 - Nav naming: sidebar "Admin" vs spec ADM-3 "Administration" (cluster nav already has "Administration").
@@ -54,24 +52,26 @@
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
 
 ## Gotchas
-- Commit 6c2262f (T-0025) accidentally includes T-0027's staged deletion of `app/layout/UserMenu.tsx` → that single commit doesn't build alone; fixed by the T-0027 commit.
-- Usage limits can stop agents mid-task: resume them with SendMessage (work on disk is kept), don't respawn.
+- **Subagents: read-only git only** in the shared tree (SDLC.md). Orchestrator commits by explicit paths.
+- Project agents (`.claude/agents/`) are available natively in a new session. Usage limits stop agents mid-task — within a
+  session resume with SendMessage; across sessions start a new agent from the task file's Handover notes.
+- Agent worktrees with no changes are auto-deleted when the agent stops; worktrees with changes persist.
+- Commit 6c2262f (T-0025) alone doesn't build (UserMenu deletion); fixed by T-0027's commit.
 - No docker: podman. Export `DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock TESTCONTAINERS_RYUK_DISABLED=true ASPIRE_CONTAINER_RUNTIME=podman` (fish: `$(id -u)`, not `$UID`).
-- Background runs: `aspire start --launch-profile http && aspire wait web`; stop with `aspire stop`. Api on :5180; web port changes per run (`aspire describe`).
+- Background runs: `aspire start --launch-profile http && aspire wait web`; `aspire stop`. Api on :5180; web port per run (`aspire describe`).
 - Aspire pinned to 13.6.5 (advisory on 13.6.4). CLI offers 17 — don't `aspire update`; needs an ADR.
 - Test projects must use `xunit.v3.mtp-off`.
-- `/health`, `/alive`, `/openapi/v1.json` are Development-only — revisit for OpenShift probes (CP3, QA R1).
-- Never name a folder/namespace after a BCL root (`System`, …). DTO `Dto` suffix is stripped in OpenAPI schema names.
-- Endpoint/DTO XML docs flow into OpenAPI → `schema.gen.ts`; regenerate with `cd web && npm run gen:api` (Api running).
-- API JSON uses strict number handling (quoted numbers → 400).
-- DbContext uses retrying execution strategy: explicit transactions must run inside `CreateExecutionStrategy().ExecuteAsync`.
-- Agent worktrees with no changes are auto-deleted when the agent stops (e.g. on a usage limit) — a resumed agent may find its worktree gone.
-- Follow-up F1 (from T-0013 review): harden AuditEntry.Actor against shared instances (EF complex type or copy in `AuditEntry.Record`).
-- Worktree tasks: reviewers review in the worktree path; orchestrator commits there and merges into `cp/1-identity-admin` (DI files may conflict trivially).
-- CP3 follow-up from T-0015 review: enforce in code that the callback URL (code/state) never reaches request-line logs or OTel `url.query` (today only config: `Microsoft.AspNetCore`=Warning).
-- CP3 follow-up from T-0028 review: chunk-load failure after redeploy → "new version available — reload" instead of RouteErrorPage.
-- CP3 follow-up from T-0014 review: in-cluster host CA bundle = SA `ca.crt` + ingress CA for the OAuth route (`openshift-config-managed/default-ingress-cert`) or public root; OAuth metadata refresh (cached for process life).
-- CP3 follow-ups from T-0012 review: make DP-cert-missing warning (EventId 3200) a startup error in prod; support key-encryption cert rotation; ops runbook.
-- CP2 follow-ups from T-0010: pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies.
-- CP3 follow-ups from T-0009 review: Containerfile must publish `src/FleetConsole.Api` only and assert no `FleetConsole.DevOAuth*` in image; optional: AppHost `IsRunMode` guard for devoauth, loopback-only `redirect_uri` in emulator.
-- Frontend follow-ups: route code-splitting (bundle 574 kB), DOM lint gaps (`globalThis.document`), dev-only npm audit findings (QA R7).
+- Never name a folder/namespace after a BCL root. DTO `Dto` suffix stripped in OpenAPI schema names (no `Foo` + `FooDto` pair).
+- Endpoint/DTO XML docs flow into OpenAPI → `schema.gen.ts`; regenerate with `cd web && npm run gen:api` (Api running, Development).
+- API JSON: strict numbers, enums camelCase strings. Pipeline: Logging → Authorization → ReadOnlyGuard → Validation → UnitOfWork.
+- DbContext retrying strategy: explicit transactions inside `CreateExecutionStrategy().ExecuteAsync`. Saving outside HTTP in
+  tests needs `CreateSignedInScope()` (audit requires an actor). Integration harness usage: see T-0015 Handover notes.
+- FE tests: first full-app render per file is slow under load → `test/coldStart.ts`; prefer `user.paste` for search inputs;
+  PF Table has `role="grid"`; jsdom 1024px vs PF xl 1200px → `mockViewportWidth`.
+- Follow-up F1 (T-0013 review): harden `AuditEntry.Actor` against shared instances.
+- `/health`, `/alive`, `/openapi/v1.json` are Development-only — revisit for OpenShift probes (CP3).
+- **CP3 follow-ups:** callback URL (code/state) must never reach request-line logs / OTel `url.query` — enforce in code (T-0015);
+  host CA bundle = SA `ca.crt` + OAuth-route ingress CA, OAuth metadata refresh (T-0014); DP-cert-missing warning → startup
+  error, key-encryption cert rotation, runbook (T-0012); Containerfile publishes only `src/FleetConsole.Api`, assert no
+  `FleetConsole.DevOAuth*` (T-0009); "new version — reload" on chunk-load failure (T-0028).
+- **CP2 follow-ups:** pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies (T-0010).
