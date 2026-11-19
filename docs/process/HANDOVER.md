@@ -26,7 +26,7 @@
 | T-0022 | done | — | 2baea45 |
 | T-0026 | done | — | committed (2 rounds) |
 | T-0023 | done | — | committed (2 rounds) |
-| T-0024 | in_review | frontend-architect | shared UI kit |
+| T-0024 | done | — | committed (2 rounds) |
 | T-0044 | done | — | committed |
 | T-0025 | in_progress | frontend-engineer | shared forms (F2) |
 | next | todo | | after T-0013+T-0014 merged: T-0015 (W5), then W6 admin APIs (T-0016..T-0019, T-0021), then T-0020; FE: T-0027 (session/login) after T-0024+T-0025 |
