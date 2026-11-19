@@ -4,6 +4,7 @@ import { http, mockDb, problem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
+import { adminKeys } from '../queryKeys';
 import { adminRoute } from '../routes';
 
 /** Waits for the loaded Details tab. */
@@ -143,5 +144,34 @@ describe('UserDetailPage (T-0032)', () => {
     server.resetHandlers();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(await findDetails()).toBeInTheDocument();
+  });
+
+  it('T-0051: a failed background refetch keeps the loaded user', async () => {
+    const { queryClient } = renderApp('/admin/users/alice');
+    await findDetails();
+
+    server.use(http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })));
+    await queryClient.invalidateQueries({ queryKey: adminKeys.user('alice') });
+
+    await waitFor(() => expect(queryClient.getQueryState(adminKeys.user('alice'))?.status).toBe('error'));
+    expect(screen.getByLabelText('User details', { selector: 'dl' })).toBeInTheDocument();
+    expect(screen.queryByText('Could not load user')).not.toBeInTheDocument();
+  });
+
+  it('T-0051: a refetch that no longer finds the user toasts once and returns to the list', async () => {
+    const { router, queryClient } = renderApp('/admin/users/alice');
+    await findDetails();
+
+    server.use(
+      http.get('/api/admin/users/{username}', () =>
+        problem(404, { code: 'Users.NotFound', detail: 'User alice was not found.' }),
+      ),
+    );
+    await queryClient.invalidateQueries({ queryKey: adminKeys.user('alice') });
+
+    expect(await screen.findByText('User alice no longer exists')).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(screen.getAllByText('User alice no longer exists')).toHaveLength(1);
   });
 });

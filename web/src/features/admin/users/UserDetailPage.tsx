@@ -11,9 +11,10 @@ import {
   Tabs,
   TabTitleText,
 } from '@patternfly/react-core';
+import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import { isApiError, type UserDetail } from '@/shared/api';
-import { ErrorState } from '@/shared/ui';
+import { ErrorState, useToast } from '@/shared/ui';
 import { USER_DETAIL_TABS, useAdminTab, type UserDetailTab } from '../adminTabs';
 import { useUser } from './api';
 import { UserDetailHeader } from './UserDetailHeader';
@@ -43,6 +44,26 @@ function UserNotFound({ username }: { username: string }) {
       </EmptyStateFooter>
     </EmptyState>
   );
+}
+
+/** `true` for the Api's 404 `Users.NotFound`. */
+const isUserNotFound = (error: unknown) => isApiError(error) && error.status === 404;
+
+/**
+ * Leaves the page with a "no longer exists" toast when a refetch of an already loaded user answers 404 (users are
+ * never deleted, but e.g. a database reset can make one disappear). Mirrors the cluster detail page: a ref makes
+ * sure the toast and the `replace` navigation to the list happen once, even if the effect re-runs.
+ */
+function useLeaveVanishedUser(username: string, vanished: boolean) {
+  const navigate = useNavigate();
+  const toast = useToast();
+  const left = useRef(false);
+  useEffect(() => {
+    if (!vanished || left.current) return;
+    left.current = true;
+    toast.warning(`User ${username} no longer exists`, 'It could not be found when the page refreshed.');
+    void navigate('/admin/users', { replace: true });
+  }, [vanished, username, navigate, toast]);
 }
 
 /** Tab titles, also the accessible names of their panels. */
@@ -107,7 +128,9 @@ function UserTabs({ user, tab }: { user: UserDetail; tab: UserDetailTab }) {
  * `/admin/users/:username[/access]` — who a user is and what they can do (USR-7): header with labels and the shared
  * Actions menu, then Details and Cluster access tabs whose selection comes from the URL (`useAdminTab`). The router
  * decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
- * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry.
+ * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry —
+ * both only while nothing is loaded: a failed background refetch keeps the loaded data, and a 404 after load sends
+ * the admin back to the list with a toast.
  * Lazy-loaded by `routes.tsx`.
  */
 export function UserDetailPage() {
@@ -115,6 +138,7 @@ export function UserDetailPage() {
   const username = useParams().username ?? '';
   const tab = useAdminTab(USER_DETAIL_TABS);
   const { data: user, error, isPending, refetch } = useUser(username);
+  useLeaveVanishedUser(username, user !== undefined && isUserNotFound(error));
 
   return (
     <>
@@ -124,9 +148,9 @@ export function UserDetailPage() {
           <Skeleton height="10rem" screenreaderText="Loading user" />
         </PageSection>
       )}
-      {error && (
+      {error && !user && (
         <PageSection>
-          {isApiError(error) && error.status === 404 ? (
+          {isUserNotFound(error) ? (
             <UserNotFound username={username} />
           ) : (
             <ErrorState error={error} title="Could not load user" onRetry={() => void refetch()} />

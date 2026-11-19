@@ -40,7 +40,7 @@ function ClusterHeaderLabels({ cluster }: { cluster: ClusterDetail }) {
       <EnvironmentLabel environment={cluster.environment} />
       {!cluster.isEnabled && <Label color="grey">Disabled</Label>}
       {cluster.tlsMode === 'skipVerify' && (
-        <Label color="orange" status="warning">
+        <Label status="warning">
           {TLS_MODE_TEXT.skipVerify}
         </Label>
       )}

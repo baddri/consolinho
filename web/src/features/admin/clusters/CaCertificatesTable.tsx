@@ -6,15 +6,16 @@ import { RelativeTime } from '@/shared/ui';
 /** How one validity state is labelled. */
 interface ExpiryLabel {
   text: string;
-  color: 'green' | 'orange' | 'red';
+  /** Neutral validity uses `color`; warnings use `status`, which brings PF's own colour and icon. */
+  color?: 'green';
   status?: 'warning' | 'danger';
 }
 
 /** Label of each certificate validity state (CLU-2); certificates are flagged 30 days before they expire. */
 const EXPIRY_LABELS: Record<CertificateExpiryStatus, ExpiryLabel> = {
   ok: { text: 'Valid', color: 'green' },
-  expiringSoon: { text: 'Expires soon', status: 'warning', color: 'orange' },
-  expired: { text: 'Expired', status: 'danger', color: 'red' },
+  expiringSoon: { text: 'Expires soon', status: 'warning' },
+  expired: { text: 'Expired', status: 'danger' },
 };
 
 /** Characters of the 95-character fingerprint shown before truncation; the full value is in the tooltip. */
@@ -44,8 +45,8 @@ function CertificateRow({ certificate }: { certificate: CaCertificate }) {
 
 /** Props for {@link CaCertificatesTable}. */
 export interface CaCertificatesTableProps {
-  /** The cluster whose CA bundle (`caCertificates`) and skip-TLS flag are shown. */
-  cluster: Pick<ClusterDetail, 'name' | 'caCertificates' | 'skipTlsVerify'>;
+  /** The cluster whose CA bundle (`caCertificates`) and TLS mode are shown. */
+  cluster: Pick<ClusterDetail, 'name' | 'caCertificates' | 'tlsMode'>;
 }
 
 /**
@@ -55,7 +56,9 @@ export interface CaCertificatesTableProps {
  * system trust store applies.
  */
 export function CaCertificatesTable({ cluster }: CaCertificatesTableProps) {
-  const { caCertificates, skipTlsVerify } = cluster;
+  const { caCertificates } = cluster;
+  // Same source as the header's "TLS not verified" label, so both warnings always agree.
+  const skipTlsVerify = cluster.tlsMode === 'skipVerify';
   return (
     <Stack hasGutter>
       <StackItem>
