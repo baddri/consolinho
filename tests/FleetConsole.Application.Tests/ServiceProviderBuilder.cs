@@ -2,6 +2,7 @@ using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Tests.Audit;
 using FluentValidation;
+using NSubstitute;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -46,12 +47,12 @@ internal static class ServiceProviderBuilder
             services.AddScoped<IUserRepository, Auth.InMemoryUserRepository>();
             services.AddScoped<IReadModel, Auth.InMemoryReadModel>();
 
-            // Ports of the credential use cases (T-0018). Substitutes: these tests only need the handlers to be
-            // constructible; the handler tests in Credentials/ create their own fakes.
-            services.AddScoped(_ => NSubstitute.Substitute.For<IClusterRepository>());
-            services.AddScoped(_ => NSubstitute.Substitute.For<ICredentialRepository>());
-            services.AddScoped(_ => NSubstitute.Substitute.For<IGrantRepository>());
-            services.AddSingleton(_ => NSubstitute.Substitute.For<ITokenProtector>());
+            // Ports of the cluster (T-0017) and credential (T-0018) administration use cases. These tests only need the
+            // handlers to be constructible; the handler tests in Clusters/ and Credentials/ use their own fakes.
+            services.AddScoped<IClusterRepository, Clusters.InMemoryClusterRepository>();
+            services.AddScoped(_ => Substitute.For<ICredentialRepository>());
+            services.AddScoped(_ => Substitute.For<IGrantRepository>());
+            services.AddSingleton(_ => Substitute.For<ITokenProtector>());
         }
 
         if (withApplicationPipeline)
