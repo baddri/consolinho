@@ -9,7 +9,7 @@
 - **CP0 Foundations: DONE** (tag `cp-0`).
 - **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
   ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
-- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0042, T-0045, T-0046 (frontend); T-0016, T-0018 (session 2; T-0018 merged from worktree).
+- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0042, T-0045, T-0046 (frontend); T-0016, T-0017, T-0018 (session 2; T-0017/18 merged from worktrees, no worktrees left).
   Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
 
 ## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
@@ -17,7 +17,6 @@ T-0042/T-0046 committed (session 2). Backend tasks resumed by new agents in sess
 
 | Task | Where the WIP lives | State at stop |
 |---|---|---|
-| T-0017 admin clusters API | **worktree** `.claude/worktrees/agent-a9928235423746737` (branch `worktree-agent-a9928235423746737`, base b1f8062) | Get/List/Register/Update use cases written. Left: Enable/Disable/Delete, Api endpoints, ServiceProviderBuilder fakes, all tests, schema regen (worktree needs `npm ci`). Open: EF translation of list projection; make `environment` required (400 not default); confirm trimming of displayName/description |
 
 **Commit hygiene:** commit each task by explicit paths, never `git add -A`. `README.md` = T-0042 tail section only (T-0015's
 part is already committed). `docs/architecture/FRONTEND.md` has edits from both T-0042 and T-0046 — commit it with whichever
@@ -26,10 +25,10 @@ committing either.
 
 
 **Session 2 stopped by usage limit (2026-11-19)** — in flight when stopped (check each task file's status/Handover notes):
-- T-0017 clusters API: engineer still working in its worktree (rulings: EF-translated list, `environment` required → 400, trim names).
 - T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
 - T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
-- After merging T-0017/18: regenerate schema.gen.ts (flag now in gen-api.mjs), QA leak-scan `/clusters` endpoints.
+- schema.gen.ts NOT yet regenerated for T-0017/18: blocked by T-0047 (nullable enum components break web typecheck). QA leak-scan `/clusters` endpoints still open.
+- T-0021 audit query API: backend-engineer working in main tree. T-0031: done, in frontend-architect review.
 
 ## Next actions (resume here)
 1. `git status` + `git worktree list`; read Handover notes of T-0042, T-0046, T-0016, and (inside each worktree) T-0017, T-0018.
