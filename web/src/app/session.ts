@@ -1,15 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type { DataRouter } from 'react-router';
-import { clearSessionCache, currentUserQueryKey, sanitizeReturnUrl } from '@/features/auth';
+import { clearSessionCache, currentUserQueryKey, isLoginPath, sanitizeReturnUrl } from '@/features/auth';
 import { createQueryClient, type QueryClientOptions } from './queryClient';
 
 /** The parts of a data router the 401 handler needs (browser router in the app, memory router in tests). */
 export type SessionRouter = Pick<DataRouter, 'state' | 'navigate'>;
-
-/** Whether `pathname` is the login page, which needs no session and must never redirect to itself. */
-function isLoginPath(pathname: string): boolean {
-  return pathname === '/login' || pathname.startsWith('/login/');
-}
 
 /**
  * The app's reaction to any 401 from the Api (ADR-0014 §2, AUTH-11/12): go to `/login` with the current location as
@@ -17,6 +12,8 @@ function isLoginPath(pathname: string): boolean {
  *
  * - No-op when the router is on — or already navigating to — `/login` (redirect-loop guard, and several queries
  *   failing at once only redirect once).
+ * - `returnUrl` is the current location; when a navigation to another guarded page is pending, its target is lost
+ *   and the user returns to the page they were leaving (acceptable: they can repeat the click).
  * - Adds `reason=session_ended` iff a `me` result was cached, i.e. the user *had* a session; a first visit gets no
  *   message.
  * - Navigation replaces the current history entry (Back must not return to a page that needs the dead session) and

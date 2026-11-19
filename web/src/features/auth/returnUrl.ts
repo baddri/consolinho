@@ -1,3 +1,5 @@
+import { isLoginPath } from './loginPath';
+
 /** Where the SPA starts the OAuth flow (contract §4.1). A full-page navigation target, never `fetch`ed. */
 const LOGIN_ENDPOINT = '/api/auth/login';
 
@@ -7,9 +9,6 @@ const ROOT = '/';
 /** ASCII control characters (C0 and DEL); the Api rejects them because they enable header/response splitting. */
 // eslint-disable-next-line no-control-regex -- matching control characters is the point of this pattern
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
-
-/** The login page itself (`/login`, `/login/…`, `/login?…`, `/login#…`) — returning there would loop. */
-const LOGIN_PATH = /^\/login(?:[/?#]|$)/i;
 
 /** Percent-decodes `value`; `undefined` when it is malformed (e.g. a lone `%`), which is rejected outright. */
 function decode(value: string): string | undefined {
@@ -27,7 +26,7 @@ function isSafeLocalPath(value: string): boolean {
     !value.startsWith('//') &&
     !value.includes('\\') &&
     !CONTROL_CHARS.test(value) &&
-    !LOGIN_PATH.test(value)
+    !isLoginPath(value)
   );
 }
 

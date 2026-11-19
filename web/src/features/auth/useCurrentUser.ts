@@ -1,5 +1,5 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query';
-import { apiClient, unwrap, type ApiError, type CurrentUser } from '@/shared/api';
+import { apiClient, unwrap, type CurrentUser } from '@/shared/api';
 
 /** Query key of the signed-in user (`GET /api/auth/me`). The app's 401 handler reads it to detect an ended session. */
 export const currentUserQueryKey = ['api', 'auth', 'me'] as const;
@@ -15,8 +15,8 @@ const CURRENT_USER_STALE_TIME_MS = 60_000;
  * appear without a reload. A 401 is not handled here: the app's QueryClient reacts to it once, globally, and its
  * default retry policy never retries 4xx responses (`createQueryClient`, ADR-0014 §2).
  */
-export function useCurrentUser(): UseQueryResult<CurrentUser, ApiError> {
-  return useQuery<CurrentUser, ApiError>({
+export function useCurrentUser(): UseQueryResult<CurrentUser> {
+  return useQuery({
     queryKey: currentUserQueryKey,
     queryFn: ({ signal }) => unwrap(apiClient.GET('/api/auth/me', { signal })),
     staleTime: CURRENT_USER_STALE_TIME_MS,

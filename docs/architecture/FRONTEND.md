@@ -112,6 +112,10 @@ loading/error/empty states, filtering, sorting, pagination and watch updates.
 - All non-GET `/api` requests send `X-Console-Request: 1` (CSRF defence, see SECURITY.md).
 - FleetConsole API hooks call `apiClient` through `unwrap()` and throw only `ApiError` (ADR-0015). A 401 anywhere is
   handled once by the QueryClient (ADR-0014) — never per component.
+- `ApiError` is registered as TanStack Query's default error type (`shared/api/queryRegister.ts`), so `error` is typed
+  without generics or casts. That type is a promise: every query/mutation function must throw only `ApiError` (go
+  through `unwrap`/`unwrapNoContent`). A client with another error shape (e.g. the CP2 k8s client) either maps to
+  `ApiError` or widens the registered type in the same change.
 - FleetConsole API query keys start with `'api'` and mirror the URL:
 
   | Key | Endpoint |

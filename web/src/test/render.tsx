@@ -1,5 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { configure, render, type RenderResult } from '@testing-library/react';
+import { render, type RenderResult } from '@testing-library/react';
 import userEvent, { type UserEvent } from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import { createMemoryRouter, type RouteObject } from 'react-router';
@@ -8,11 +8,6 @@ import { RouterProvider } from 'react-router/dom';
 import { AppProviders } from '@/app/providers';
 import { routes } from '@/app/router';
 import { createAppRuntime } from '@/app/session';
-
-// A full-app render first loads the session (`GET /api/auth/me`, ADR-0014) before any page appears; the first render
-// in a worker also pays PatternFly's cold start. Under a loaded machine that exceeded Testing Library's 1 s default
-// for `findBy*`/`waitFor`, making the first test of a file flaky. Applies to every test using these helpers.
-configure({ asyncUtilTimeout: 3000 });
 
 /** Result of the render helpers: RTL queries plus a `user-event` instance, the memory router and the QueryClient. */
 export type RenderWithAppResult = RenderResult & {

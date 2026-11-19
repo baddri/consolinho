@@ -16,7 +16,6 @@ const LOGGED_OUT_PATH = '/login?loggedOut=1';
 export function useLogout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // Failures are always an `ApiError` (`unwrapNoContent`); TanStack types them as its default `Error`.
   return useMutation({
     mutationFn: () => unwrapNoContent(apiClient.POST('/api/auth/logout')),
     onSuccess: async () => {
