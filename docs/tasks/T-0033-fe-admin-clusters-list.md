@@ -22,8 +22,11 @@ The fleet view of all registered clusters (CLU-7) with the lifecycle actions tha
 ## Contract / design notes
 Endpoints: `GET /api/admin/clusters` → `ClusterListItem[]`; `GET /api/admin/clusters/{name}` (for `version`);
 `POST …/{name}/enable|disable` (`VersionRequest` → `ClusterDetail`); `DELETE …/{name}` (204; 409
-`Clusters.NotDisabled`). Keys `adminKeys.clusters()`, `adminKeys.cluster(name)`. Grant/cluster mutations also
-invalidate `['api','clusters']` (switcher).
+`Clusters.NotDisabled`). Keys `adminKeys.clusters()`, `adminKeys.cluster(name)`.
+- **Switcher invalidation (T-0029 review):** enable, disable and delete `onSuccess` also invalidate
+  `accessibleClustersQueryKey` (import from `@/features/cluster-context`, never the literal), so the admin's own switcher/landing/`ClusterGate` catch up without waiting
+  for the 30 s stale time / 5 min interval. Put it in the shared mutation hooks in `clusters/api.ts` so T-0035
+  (detail page Actions) inherits it.
 - Columns (CLU-7): Name (link to detail) + display name (subtle text when different), Environment
   (`EnvironmentLabel`), API URL (truncate, full in tooltip), Status (Enabled / "Disabled" label; disabled rows use
   subtle text), TLS (`TlsModeLabel`: "CA bundle" / "System trust" / warning "TLS not verified" — CLU-3),
@@ -48,7 +51,7 @@ invalidate `['api','clusters']` (switcher).
       not verified"; worst expiry icon and tooltip match the fixture; stale test label shown.
 - [ ] Filters (text, env, status) + URL deep link `?env=production`.
 - [ ] CLU-5: disable dialog text names cluster, environment and user count; success toast; row shows Disabled;
-      switcher query invalidated.
+      switcher query (`accessibleClustersQueryKey`) invalidated — asserted for enable, disable and delete.
 - [ ] CLU-6: delete disabled for enabled clusters (tooltip); for `dev-2` requires typing the name, shows counts,
       DELETE sent with CSRF header; 409 `Clusters.NotDisabled` shown in the dialog.
 - [ ] QG-3: loading, empty, error states. ADM-2: actions aria-disabled for `ines`.

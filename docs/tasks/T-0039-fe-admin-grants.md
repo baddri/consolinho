@@ -24,7 +24,8 @@ Endpoints (§9): `GET /api/admin/users/{username}/grants`, `GET /api/admin/clust
 `clusterName`, `credentialId`); `PUT /api/admin/grants/{grantId}` (`UpdateGrantRequest` with `version`);
 `DELETE /api/admin/grants/{grantId}` (204). Pickers use `GET /api/admin/clusters`, `GET /api/admin/users`,
 `GET /api/admin/clusters/{name}/credentials`. Keys: `adminKeys.userGrants`, `adminKeys.clusterGrants`, plus the list
-keys; grant mutations invalidate `adminKeys.all` and `['api','clusters']`.
+keys; create/change/revoke `onSuccess` invalidate `adminKeys.all` and `accessibleClustersQueryKey` (import from `@/features/cluster-context`, never the literal) —
+an admin granting/revoking their own access (GRANT-6) must see the switcher update immediately (T-0029 review).
 - `GrantsTable({ grants, perspective: 'user' | 'cluster', onChange(grant), onRevoke(grant), readOnlyReason? })`:
   user perspective columns: Cluster (env label + link to cluster), Access mode (`Label` "Read only" / "Read write";
   RW on production in orange), Credential (name + `CredentialExpiryLabel` from `credentialExpiryStatus`/
@@ -58,6 +59,8 @@ keys; grant mutations invalidate `adminKeys.all` and `['api','clusters']`.
       `credentialId`.
 - [ ] GRANT-3: change mode/credential with `version` (conflict handled, ADM-4); revoke text names user, cluster and
       environment; 204 removes the row.
+- [ ] Create, change and revoke invalidate `accessibleClustersQueryKey`: an admin granting themselves a cluster
+      sees it in the switcher without reload (test with the `admin` persona).
 - [ ] QG-3 loading/empty/error per tab; ADM-2 disabled for `ines`. TSDoc. Build, lint, tests green.
 
 ## Work log

@@ -1,7 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router';
 import { adminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
-import { DEFAULT_CLUSTER } from '@/features/cluster-context';
+import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
 import { ResourceDetailsPage, ResourceListPage } from '@/features/resources';
 import { NotFoundPage } from '@/shared/ui';
@@ -23,12 +23,12 @@ export const routes: RouteObject[] = [
         path: '/',
         element: <AppShell />,
         children: [
+          // Last used or first granted cluster; "No clusters assigned yet" without grants (SW-3/4).
+          { index: true, element: <LandingRedirect /> },
           {
-            index: true,
-            element: <Navigate to={`/c/${encodeURIComponent(DEFAULT_CLUSTER)}/overview`} replace />,
-          },
-          {
+            // Only clusters in the user's list render; anything else is "not available" (SW-5).
             path: 'c/:cluster',
+            element: <ClusterGate />,
             children: [
               { index: true, element: <Navigate to="overview" replace /> },
               { path: 'overview', element: <OverviewPage /> },

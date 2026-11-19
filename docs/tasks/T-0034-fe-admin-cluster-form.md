@@ -22,7 +22,9 @@ everything lives in `clusters/form/` (schema, sections, `useRegisterCluster`/`us
 ## Contract / design notes
 Endpoints: `POST /api/admin/clusters` (`RegisterClusterRequest` → 201 `ClusterDetail`; 409 `Clusters.NameTaken`),
 `GET/PUT /api/admin/clusters/{name}` (`UpdateClusterRequest` incl. `version` → 200 `ClusterDetail`; 409
-`Concurrency.Conflict`). Validation rules: contract §8.2 (copy messages).
+`Concurrency.Conflict`). Validation rules: contract §8.2 (copy messages). Successful edit also invalidates
+`accessibleClustersQueryKey` (`@/features/cluster-context`): display name and environment are shown (and ordered)
+in the switcher (T-0029 review).
 - Layout (spec §5): `PageSection` title "Register cluster" / "Edit `<name>`"; `Form` with `FormSection`s:
   - Identity: `name` (create only; read-only text on edit; helper "Lowercase letters, digits and '-' (max 40). Used in
     URLs; cannot be changed later."), `displayName` (≤ 100, placeholder = name), `environment` radio

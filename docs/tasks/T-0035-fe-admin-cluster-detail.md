@@ -23,7 +23,9 @@ Endpoint `GET /api/admin/clusters/{name}` → `ClusterDetail` (404 `Clusters.Not
 - Header: `Title` name + `EnvironmentLabel` + "Disabled" label + "TLS not verified" warning label; display name
   below; breadcrumb Clusters › name. Actions `Dropdown`: Edit, Enable/Disable (dialogs from T-0033 — they take the
   loaded `ClusterDetail` so no extra fetch), Test connection (slot, hidden until T-0038), Delete (T-0033 dialog;
-  aria-disabled while enabled). All with `useAdminAccess` reasons.
+  aria-disabled while enabled). All with `useAdminAccess` reasons. Reuse the T-0033 mutation hooks unchanged: they
+  invalidate `accessibleClustersQueryKey` (`@/features/cluster-context`) on success (T-0029 review) — do not
+  bypass them with a local `useMutation`, and keep that invalidation alongside the `setQueryData` header update.
 - Tabs, URL-driven: Details (`/admin/clusters/:name`), Credentials (`…/credentials`, placeholder until T-0036),
   Access (`…/access`, placeholder until T-0039).
 - Details tab (`DescriptionList`): display name, environment, API URL (`ClipboardCopy isReadOnly variant="inline-
@@ -41,7 +43,8 @@ Endpoint `GET /api/admin/clusters/{name}` → `ClusterDetail` (404 `Clusters.Not
 - [ ] CLU-2: certificates rendered with expiry labels from fixtures (ok / expiringSoon / expired); empty and skip-TLS
       variants.
 - [ ] Web console link opens externally with `rel="noopener noreferrer"`; audit link carries `?cluster=`.
-- [ ] Enable/disable from the detail page updates header labels without reload (setQueryData).
+- [ ] Enable/disable from the detail page updates header labels without reload (setQueryData) and invalidates
+      `accessibleClustersQueryKey` (switcher).
 - [ ] 404/error/loading states (QG-3). TSDoc. Build, lint, tests green.
 
 ## Work log

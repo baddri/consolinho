@@ -47,7 +47,7 @@ describe('session handling (ADR-0014)', () => {
   });
 
   it('shows a spinner while the session loads', async () => {
-    renderApp('/c/prod-eu-1/overview');
+    renderApp('/c/dev-1/overview');
 
     expect(screen.getByRole('progressbar', { name: 'Loading session' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
@@ -59,10 +59,10 @@ describe('session handling (ADR-0014)', () => {
         HttpResponse.json({ title: 'Oops', detail: 'Database down.' }, { status: 503 }),
       ),
     );
-    const { user, router } = renderApp('/c/prod-eu-1/overview');
+    const { user, router } = renderApp('/c/dev-1/overview');
 
     expect(await screen.findByText('Database down.')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/prod-eu-1/overview');
+    expect(router.state.location.pathname).toBe('/c/dev-1/overview');
 
     server.resetHandlers();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
@@ -70,7 +70,7 @@ describe('session handling (ADR-0014)', () => {
   });
 
   it('ends the session on a later 401 from any query: session-ended message, cache cleared (AUTH-11)', async () => {
-    const { router, queryClient } = renderApp('/c/prod-eu-1/ns/default/pods?x=1#top');
+    const { router, queryClient } = renderApp('/c/dev-1/ns/default/pods?x=1#top');
     await screen.findByRole('heading', { name: /Resource list/ });
     expect(queryClient.getQueryData(ME_KEY)).toBeDefined();
 
@@ -86,10 +86,10 @@ describe('session handling (ADR-0014)', () => {
     expect(router.state.location.pathname).toBe('/login');
     const params = new URLSearchParams(router.state.location.search);
     expect(params.get('reason')).toBe('session_ended');
-    expect(params.get('returnUrl')).toBe('/c/prod-eu-1/ns/default/pods?x=1#top');
+    expect(params.get('returnUrl')).toBe('/c/dev-1/ns/default/pods?x=1#top');
     expect(screen.getByRole('link', { name: 'Log in with OpenShift' })).toHaveAttribute(
       'href',
-      '/api/auth/login?returnUrl=%2Fc%2Fprod-eu-1%2Fns%2Fdefault%2Fpods%3Fx%3D1%23top',
+      '/api/auth/login?returnUrl=%2Fc%2Fdev-1%2Fns%2Fdefault%2Fpods%3Fx%3D1%23top',
     );
 
     // Nothing of the ended session survives: only the anonymous system/info query the login footer observes is

@@ -9,12 +9,13 @@ async function routeParams(): Promise<Record<string, string>> {
 }
 
 describe('routes', () => {
-  it('redirects / to the first cluster overview', async () => {
+  // Landing details (last cluster, no clusters) are covered in features/cluster-context.
+  it("redirects / to the overview of the user's first granted cluster", async () => {
     const { router } = renderApp('/');
 
     expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/prod-eu-1/overview');
-    expect(await routeParams()).toEqual({ cluster: 'prod-eu-1' });
+    expect(router.state.location.pathname).toBe('/c/dev-1/overview');
+    expect(await routeParams()).toEqual({ cluster: 'dev-1' });
   });
 
   it('renders a namespaced resource list with its params', async () => {
@@ -87,12 +88,9 @@ describe('routes', () => {
     '/admin/users/alice/unknown-tab',
     '/admin/clusters/dev-1/credentials/extra',
     '/c/dev-1/ns/default/pods/web-1/extra/deep',
-  ])(
-    'renders 404 for %s',
-    async (path) => {
-      renderApp(path);
+  ])('renders 404 for %s', async (path) => {
+    renderApp(path);
 
-      expect(await screen.findByRole('heading', { name: '404: Page not found' })).toBeInTheDocument();
-    },
-  );
+    expect(await screen.findByRole('heading', { name: '404: Page not found' })).toBeInTheDocument();
+  });
 });

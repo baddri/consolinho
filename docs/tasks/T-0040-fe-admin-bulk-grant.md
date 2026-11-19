@@ -40,7 +40,9 @@ credentialId }] }`, 1–100 items) → 200 `Grant[]`; 400 field errors keyed `it
      be able to change production clusters: prod-eu-1, prod-us-1."
 - Submit: map selected rows in display order to `items`; server item errors via `applyServerErrors` onto
   `items.<i>.*` so the failing rows show inline errors and the wizard jumps to Review; nothing is created on error
-  (server all-or-nothing). Success: toast "Granted alice ReadOnly on 12 clusters", close, invalidate.
+  (server all-or-nothing). Success: toast "Granted alice ReadOnly on 12 clusters", close, invalidate
+  `adminKeys.all` and `accessibleClustersQueryKey` (import from `@/features/cluster-context`, never the literal) (T-0029 review; covers an admin bulk-granting
+  themselves).
 - Entry points: user detail header button "Grant access to clusters" and Cluster access tab empty state;
   `useUserActions` item (T-0031 placeholder) now visible; `CreateUserModal` "Create and grant access" → after create
   navigates to `/admin/users/<u>/access` with router state `{ openBulkGrant: true }` which opens the wizard once.
@@ -49,7 +51,8 @@ credentialId }] }`, 1–100 items) → 200 `Grant[]`; 400 field errors keyed `it
 ## Acceptance criteria
 - [ ] GRANT-4: select 3 clusters (one already granted shown disabled), choose mode, review pre-fills credentials by
       single-credential and preferred-name rules; submit blocked until every row has a credential; POST body lists
-      items in order with CSRF header; success toast and grants appear on the tab.
+      items in order with CSRF header; success toast and grants appear on the tab; `accessibleClustersQueryKey`
+      invalidated.
 - [ ] Production rows highlighted; RW + production warning lists the clusters.
 - [ ] MSW 400 with `items[1].credentialId` marks row 2 inline and keeps all selections; no grants created.
 - [ ] `pickCredential` unit tests. USR-2: "Create and grant access" opens the wizard for the new user.

@@ -7,7 +7,7 @@ import { server } from '@/test/server';
 describe('UserMenu (AUTH-9)', () => {
   it('shows display name with Admin and Read only badges for a read-only admin', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/c/prod-eu-1/overview');
+    const { user } = renderApp('/c/prod-us-1/overview');
 
     const toggle = await screen.findByRole('button', { name: 'Ines Auditor Admin Read only' });
     expect(within(toggle).getByText('Admin')).toBeInTheDocument();
@@ -31,7 +31,8 @@ describe('UserMenu (AUTH-9)', () => {
 
   it('falls back to the username without a display name', async () => {
     setMockUser('bob');
-    const { user } = renderApp('/c/prod-eu-1/overview');
+    // bob has no clusters: `/` shows the no-clusters page inside the shell.
+    const { user } = renderApp('/');
 
     await user.click(await screen.findByRole('button', { name: 'bob' }));
     expect(await screen.findByText('No groups')).toBeInTheDocument();
@@ -79,13 +80,15 @@ describe('logout (AUTH-10)', () => {
         HttpResponse.json({ title: 'Error', detail: 'Try later.' }, { status: 500 }),
       ),
     );
-    const { user, router } = renderApp('/c/prod-eu-1/overview');
+    const { user, router } = renderApp('/c/dev-1/overview');
 
+    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Fleet Admin Admin' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Log out' }));
 
     expect(await screen.findByText('Could not log out')).toBeInTheDocument();
     expect(screen.getByText('Try later.')).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/prod-eu-1/overview');
+    expect(router.state.location.pathname).toBe('/c/dev-1/overview');
+    expect(screen.getByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
   });
 });
