@@ -1,7 +1,7 @@
 ---
 id: T-0092
 title: Security headers (CSP, nosniff, Referrer-Policy, frame protection, COOP) on every Api response
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3
 depends_on: [T-0098]
@@ -38,13 +38,33 @@ Monaco works under the CSP is **T-0104** (frontend).
   `Integration/CsrfHeaderTests.cs` (a 403 problem response); `Integration/ExceptionPipelineTests.cs` (500 response).
 
 ## Acceptance criteria
-- [ ] All five headers, CSP byte-for-byte equal to the contract, on: `index.html` (direct + fallback), a hashed
+- [x] All five headers, CSP byte-for-byte equal to the contract, on: `index.html` (direct + fallback), a hashed
       asset, an `/api` JSON response, a 403 CSRF problem, a 500 problem, `/alive`, and a proxied Kubernetes response
       whose upstream sent its own `Content-Security-Policy` (ours wins).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-21 backend-engineer: started; then implemented `SecurityHeadersMiddleware` (+ `UseSecurityHeaders()`),
+  registered right after `UseExceptionHandler()` (before CSRF check and `UseSpaStaticFiles()`); headers set in
+  `Response.OnStarting` by indexer assignment. `Integration/Http/SecurityHeadersTests.cs` (10 tests) covers every AC
+  surface; the proxy case has the fake apiserver send weaker CSP/XFO/Referrer/COOP. `scripts/check-be.sh` green (744 Api tests).
 
 ## Review
+- 2026-11-21 backend-architect: **APPROVE** (round 1). CSP const byte-equal to ADR-0029 §1 and pinned by the test
+  against an independent copy; registered directly after `UseExceptionHandler()` (before status pages, CSRF, static
+  files, fallback); `OnStarting` + indexer overwrite covers short-circuits, the cleared 500, and YARP-copied upstream
+  headers (test asserts single values). Streamed/watch bodies are covered by construction (callback fires before the
+  first byte; nothing buffers). `scripts/check-be.sh` green in the worktree (325/684/744).
+  Optional nits (no change required):
+  - tests/FleetConsole.Api.Tests/Integration/Http/SecurityHeadersTests.cs:84 — the fake upstream could also send
+    `X-Content-Type-Options` so all five overwrites are exercised; a watch (`?watch=true`, chunked) variant would pin
+    the streaming case explicitly.
 
 ## Handover notes
+- Header values are `public const string`s on the (internal) `SecurityHeadersMiddleware`; the test pins the CSP against
+  its own copy of the ADR-0029 string, so a code change without an ADR change fails the build gate.
+- Ordering: first after `UseExceptionHandler()`, so short-circuits (static files, SPA fallback, 403 CSRF, status-code
+  pages) and the handler's 500 all carry the headers (500 works because `Response.Clear()` keeps OnStarting callbacks).
+- Tests assert exactly one value per header (no upstream duplicate). 500 test derives from `ProductionHost.Factory`
+  with a throwing `IAppEnvironment`. Proxy test runs on the shared Development host (headers apply in all envs).
+- Program.cs change is one 4-line insertion after `app.UseExceptionHandler();` — trivial merge with T-0099.

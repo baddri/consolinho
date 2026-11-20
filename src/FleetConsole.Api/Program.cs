@@ -57,6 +57,10 @@ var app = builder.Build();
 // First in the pipeline so exceptions from everything after it become ProblemDetails (GlobalExceptionHandler).
 app.UseExceptionHandler();
 
+// ADR-0029 security headers (CSP, nosniff, …) on every response, set when the response starts so error, static-file
+// and proxied Kubernetes responses all carry them.
+app.UseSecurityHeaders();
+
 // Bodiless error responses (e.g. 404 for an unknown /api route, 405) get a ProblemDetails body through the
 // ProblemDetails service registered by AddApiProblemDetails, so clients only ever parse one error format.
 app.UseStatusCodePages();
