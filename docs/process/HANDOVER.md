@@ -13,7 +13,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 
 ## Next actions (resume here)
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
-2. SPEC (in progress): ocp-product-owner writes `docs/specs/CP2-proxy-and-resource-browser.md`. T-0053 being built in parallel (web/ only). Must include (from CP1 ACCEPT): token-leak sweep + authorization
+2. SPEC (in progress): ocp-product-owner writes `docs/specs/CP2-proxy-and-resource-browser.md`. T-0053 done (c3c7102); T-0055 rebrand being built (web/ + few BE strings).
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
    T-0054 (Playwright smoke H1–H4, self-seeding).
