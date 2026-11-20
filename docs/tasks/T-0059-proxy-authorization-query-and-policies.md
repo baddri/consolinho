@@ -1,7 +1,7 @@
 ---
 id: T-0059
 title: Proxy authorization query, policy chain (mutation guard, body limit), proxy errors and options
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 2
 depends_on: [T-0056]
@@ -66,15 +66,35 @@ Handler rules:
 - Test fakes: `tests/FleetConsole.Application.Tests/FakeCurrentUser.cs`, `Clusters/ClusterFakes.cs` (in-memory read model pattern).
 
 ## Acceptance criteria
-- [ ] PRX-2: handler tests — unknown cluster, disabled cluster, no grant, deactivated user, missing credential, malformed name all → `Proxy.NotAvailable` with identical message for the valid-name cases; valid → `ProxyTarget` with decrypted token and the cluster's `ClusterConnection`.
-- [ ] MUT-2/3: policy table — {GET, PUT, DELETE, SSAR POST, exec} × {ReadOnly, ReadWrite} × {user read-only, not}; user read-only wins over ReadOnly grant; session read-only alone also denies.
-- [ ] MUT-5: `RequestBodyLimitPolicy` — over limit → `Proxy.BodyTooLarge`; at limit / unknown length / non-mutation → success.
-- [ ] Policies run in registration order (test with two recording fake policies through the handler).
-- [ ] BulkGrant nit done; its tests still green.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] PRX-2: handler tests — unknown cluster, disabled cluster, no grant, deactivated user, missing credential, malformed name all → `Proxy.NotAvailable` with identical message for the valid-name cases; valid → `ProxyTarget` with decrypted token and the cluster's `ClusterConnection`.
+- [x] MUT-2/3: policy table — {GET, PUT, DELETE, SSAR POST, exec} × {ReadOnly, ReadWrite} × {user read-only, not}; user read-only wins over ReadOnly grant; session read-only alone also denies.
+- [x] MUT-5: `RequestBodyLimitPolicy` — over limit → `Proxy.BodyTooLarge`; at limit / unknown length / non-mutation → success.
+- [x] Policies run in registration order (test with two recording fake policies through the handler).
+- [x] BulkGrant nit done; its tests still green.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 backend-engineer: implemented query/handler (one join over grants/users/clusters/credentials), `IProxyPolicy` chain
+  + `AddProxyPolicy`, MutationGuard/RequestBodyLimit policies, `ProxyErrors`, `ProxyOptions`; BulkGrant nit. Messages drop
+  the spec's markdown backticks around names (matches FE "Cluster x is not available"). Added `ProxyErrors.NotAvailableUnnamed`
+  (+ `NotAvailableCode`) for malformed names; token is decrypted only after all policies pass. Tests: 661 Application green.
 
 ## Review
+2026-11-20 backend-architect: **APPROVE** (round 0). check-be.sh green (323/661/628).
+Verified: single inner-join query (no N+1, same shape as ListAccessibleClusters/GetCluster incl. `c.Name == clusterName`);
+all PRX-2 paths collapse to one `Proxy.NotAvailable` body, malformed names not echoed; stricter read-only rule; MutationGuard
+table matches ADR-0019 §5-7 (user before grant, exec/connect = mutation, SSAR not; classification stays in `ProxyRequest`);
+body limit passes unknown length (Api caps streams, noted for T-0061); token decrypted only after policies, `SensitiveString`.
+EF translation: deferring to T-0061 accepted — its PRX-1 happy path runs the query on Postgres; architect added a PRX-2 HTTP AC there.
+Optional:
+- AuthorizeProxyRequestHandlerTests.cs:268 — third private `IReadModel` fake (cf. `Auth/AuthFakes.cs:InMemoryReadModel`) — consider one shared list-backed fake in a later test-cleanup task.
+- ProxyErrors.cs — messages drop the contract's markdown backticks (intentional, matches FE); PO may want `CP2-api-contract.md` §4 reworded to avoid ambiguity.
 
 ## Handover notes
+- Api (T-0061): bind `ProxyOptions` from `ProxyOptions.SectionName` + validate (WatchTimeoutCap whole s ≥ 1, body > 0);
+  map codes → status in `ProxyProblems` (NotAvailable 404, PathNotAllowed 400, UserReadOnly/ReadOnlyGrant/OriginNotAllowed
+  403, BodyTooLarge 413, CredentialRejected/UpstreamUnavailable/UpstreamTls 502, UpstreamTimeout 504).
+- `RequestBodyLimitPolicy` only sees `Content-Length`; chunked bodies must be capped by the Api while streaming.
+- The handler's EF translation (complex `Endpoint` projection, converted `Username`/`Token`) is only unit-tested with
+  LINQ to Objects here — T-0061's Testcontainers tests must cover a real proxied request (projection mirrors GetClusterHandler).
+- `ProxyErrors.OriginNotAllowed` message was not in the contract; chose "WebSocket connections must come from the console itself."

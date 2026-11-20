@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Abstractions.Persistence;
@@ -98,10 +99,15 @@ internal sealed class BulkGrantHandler(
             {
                 errors.AddMessage(credentialField, grant.Error.Message);
             }
+            else if (grant.Error.Code == GrantErrors.AlreadyExists(user.Username.Value, cluster.Name.Value).Code)
+            {
+                // The bulk message is shorter than the 409's (contract §9.4).
+                errors.AddMessage(clusterField, $"{user.Username.Value} already has access to {cluster.Name.Value}.");
+            }
             else
             {
-                // AlreadyExists: the bulk message is shorter than the 409's (contract §9.4).
-                errors.AddMessage(clusterField, $"{user.Username.Value} already has access to {cluster.Name.Value}.");
+                // Grant.Create documents only the two errors above; a new one must be mapped here deliberately.
+                throw new UnreachableException($"Grant.Create returned an unexpected error '{grant.Error.Code}'.");
             }
         }
 
