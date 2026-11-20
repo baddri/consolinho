@@ -3,8 +3,11 @@ import { useId, type ReactNode } from 'react';
 import type { ClusterDetail } from '@/shared/api';
 import { EnvironmentLabel } from '@/shared/ui';
 
-/** The cluster a credential dialog acts on: its name for titles and the environment label (prod safety signal). */
-export type CredentialCluster = Pick<ClusterDetail, 'name' | 'environment'>;
+/**
+ * The cluster a credential dialog acts on: its name for titles, the environment label (prod safety signal) and
+ * `isEnabled`, so the connection test opened from a credential row can note that the cluster is disabled.
+ */
+export type CredentialCluster = Pick<ClusterDetail, 'name' | 'environment' | 'isEnabled'>;
 
 /** Props for {@link CredentialModalFrame}. */
 export interface CredentialModalFrameProps {

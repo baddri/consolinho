@@ -11,11 +11,11 @@ import {
 } from '@patternfly/react-core';
 import { useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { errorMessage, isAbortError, type ClusterDetail, type ConnectionTestResult, type Credential } from '@/shared/api';
+import { errorMessage, isAbortError, type ConnectionTestResult, type Credential } from '@/shared/api';
 import { FormProblemAlert, SelectField, TextField, useFormProblem } from '@/shared/forms';
 import { useToast } from '@/shared/ui';
 import { useClusterCredentials } from '../credentials/api';
-import { CredentialModalFrame } from '../credentials/CredentialModalFrame';
+import { CredentialModalFrame, type CredentialCluster } from '../credentials/CredentialModalFrame';
 import { useTestCredential } from './api';
 import { ConnectionTestResultView } from './ConnectionTestResultView';
 import {
@@ -30,10 +30,10 @@ import { useTestCancellation } from './useTestCancellation';
 export const NO_CREDENTIALS_REASON = 'Add a credential first';
 
 /**
- * The cluster a test runs on: name and environment for the dialog header; `isEnabled` (when the caller knows it)
- * adds the note that tests also run on disabled clusters.
+ * The cluster a test runs on: name and environment for the dialog header; `isEnabled` adds the note that tests also
+ * run on disabled clusters. Required, so every entry point (cluster actions, credential rows) shows the note (T-0052).
  */
-export type TestConnectionCluster = Pick<ClusterDetail, 'name' | 'environment'> & { isEnabled?: boolean };
+export type TestConnectionCluster = CredentialCluster;
 
 /** Props for {@link TestConnectionModal}. */
 export interface TestConnectionModalProps {
@@ -144,7 +144,7 @@ function TestConnectionForm({
     <>
       <ModalBody>
         <Form id={formId} noValidate onSubmit={(event) => void submit(event)}>
-          {cluster.isEnabled === false && (
+          {!cluster.isEnabled && (
             <Alert
               variant="info"
               isInline

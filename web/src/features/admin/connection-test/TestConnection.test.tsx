@@ -117,7 +117,7 @@ describe('Connection test (T-0038)', () => {
     },
   );
 
-  it('TEST-1/5: disabled dev-2 — credential kebab "Test" pre-selects it and the Last test cell updates', async () => {
+  it('TEST-1/5: disabled dev-2 — credential kebab "Test" pre-selects it, notes the disabled cluster (T-0052) and the Last test cell updates', async () => {
     const { user } = renderApp('/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     expect(within(credentialRow(table, 'fleet-view')).getByText('Never tested')).toBeInTheDocument();
@@ -125,6 +125,7 @@ describe('Connection test (T-0038)', () => {
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
     expect(await within(dialog).findByRole('combobox', { name: /Credential/ })).toHaveValue(credentialIds.dev2View);
+    expect(within(dialog).getByText(/dev-2 is disabled\. Connection tests still run/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
     expect(await within(dialog).findByText(/^Connection test passed in/)).toBeInTheDocument();
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) ?? dialog);
