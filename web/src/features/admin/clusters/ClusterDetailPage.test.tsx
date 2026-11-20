@@ -179,7 +179,7 @@ describe('ClusterDetailPage (T-0035)', () => {
     await findDetails();
 
     const items = await openActions(user);
-    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Disable', 'Delete']);
+    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Disable', 'Delete']);
     const remove = screen.getByRole('menuitem', { name: 'Delete' });
     expect(remove).toHaveAttribute('aria-disabled', 'true');
     await user.hover(remove);
@@ -196,7 +196,7 @@ describe('ClusterDetailPage (T-0035)', () => {
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
     const items = await openActions(user);
-    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Enable', 'Delete']);
+    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Enable', 'Delete']);
     expect(screen.getByRole('menuitem', { name: 'Delete' })).not.toHaveAttribute('aria-disabled', 'true');
     await user.click(screen.getByRole('menuitem', { name: 'Enable' }));
     const dialog = await screen.findByRole('dialog', { name: /Enable dev-2/ });
@@ -229,7 +229,7 @@ describe('ClusterDetailPage (T-0035)', () => {
     await findDetails();
 
     const items = await openActions(user);
-    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Enable', 'Delete']);
+    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Enable', 'Delete']);
     for (const item of items) expect(item).toHaveAttribute('aria-disabled', 'true');
   });
 

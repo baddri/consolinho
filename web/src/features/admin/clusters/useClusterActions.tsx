@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { disabledActionProps, type DisabledActionProps } from '@/shared/ui';
+import { NO_CREDENTIALS_REASON, TestConnectionModal } from '../connection-test/TestConnectionModal';
 import { useAdminAccess } from '../useAdminAccess';
 import { clusterEditPath, type ClusterTarget } from './clusterTarget';
 import { DeleteClusterModal } from './DeleteClusterModal';
@@ -10,8 +11,8 @@ import { EnableClusterModal } from './EnableClusterModal';
 /** CLU-6: why an enabled cluster can't be deleted (same intent as the Api's `Clusters.NotDisabled`). */
 export const DELETE_ENABLED_REASON = 'Disable the cluster before deleting it.';
 
-/** The confirmation a cluster action opens. */
-export type ClusterActionKind = 'enable' | 'disable' | 'delete';
+/** The dialog a cluster action opens: a lifecycle confirmation or the connection test (T-0038). */
+export type ClusterActionKind = 'test' | 'enable' | 'disable' | 'delete';
 
 /**
  * One cluster action. Assignable to PatternFly's `IAction` as is (row `ActionsColumn`); the detail page's Actions
@@ -41,11 +42,11 @@ export interface ClusterActionsOptions {
 }
 
 /**
- * Builds the lifecycle actions of one cluster (CLU-5/6, ADM-2) and owns the dialog they open, so the list kebab and
- * the detail page offer the same items with the same reasons: Edit, Enable or Disable by state, Delete
- * (aria-disabled while enabled). A read-only admin gets every item aria-disabled with the read-only reason; a
- * disabled item's click is a no-op. See {@link ClusterActionsOptions} for the delete / 404 callbacks.
- * "Test connection" is added by T-0038.
+ * Builds the actions of one cluster (CLU-5/6, TEST-1, ADM-2) and owns the dialog they open, so the list kebab and
+ * the detail page offer the same items with the same reasons: Edit, Test connection (aria-disabled without
+ * credentials; also on disabled clusters), Enable or Disable by state, Delete (aria-disabled while enabled). A
+ * read-only admin gets every item aria-disabled with the read-only reason; a disabled item's click is a no-op. See
+ * {@link ClusterActionsOptions} for the delete / 404 callbacks.
  */
 export function useClusterActions(
   cluster: ClusterTarget,
@@ -76,6 +77,12 @@ export function useClusterActions(
 
   const items: ClusterActionItem[] = [
     item('edit', 'Edit', () => void navigate(clusterEditPath(cluster.name))),
+    item(
+      'test',
+      'Test connection',
+      () => setOpen('test'),
+      cluster.credentialCount === 0 ? NO_CREDENTIALS_REASON : undefined,
+    ),
     cluster.isEnabled
       ? item('disable', 'Disable', () => setOpen('disable'))
       : item('enable', 'Enable', () => setOpen('enable')),
@@ -90,6 +97,7 @@ export function useClusterActions(
 
   const close = () => setOpen(null);
   let dialog: ReactNode = null;
+  if (open === 'test') dialog = <TestConnectionModal cluster={cluster} onClose={close} />;
   if (open === 'disable') dialog = <DisableClusterModal cluster={cluster} onClose={close} onGone={onGone} />;
   if (open === 'enable') dialog = <EnableClusterModal cluster={cluster} onClose={close} onGone={onGone} />;
   if (open === 'delete')

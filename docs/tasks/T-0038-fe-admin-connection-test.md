@@ -1,12 +1,12 @@
 ---
 id: T-0038
 title: Connection test UI — run a test, result view with capability summary, "Test new token" while rotating
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 1
 depends_on: [T-0036]
 paths: [web/src/features/admin/connection-test/, web/src/features/admin/credentials/RotateCredentialModal.tsx, web/src/features/admin/credentials/ClusterCredentialsTab.tsx, web/src/features/admin/clusters/ClusterDetailPage.tsx, web/src/features/admin/clusters/ClustersListPage.tsx]
-review_rounds: 0
+review_rounds: 2
 ---
 
 ## Goal
@@ -49,19 +49,58 @@ stored test invalidates `adminKeys.all`.
 - After a stored test: toast "Connection test passed/failed for fleet-view on prod-eu-1"; lists refresh (TEST-5).
 
 ## Acceptance criteria
-- [ ] TEST-1: test runs from cluster Actions (credential picker), list kebab and credential kebab; works for a
+- [x] TEST-1: test runs from cluster Actions (credential picker), list kebab and credential kebab; works for a
       disabled cluster; zero-credential cluster disables the action with the reason.
-- [ ] TEST-2/3: fixture results render all steps in order with the right icons and verbatim messages; the
+- [x] TEST-2/3: fixture results render all steps in order with the right icons and verbatim messages; the
       TLS-unknown-authority failure shows its message; capability grid groups read/write; an extra unknown check id
       in the response renders without code change.
-- [ ] TEST-3 inspect: namespace rules table + incomplete warning; invalid namespace → inline field error.
-- [ ] TEST-4: hints rendered with severity. TEST-5: after a test the credential's Last test cell updates.
-- [ ] CRED-5: "Test new token" posts `test-token` with `credentialId`; failed result turns Save into "Save anyway";
+- [x] TEST-3 inspect: namespace rules table + incomplete warning; invalid namespace → inline field error.
+- [x] TEST-4: hints rendered with severity. TEST-5: after a test the credential's Last test cell updates.
+- [x] CRED-5: "Test new token" posts `test-token` with `credentialId`; failed result turns Save into "Save anyway";
       editing the token resets it.
-- [ ] ADM-2: test actions aria-disabled for `ines`. TSDoc. Build, lint, tests green.
+- [x] ADM-2: test actions aria-disabled for `ines`. TSDoc. Build, lint, tests green.
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; connection-test/ module, wiring into cluster/credential actions and rotate modal.
+- 2026-11-20 frontend-engineer: done. connection-test/ (api, modal, result view, grid, rules, steps, token test hook);
+  wired into cluster actions, credential kebab and rotate modal; T-0037 nit folded in. check-fe green (503 tests).
+- 2026-11-20 frontend-engineer: review round 1 fixed — `TestProgress` inside always-mounted live regions + "Test
+  cancelled."; `isAbortError` exported from shared/api; error state on `data === undefined`; hint keys; cancel tests
+  assert `request.signal.aborted` (both dialogs). check-fe green (505 tests).
 
 ## Review
+Round 1 (frontend-architect, 2026-11-20): **CHANGES_REQUESTED**. Targeted vitest (8 files / 85), typecheck, eslint green.
+Security verified: token only in `test-token` body via `useTokenSubmit` (`gcTime: 0` + `reset()`), never in keys/URLs/
+toasts; dropped on edit/close; `signal` reaches `apiClient`, mutations `retry: false`; abort swallowed, no echo.
+Required:
+- `web/src/features/admin/connection-test/TestConnectionModal.tsx:175-176` — `aria-live="polite"` sits on the
+  conditionally mounted progress `Flex`, so screen readers usually don't announce "Testing…" (a live region must exist
+  before its content changes) — keep an always-rendered `aria-live` wrapper around the progress (as `RotateCredentialModal.tsx:163` does).
+Nits (optional):
+- `TestConnectionModal.tsx:194` / `RotateCredentialModal.tsx:172` — nothing announces a cancel; a short "Test cancelled." in the live region would close the loop.
+- `connection-test/api.ts:73` — `isTestCancelled` duplicates `isAbortError` in `shared/api/errors.ts:87`; export and reuse that.
+- `TestConnection.test.tsx:195` — cancel test asserts no retry but not the abort itself; assert `request.signal.aborted` in the handler. Rotate "Cancel test" has no test.
+- `TestConnectionModal.tsx:76-87` — a failed background refetch of credentials (after `adminKeys.all` invalidation) flips the body to the error state and drops the shown result; branch on `data === undefined` instead of `isError`.
+- `ConnectionTestResultView.tsx:73` — hint key by `message` may collide; use `${severity}:${message}` or index.
+- Follow-up task (accepted deviation): pass `isEnabled` through `CredentialCluster` so the disabled-cluster note also shows from the credentials tab. Other deviations (credentials loaded in the modal, "Rotate"→"Save anyway", 409 as plain alert, T-0037 nit) accepted.
+
+Round 2 (frontend-architect, 2026-11-20): **APPROVE**. Targeted vitest (9 files / 78), typecheck, eslint green.
+Required fix done: `TestProgress` renders inside always-mounted `aria-live="polite"` wrappers (`TestConnectionModal.tsx:174`,
+`RotateCredentialModal.tsx:160`). All nits addressed: "Test cancelled." announced; error state gated on `data === undefined`;
+shared `isAbortError` reused; hint keys severity+message; tests assert `signal.aborted`, live region, rotate cancel (token kept, not cached, no retry).
+Open follow-up only: `isEnabled` on `CredentialCluster` for the disabled-cluster note from the credentials tab.
 
 ## Handover notes
+- `TestProgress` is not a live region itself; callers wrap it in an always-mounted `aria-live="polite"` element.
+- `connection-test/`: `useTestCredential` (plain mutation, invalidates `adminKeys.all` on settle) and `useTestToken`
+  (built on the now-exported `useTokenSubmit`: `gcTime: 0` + `reset()`); `useTestCancellation` owns the AbortController
+  ("Cancel test", re-run and unmount abort; nothing retries). `useTokenTest` keeps only the result, never the token.
+- Deviation: `TestConnectionModal({ cluster, initialCredentialId?, onClose })` loads credentials itself via the shared
+  `useClusterCredentials` query instead of taking a `credentials` prop (cluster actions don't have them loaded).
+- Rotate primary stays "Rotate" (T-0036 wording) and becomes danger "Save anyway" (spec CRED-5) after a failed test;
+  token edits (`form.subscribe`, `type === 'change'`) clear the result and abort a running test.
+- Disabled-cluster note shows only from cluster actions (`CredentialCluster` has no `isEnabled`; the credentials tab
+  passes that type). A 409 from a stored test is shown as a plain problem alert (no "Reload"); lists refetch anyway.
+- `credentials/api.ts`: `invalidateAfterError` (exported) now also invalidates `adminKeys.credentials()` on 404/409.
+- Existing order assertions in `clusters/ClusterActions.test.tsx` / `ClusterDetailPage.test.tsx` now include
+  "Test connection". No mock changes were needed.

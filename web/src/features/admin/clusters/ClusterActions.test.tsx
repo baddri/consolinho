@@ -60,7 +60,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
       const table = await findClustersTable(COLD_START_TIMEOUT_MS);
 
       const items = await openKebab(user, table, 'prod-eu-1');
-      expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Disable', 'Delete']);
+      expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Disable', 'Delete']);
       await user.click(screen.getByRole('menuitem', { name: 'Disable' }));
 
       const dialog = await screen.findByRole('dialog', { name: /Disable prod-eu-1/ });
@@ -192,7 +192,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
     const table = await findClustersTable();
 
     const items = await openKebab(user, table, 'dev-2');
-    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Enable', 'Delete']);
+    expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Enable', 'Delete']);
     for (const item of items) expect(item).toHaveAttribute('aria-disabled', 'true');
     await user.click(screen.getByRole('menuitem', { name: 'Enable' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

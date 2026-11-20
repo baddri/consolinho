@@ -43,12 +43,14 @@ export function useFleetCredentials() {
 
 /**
  * Refreshes what a failed credential command proved stale: 404/409 (deleted, renamed, rotated or newly in use
- * meanwhile) refetches the cluster's credentials; a 403 `Auth.ReadOnly` / `Auth.Forbidden` means our `me` is outdated.
+ * meanwhile) refetches the cluster's credentials and the fleet list (so its expiry alert drops a deleted one); a 403
+ * `Auth.ReadOnly` / `Auth.Forbidden` means our `me` is outdated. Also used by the connection-test commands (T-0038).
  */
-function invalidateAfterError(queryClient: QueryClient, clusterName: string, error: unknown): void {
+export function invalidateAfterError(queryClient: QueryClient, clusterName: string, error: unknown): void {
   if (!isApiError(error)) return;
   if (error.status === 404 || error.status === 409) {
     void queryClient.invalidateQueries({ queryKey: adminKeys.clusterCredentials(clusterName) });
+    void queryClient.invalidateQueries({ queryKey: adminKeys.credentials() });
   }
   if (error.status === 403 && (error.code === 'Auth.ReadOnly' || error.code === 'Auth.Forbidden')) {
     void queryClient.invalidateQueries({ queryKey: currentUserQueryKey });
@@ -74,9 +76,9 @@ function updateAfterSuccess(
  * Submit function of a mutation whose variables carry a token (CRED-2). TanStack Query keeps a mutation's variables
  * in its observer state and `MutationCache` until garbage collection; with `gcTime: 0` and `reset()` once the request
  * settles, the token is dropped from both right away. Errors still reject, so `useFormProblem` maps them; nothing
- * reads the mutation's `error`/`variables` afterwards.
+ * reads the mutation's `error`/`variables` afterwards. Also used by "Test new token" (T-0038).
  */
-function useTokenSubmit<TVariables, TData>(
+export function useTokenSubmit<TVariables, TData>(
   mutationFn: (variables: TVariables) => Promise<TData>,
   callbacks: { onSuccess: (data: TData, variables: TVariables) => void; onError: (error: unknown) => void },
 ): (variables: TVariables) => Promise<TData> {

@@ -10,14 +10,25 @@ import {
   ModalBody,
   ModalFooter,
 } from '@patternfly/react-core';
-import { useId } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { Credential } from '@/shared/api';
-import { ConflictAlert, FormProblemAlert, TextField, useFormProblem } from '@/shared/forms';
+import {
+  applyServerErrors,
+  ConflictAlert,
+  FormProblemAlert,
+  TextField,
+  useFormProblem,
+  type FormProblem,
+} from '@/shared/forms';
+import { TestProgress } from '../connection-test/TestProgress';
+import { TokenTestResult } from '../connection-test/TokenTestResult';
+import { useTokenTest } from '../connection-test/useTokenTest';
 import { isCredentialGone, useClusterCredentials, useRotateCredentialToken } from './api';
 import {
   rotateCredentialSchema,
   TOKEN_HELPER_TEXT,
+  tokenSchema,
   type RotateCredentialFormInput,
   type RotateCredentialFormValues,
 } from './credentialForm.schema';
@@ -35,10 +46,12 @@ export interface RotateCredentialModalProps {
 }
 
 /**
- * "Rotate token" dialog (CRED-5 without "Test new token", which T-0038 adds to the footer): names credential and
- * cluster, shows the current fingerprint and how many users are affected, and replaces the token in place with the
- * credential's `version`. A stale version (409, e.g. after a connection test) shows `ConflictAlert` and keeps the
- * typed token; "Reload latest values" refetches the credential. The token never leaves this form's state (CRED-2).
+ * "Rotate token" dialog (CRED-5): names credential and cluster, shows the current fingerprint and how many users are
+ * affected, and replaces the token in place with the credential's `version`. "Test new token" runs `test-token` with
+ * the typed token (T-0038); if that test failed, the primary button turns into a danger "Save anyway", and editing
+ * the token forgets the result. A stale version (409, e.g. after a connection test) shows `ConflictAlert` and keeps
+ * the typed token; "Reload latest values" refetches the credential. The token never leaves this form's state and the
+ * request bodies (CRED-2).
  */
 export function RotateCredentialModal({ cluster, credential, onClose }: RotateCredentialModalProps) {
   return (
@@ -65,6 +78,40 @@ function RotateCredentialForm({ cluster, credential, onClose }: RotateCredential
     defaultValues: { token: '' },
   });
   const { problem, handleSubmit, clearProblem } = useFormProblem(form);
+  const tokenTest = useTokenTest(cluster.name, credential.id);
+  const { clear: clearTokenTest } = tokenTest;
+  const [testProblem, setTestProblem] = useState<FormProblem | null>(null);
+  const testFailed = tokenTest.result?.succeeded === false;
+  const isBusy = form.formState.isSubmitting || tokenTest.isTesting;
+
+  // A result belongs to the token it tested: any edit of the token drops it (and aborts a running test).
+  useEffect(
+    () =>
+      form.subscribe({
+        name: 'token',
+        exact: true,
+        formState: { values: true },
+        callback: ({ type }) => {
+          // Only typing/pasting counts (`type: 'change'`), not the reset after saving.
+          if (type !== 'change') return;
+          clearTokenTest();
+          setTestProblem(null);
+        },
+      }),
+    [form, clearTokenTest],
+  );
+
+  const testNewToken = async () => {
+    setTestProblem(null);
+    if (!(await form.trigger('token'))) return;
+    const parsed = tokenSchema.safeParse(form.getValues('token'));
+    if (!parsed.success) return;
+    try {
+      await tokenTest.run(parsed.data);
+    } catch (error) {
+      setTestProblem(applyServerErrors(error, form));
+    }
+  };
 
   const submit = handleSubmit(async ({ token }) => {
     try {
@@ -110,17 +157,34 @@ function RotateCredentialForm({ cluster, credential, onClose }: RotateCredential
             spellCheck={false}
           />
         </Form>
+        <div className="pf-v6-u-mt-md" aria-live="polite">
+          <FormProblemAlert problem={testProblem} />
+          <TestProgress isTesting={tokenTest.isTesting} isCancelled={tokenTest.isCancelled}>
+            <Button variant="link" isInline onClick={tokenTest.cancel}>
+              Cancel test
+            </Button>
+          </TestProgress>
+          {tokenTest.result !== null && <TokenTestResult result={tokenTest.result} />}
+        </div>
       </ModalBody>
       <ModalFooter>
         <Button
           type="submit"
           form={formId}
-          isAriaDisabled={form.formState.isSubmitting}
+          variant={testFailed ? 'danger' : 'primary'}
+          isAriaDisabled={isBusy}
           isLoading={form.formState.isSubmitting}
         >
-          Rotate
+          {testFailed ? 'Save anyway' : 'Rotate'}
         </Button>
-        {/* T-0038 adds the secondary "Test new token" button here. */}
+        <Button
+          variant="secondary"
+          onClick={() => void testNewToken()}
+          isAriaDisabled={isBusy}
+          isLoading={tokenTest.isTesting}
+        >
+          Test new token
+        </Button>
         <Button variant="link" onClick={onClose}>
           Cancel
         </Button>

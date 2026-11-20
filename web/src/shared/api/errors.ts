@@ -84,7 +84,7 @@ function fromErrorResponse(response: Response, body: unknown): ApiError {
  * Whether a rejection is an aborted request. Checked by name: the DOMException may come from another realm (test
  * environments), where `instanceof` fails.
  */
-function isAbortError(reason: unknown): reason is DOMException {
+export function isAbortError(reason: unknown): reason is DOMException {
   return typeof reason === 'object' && reason !== null && 'name' in reason && reason.name === 'AbortError';
 }
 
