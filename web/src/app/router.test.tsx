@@ -43,15 +43,25 @@ describe('routes', () => {
   });
 
   it.each([
-    ['/c/dev-1/k8s/ns/shop/pods/web-1', { plural: 'pods', namespace: 'shop', tab: 'details' }],
-    ['/c/dev-1/k8s/ns/shop/pods/web-1/yaml', { plural: 'pods', namespace: 'shop', tab: 'yaml' }],
-    ['/c/dev-1/k8s/ns/shop/pods/web-1/events', { plural: 'pods', namespace: 'shop', tab: 'events' }],
-    ['/c/dev-1/k8s/cluster/namespaces/web-1', { plural: 'namespaces', tab: 'details' }],
-  ])('renders the details placeholder for %s', async (path, params) => {
+    ['/c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp', 'Details'],
+    ['/c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp/yaml', 'YAML'],
+    ['/c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp/events', 'Events'],
+  ])('renders the details page for %s on the %s tab', async (path, tab) => {
     renderApp(path);
 
-    expect(await screen.findByRole('heading', { name: 'Resource details: web-1' })).toBeInTheDocument();
-    expect(await routeParams()).toEqual({ cluster: 'dev-1', name: 'web-1', ...params });
+    expect(
+      await screen.findByRole('heading', { name: 'web-7d4b9c8f6d-2xkqp', level: 1 }),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('renders cluster-scoped details routes', async () => {
+    // Namespaces get their descriptor in T-0078; until then the page is the "not supported" state.
+    renderApp('/c/dev-1/k8s/cluster/namespaces/web-1');
+
+    expect(
+      await screen.findByRole('heading', { name: 'Kind not supported yet', level: 1 }),
+    ).toBeInTheDocument();
   });
 
   it.each([

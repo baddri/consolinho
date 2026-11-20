@@ -1,4 +1,5 @@
 import { ConfigMapModel, type ConfigMap, type K8sResource } from '@/shared/k8s';
+import { ConfigMapDetails } from '../../details/sections/ConfigMapDetails';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 
@@ -14,6 +15,7 @@ function keyCount(configMap: ConfigMap): number {
 export const configMapDescriptor: ResourceDescriptor<ConfigMapResource> = {
   model: ConfigMapModel,
   nav: { section: 'workloads', order: 30 },
+  DetailsSection: ConfigMapDetails,
   columns: [
     nameColumn(ConfigMapModel),
     namespaceColumn(ConfigMapModel),

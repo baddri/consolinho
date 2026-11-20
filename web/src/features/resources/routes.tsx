@@ -11,20 +11,36 @@ const listPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
 };
 
 const detailsPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
-  lazy: () => import('./ResourceDetailsPage').then((m) => ({ Component: m.ResourceDetailsPage })),
+  lazy: () => import('./details/ResourceDetailsPage').then((m) => ({ Component: m.ResourceDetailsPage })),
   HydrateFallback: ResourcePageSkeleton,
 };
 
-/** Details route at `path` plus its `yaml` / `events` tab children (handle `{ scope, tab }`). */
+/** Lazy panel module per details tab; YAML stays its own module (T-0077 adds Monaco there). */
+const detailsTabs: Record<'details' | DetailsTab, RouteObject['lazy']> = {
+  details: () => import('./details/ResourceDetailsTab').then((m) => ({ Component: m.ResourceDetailsTab })),
+  yaml: () => import('./yaml/ResourceYamlView').then((m) => ({ Component: m.ResourceYamlView })),
+  events: () => import('./events/ResourceEventsTab').then((m) => ({ Component: m.ResourceEventsTab })),
+};
+
+/**
+ * Details layout at `path` (header + tab bar) with one child per tab: the index (Details), `yaml` and `events`. The
+ * children's handle `{ scope, tab }` tells `useResourceRoute` / `useResourceTab` the scope and tab.
+ */
 function detailsRoutes(path: string, scope: ResourceRouteHandle['scope']): RouteObject[] {
   const tabs: DetailsTab[] = ['yaml', 'events'];
   return [
-    { path, handle: { scope } satisfies ResourceRouteHandle, ...detailsPage },
-    ...tabs.map((tab) => ({
-      path: `${path}/${tab}`,
-      handle: { scope, tab } satisfies ResourceRouteHandle,
+    {
+      path,
       ...detailsPage,
-    })),
+      children: [
+        { index: true, handle: { scope } satisfies ResourceRouteHandle, lazy: detailsTabs.details },
+        ...tabs.map((tab) => ({
+          path: tab,
+          handle: { scope, tab } satisfies ResourceRouteHandle,
+          lazy: detailsTabs[tab],
+        })),
+      ],
+    },
   ];
 }
 
@@ -32,7 +48,7 @@ function detailsRoutes(path: string, scope: ResourceRouteHandle['scope']): Route
  * Children of `c/:cluster` (ADR-0023 §1): the cluster landing, the namespace redirect, list pages per scope and
  * details pages with their tabs. Page modules load lazily (same convention as `features/admin/routes.tsx`);
  * `HydrateFallback` shows a page skeleton when the app starts on a resource URL. Each route's `handle` tells
- * `useResourceRoute` its scope (and tab). Details are a placeholder until T-0075.
+ * `useResourceRoute` its scope (and tab).
  */
 export const resourceRoutes: RouteObject[] = [
   { index: true, element: <ClusterLanding /> },

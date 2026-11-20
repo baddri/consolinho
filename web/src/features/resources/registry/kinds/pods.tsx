@@ -1,6 +1,7 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
 import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
 import { ResourceStatusLabel, statusColor } from '../../components/ResourceStatusLabel';
+import { PodDetails } from '../../details/sections/PodDetails';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
 
@@ -53,6 +54,7 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
   model: PodModel,
   nav: { section: 'workloads', order: 10 },
   status,
+  DetailsSection: PodDetails,
   columns: [
     nameColumn(PodModel),
     namespaceColumn(PodModel),

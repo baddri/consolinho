@@ -119,5 +119,10 @@ export function watchResponse(request: WatchRequest): HttpResponse<ReadableStrea
     },
   });
 
-  return new HttpResponse(stream, { status: 200, headers: { 'Content-Type': 'application/json' } });
+  // Chunked, like the API server: without it Node's fetch (undici) takes the socket close after a client abort as the
+  // end of the body and fails its `assert(!this.aborted)` with an uncaught exception (seen when leaving a live page).
+  return new HttpResponse(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' },
+  });
 }
