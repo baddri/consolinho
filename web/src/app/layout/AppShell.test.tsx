@@ -46,7 +46,7 @@ describe('AppShell', () => {
       'Storage',
       'Compute',
       'Administration',
-      'Admin',
+      'Fleet administration',
     ]) {
       expect(within(nav).getByRole('button', { name: section })).toBeInTheDocument();
     }

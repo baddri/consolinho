@@ -26,6 +26,8 @@ solution, project, namespace, assembly and folder names are unchanged.
     (find with `grep -rn "FleetConsole" web/src --include=*.tsx --include=*.ts | grep -v '^\S*:\s*[0-9]*:\s*\(\*\|//\)'`).
   - **Backend strings a user can see**: `UserErrors.Deactivated` message, DevOAuth page title, OpenAPI document title
     (if set in `OpenApiSetup.cs`). Then `npm run gen:api` only if the OpenAPI output changed.
+  - **Carried from T-0053:** "Administration user list/detail" endpoint XML docs (→ `schema.gen.ts`) and the
+    `AuthErrors.Forbidden` message say "Fleet administration" where they mean the FleetConsole admin area.
   - **README.md** heading/intro: "Consolinho (codename FleetConsole)".
   - Tests asserting old strings updated (RTL text queries, backend message assertions).
 - Out — **must not change** (breaks data, sessions or config):

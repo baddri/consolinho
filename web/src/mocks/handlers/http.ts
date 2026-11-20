@@ -39,7 +39,7 @@ export const accessGuard = http.untyped.all('*/api/*', ({ request }) => {
   }
   if (path.startsWith('/api/admin/')) {
     if (!isAdmin(user)) {
-      return problem(403, { code: 'Auth.Forbidden', detail: "You don't have access to Administration." });
+      return problem(403, { code: 'Auth.Forbidden', detail: "You don't have access to Fleet administration." });
     }
     if (isCommand && user.isReadOnly) {
       return problem(403, { code: 'Auth.ReadOnly', detail: 'Your account is read-only.' });

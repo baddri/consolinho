@@ -103,14 +103,14 @@ function RoleDialog({ user, role, onClose }: { user: UserActionTarget; role: 'ad
   const isPromote = role === 'admin';
   let body: string;
   if (!isPromote) {
-    body = `${username} will lose access to Administration. Their cluster grants are kept.`;
+    body = `${username} will lose access to Fleet administration. Their cluster grants are kept.`;
   } else if (user.isAdminViaConfiguration) {
     const source = user.adminConfigurationSource ? ` (${user.adminConfigurationSource})` : '';
     body =
       `${username} is admin via configuration${source}. Promoting records the role so it is kept if they leave ` +
       'that group.';
   } else {
-    body = `${username} will be able to manage users, clusters, credentials and grants in Administration.`;
+    body = `${username} will be able to manage users, clusters, credentials and grants in Fleet administration.`;
   }
   return (
     <TransitionDialog

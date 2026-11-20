@@ -107,7 +107,7 @@ export function buildClusterNav(cluster: string): NavSection[] {
 export function buildAdminNav(): NavSection {
   return {
     id: 'admin',
-    title: 'Admin',
+    title: 'Fleet administration',
     items: ADMIN_SECTIONS.map((section) => ({
       label: section.title,
       to: `/admin/${section.id}`,

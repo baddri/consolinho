@@ -17,7 +17,7 @@ function AdminUsersLink(props: Omit<LinkProps, 'to'>) {
 }
 
 /**
- * Landing page for a signed-in user without any cluster (SW-4). Admins additionally get a way into Administration and
+ * Landing page for a signed-in user without any cluster (SW-4). Admins additionally get a way into Fleet administration and
  * the reminder that the Admin role alone grants no cluster access (GRANT-6), with a link to their own access tab —
  * or, for a read-only admin who cannot grant, the advice to ask another administrator.
  * Rendered inside `RequireSession`, so `me` is loaded.
@@ -38,7 +38,7 @@ export function NoClustersPage() {
           <EmptyStateFooter>
             <EmptyStateActions>
               <Button variant="primary" component={AdminUsersLink}>
-                Go to Administration
+                Go to Fleet administration
               </Button>
             </EmptyStateActions>
             {me.isReadOnly ? (

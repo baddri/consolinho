@@ -21,7 +21,7 @@ function HomeLink(props: Omit<LinkProps, 'to'>) {
 export function AdminNoAccessPage() {
   return (
     <PageSection>
-      <EmptyState titleText="You don't have access to Administration" headingLevel="h1" icon={LockIcon}>
+      <EmptyState titleText="You don't have access to Fleet administration" headingLevel="h1" icon={LockIcon}>
         <EmptyStateBody>Ask a FleetConsole administrator if you need access.</EmptyStateBody>
         <EmptyStateFooter>
           <EmptyStateActions>

@@ -40,7 +40,7 @@ describe('admin area access (ADM-3)', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { name: "You don't have access to Administration", level: 1 },
+          { name: "You don't have access to Fleet administration", level: 1 },
           { timeout: COLD_START_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
@@ -57,26 +57,26 @@ describe('admin area access (ADM-3)', () => {
     renderApp('/admin/x/y');
 
     expect(
-      await screen.findByRole('heading', { name: "You don't have access to Administration" }),
+      await screen.findByRole('heading', { name: "You don't have access to Fleet administration" }),
     ).toBeInTheDocument();
   });
 
-  it('hides the Admin sidebar section from a non-admin', async () => {
+  it('hides the Fleet administration sidebar section from a non-admin', async () => {
     setMockUser('alice');
     const { user } = renderApp('/c/prod-eu-1/overview');
 
     const nav = await openSidebar(user);
     expect(within(nav).getByRole('button', { name: 'Home' })).toBeInTheDocument();
-    expect(within(nav).queryByRole('button', { name: 'Admin' })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: 'Fleet administration' })).not.toBeInTheDocument();
     expect(within(nav).queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
   });
 
-  it('shows the Admin sidebar section with all admin pages to an admin', async () => {
+  it('shows the Fleet administration sidebar section with all admin pages to an admin', async () => {
     const { user } = renderApp('/admin/clusters');
 
     expect(await screen.findByRole('heading', { name: 'Clusters', level: 1 })).toBeInTheDocument();
     const nav = await openSidebar(user);
-    expect(within(nav).getByRole('button', { name: 'Admin' })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(nav).getByRole('button', { name: 'Fleet administration' })).toHaveAttribute('aria-expanded', 'true');
     const links = {
       Users: '/admin/users',
       Clusters: '/admin/clusters',

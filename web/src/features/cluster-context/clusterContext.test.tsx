@@ -146,17 +146,17 @@ describe('landing on / (SW-3/SW-4)', () => {
             'to grant you access.',
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Go to Administration' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Go to Fleet administration' })).not.toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/');
   });
 
-  it('also points an admin without grants to Administration and their own access tab (GRANT-6)', async () => {
+  it('also points an admin without grants to Fleet administration and their own access tab (GRANT-6)', async () => {
     server.use(http.get('*/api/clusters', () => HttpResponse.json([])));
     renderApp('/');
 
     expect(await screen.findByRole('heading', { name: 'No clusters assigned yet' })).toBeInTheDocument();
     expect(screen.getByText(/You are logged in as/)).toHaveTextContent('You are logged in as admin,');
-    expect(screen.getByRole('link', { name: 'Go to Administration' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Go to Fleet administration' })).toHaveAttribute(
       'href',
       '/admin/users',
     );
@@ -175,7 +175,7 @@ describe('landing on / (SW-3/SW-4)', () => {
     renderApp('/');
 
     expect(await screen.findByRole('heading', { name: 'No clusters assigned yet' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to Administration' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Go to Fleet administration' })).toHaveAttribute(
       'href',
       '/admin/users',
     );
