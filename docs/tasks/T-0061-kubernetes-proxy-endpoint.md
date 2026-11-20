@@ -16,6 +16,10 @@ hardening, maps failures to `Proxy.*` ProblemDetails and audits mutations. Contr
 §1–4, §7. Joins all lanes.
 
 ## Scope
+- From T-0060 review: `RecordProxyAudit` throws `ArgumentException` for read verbs and outcome/reason mismatch —
+  dispatch it inside the request scope (actor via `ICurrentUser`) with `CancellationToken.None` in try/catch, log Error
+  EventId 2400, swallow (ADR-0021 §2). Audit text fields are unbounded `text`; don't raise Kestrel's request-line limit
+  (or truncate if you do).
 - In: `Api/Proxy/*`, YARP package (`Yarp.ReverseProxy`, latest 2.x supporting .NET 10 — central version), options
   binding, mapping, integration tests for the behaviours listed below.
 - Folded CP1 nit (T-0019): `ClustersEndpoints.MapClustersEndpoints` — `ArgumentNullException.ThrowIfNull(api)`.
