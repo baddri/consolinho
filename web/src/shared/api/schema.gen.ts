@@ -236,6 +236,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/clusters/{name}/test-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a token that is not stored (before adding or rotating a credential). Nothing is saved except an audit entry
+         *     with the token's fingerprint. A failed test is a 200 whose steps say what failed. Fails with 404 Clusters.NotFound,
+         *     or 400 when credentialId is not a credential of the cluster.
+         */
+        post: operations["TestToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/users/{username}/grants": {
         parameters: {
             query?: never;
@@ -353,6 +374,27 @@ export interface paths {
          *     Credentials.InUse while grants use it (re-assign or revoke them first).
          */
         delete: operations["DeleteCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/clusters/{name}/credentials/{credentialId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tests a stored credential against its cluster (also when the cluster is disabled) and stores the outcome as the
+         *     credential's last test. A failed test is a 200 whose steps say what failed. Fails with 404 Clusters.NotFound /
+         *     Credentials.NotFound.
+         */
+        post: operations["TestCredential"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -625,8 +667,31 @@ export interface components {
             /** @description SHA-256 fingerprint as uppercase, colon-separated hex (as printed by openssl x509 -fingerprint -sha256). */
             sha256Fingerprint: string;
         };
+        /**
+         * @description Whether a capability check is about reading or changing resources.
+         * @enum {string}
+         */
+        CapabilityCategory: "read" | "write";
+        /** @description The answer to one capability check (an access review across all namespaces). */
+        CapabilityCheckResult: {
+            /** @description Stable id, e.g. list-pods. */
+            id: string;
+            /** @description Human-readable label, e.g. List pods. */
+            label: string;
+            /** @description Whether the check is about reading or writing. */
+            category: components["schemas"]["CapabilityCategory"];
+            /** @description Whether the cluster allows it. */
+            allowed: boolean;
+        };
         /** @enum {string} */
         CapabilityLevel: "clusterAdmin" | "clusterWideEdit" | "clusterWideView" | "limited";
+        /** @description What the token may do cluster-wide (TEST-3). */
+        CapabilitySummary: {
+            /** @description The overall capability level. */
+            headline: components["schemas"]["CapabilityLevel"];
+            /** @description Every evaluated check in a stable order; render the list as received. */
+            checks: components["schemas"]["CapabilityCheckResult"][];
+        };
         /**
          * @description Validity of a CA certificate at the time of the request; certificates are flagged 30 days before they expire.
          * @enum {string}
@@ -707,6 +772,13 @@ export interface components {
          * @enum {string}
          */
         ClusterEnvironment: "production" | "staging" | "development";
+        /** @description The identity the cluster associates with the tested token. */
+        ClusterIdentity: {
+            /** @description The Kubernetes username, e.g. system:serviceaccount:fleet:viewer. */
+            username: string;
+            /** @description Whether the cluster reported it or it was read from the token's subject claim. */
+            source: components["schemas"]["IdentitySource"];
+        };
         /** @description A row of the administration cluster list. */
         ClusterListItem: {
             /** @description The cluster name: URL slug, unique and immutable. */
@@ -747,8 +819,59 @@ export interface components {
          * @enum {string}
          */
         ClusterTlsMode: "caBundle" | "systemTrust" | "skipVerify";
+        /** @description Advice derived from the test and the credential's grants (TEST-4). */
+        ConnectionTestHint: {
+            /** @description Info or warning. */
+            severity: components["schemas"]["HintSeverity"];
+            /** @description The advice, meant to be shown verbatim. */
+            message: string;
+        };
+        /**
+         * @description The full result of one connection test (TEST-2..4, contract §8.5): the five steps in order, what the cluster told us,
+         *     the capability summary and the grant-mode hints. Returned by `TestCredential` and `TestToken`; only its
+         *     summary (ConnectionTestSummary) is ever stored (TEST-5).
+         */
+        ConnectionTestResult: {
+            /** @description True when no step failed; warnings are allowed. */
+            succeeded: boolean;
+            /**
+             * Format: date-time
+             * @description When the test started.
+             */
+            testedAt: string;
+            /**
+             * Format: int32
+             * @description How long the test took, in milliseconds.
+             */
+            durationMs: number;
+            /** @description Always all five steps, in execution order; steps after a failed one are skipped. */
+            steps: components["schemas"]["ConnectionTestStepResult"][];
+            /** @description The API server's gitVersion (e.g. v1.31.4), when the version endpoint answered. */
+            kubernetesVersion: null | string;
+            identity: null | components["schemas"]["ClusterIdentity"];
+            openShiftVersion: null | components["schemas"]["OpenShiftVersion"];
+            capabilities: null | components["schemas"]["CapabilitySummary"];
+            namespaceRules: null | components["schemas"]["NamespaceRules"];
+            /** @description Advice about the credential's grants (TEST-4); empty when there is nothing to say. */
+            hints: components["schemas"]["ConnectionTestHint"][];
+        };
         /** @enum {string} */
         ConnectionTestStep: "reachability" | "authentication" | "identity" | "openShiftVersion" | "capabilities";
+        /** @description The outcome of one connection test step. */
+        ConnectionTestStepResult: {
+            /** @description The step. */
+            step: components["schemas"]["ConnectionTestStep"];
+            /** @description Passed, warning, failed or skipped. */
+            status: components["schemas"]["ConnectionTestStepStatus"];
+            /** @description A human-readable explanation, meant to be shown verbatim. */
+            message: string;
+            failureKind: null | components["schemas"]["ProbeFailureKind"];
+        };
+        /**
+         * @description The outcome of a connection test step.
+         * @enum {string}
+         */
+        ConnectionTestStepStatus: "passed" | "warning" | "failed" | "skipped";
         /**
          * @description The last stored connection test result of a credential (TEST-5), as shown in cluster, credential and grant views.
          *     Shared by several queries (contract §3); build it with ConnectionTestSummaryDto? ConnectionTestSummaryMapping.ToDto(ConnectionTestSummary? summary, DateTimeOffset connectionSettingsChangedAt).
@@ -956,6 +1079,11 @@ export interface components {
              */
             version: number;
         };
+        /**
+         * @description The severity of a connection test hint.
+         * @enum {string}
+         */
+        HintSeverity: "info" | "warning";
         HttpValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -971,7 +1099,32 @@ export interface components {
             /** @description W3C trace context of the request (traceparent format), for correlating the error with server logs. */
             traceId?: string;
         };
+        /**
+         * @description Where the identity of a tested token came from.
+         * @enum {string}
+         */
+        IdentitySource: "selfSubjectReview" | "tokenSubject";
         JsonElement: unknown;
+        /** @description The token's access rules in one namespace (a SelfSubjectRulesReview). */
+        NamespaceRules: {
+            /** @description The inspected namespace. */
+            namespace: string;
+            /** @description True when the cluster could not evaluate all rules (e.g. an authorizer that can't list them). */
+            incomplete: boolean;
+            /** @description The cluster's explanation when the list is incomplete. */
+            evaluationError: null | string;
+            /** @description The resource rules. */
+            rules: components["schemas"]["ResourceRule"][];
+        };
+        /** @description The cluster's OpenShift version from its ClusterVersion resource. */
+        OpenShiftVersion: {
+            /** @description The desired (current) version, e.g. 4.17.3. */
+            version: string;
+            /** @description True while a cluster update is in progress. */
+            updateProgressing: boolean;
+        };
+        /** @enum {string} */
+        ProbeFailureKind: "dnsFailure" | "connectionRefused" | "timeout" | "tlsUnknownAuthority" | "tlsHostnameMismatch" | "tlsCertificateExpired" | "tlsOther" | "unauthorized" | "forbidden" | "notFound" | "unexpectedStatus" | "invalidResponse";
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -1008,6 +1161,17 @@ export interface components {
              */
             isEnabled?: boolean;
         };
+        /** @description One resource rule: these verbs on these resources (optionally only these names) in these API groups. */
+        ResourceRule: {
+            /** @description The verbs, e.g. get, list. */
+            verbs: string[];
+            /** @description The API groups; an empty string is the core group. */
+            apiGroups: string[];
+            /** @description The resources, possibly with a subresource (pods/log). */
+            resources: string[];
+            /** @description Restricts the rule to these names; empty means all. */
+            resourceNames: string[];
+        };
         /** @description Replaces a credential's token in place; the credential id and its grants are kept. */
         RotateCredentialTokenRequest: {
             /** @description The new ServiceAccount token, with the same rules as when adding a credential. */
@@ -1034,6 +1198,23 @@ export interface components {
             version: string;
             /** @description The hosting environment name, e.g. `Development` or `Production`. */
             environment: string;
+        };
+        /** @description Runs a connection test of a stored credential. */
+        TestCredentialRequest: {
+            /** @description Optional namespace to list the credential's access rules in (a DNS label, at most 63 characters). Empty means none. */
+            inspectNamespace: null | string;
+        };
+        /** @description Runs a connection test of a token that is not stored. Nothing is saved except an audit entry with the token's fingerprint. */
+        TestTokenRequest: {
+            /** @description The ServiceAccount token to test, with the same rules as when adding a credential. */
+            token: string;
+            /**
+             * Format: uuid
+             * @description Optional: the credential of this cluster whose token is being replaced; its grants produce the access-mode hints.
+             */
+            credentialId: null | string;
+            /** @description Optional namespace to list the token's access rules in (a DNS label, at most 63 characters). Empty means none. */
+            inspectNamespace: null | string;
         };
         /**
          * @description What kind of token a credential holds, as detected when it was added or rotated (CRED-3).
@@ -2189,6 +2370,88 @@ export interface operations {
             };
         };
     };
+    TestToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestTokenRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionTestResult"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     ListUserGrants: {
         parameters: {
             query?: never;
@@ -2688,6 +2951,90 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    TestCredential: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The cluster name. */
+                name: string;
+                /** @description The credential id. */
+                credentialId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionTestResult"];
+                };
             };
             /** @description Bad Request */
             400: {

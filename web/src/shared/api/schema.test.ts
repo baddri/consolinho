@@ -14,9 +14,9 @@ describe('merged API types (ADR-0016)', () => {
     expectTypeOf<paths['/api/system/info']>().toEqualTypeOf<Gen.paths['/api/system/info']>();
     expectTypeOf<paths['/api/auth/me']>().toEqualTypeOf<Gen.paths['/api/auth/me']>();
     expectTypeOf<paths['/api/clusters']>().toEqualTypeOf<Gen.paths['/api/clusters']>();
-    // Contract-only until T-0020 (connection tests) lands; then T-0043 retires this contract fallback check.
+    // Every CP1 contract route is generated since T-0020; T-0043 retires the contract fallback (ADR-0016).
     expectTypeOf<paths['/api/admin/clusters/{name}/test-token']>().toEqualTypeOf<
-      Contract.paths['/api/admin/clusters/{name}/test-token']
+      Gen.paths['/api/admin/clusters/{name}/test-token']
     >();
   });
 
