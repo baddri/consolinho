@@ -110,6 +110,26 @@ public sealed class ProductionConfigurationTests(ApiFactory factory)
         cookies.ShouldAllBe(cookie => cookie.Contains("; secure", StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>(QA) HOST-4: the OAuth redirect_uri comes from Console:PublicOrigin, never from forwarded headers.</summary>
+    [Fact]
+    public async Task Login_RedirectUri_IgnoresForwardedHeaders()
+    {
+        await using var host = ProductionHost.Create(factory);
+        using var client = host.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/api/auth/login", UriKind.Relative));
+        request.Headers.Add("X-Forwarded-Host", "evil.example.com");
+        request.Headers.Add("X-Forwarded-Proto", "http");
+        request.Headers.Add("X-Forwarded-Prefix", "/evil");
+        request.Headers.Add("Forwarded", "host=evil.example.com;proto=http");
+        request.Headers.Host = "attacker.example.com";
+
+        using var response = await client.SendAsync(request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(response.Headers.Location.ShouldNotBeNull().Query);
+        query["redirect_uri"].ToString().ShouldBe("https://console.invalid/api/auth/callback");
+    }
+
     [Fact]
     public async Task SessionCookie_IsSecureHttpOnlyLax()
     {
