@@ -1,7 +1,7 @@
 ---
 id: T-0098
 title: Production hosting — SPA static files + fallback, cache headers, probes in every environment, safe JSON logs
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3
 depends_on: []
@@ -60,20 +60,46 @@ fallback and correct caching, expose liveness/readiness in Production, and guara
   `/alive` 200, `/health` 503.
 
 ## Acceptance criteria
-- [ ] HOST-1: Production host — `GET /c/x/k8s/ns/a/pods/b` and `GET /` → 200 `text/html` index; `HEAD` too;
+- [x] HOST-1: Production host — `GET /c/x/k8s/ns/a/pods/b` and `GET /` → 200 `text/html` index; `HEAD` too;
       `GET /api/nope` and `POST /api/nope` (with CSRF header) → 404 `application/problem+json`; `GET /assets/missing.js` → 404;
       `/health`/`/alive` are never answered by the fallback.
-- [ ] HOST-2: `index.html` (direct and via fallback) `no-cache`; `/assets/app-3f2a1b.js` `public, max-age=31536000, immutable`.
-- [ ] PRB-1: Production `/alive` and `/health` → 200 body `Healthy`, anonymous, no CSRF header needed, no check names.
-- [ ] PRB-2: with Postgres unreachable `/alive` 200 and `/health` 503.
-- [ ] HOST-5: Production host with `Logging:LogLevel:Default=Trace` **and** a provider-specific override enabling
+- [x] HOST-2: `index.html` (direct and via fallback) `no-cache`; `/assets/app-3f2a1b.js` `public, max-age=31536000, immutable`.
+- [x] PRB-1: Production `/alive` and `/health` → 200 body `Healthy`, anonymous, no CSRF header needed, no check names.
+- [x] PRB-2: with Postgres unreachable `/alive` 200 and `/health` 503.
+- [x] HOST-5: Production host with `Logging:LogLevel:Default=Trace` **and** a provider-specific override enabling
       `Microsoft.AspNetCore.Hosting.Diagnostics` at Trace → a request to `/api/auth/callback?code=fake-code-123&state=s`
       leaves no captured log containing `fake-code-123`; JSON console formatter active in Production (options assertion).
-- [ ] Anonymous-surface test updated; XML docs on new public types; Development behaviour unchanged (`aspire run`).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Anonymous-surface test updated; XML docs on new public types; Development behaviour unchanged (`aspire run`).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-21 backend-engineer: started; implemented `Hosting/SpaHosting.cs`, `Hosting/LoggingSetup.cs`, probes in all
+  envs, Program wiring; tests in `Integration/Hosting/` (ProductionHost helper, SPA, probes, logging) + anonymous surface.
+- 2026-11-21 deviation: GET/HEAD restriction lives in the `sparequest` route constraint, and the fallback's method
+  metadata is overridden to "any": `MapFallbackToFile`'s own GET/HEAD metadata makes the method matcher (which runs
+  before constraints) answer `POST /api/nope` with 405 instead of 404. Non-GET to SPA paths → 404.
 
 ## Review
+- 2026-11-21 backend-architect (round 1): **APPROVE**. Matches ADR-0028 §1/§2/§4/§5; check-be green (build ok, 325/684/734 pass).
+  - Deviation accepted: GET/HEAD in the `sparequest` constraint + empty `HttpMethodMetadata` (last wins) keeps
+    `POST /api/nope` a ProblemDetails 404 (ADR-0013); documented inline and locked by `SpaHostingTests` + anonymous-surface test.
+    Skipping SPA middleware without a web root satisfies ADR-0028 §1 "inert when wwwroot is absent".
+  - Security verified: probes anonymous, default writer, outside `/api`; fallback rejects `/api` by segment (case-insensitive)
+    and is lowest priority; the log cap test asserts `IsEnabled(Information)==false` across all providers at Trace config.
+  - Optional: `src/FleetConsole.Api/Hosting/SpaHosting.cs:SpaRequestConstraint.Match` — the link-generation branch is unused
+    (fallback is never a link target); could simply return `false` outside incoming requests.
+  - Note for T-0092: the security-headers middleware must run before `UseSpaStaticFiles()` so static files and the
+    fallback-served `index.html` get the headers too.
 
 ## Handover notes
+- `ProductionHost.Create(factory, settings?)` (tests/.../Integration/Hosting/ProductionHost.cs): Production env via
+  `ApiFactory.WithWebHostBuilder`, temp web root (`index.html` = `ProductionHost.IndexHtml`, `AssetPath`); settings
+  applied last. T-0099/T-0092 should reuse it.
+- SPA hosting is skipped entirely when the web root directory does not exist (aspire run / Dev tests): no static files
+  middleware, no fallback, no "web root not found" warning — Development unchanged.
+- Fallback route `{*path:nonfile:sparequest}` (constraint registered by `AddSpaHosting()`); any-method metadata, the
+  constraint admits GET/HEAD outside `/api` only. Anonymous-surface test now also checks non-/api endpoints of a
+  Production host (`* /alive`, `* /health`, the fallback).
+- Request-line cap: `LoggingSetup.AddProductionLogging` PostConfigure adds Warning rules for the provider-less rule and
+  every provider name in existing rules. HOST-5 test sets Default=Trace + Console/CapturedLogs-specific Trace overrides.
+- Probe tests are Production only; dev `SystemEndpointsTests.HealthEndpoints_AreHealthy` unchanged.

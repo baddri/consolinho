@@ -109,8 +109,12 @@ public static class Extensions
 
     /// <summary>
     /// Registers the baseline health checks: a <c>self</c> check tagged <c>live</c> used by the liveness endpoint.
-    /// Later tasks add readiness checks (e.g. the database) without the <c>live</c> tag.
+    /// Readiness checks (e.g. the database check added by the Aspire Npgsql integration) carry no <c>live</c> tag.
     /// </summary>
+    /// <remarks>
+    /// Both endpoints are probed by the kubelet in production (ADR-0028 §2, ADR-0030), so the <c>live</c> set must stay
+    /// dependency-free: a database outage must make the pod unready, never restart it.
+    /// </remarks>
     /// <typeparam name="TBuilder">The host application builder type.</typeparam>
     /// <param name="builder">The host builder to configure.</param>
     /// <returns>The same builder, for chaining.</returns>
@@ -124,27 +128,27 @@ public static class Extensions
     }
 
     /// <summary>
-    /// Maps <c>/health</c> (all checks, readiness) and <c>/alive</c> (checks tagged <c>live</c>, liveness).
+    /// Maps <c>/health</c> (all checks, readiness) and <c>/alive</c> (checks tagged <c>live</c>, liveness) in every
+    /// environment: they are the OpenShift readiness/liveness/startup probe targets (ADR-0028 §2).
     /// </summary>
     /// <remarks>
-    /// Mapped in Development only, as the Aspire template recommends: health endpoints can leak information.
-    /// Production liveness/readiness probes for OpenShift are part of the deployment checkpoint (docs/plan/ROADMAP.md, CP3).
+    /// The Aspire template maps them in Development only because health endpoints can leak information. Here they use
+    /// the default response writer, whose body is just the overall status word (<c>Healthy</c>/<c>Degraded</c>/
+    /// <c>Unhealthy</c>) without check names, exceptions or versions. They need no session (no authorization fallback
+    /// policy exists) and lie outside <c>/api</c>, so the CSRF header check never applies to them.
     /// </remarks>
     /// <param name="app">The web application to map endpoints on.</param>
     /// <returns>The same application, for chaining.</returns>
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        if (app.Environment.IsDevelopment())
-        {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+        // All health checks must pass for app to be considered ready to accept traffic after starting
+        app.MapHealthChecks(HealthEndpointPath);
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+        // Only health checks tagged with the "live" tag must pass for app to be considered alive
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        });
 
         return app;
     }
