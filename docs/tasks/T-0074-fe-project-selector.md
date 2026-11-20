@@ -21,6 +21,7 @@ hidden by default and a typed fallback when the SA can't list projects.
   its `index.ts`); render it in the list page header slot left by T-0073; `NamespaceRedirect` uses the remembered
   project.
 - Out: selector on details pages (OCP shows it read-only there — not in CP2), project creation.
+- Carried T-0073 review nits (optional): reset table to page 1 when filters/namespace change (`list/ResourceListPage.tsx:135`); drop redundant `aria-current` in `app/layout/AppSidebar.tsx:22`; add a test for the wrong-scope plural redirect.
 
 ## Contract / design notes
 - No BE change (contract §6: client-side). Data: `useK8sList(cluster, isServed(ProjectModel) ? ProjectModel :
