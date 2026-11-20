@@ -16,6 +16,7 @@ import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import type { ClusterDetail } from '@/shared/api';
 import { ErrorState, useToast } from '@/shared/ui';
 import { CLUSTER_DETAIL_TABS, useAdminTab, type ClusterDetailTab } from '../adminTabs';
+import { ClusterCredentialsTab } from '../credentials/ClusterCredentialsTab';
 import { useCluster } from './api';
 import { ClusterDetailHeader } from './ClusterDetailHeader';
 import { ClusterDetailsTab } from './ClusterDetailsTab';
@@ -65,14 +66,15 @@ function ClusterTabPanel({ cluster, tab }: { cluster: ClusterDetail; tab: Cluste
   if (tab === 'details') {
     return <ClusterDetailsTab cluster={cluster} />;
   }
-  // Credentials table arrives with T-0036, the grants table with T-0039.
-  const body =
-    tab === 'credentials'
-      ? `${cluster.name} has ${plural(cluster.credentialCount, 'credential')}. The credentials list is coming soon.`
-      : `${plural(cluster.grantCount, 'user')} can access ${cluster.name}. The access list is coming soon.`;
+  if (tab === 'credentials') {
+    return <ClusterCredentialsTab cluster={cluster} />;
+  }
+  // The grants table arrives with T-0039.
   return (
     <EmptyState titleText={TAB_TITLES[tab]} headingLevel="h2">
-      <EmptyStateBody>{body}</EmptyStateBody>
+      <EmptyStateBody>
+        {`${plural(cluster.grantCount, 'user')} can access ${cluster.name}. The access list is coming soon.`}
+      </EmptyStateBody>
     </EmptyState>
   );
 }
