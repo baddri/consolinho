@@ -1,3 +1,4 @@
+using FleetConsole.Api.Tests.Fakes;
 using FleetConsole.Api.Tests.Persistence;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Persistence;
@@ -87,12 +88,17 @@ public sealed class TestData(ApiFactory factory)
     /// <param name="isEnabled">Enabled (visible in the switcher once granted).</param>
     /// <param name="environment">The environment.</param>
     /// <param name="apiUrl">The API server URL.</param>
+    /// <param name="caBundlePem">The CA bundle the cluster's API server certificate chains to (e.g.
+    /// <see cref="FakeKubeApiServer.CaBundlePem"/>); none when null.</param>
+    /// <param name="skipTlsVerify">Skip TLS verification (exclusive with <paramref name="caBundlePem"/>).</param>
     /// <returns>The cluster's id and name.</returns>
     public async Task<SeededCluster> ClusterAsync(
         string? name = null,
         bool isEnabled = true,
         ClusterEnvironment environment = ClusterEnvironment.Staging,
-        string apiUrl = "https://api.test-cluster.example.com:6443")
+        string apiUrl = "https://api.test-cluster.example.com:6443",
+        string? caBundlePem = null,
+        bool skipTlsVerify = false)
     {
         var clusterName = ClusterName.Create(name ?? $"c-{Unique()}").Value;
         await using var scope = factory.Services.CreateSignedInScope(Actor);
@@ -100,7 +106,7 @@ public sealed class TestData(ApiFactory factory)
         var cluster = Cluster.Register(
             clusterName,
             displayName: null,
-            ApiServerEndpoint.Create(apiUrl, caBundlePem: null, skipTlsVerify: false).Value,
+            ApiServerEndpoint.Create(apiUrl, caBundlePem, skipTlsVerify).Value,
             environment,
             webConsoleUrl: null,
             description: "Seeded by TestData",
@@ -168,6 +174,30 @@ public sealed class TestData(ApiFactory factory)
 
         await SaveAsync(scope);
         return grant.Value.Id;
+    }
+
+    /// <summary>
+    /// Seeds everything a proxy test needs in one call: an enabled cluster pointing at <paramref name="server"/> (its URL
+    /// and CA bundle), a credential, and a grant for <paramref name="username"/> with <paramref name="mode"/>. The user
+    /// is pre-created (role User) when it doesn't exist yet, so a fresh pool user can log in and use the grant.
+    /// </summary>
+    /// <param name="server">The fake API server standing in for the cluster.</param>
+    /// <param name="username">The user to grant access to.</param>
+    /// <param name="mode">The access mode.</param>
+    /// <param name="token">The credential's plaintext token (what the fake should see as bearer); unique fake when null.</param>
+    /// <returns>The seeded cluster and credential.</returns>
+    public async Task<(SeededCluster Cluster, SeededCredential Credential)> ProxyClusterAsync(
+        FakeKubeApiServer server, string username, AccessMode mode, string? token = null)
+    {
+        if (await FindUserAsync(username) is null)
+        {
+            await UserAsync(username);
+        }
+
+        var cluster = await ClusterAsync(apiUrl: server.BaseAddress.ToString(), caBundlePem: server.CaBundlePem);
+        var credential = await CredentialAsync(cluster.Name, token);
+        await GrantAsync(username, cluster.Name, credential.Id, mode);
+        return (cluster, credential);
     }
 
     /// <summary>Reads a user as stored (for assertions).</summary>

@@ -1,12 +1,12 @@
 ---
 id: T-0057
 title: Fake kube-apiserver and test data for proxy tests (prefix routes, headers, streaming, per-cluster CA)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 2
 depends_on: []
 paths: [tests/FleetConsole.Api.Tests/Fakes/, tests/FleetConsole.Api.Tests/Integration/TestData.cs, tests/FleetConsole.Api.Tests/Kubernetes/FakeKubeApiServerTests.cs]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -51,14 +51,45 @@ public IReadOnlyCollection<RecordedRequest> Requests { get; }  // existing — k
 - Usage exemplar: `tests/FleetConsole.Api.Tests/Kubernetes/ClusterProbeClientTests.cs:L26-50`.
 
 ## Acceptance criteria
-- [ ] Prefix routes: exact beats prefix, longest prefix wins, unmatched → 404 `Status` (existing behaviour).
-- [ ] `RecordedRequest.Headers` captures every header incl. duplicates; `RawTarget` keeps percent-encoding.
-- [ ] Self-test: an `HttpClient` trusting the server's CA receives a watch event within 1 s of `SendAsync` while the response is still open; two servers in one test have different CAs (a client trusting A fails against B).
-- [ ] `TestData.ProxyClusterAsync` seeds a usable cluster/credential/grant; existing probe/admin tests still pass.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Prefix routes: exact beats prefix, longest prefix wins, unmatched → 404 `Status` (existing behaviour).
+- [x] `RecordedRequest.Headers` captures every header incl. duplicates; `RawTarget` keeps percent-encoding.
+- [x] Self-test: an `HttpClient` trusting the server's CA receives a watch event within 1 s of `SendAsync` while the response is still open; two servers in one test have different CAs (a client trusting A fails against B).
+- [x] `TestData.ProxyClusterAsync` seeds a usable cluster/credential/grant; existing probe/admin tests still pass.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 backend-engineer: started; worktree was on `main`, fast-forwarded to `cp/2-proxy-browser`.
+- 2026-11-20 backend-engineer: prefix routes, headers/RawTarget recording, `MapWatch`/`WatchStream` (own file
+  `Fakes/WatchStream.cs`, top-level type), `RespondWithHeaders`, `Delay`; `TestData` CA/skip-TLS + `ProxyClusterAsync`;
+  8 self-tests. `scripts/check-be.sh` green (620 Api tests, podman OK). Ready for review.
+- 2026-11-20 backend-engineer: review round 1 — watch honours `timeoutSeconds` (+ self-test), documented
+  `RespondWithHeaders` Content-Type override and first-connection `Connected`. check-be.sh green.
 
 ## Review
+**Round 1 — backend-architect — CHANGES_REQUESTED** (check-be.sh green: 323/402/620; deviations accepted)
+1. `tests/FleetConsole.Api.Tests/Fakes/WatchStream.cs:L89-L103` — the fake ignores `timeoutSeconds`; per ADR-0020 §5/§7 the
+   proxy bounds watches only by capping `timeoutSeconds`, and kube-apiserver ends the watch then. T-0062 PRX-3 ("watch with
+   `WatchTimeoutCap=2s` ends ≤ ~3 s") cannot prove that end-to-end without the test hand-calling `CloseAsync` — required
+   fix: when `timeoutSeconds > 0`, end the held-open response after that many seconds (e.g. `linked.CancelAfter`), update
+   the XML doc + Handover note, and add a self-test (`?watch=1&timeoutSeconds=1` → stream ends within ~2 s).
+- Optional: `Connected` only completes for the first connection (documented); fine for T-0061/62, revisit if a reconnect test appears.
+- Optional: `RespondWithHeaders` — a caller-supplied `Content-Type` is overwritten by `WriteJsonAsync`; mention in the XML doc.
+- Verified OK: exact>longest-prefix>404 routing, `RawTarget` from `IHttpRequestFeature` keeps `%2F`, multi-line headers
+  kept, watch flush-per-event with no Content-Length, `Delay` honours abort + dispose, two-CA test, disposal ends watches;
+  timing asserts are generous upper bounds / lower-bound-only (no flakiness seen).
+**Round 2 — backend-architect — APPROVE** (check-be.sh green: 323/402/621). Finding 1 fixed: `WatchStream.HoldOpenAsync`
+`CancelAfter(timeoutSeconds)` after connect, XML doc + Handover updated, self-test asserts end ≤ 3 s and ≥ 0.5 s; Content-Type nit documented.
 
 ## Handover notes
+- `WatchStream` is a top-level type in `FleetConsole.Api.Tests.Fakes` (not nested): use `var watch = server.MapWatch(path)`.
+  A `GET path?watch=…` hits it before exact/prefix routes; non-watch GETs on the same path use normal routes. One client
+  at a time (a reconnect replaces the target of `SendAsync`); after `CloseAsync` later connections end immediately.
+  A positive `timeoutSeconds` ends the watch response after that many seconds (like kube-apiserver; PRX-3 relies on it).
+  Dispose of the server ends open watches and pending `Delay`s (no 30 s graceful-stop wait).
+- `Requests` stays `IReadOnlyList<RecordedRequest>` (contract said `IReadOnlyCollection`; list is a superset, kept for
+  existing callers). `Headers` = one value per received header line; HttpClient folds repeats into one line, so the
+  self-test uses raw HTTP/1.1 over `SslStream`.
+- `RespondWithHeaders` always sends `application/json` (a `Content-Type` in `headers` is overwritten; use `Map`).
+- `Delay` applies before routing (any route incl. 404/watch), exact path only.
+- `ProxyClusterAsync` pre-creates the user (role User) if missing, so `factory.NewUsername()` works directly.
+- CA1711/CA1720/CA1001 suppressed on `WatchStream` with justifications (binding names from the contract).
