@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-20 (CP1 closed) · **Current checkpoint:** CP2 — Proxy, cluster switcher & generic resource
-browser (MVP) · **Branch:** create `cp/2-proxy-browser` from `main`
+**Last updated:** 2026-11-20 (CP2 started) · **Current checkpoint:** CP2 — Proxy, cluster switcher & generic resource
+browser (MVP) · **Branch:** `cp/2-proxy-browser`
 
 ## Where we are
 - **CP0 Foundations: DONE** (tag `cp-0`). **CP1 Identity & administration: DONE** (tag `cp-1`, merged to `main`).
@@ -12,8 +12,8 @@ browser (MVP) · **Branch:** create `cp/2-proxy-browser` from `main`
 - Working tree clean, no worktrees.
 
 ## Next actions (resume here)
-1. `git checkout main && git checkout -b cp/2-proxy-browser`; ROADMAP CP2 → `in_progress`.
-2. SPEC: ocp-product-owner writes `docs/specs/CP2-*.md`. Must include (from CP1 ACCEPT): token-leak sweep + authorization
+1. (done) branch created; ROADMAP CP2 → `in_progress`.
+2. SPEC (in progress): ocp-product-owner writes `docs/specs/CP2-proxy-and-resource-browser.md`. T-0053 being built in parallel (web/ only). Must include (from CP1 ACCEPT): token-leak sweep + authorization
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
    T-0054 (Playwright smoke H1–H4, self-seeding).
