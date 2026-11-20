@@ -45,47 +45,55 @@ export function ClusterCredentialsTab({ cluster }: { cluster: CredentialCluster 
         </ToolbarContent>
       </Toolbar>
       {error && <ErrorState error={error} title="Could not load credentials" onRetry={() => void refetch()} />}
-      <Table aria-label={`Credentials of ${cluster.name}`} variant="compact">
-        <Thead>
-          <Tr>
-            <Th>Name</Th>
-            <Th>Service account</Th>
-            <Th>Fingerprint</Th>
-            <Th>Expiry</Th>
-            <Th>Grants</Th>
-            <Th>Last test</Th>
-            <Th>Rotated</Th>
-            <Th screenReaderText="Actions" />
-          </Tr>
-        </Thead>
-        <Tbody>
-          {isPending && <TableSkeletonRows columns={CREDENTIAL_COLUMN_COUNT} rows={3} />}
-          {data?.length === 0 && (
-            <TableEmptyRow
-              colSpan={CREDENTIAL_COLUMN_COUNT}
-              title="No credentials"
-              body={
-                <Stack hasGutter>
-                  <StackItem>
-                    <Content component="p">
-                      Users can&apos;t be granted access until you add a ServiceAccount token. Create one with:
-                    </Content>
-                  </StackItem>
-                  <StackItem>
-                    <ClipboardCopy isReadOnly hoverTip="Copy" clickTip="Copied" copyAriaLabel="Copy oc create token command" textAriaLabel="oc create token command">
-                      {CREATE_TOKEN_COMMAND}
-                    </ClipboardCopy>
-                  </StackItem>
-                </Stack>
-              }
-              actions={addButton}
-            />
-          )}
-          {data?.map((credential) => (
-            <CredentialRow key={credential.id} cluster={cluster} credential={credential} />
-          ))}
-        </Tbody>
-      </Table>
+      {!error && (
+        <Table aria-label={`Credentials of ${cluster.name}`} variant="compact">
+          <Thead>
+            <Tr>
+              <Th>Name</Th>
+              <Th>Service account</Th>
+              <Th>Fingerprint</Th>
+              <Th>Expiry</Th>
+              <Th>Grants</Th>
+              <Th>Last test</Th>
+              <Th>Rotated</Th>
+              <Th screenReaderText="Actions" />
+            </Tr>
+          </Thead>
+          <Tbody>
+            {isPending && <TableSkeletonRows columns={CREDENTIAL_COLUMN_COUNT} rows={3} />}
+            {data?.length === 0 && (
+              <TableEmptyRow
+                colSpan={CREDENTIAL_COLUMN_COUNT}
+                title="No credentials"
+                body={
+                  <Stack hasGutter>
+                    <StackItem>
+                      <Content component="p">
+                        Users can&apos;t be granted access until you add a ServiceAccount token. Create one with:
+                      </Content>
+                    </StackItem>
+                    <StackItem>
+                      <ClipboardCopy
+                        isReadOnly
+                        hoverTip="Copy"
+                        clickTip="Copied"
+                        copyAriaLabel="Copy oc create token command"
+                        textAriaLabel="oc create token command"
+                      >
+                        {CREATE_TOKEN_COMMAND}
+                      </ClipboardCopy>
+                    </StackItem>
+                  </Stack>
+                }
+                actions={addButton}
+              />
+            )}
+            {data?.map((credential) => (
+              <CredentialRow key={credential.id} cluster={cluster} credential={credential} />
+            ))}
+          </Tbody>
+        </Table>
+      )}
       <AddCredentialModal isOpen={isAddOpen} cluster={cluster} onClose={() => setIsAddOpen(false)} />
     </>
   );

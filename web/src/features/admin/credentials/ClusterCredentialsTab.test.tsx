@@ -137,6 +137,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     expect(await screen.findByText('Could not load credentials')).toBeInTheDocument();
     expect(screen.getByText('Database unavailable.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByRole('grid', { name: 'Credentials of prod-eu-1' })).not.toBeInTheDocument();
   });
 
   it('ADM-2: a read-only admin sees Add, Rotate and Delete disabled', async () => {
@@ -325,6 +326,36 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     dialog = await screen.findByRole('dialog', { name: /Delete credential legacy-token/ });
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText('Credential legacy-token deleted from prod-us-1')).toBeInTheDocument();
+    await waitFor(() => expect(within(table).queryByText('legacy-token')).not.toBeInTheDocument());
+  });
+
+  it('404: rotating a credential deleted meanwhile closes the dialog with a warning toast', async () => {
+    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const table = await findTable('prod-eu-1');
+    await rowAction(user, table, 'fleet-edit', 'Rotate token');
+    const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
+    mockDb.credentials = mockDb.credentials.filter((c) => c.id !== credentialIds.prodEuEdit);
+
+    await user.click(within(dialog).getByLabelText(/^New token/, { selector: 'input' }));
+    await user.paste(OPAQUE_TOKEN);
+    await user.click(within(dialog).getByRole('button', { name: 'Rotate' }));
+
+    expect(await screen.findByText('Credential fleet-edit no longer exists on prod-eu-1')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(within(table).queryByText('fleet-edit')).not.toBeInTheDocument());
+  });
+
+  it('404: deleting a credential deleted meanwhile closes the dialog with a warning toast', async () => {
+    const { user } = renderApp('/admin/clusters/prod-us-1/credentials');
+    const table = await findTable('prod-us-1');
+    await rowAction(user, table, 'legacy-token', 'Delete');
+    const dialog = await screen.findByRole('dialog', { name: /Delete credential legacy-token from prod-us-1\?/ });
+    mockDb.credentials = mockDb.credentials.filter((c) => c.id !== credentialIds.prodUsLegacy);
+
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByText('Credential legacy-token no longer exists on prod-us-1')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(within(table).queryByText('legacy-token')).not.toBeInTheDocument());
   });
 });

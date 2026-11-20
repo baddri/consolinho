@@ -13,6 +13,7 @@ import {
   type SortValue,
 } from '@/shared/table';
 import { ActionButton, ErrorState } from '@/shared/ui';
+import { CredentialExpiryAlert } from '../credentials/CredentialExpiryAlert';
 import { useAdminAccess } from '../useAdminAccess';
 import { useClusters } from './api';
 import {
@@ -39,6 +40,7 @@ const NO_CLUSTERS: ClusterListItem[] = [];
  *
  * The toolbar's "Register cluster" opens the form (T-0034); each row's kebab offers Edit, Enable/Disable (CLU-5)
  * and Delete (CLU-6). For read-only admins they stay visible but aria-disabled with the reason (ADM-2).
+ * `CredentialExpiryAlert` above the toolbar warns about expired or soon-expiring tokens (CRED-8).
  * Lazy-loaded by `routes.tsx`.
  */
 export function ClustersListPage() {
@@ -69,6 +71,7 @@ export function ClustersListPage() {
         </Content>
       </PageSection>
       <PageSection>
+        <CredentialExpiryAlert />
         {error && <ErrorState error={error} title="Could not load clusters" onRetry={() => void refetch()} />}
         <FilterToolbar
           ariaLabel="Clusters toolbar"

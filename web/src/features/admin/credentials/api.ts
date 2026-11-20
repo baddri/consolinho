@@ -30,6 +30,18 @@ export function useClusterCredentials(clusterName: string) {
   });
 }
 
+/**
+ * Loads `GET /api/admin/credentials` (CRED-7): every credential of the fleet, soonest expiry first (nulls last), then
+ * cluster and name — the server order the fleet page shows by default. Also feeds `CredentialExpiryAlert` (CRED-8);
+ * both pages share the one cached query. Never contains a token.
+ */
+export function useFleetCredentials() {
+  return useQuery({
+    queryKey: adminKeys.credentials(),
+    queryFn: ({ signal }): Promise<Credential[]> => unwrap(apiClient.GET('/api/admin/credentials', { signal })),
+  });
+}
+
 /** Loads `GET /api/admin/clusters/{name}/grants`: who can access the cluster and through which credential (CRED-6). */
 export function useClusterGrants(clusterName: string) {
   return useQuery({
