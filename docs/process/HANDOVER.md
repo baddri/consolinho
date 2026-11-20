@@ -15,7 +15,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
 2. SPEC + DESIGN done. BE: ADR-0019..21, T-0056..62 (56/57/58 ∥ → 59/60 ∥ → 61 → 62 QA). FE: ADR-0022..24, T-0070..79
    (70→71 ∥ 72; then 73 → 74 ∥ 75 → 76 → 77; 78 after 75; 79 after 60). T-0054 now depends on T-0061+T-0073 (QG-4 step).
-   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53), T-0061 (8fbd137), T-0079, T-0063 Aspire 17 (882884f), T-0073 (17178bc), T-0062 (3c05ad5) done. T-0090 (1629399) done. Running: T-0075 (shared tree), T-0074 + T-0054 (worktrees). CP2 must not close before T-0078 (cluster landing needs the Projects descriptor). T-0053, T-0055 done.
+   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53), T-0061 (8fbd137), T-0079, T-0063 Aspire 17 (882884f), T-0073 (17178bc), T-0062 (3c05ad5) done. T-0090 (1629399) done. T-0075 (fe46d9a) done. Running: T-0076 actions/delete (shared tree), T-0078 kinds (worktree); in review: T-0074 (worktree); fix round: T-0054 (worktree; must not revoke bob/admin dev grants — earlier runs did, list pending for the human). CP2 must not close before T-0078 (cluster landing needs the Projects descriptor). T-0053, T-0055 done.
    CSP needs (CP3): `img-src 'self' data:`, Monaco `worker-src 'self'` + `style-src 'unsafe-inline'`.
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),

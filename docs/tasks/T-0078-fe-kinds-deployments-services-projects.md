@@ -18,6 +18,7 @@ register it" holds (ADR-0023 §3). List columns per UI-3, details sections per U
   registration, render tests.
 - Out: any change to generic pages — if one is needed, stop and note it in the Work log for the architect (it means
   the descriptor shape is missing something).
+- Carried T-0075 review nits (optional): Pod details Node as a link to the Node (once a nodes kind exists, else leave text) and show init containers (`registry/kinds/pods.tsx`, `details/sections/PodDetails.tsx`).
 
 ## Contract / design notes
 - Models from `shared/k8s/models.ts` (T-0070). No BE change.

@@ -20,6 +20,7 @@ cluster and its environment (SW-10).
 - In: `actions/{useResourceAccess.ts,ResourceActionsMenu.tsx,ResourceRowActions.tsx,DeleteResourceModal.tsx,useDeleteResource.ts}`,
   wiring into the list table rows and the details header slot.
 - Out: YAML save gating UI (T-0077 consumes `useResourceAccess`), scale/restart/labels actions (CP4).
+- Carried T-0075 review nit (optional): not-found action in `components/ResourceErrorState.tsx` as PF `Button component={Link}` instead of a bare `Link`.
 
 ## Contract / design notes
 - BE: DELETE through the proxy (contract §1); denials arrive as 403 `Proxy.UserReadOnly` / `Proxy.ReadOnlyGrant`
