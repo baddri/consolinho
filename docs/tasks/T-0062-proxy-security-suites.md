@@ -15,6 +15,9 @@ smoke-tests (PRX-3, PRX-7, PRX-8 timing, PAUD-3), so QG-1 is met. File bug tasks
 instead of fixing product code.
 
 ## Scope
+- From T-0061 review — needs a real Kestrel host (TestServer lacks size-limit feature, RawTarget, upgrades): 413 on
+  chunked bodies + its Denied audit; real WebSocket upgrade forwarding; audit-failure log EventId 2400 path.
+  Tests use `ProxyTestClient` (raw target via test-only header) for TestServer cases — see T-0061 Handover notes.
 - In: new test classes under `Integration/Proxy/`; extend `TokenLeakSweepTests` (or a sibling `ProxyTokenLeakSweepTests`
   reusing its helpers). Folded CP1 nit (T-0016): move the duplicated `MeStatusAsync` helper of
   `SessionRevalidationTests`/`AuthEndpointsTests` into one shared test extension (create `ApiTestExtensions.cs` if no

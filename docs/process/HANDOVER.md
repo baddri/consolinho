@@ -15,7 +15,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
 2. SPEC + DESIGN done. BE: ADR-0019..21, T-0056..62 (56/57/58 ∥ → 59/60 ∥ → 61 → 62 QA). FE: ADR-0022..24, T-0070..79
    (70→71 ∥ 72; then 73 → 74 ∥ 75 → 76 → 77; 78 after 75; 79 after 60). T-0054 now depends on T-0061+T-0073 (QG-4 step).
-   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53) done. Running: T-0061 proxy endpoint + T-0073 list page (shared tree, src/ vs web/), T-0079 (agent worktree). FE needs `gen:api` for audit `proxy` (T-0079). T-0053, T-0055 done.
+   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53), T-0061 (8fbd137) done. Running: T-0062 QA proxy security suites + T-0073 list page (shared tree, tests/ vs web/), T-0079 (agent worktree). FE needs `gen:api` for audit `proxy` (T-0079). T-0053, T-0055 done.
    CSP needs (CP3): `img-src 'self' data:`, Monaco `worker-src 'self'` + `style-src 'unsafe-inline'`.
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
@@ -68,5 +68,6 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
   error, key-encryption cert rotation, runbook (T-0012); Containerfile publishes only `src/FleetConsole.Api`, assert no
   `FleetConsole.DevOAuth*` (T-0009); "new version — reload" on chunk-load failure (T-0028).
 - **CP4 (logs follow):** forwarding pool retires old handlers 6 min after an admin cluster edit → long-followed log streams cut then (T-0058 review).
+- Optional nit (T-0061): `ProxyErrors` `*Code` constants instead of string literals in `KubernetesProxyEndpoint.cs:217-219`, `ProxyProblems.cs:91-96`.
 - **CSP (CP3/CP6):** logos are inlined as `data:` URIs → SPA CSP must allow `img-src 'self' data:` (T-0055 review).
 - **CP2 follow-ups:** pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies (T-0010).
