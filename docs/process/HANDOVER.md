@@ -2,46 +2,26 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-19 (session 2, in progress) · **Current checkpoint:** CP1 — Identity & administration ·
-**Branch:** `cp/1-identity-admin`
+**Last updated:** 2026-11-20 (CP1 closed) · **Current checkpoint:** CP2 — Proxy, cluster switcher & generic resource
+browser (MVP) · **Branch:** create `cp/2-proxy-browser` from `main`
 
 ## Where we are
-- **CP0 Foundations: DONE** (tag `cp-0`).
-- **CP1 loop step: CLOSE (pending human browser checks H1–H4).** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
-  ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
-- Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0031..T-0043, T-0049, T-0051, T-0045, T-0046 (frontend); T-0016..T-0021, T-0047, T-0048, T-0050 (session 2; all CP1 backend APIs merged; T-0017/18 merged from worktrees, no worktrees left).
-  Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
-
-## ⚠ Uncommitted work-in-progress (session was stopped mid-task)
-T-0042/T-0046 committed (session 2). Backend tasks resumed by new agents in session 2. Each **task file has a Work log + Handover notes** written at stop time — read them first.
-
-| Task | Where the WIP lives | State at stop |
-|---|---|---|
-
-**Commit hygiene:** commit each task by explicit paths, never `git add -A`. `README.md` = T-0042 tail section only (T-0015's
-part is already committed). `docs/architecture/FRONTEND.md` has edits from both T-0042 and T-0046 — commit it with whichever
-lands first. The T-0042 file move means T-0046's and T-0042's web changes should be checked together (full web checks) before
-committing either.
-
-
-**Session 2 stopped by usage limit (2026-11-19)** — in flight when stopped (check each task file's status/Handover notes):
-- T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
-- T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
-- schema.gen.ts regenerated after T-0020 merge — every contract route is generated now (T-0043 retires the contract fallback). QA leak-scan `/clusters` endpoints still open.
-- BUILD done (T-0007..T-0052). VERIFY passed: `docs/specs/CP1-qa-report.md` (66/70 pass, 4 needs-human H1–H4, 0 bugs). ACCEPT: `docs/specs/CP1-acceptance.md` (accepted with follow-ups; T-0053 nav rename + T-0054 Playwright smoke → CP2). Next: human runs H1–H4 → merge `cp/1-identity-admin` into main, tag `cp-1`, ROADMAP CP1 done.
-- Optional follow-ups from reviews: T-0033 nits (deleted-cluster toast in T-0035, version-in-body test, status-filter test); T-0032 aria-labelledby nit; T-0041 nits (typeahead aria-controls, "To" date defaults 00:00 → consider 23:59, skeleton test name).
+- **CP0 Foundations: DONE** (tag `cp-0`). **CP1 Identity & administration: DONE** (tag `cp-1`, merged to `main`).
+- CP1 evidence: QA `docs/specs/CP1-qa-report.md` (66/70 automated + H1–H4 browser checks passed by the human 2026-11-20,
+  0 bugs); acceptance `docs/specs/CP1-acceptance.md` (accepted with follow-ups).
+- Working tree clean, no worktrees.
 
 ## Next actions (resume here)
-1. `git status` + `git worktree list`; read Handover notes of T-0042, T-0046, T-0016, and (inside each worktree) T-0017, T-0018.
-2. Resume each interrupted task with a **new** agent of the same type, pointing it at its task file's Handover notes
-   (worktree tasks: tell the agent the worktree path and to work only there).
-3. Reviews: T-0042 round 2 + T-0046 (frontend-architect); T-0016/17/18 round 1 (backend-architect; worktree reviews inside the worktree).
-4. Merge worktrees after approval: commit inside the worktree → `git merge --no-ff` into `cp/1-identity-admin` → expect
-   conflicts in `Api/Endpoints/Admin/AdminEndpoints.cs`, DI files, `schema.gen.ts` → resolve, **regenerate schema.gen.ts**
-   (Api running) + `cd web && npm run typecheck` → full backend + frontend checks → `git worktree remove` + delete branch.
-5. Then W6 rest: T-0019 (grants + GET /api/clusters), T-0021 (audit query) → T-0020 (connection test).
-   Frontend next: T-0031, T-0033, T-0034, T-0041, then T-0032, T-0035…; T-0043 (integration) last.
-6. VERIFY (qa-engineer) → ACCEPT (ocp-product-owner) → CLOSE per `docs/process/SDLC.md`.
+1. `git checkout main && git checkout -b cp/2-proxy-browser`; ROADMAP CP2 → `in_progress`.
+2. SPEC: ocp-product-owner writes `docs/specs/CP2-*.md`. Must include (from CP1 ACCEPT): token-leak sweep + authorization
+   matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
+3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
+   T-0054 (Playwright smoke H1–H4, self-seeding).
+4. Carried optional nits (fold into nearby CP2 work or drop): T-0016 (map unique-constraint race → `Users.UsernameTaken`;
+   shared `MeStatusAsync` test helper); T-0019 (bulk else-branch should match `GrantErrors.AlreadyExists` explicitly;
+   `ArgumentNullException.ThrowIfNull(api)` in ClustersEndpoints); T-0041 ("To" date defaults 00:00 → 23:59; typeahead
+   skeleton test name); T-0040 (production rows use selected-row styling; >100 bulk rows unguarded); T-0036 follow-up
+   "load token from file" into the masked input.
 
 ## How the human can test (current state)
 - `dotnet test FleetConsole.slnx` / `cd web && npm test -- --run`.

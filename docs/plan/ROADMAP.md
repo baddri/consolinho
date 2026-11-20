@@ -6,7 +6,7 @@ the human. Status: `planned` → `in_progress` → `done`.
 | CP | Name | Status |
 |---|---|---|
 | 0 | Foundations | done (tag cp-0) |
-| 1 | Identity & administration | in_progress |
+| 1 | Identity & administration | done (tag cp-1) |
 | 2 | Proxy, cluster switcher & generic resource browser (MVP) | planned |
 | 3 | Deploy to OpenShift | planned |
 | 4 | Workloads day-2 operations | planned |

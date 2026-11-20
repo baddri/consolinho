@@ -1,6 +1,8 @@
 # CP1 — Identity & administration: QA report
 
 **Date:** 2026-11-20 · **Branch:** `cp/1-identity-admin` @ `1271208` (plus the uncommitted QA tests listed below) ·
+> **Update 2026-11-20:** the human ran browser checks H1–H4 against `aspire run` — **all pass**. Final tally: 70/70 pass.
+
 **Spec:** `docs/specs/CP1-identity-and-admin.md` §4 · **Verdict:** 70 criteria: **66 pass**, **4 needs-human** (browser
 confirmation only; automated and server-side evidence exists), 0 partial, 0 fail. **No defects filed.**
 
