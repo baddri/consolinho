@@ -12,9 +12,11 @@
   `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
 
 ## Next actions (resume here)
-1. BUILD: done T-0094, T-0101, T-0098, T-0092, T-0099. Running wave 3: T-0100, T-0104. Then T-0102; T-0103 (in_review, review after T-0102).
-2. Then orchestrator deploys (check `oc whoami --show-server` first) and runs cluster checks H1–H6 → VERIFY → ACCEPT.
-3. Still open from CP2: human checks H1–H6 in `docs/specs/CP2-acceptance.md`.
+1. BUILD done (T-0092, T-0094, T-0098..T-0104 committed). Deployed to ns consolinho (2026-11-21):
+   https://consolinho.apps.acm-bri-poc.sandbox2014.opentlc.com — cluster checks H1, H2 (non-interactive), H5 PASS.
+2. VERIFY running (qa-engineer → `docs/specs/CP3-acceptance.md`). Then ACCEPT (ocp-product-owner) → CLOSE.
+3. Human: interactive OAuth login + smoke H2/H3/H4, H6 (human declined orchestrator running it), H7 teardown.
+   Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
 ## How the human can test (current state)
 - `aspire start --launch-profile http && aspire wait web` → login via DevOAuth (admin/alice/bob/ines; e2e-user/e2e-admin
