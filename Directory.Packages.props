@@ -32,6 +32,11 @@
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
   </ItemGroup>
 
+  <!-- Api: Kubernetes proxy forwarding through YARP's IHttpForwarder (ADR-0020; MIT). Targets net8+, runs on net10. -->
+  <ItemGroup>
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
   <!--
     Application layer: validation (FluentValidation, Apache-2.0) and the Microsoft.Extensions packages it may use, the
     abstractions plus Microsoft.Extensions.Options (BACKEND.md allow-list, enforced by ArchitectureTests). They are pinned

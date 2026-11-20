@@ -3,6 +3,7 @@ using FleetConsole.Api.Endpoints;
 using FleetConsole.Api.Hosting;
 using FleetConsole.Api.Http;
 using FleetConsole.Api.OpenApi;
+using FleetConsole.Api.Proxy;
 using FleetConsole.Application;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Infrastructure;
@@ -36,6 +37,9 @@ builder.AddApiAuthentication();
 builder.AddOpenShiftLogin();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
+
+// Kubernetes proxy (ADR-0019/0020): YARP's IHttpForwarder and the validated Proxy:* settings.
+builder.AddKubernetesProxy();
 
 // Export the per-request spans created by the Application layer's LoggingBehavior alongside ASP.NET Core's.
 builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddSource(ApplicationDiagnostics.ActivitySourceName));

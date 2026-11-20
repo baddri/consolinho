@@ -1,11 +1,11 @@
 ---
 id: T-0061
 title: Kubernetes proxy endpoint — YARP forwarding, header transforms, error mapping, audit wiring
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 2
 depends_on: [T-0057, T-0058, T-0059, T-0060]
-paths: [src/FleetConsole.Api/Proxy/, src/FleetConsole.Api/Endpoints/ApiEndpoints.cs, src/FleetConsole.Api/Endpoints/ClustersEndpoints.cs, src/FleetConsole.Api/Program.cs, src/FleetConsole.Api/appsettings.json, src/FleetConsole.Api/FleetConsole.Api.csproj, Directory.Packages.props, tests/FleetConsole.Api.Tests/Integration/Proxy/]
+paths: [src/FleetConsole.Api/Proxy/, src/FleetConsole.Api/Endpoints/ApiEndpoints.cs, src/FleetConsole.Api/Endpoints/ClustersEndpoints.cs, src/FleetConsole.Api/Program.cs, src/FleetConsole.Api/appsettings.json, src/FleetConsole.Api/FleetConsole.Api.csproj, Directory.Packages.props, tests/FleetConsole.Api.Tests/Integration/Proxy/, tests/FleetConsole.Api.Tests/Proxy/]
 review_rounds: 0
 ---
 
@@ -76,21 +76,46 @@ Update BACKEND.md only if you deviate (then say so in the work log).
 - Tests: `ApiFactory.LoginAsAsync` (`Integration/ApiFactory.cs:L155`), `CreateVariantAsync` (`L105`) for small timeouts, `TestData.ProxyClusterAsync` + `FakeKubeApiServer.MapPrefix/MapWatch/RecordedRequest.Headers` (T-0057), `factory.Logs`.
 
 ## Acceptance criteria
-- [ ] PRX-1: GET list, PUT with body, DELETE, PATCH reach the fake server with method, raw path, query and body unchanged; ApiUrl with a path prefix works; response status/body/`Content-Type` pass through; upstream 404/409/422 `Status` bodies untouched (status-code pages off).
-- [ ] PRX-2 at HTTP level (real Postgres, proves T-0059's EF translation): unknown cluster, disabled cluster and no-grant → 404 `Proxy.NotAvailable` with identical body shape, nothing forwarded.
-- [ ] PRX-4: `/api/clusters/x/k8s/healthz`, `…/k8s/api/%2e%2e/x`, `…/k8s/api/v1/namespaces%2Fx` → 400 `Proxy.PathNotAllowed`, fake server saw nothing.
-- [ ] PRX-5: upstream 401 → 502 `Proxy.CredentialRejected`, no `WWW-Authenticate`; upstream 403 passes through as 403 `Status`.
-- [ ] PRX-6: stopped server → 502 `UpstreamUnavailable`; untrusted cert → 502 `UpstreamTls`; delayed response beyond a 1 s `RequestTimeout` (variant) → 504 `UpstreamTimeout`; no exception text in bodies.
-- [ ] PRX-8 (basic): watch request forwarded with `timeoutSeconds` capped; one event arrives at the client while the stream is open.
-- [ ] SEC-1/2: one test sends every listed header with a recognisable value; the fake sees exactly one `Authorization: Bearer <sa-token>` and none of the others; `Set-Cookie`/`WWW-Authenticate` from upstream absent in the client response.
-- [ ] SEC-3: PUT without `X-Console-Request` → 403 `Auth.CsrfHeaderMissing`, nothing forwarded.
-- [ ] MUT-2/3/5 at HTTP level (403 codes, 413 by `Content-Length`), nothing forwarded; SSAR POST with ReadOnly grant forwarded.
-- [ ] PAUD-1/2 wiring: allowed PUT and denied DELETE each produce exactly one `proxy.*` entry; GET/watch/SSAR produce none.
-- [ ] WebSocket-style upgrade request with a foreign `Origin` → 403 `Proxy.OriginNotAllowed` (if TestServer can't express upgrades, unit-test the check and note it).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] PRX-1: GET list, PUT with body, DELETE, PATCH reach the fake server with method, raw path, query and body unchanged; ApiUrl with a path prefix works; response status/body/`Content-Type` pass through; upstream 404/409/422 `Status` bodies untouched (status-code pages off).
+- [x] PRX-2 at HTTP level (real Postgres, proves T-0059's EF translation): unknown cluster, disabled cluster and no-grant → 404 `Proxy.NotAvailable` with identical body shape, nothing forwarded.
+- [x] PRX-4: `/api/clusters/x/k8s/healthz`, `…/k8s/api/%2e%2e/x`, `…/k8s/api/v1/namespaces%2Fx` → 400 `Proxy.PathNotAllowed`, fake server saw nothing.
+- [x] PRX-5: upstream 401 → 502 `Proxy.CredentialRejected`, no `WWW-Authenticate`; upstream 403 passes through as 403 `Status`.
+- [x] PRX-6: stopped server → 502 `UpstreamUnavailable`; untrusted cert → 502 `UpstreamTls`; delayed response beyond a 1 s `RequestTimeout` (variant) → 504 `UpstreamTimeout`; no exception text in bodies.
+- [x] PRX-8 (basic): watch request forwarded with `timeoutSeconds` capped; one event arrives at the client while the stream is open.
+- [x] SEC-1/2: one test sends every listed header with a recognisable value; the fake sees exactly one `Authorization: Bearer <sa-token>` and none of the others; `Set-Cookie`/`WWW-Authenticate` from upstream absent in the client response.
+- [x] SEC-3: PUT without `X-Console-Request` → 403 `Auth.CsrfHeaderMissing`, nothing forwarded.
+- [x] MUT-2/3/5 at HTTP level (403 codes, 413 by `Content-Length`), nothing forwarded; SSAR POST with ReadOnly grant forwarded.
+- [x] PAUD-1/2 wiring: allowed PUT and denied DELETE each produce exactly one `proxy.*` entry; GET/watch/SSAR produce none.
+- [x] WebSocket-style upgrade request with a foreign `Origin` → 403 `Proxy.OriginNotAllowed` (if TestServer can't express upgrades, unit-test the check and note it).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 backend-engineer: `Api/Proxy/*` per contract, Yarp.ReverseProxy 2.3.0 (latest 2.x), `Yarp` log level Warning.
+  Integration tests in `Integration/Proxy/` (29) + unit tests in `tests/FleetConsole.Api.Tests/Proxy/` (outside `paths`, pure parts).
+  Deviation: ApiUrl path prefix can't be seeded (domain `ApiServerEndpoint` forbids paths) → covered by a unit test of
+  `KubernetesRequestTransformer.BuildDestination`. Raw target prefix must match the routed one (else 400). check-be green.
 
 ## Review
+- 2026-11-20 backend-architect: **APPROVE** (round 1). check-be green (325/684/681). Verified: no backdoor — `X-Test-Raw-Target`
+  exists only in `ProxyTestClient` (TestServer `CreateHandler` hook); `src/` reads only `IHttpRequestFeature.RawTarget`, empty → 400.
+  Header strip/SA token, 401→502 w/o `WWW-Authenticate`, Set-Cookie strip, status-code pages off, timeout cap, idle timeouts,
+  audit (`CancellationToken.None`, catch → 2400), Origin check, no exception text in bodies/logs all match ADR-0019/20/21 + SECURITY.md.
+  ApiUrl path-prefix AC: moot while `ApiServerEndpoint` forbids paths; the `BuildDestination` unit test is sufficient.
+  Reviewer fix: added `tests/FleetConsole.Api.Tests/Proxy/` to `paths`.
+- Optional: `KubernetesProxyEndpoint.cs:217-219`, `ProxyProblems.cs:91-96` — code string literals; expose `*Code` consts on `ProxyErrors` (like `NotAvailableCode`) so a rename can't silently drop an audit reason.
+- Optional: `KubernetesProxyEndpoint.cs:158-167` — audit runs before the handler returns, so a chunked response's terminator waits for one DB write; fine per ADR-0021 §2, revisit only if latency shows.
+- Follow-up (T-0062, Kestrel host): chunked-body 413 + its Denied audit, real WebSocket upgrade forwarding, audit-failure EventId 2400 path.
 
 ## Handover notes
+- TestServer leaves `RawTarget` empty and can't parse non-canonical URIs: use `Integration/Proxy/ProxyTestClient`
+  (login via `RunLoginAsync`; raw target passed in a test header and set in a `Server.CreateHandler` hook). Empty
+  `RawTarget` → 400 (fail closed); non-empty `PathBase` throws (config bug).
+- `TrySplitRawTarget` requires raw segments `api/clusters/<cluster>/k8s` (case-insensitive literals, decoded cluster ==
+  route value), so a dot-segment/encoded prefix can't route to one cluster and forward another remainder.
+- WebSocket origin check tested via `Server.CreateWebSocketClient` (403 asserted; missing `Origin` also 403). Real
+  upgrade forwarding untested (CP4). Chunked-body 413 path (`IHttpMaxRequestBodySizeFeature`) absent under TestServer;
+  mapping unit-tested only — T-0062 could cover it with Kestrel (`UseKestrel`).
+- Audit: denials use `DenialReasonOf(code)`; unknown failure codes (e.g. `Auth.*`) are not audited. Status: upstream ??
+  mapped 502/504 ?? 0; body-too-large while streaming → Denied/413. Audit failure (EventId 2400) path not HTTP-tested.
+- Log 2401 (Warning) only for upstream-side failures, with exception type + `HttpRequestError`, never message/query.
+- Problems written with `IProblemDetailsService.TryWriteAsync`: a protobuf-only `Accept` gets the status, no body.

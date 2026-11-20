@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- IHttpForwarder for the Kubernetes proxy (ADR-0020). -->
+    <PackageReference Include="Yarp.ReverseProxy" />
     <!-- Design-time only: the Api is the startup project for `dotnet ef migrations add` (see CLAUDE.md Commands). -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
   </ItemGroup>
