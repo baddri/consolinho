@@ -15,6 +15,8 @@ from projects (or namespaces on vanilla Kubernetes), URL-driven, remembered per 
 hidden by default and a typed fallback when the SA can't list projects.
 
 ## Scope
+- Carried T-0072 review nits (optional, cheap): `useRecentClusters.ts:remember` drops revoked clusters on write so 5 slots
+  stay useful; "No clusters match" in `ClusterSwitcher.tsx` announced via a polite live region.
 - In: `NamespaceSelector`, `useLastNamespace`, `useShowDefaultProjects` in `features/cluster-context` (exported from
   its `index.ts`); render it in the list page header slot left by T-0073; `NamespaceRedirect` uses the remembered
   project.
