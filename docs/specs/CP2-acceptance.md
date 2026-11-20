@@ -138,3 +138,18 @@ Run against two real managed clusters you are allowed to read from. Use a **test
 - **H6 Look and feel with 40 clusters.** Switcher search and recents. The prod environment label is red in the
   masthead and next to Save. Development shows **green** (CP1 CLU-7): confirm that is acceptable versus SW-10's
   "default".
+
+## Product owner acceptance
+
+**2026-11-20 · Verdict: ACCEPT-WITH-FOLLOWUPS.** 54/55 ACs verified by QA evidence above; SEC-1 is a narrow RFC miss
+with no credential exposure (client `Authorization`/`Cookie`/`Impersonate-*` are already stripped) → T-0093 must land
+before merge, not a reason to reject. Clicked through `dev:mock` as admin and alice at 1440 px: Projects landing, Pods
+all-projects with `CrashLoopBackOff` status and filter, pod details + containers table, read-only YAML on prod-eu-1
+with reason, Events tab, switcher search/recents with env + "Read only" labels, prod (red) / staging (yellow) band,
+ConfigMap kebab → delete modal naming project, cluster and `staging` label. Matches OCP muscle memory (Details/YAML/
+Events tabs, kebab Edit YAML/Delete, project selector).
+**SW-10 ruling:** development = **green**, as CP1 CLU-7 — one colour per environment across admin and masthead. Spec
+wording fixed; H6 only needs to confirm prod red / staging orange-yellow are distinct on real monitors.
+**Follow-ups (later):** T-0095 list headers truncate at 1440 px (Pods: "N…", "R…", "Cr…"), CP4; T-0096 typed-name
+confirmation for any delete on production clusters, CP4; T-0097 hide cluster nav on the "cluster not available" page, CP6.
+Human manual checks H1–H6 still required before merge.

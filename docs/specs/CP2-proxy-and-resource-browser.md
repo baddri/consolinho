@@ -139,7 +139,8 @@ never reveals whether a cluster exists. Proxy errors raised by FleetConsole are 
   route on B (kind, namespace, name, tab). If the namespace or object does not exist on B, the page shows the normal
   404/empty state with a link to the kind's list on B — not an error page and not a redirect to `/`.
 - **SW-10 Environment visibility.** The masthead shows the active cluster's name and environment label in the
-  environment colour (production = red/danger, staging = orange/warning, development = default). Every mutation
+  environment colour (production = red/danger, staging = orange/warning, development = green/success — same colours as
+  CP1 CLU-7). Every mutation
   confirmation names the cluster and its environment label: the delete modal (UI-8), and next to the YAML Save button (UI-7).
 - **SW-11 Fleet vs cluster nav (T-0053).** The sidebar shows the cluster sections (Home, Workloads, Networking,
   Administration) for the active cluster, and "Fleet administration" (admins only) as a separate section; no two
