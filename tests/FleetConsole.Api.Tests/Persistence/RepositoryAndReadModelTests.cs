@@ -2,6 +2,7 @@ using FleetConsole.Api.Tests.Integration;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Common;
+using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
 using FleetConsole.Domain.Users;
@@ -12,7 +13,7 @@ using static FleetConsole.Api.Tests.Persistence.PersistenceTestData;
 namespace FleetConsole.Api.Tests.Persistence;
 
 /// <summary>
-/// The facts repositories compute in SQL for aggregate rules (last admin, existing grants, usage counts), the bulk
+/// The facts repositories compute in SQL for aggregate rules (last admin, existing grants, usage counts by mode), the bulk
 /// lookups, and the read model's no-tracking queries and async operators.
 /// </summary>
 /// <remarks>
@@ -126,7 +127,7 @@ public sealed class RepositoryAndReadModelTests(ApiFactory factory)
             credentials.Add(elsewhere);
             var grants = sp.GetRequiredService<IGrantRepository>();
             grants.Add(NewGrant(user, cluster, used));
-            grants.Add(NewGrant(otherUser, cluster, used));
+            grants.Add(NewGrant(otherUser, cluster, used, AccessMode.ReadWrite));
             grants.Add(NewGrant(user, otherCluster, elsewhere));
         });
 
@@ -145,6 +146,8 @@ public sealed class RepositoryAndReadModelTests(ApiFactory factory)
             (await grants.GetClusterIdsForUserAsync(UserId.New(), Ct)).ShouldBeEmpty();
             (await grants.CountByCredentialAsync(used.Id, Ct)).ShouldBe(2);
             (await grants.CountByCredentialAsync(unused.Id, Ct)).ShouldBe(0);
+            (await grants.CountByModeAsync(used.Id, Ct)).ShouldBe(new GrantModeCounts(ReadOnly: 1, ReadWrite: 1));
+            (await grants.CountByModeAsync(unused.Id, Ct)).ShouldBe(new GrantModeCounts(0, 0));
             (await grants.CountByClusterAsync(cluster.Id, Ct)).ShouldBe(2);
             return 0;
         });

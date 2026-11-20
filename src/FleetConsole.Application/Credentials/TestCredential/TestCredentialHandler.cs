@@ -17,13 +17,13 @@ namespace FleetConsole.Application.Credentials.TestCredential;
 /// </remarks>
 /// <param name="clusters">Cluster repository.</param>
 /// <param name="credentials">Credential repository.</param>
-/// <param name="readModel">Reads the grant counts (no aggregates needed).</param>
+/// <param name="grantRepository">Counts the credential's grants by mode for the hints (no aggregates needed).</param>
 /// <param name="tokenProtector">Decrypts the stored token (ADR-0004).</param>
 /// <param name="tester">Runs the test.</param>
 internal sealed class TestCredentialHandler(
     IClusterRepository clusters,
     ICredentialRepository credentials,
-    IReadModel readModel,
+    IGrantRepository grantRepository,
     ITokenProtector tokenProtector,
     ConnectionTester tester) : IRequestHandler<TestCredentialCommand, Result<ConnectionTestResultDto>>
 {
@@ -41,7 +41,7 @@ internal sealed class TestCredentialHandler(
         }
 
         var (cluster, credential) = found.Value;
-        var grants = await GrantModeCounts.ReadAsync(readModel, credential.Id, cancellationToken).ConfigureAwait(false);
+        var grants = await grantRepository.CountByModeAsync(credential.Id, cancellationToken).ConfigureAwait(false);
 
         var result = await tester.RunAsync(
             ConnectionTester.ConnectionOf(cluster),

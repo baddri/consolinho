@@ -1,5 +1,6 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Credentials;
 using FleetConsole.Application.Credentials.ConnectionTesting;
 using FleetConsole.Application.Tests.Audit;
@@ -178,6 +179,22 @@ public sealed class ConnectionTesterTests
         result.Identity.ShouldBe(new ClusterIdentityDto("system:serviceaccount:fleet:from-token", IdentitySource.TokenSubject));
         result.Steps[2].Status.ShouldBe(ConnectionTestStepStatus.Passed);
         _probes.ReviewedAttributes[0].ShouldBe(CapabilityCheckSet.Checks[0].Attributes);
+    }
+
+    [Fact]
+    public async Task SelfSubjectReview_403_is_treated_like_404_access_review_and_token_subject()
+    {
+        // ADR-0011 amendment (T-0050): a token that may not create a SelfSubjectReview was still authenticated, so the
+        // step falls back to an access review exactly as for a cluster without the API.
+        _probes.SelfSubjectReview = _ => FakeProbeClient.Fail<SelfSubjectReviewInfo>(ProbeFailureKind.Forbidden);
+
+        var result = await RunAsync();
+
+        result.Succeeded.ShouldBeTrue();
+        result.Steps[1].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        result.Steps[1].Message.ShouldContain("access review");
+        result.Identity.ShouldBe(new ClusterIdentityDto("system:serviceaccount:fleet:from-token", IdentitySource.TokenSubject));
+        result.Steps[2].Status.ShouldBe(ConnectionTestStepStatus.Passed);
     }
 
     [Fact]

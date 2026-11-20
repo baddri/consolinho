@@ -32,6 +32,16 @@ public interface IGrantRepository
     /// <returns>The number of grants.</returns>
     Task<int> CountByCredentialAsync(CredentialId id, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Counts the grants that use a credential, by access mode, in one grouped SQL statement: the input of the
+    /// connection test's grant-based hints (TEST-4). Kept on the repository so the test commands don't need the read
+    /// model and <see cref="GrantModeCounts"/> stays a plain value.
+    /// </summary>
+    /// <param name="id">The credential.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The counts (zeros when no grant uses the credential).</returns>
+    Task<GrantModeCounts> CountByModeAsync(CredentialId id, CancellationToken cancellationToken);
+
     /// <summary>Counts the grants on a cluster (for the <c>cluster.deleted</c> audit details, CLU-6).</summary>
     /// <param name="id">The cluster.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

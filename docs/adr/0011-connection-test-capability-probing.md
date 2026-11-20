@@ -33,6 +33,13 @@ requires testing against a fake API server, not a real cluster.
      "Not visible with this credential" (not a failure).
   5. `capabilities` — SSARs from the check set (cluster-scoped, `namespace` empty), run concurrently (max 4); an
      optional `SelfSubjectRulesReview` for `inspectNamespace`.
+
+  > Amendment 2026-11-20 (T-0050): step rules T-0020 chose where this ADR was silent —
+  > (a) `reachability`: `/version` answering 401/403 means the server is reachable → `warning` (version not visible),
+  > authentication then decides; (b) `authentication`: SelfSubjectReview 403 is treated like 404 (the token was
+  > authenticated, only the review is forbidden) → decided by the first SSAR; (c) `identity`: a username from the JWT
+  > `sub` claim (no SelfSubjectReview username) is `passed`, not `warning`; (d) `capabilities`: a failed
+  > `SelfSubjectRulesReview` for `inspectNamespace` makes the step a `warning` (SSAR results are kept), not a failure.
 - **Check set in one class:** `CapabilityCheckSet` holds the ordered list of `CapabilityCheck(Id, Label, Category,
   Verb, Group, Resource, Subresource?)` and the headline rules (`clusterAdmin`: `* * *`; `clusterWideEdit`: patch
   deployments + delete pods + update configmaps; `clusterWideView`: list pods + list deployments + list namespaces;

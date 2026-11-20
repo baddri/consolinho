@@ -357,6 +357,11 @@ test — "Test new token" is a separate `test-token` call, "Save anyway" is UI-o
 stored `lastTest` (it described the old token); `lastTest` is `null` until the next `…/test`. Testing works on disabled clusters
 (TEST-1). Test endpoints are admin **commands** (read-only admins get 403 `Auth.ReadOnly`).
 
+> Amendment 2026-11-20 (T-0050): `POST …/credentials/{credentialId}/test` may also return **409 `Concurrency.Conflict`**:
+> recording the test result bumps the credential's version, so a rotation that commits while the test runs makes the
+> test's commit fail (its result would describe the old token). Clients should refetch the credential (new `version`,
+> cleared `lastTest`) before rotating or re-testing.
+
 ### 8.5 Connection test result
 ```csharp
 public sealed record ConnectionTestResultDto(

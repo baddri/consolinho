@@ -30,6 +30,7 @@ public sealed class ConnectionTestHandlerTests
 
     private readonly IClusterRepository _clusters = Substitute.For<IClusterRepository>();
     private readonly ICredentialRepository _credentials = Substitute.For<ICredentialRepository>();
+    private readonly IGrantRepository _grants = Substitute.For<IGrantRepository>();
     private readonly ITokenProtector _protector = Substitute.For<ITokenProtector>();
     private readonly FakeProbeClient _probes = new();
     private readonly RecordingAuditTrail _audit = new();
@@ -39,6 +40,7 @@ public sealed class ConnectionTestHandlerTests
     {
         _clusters.GetByNameAsync(_cluster.Name, Arg.Any<CancellationToken>()).Returns(_cluster);
         _protector.Unprotect(Arg.Any<EncryptedToken>()).Returns(Sensitive(StoredToken));
+        _grants.CountByModeAsync(Arg.Any<CredentialId>(), Arg.Any<CancellationToken>()).Returns(new GrantModeCounts(0, 0));
     }
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -55,6 +57,32 @@ public sealed class ConnectionTestHandlerTests
         _probes.OpenedConnection.ShouldBe(new ClusterConnection(_cluster.Endpoint.Url, null, false));
         credential.LastTest.ShouldBe(new ConnectionTestSummary(FixedClock.Now, true, null, CapabilityLevel.Limited));
         credential.DomainEvents.OfType<CredentialTested>().ShouldHaveSingleItem().ClusterName.ShouldBe("prod-eu-1");
+    }
+
+    [Fact]
+    public async Task TestCredential_hints_use_the_grant_counts_of_the_credential()
+    {
+        var credential = Existing(_cluster);
+        _grants.CountByModeAsync(credential.Id, Arg.Any<CancellationToken>()).Returns(new GrantModeCounts(ReadOnly: 0, ReadWrite: 2));
+
+        var result = await CredentialHandler().Handle(new TestCredentialCommand("prod-eu-1", credential.Id.Value, null), Ct);
+
+        result.IsSuccess.ShouldBeTrue();
+        result.Value.Hints.ShouldBe([new ConnectionTestHintDto(
+            HintSeverity.Warning, "2 users have ReadWrite grants with this credential but it cannot modify workloads")]);
+        await _grants.Received(1).CountByModeAsync(credential.Id, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task TestToken_with_credential_reads_its_grant_counts()
+    {
+        var credential = Existing(_cluster);
+
+        var result = await TokenHandler().Handle(
+            new TestTokenCommand("prod-eu-1", Sensitive(UnsavedToken), credential.Id.Value, null), Ct);
+
+        result.IsSuccess.ShouldBeTrue();
+        await _grants.Received(1).CountByModeAsync(credential.Id, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -88,6 +116,7 @@ public sealed class ConnectionTestHandlerTests
 
         result.IsSuccess.ShouldBeTrue();
         result.Value.Hints.ShouldBeEmpty();
+        await _grants.DidNotReceive().CountByModeAsync(Arg.Any<CredentialId>(), Arg.Any<CancellationToken>());
         _probes.OpenedToken.ShouldNotBeNull().Reveal().ShouldBe(UnsavedToken);
         var record = _audit.Single;
         record.Action.ShouldBe("credential.token_tested");
@@ -124,9 +153,9 @@ public sealed class ConnectionTestHandlerTests
 
     private ConnectionTester Tester() => new(_probes, new FixedClock(), Options.Create(new CredentialsOptions()));
 
-    private TestCredentialHandler CredentialHandler() => new(_clusters, _credentials, new InMemoryReadModel(), _protector, Tester());
+    private TestCredentialHandler CredentialHandler() => new(_clusters, _credentials, _grants, _protector, Tester());
 
-    private TestTokenHandler TokenHandler() => new(_clusters, _credentials, new InMemoryReadModel(), Tester(), _audit);
+    private TestTokenHandler TokenHandler() => new(_clusters, _credentials, _grants, Tester(), _audit);
 
     private static Cluster NewCluster(string name)
     {
