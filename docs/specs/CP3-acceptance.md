@@ -45,7 +45,7 @@ evidence added in this verify step.
 | AC | Evidence | Verdict |
 |---|---|---|
 | PRB-1 Prod probes, status only, anonymous, no CSRF | BE `Hosting/ProductionProbeTests.Probes_AreHealthy_Anonymous_WithoutCsrfHeader_StatusWordOnly` (GET/POST), `AnonymousSurfaceTests.OutsideApi_ProductionMapsOnlyTheAdr0028AnonymousEndpoints`; IMG 6 `Healthy`; H2 live | PASS |
-| PRB-2 Liveness DB-independent, readiness includes DB, startup probe | BE `ProductionProbeTests.DatabaseUnreachable_AliveIs200_HealthIs503` (host already running); `K:base/deployment.yaml` startup `/alive` 2 s × 30, liveness `/alive`, readiness `/health`. **Fails (QA manual):** with the DB unreachable **at start**, the key-ring read plus EF retries block Kestrel for 61 s. That is longer than the 60 s startup budget, so the pod restarts in a loop during a DB outage | **FAIL (medium) → T-0106** |
+| PRB-2 Liveness DB-independent, readiness includes DB, startup probe | BE `ProductionProbeTests.DatabaseUnreachable_AliveIs200_HealthIs503` (host already running); `K:base/deployment.yaml` startup `/alive` 2 s × 30, liveness `/alive`, readiness `/health`. **Fails (QA manual):** with the DB unreachable **at start**, the key-ring read plus EF retries block Kestrel for 61 s. That is longer than the 60 s startup budget, so the pod restarts in a loop during a DB outage | **PASS after T-0106** (acd81ed: `ProductionProbeTests` refused/dropped DB at start → `/alive` 200 in ~2 s, `/health` 503; recovers without restart. Init container retry during outage accepted, ADR-0027 amendment) |
 | PRB-3 DB scaled to 0 → NotReady, no restart, recovers | Running-pod path covered by `DatabaseUnreachable_AliveIs200_HealthIs503`; needs H6 | HUMAN (H6) |
 
 ## Configuration & secrets (CFG)
