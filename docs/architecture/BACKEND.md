@@ -244,7 +244,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   Multi-value value objects are complex properties (flattened columns), except where a column needs an index: EF Core
   10 can't index complex-type columns, so `AuditEntry.Actor` is an owned type (same table, `actor_*` columns).
 - Migrations live in `Infrastructure/Persistence/Migrations` (treated as generated code by a nested `.editorconfig`);
-  applied on startup in Development by `DevelopmentDatabaseMigrator`, via a migration job/init container in production.
+  applied on startup in Development by `DevelopmentDatabaseMigrator`; in production by the image's `migrate` mode run
+  as an init container (ADR-0027). Both use the same migrator; migrations are forward-only.
   Add one with `dotnet tool restore` then `dotnet ef migrations add <Name> -p src/FleetConsole.Infrastructure
   -s src/FleetConsole.Api -o Persistence/Migrations` (uses the design-time factory; no database needed). The history
   table is `__ef_migrations_history`.
@@ -267,6 +268,21 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - `IgnoreDomainEventsConvention` explicitly unmaps `IHasDomainEvents.DomainEvents` on every aggregate (EF 10 skips it
   today anyway; the convention makes that independent of discovery rules).
 - Optimistic concurrency via Postgres `xmin`.
+
+## Hosting & deployment (CP3)
+
+- One image (ADR-0026) serves the API and the built SPA from `wwwroot` (ADR-0028): anonymous SPA fallback for
+  extension-less `GET`/`HEAD` paths outside `/api`; `index.html` `no-cache`, `/assets/*` `immutable`.
+- Modes: no argument = web host; `migrate` = apply migrations and exit (ADR-0027, needs only the connection string).
+- Probes in every environment: `/alive` (liveness, no dependencies), `/health` (readiness, includes Postgres). Status
+  word only.
+- Behind the edge Route the app sees HTTP and trusts no forwarded headers; every absolute URL comes from
+  `Console:PublicOrigin`, cookies are `Secure` by policy outside Development.
+- Production configuration is validated on start (`ValidateOnStart`, messages name keys, never values); `Program`
+  turns failures into one Critical line each and exit code 1. New required settings follow the same pattern.
+- Logs: JSON console outside Development; the request-line log category is capped at Warning in code.
+- Manifests and the configuration contract (env keys, Secret/ConfigMap names): ADR-0030, `deploy/kustomize/`;
+  operations: `docs/ops/RUNBOOK.md`.
 
 ## Testing
 

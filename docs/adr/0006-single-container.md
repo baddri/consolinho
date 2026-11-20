@@ -1,5 +1,5 @@
 # 0006 — Single container serves API and SPA
-**Status:** Accepted (2026-11-18)
+**Status:** Accepted (2026-11-18) · amended by ADR-0026 (base image, build)
 
 ## Context
 Same-origin simplifies cookies, CSRF, CSP and OpenShift Route config.

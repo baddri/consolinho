@@ -68,9 +68,9 @@ it holds, so these rules are strict.
   fingerprint.
 - Tokens are never logged. Logging enrichers/redaction remove `Authorization` headers; proxy logs record path and status only.
 - Request URLs can carry secrets in the query (OAuth callback `code`/`state`). ASP.NET Core's request-line log
-  (`Microsoft.AspNetCore.Hosting.Diagnostics`, Information) quotes the full URL. It must stay off in production. Today
-  that relies on the `Microsoft.AspNetCore: Warning` default in `appsettings.json`, which a provider-specific level can
-  override (CP3 follow-up: enforce it in code or redact the query, and check the OpenTelemetry `url.query` redaction).
+  (`Microsoft.AspNetCore.Hosting.Diagnostics`, Information) quotes the full URL. It must stay off in production: the category
+  is capped at Warning in code outside Development for every logging provider, so no configuration can re-enable it;
+  OpenTelemetry's default `url.query` redaction stays on (ADR-0028 §4).
   The OAuth handler's own loggers are capped at Warning in code (`WarningOnlyLoggerFactory`, ADR-0018), so the remote
   `error_description` is never logged.
 - Decrypted tokens live only for the duration of a request (and, if caching is added, in a short-TTL in-memory cache only).
@@ -103,4 +103,12 @@ it holds, so these rules are strict.
   only); CA bundle content is not logged, only the names of changed fields.
 
 ## HTTP
-- Security headers on SPA: CSP (self + needed workers for Monaco), `X-Content-Type-Options`, `Referrer-Policy`, frame-ancestors none.
+- Security headers on **every** response (SPA, assets, API, proxied responses), constants in code (ADR-0029): CSP
+  `default-src 'self'` with `style-src 'unsafe-inline'` (Monaco), `worker-src 'self'`, `frame-ancestors 'none'`;
+  `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`,
+  `Cross-Origin-Opener-Policy: same-origin`.
+- TLS ends at the OpenShift Route (edge, HTTP→HTTPS redirect, HSTS from the router; ADR-0030). The app trusts no
+  forwarded headers; cookies are `Secure` by policy and URLs come from `Console:PublicOrigin` (ADR-0028).
+- Deployment: non-root arbitrary UID, read-only root filesystem, no SA token automount, pod SA without RBAC,
+  NetworkPolicies (ingress only from the router; egress by port). The Data Protection certificate is mandatory outside
+  Development; losing it or the `data_protection_keys` table makes every stored SA token unreadable (runbook).
