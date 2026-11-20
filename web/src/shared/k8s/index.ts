@@ -2,3 +2,20 @@
 export * from './models';
 export type * from './types';
 export { PROJECT_ANNOTATIONS } from './types';
+export { resourceApiPath, proxyBasePath, type ResourceApiPathOptions } from './url';
+export {
+  k8sListAll,
+  k8sGet,
+  k8sUpdate,
+  k8sDelete,
+  k8sCreate,
+  LIST_PAGE_SIZE,
+  type ListOptions,
+  type K8sListData,
+} from './client';
+export { k8sErrorFromResponse } from './errors';
+export { k8sQueryKeys, type AccessReview, type AccessVerb } from './queryKeys';
+export { useK8sList, useK8sGet, type K8sLiveResult } from './hooks';
+export { useK8sDiscovery } from './discovery';
+export { useCanI } from './access';
+export { WATCH_FLUSH_MS, setWatchTimingForTests, type LiveStatus } from './watchManager';

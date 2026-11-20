@@ -1,12 +1,12 @@
 ---
 id: T-0071
 title: shared/k8s data layer — client, error mapping, list+watch hooks, discovery, useCanI
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 2
 depends_on: [T-0070]
 paths: [web/src/shared/k8s/, web/src/shared/api/errors.ts, web/src/shared/api/index.ts]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -74,20 +74,55 @@ k8sQueryKeys.{ all(cluster), list(cluster, model, opts), get(cluster, model, ns,
   (or `renderHook` with the app `AppProviders`).
 
 ## Acceptance criteria
-- [ ] `ndjson` splitter unit test: events split across chunks and multiple events per chunk.
-- [ ] Error mapping tests: `Proxy.CredentialRejected` 502, `Kubernetes.Conflict` 409, `Kubernetes.Forbidden` 403,
+- [x] `ndjson` splitter unit test: events split across chunks and multiple events per chunk.
+- [x] Error mapping tests: `Proxy.CredentialRejected` 502, `Kubernetes.Conflict` 409, `Kubernetes.Forbidden` 403,
       network failure → status 0; abort rethrown.
-- [ ] `k8sListAll` pages through 600 mock pods in 3 requests and returns the last `resourceVersion`.
-- [ ] `useK8sList` (QG-3): add / modify / delete via `mockK8s` appear without refetch; `compact` → relist then live;
+- [x] `k8sListAll` pages through 600 mock pods in 3 requests and returns the last `resourceVersion`.
+- [x] `useK8sList` (QG-3): add / modify / delete via `mockK8s` appear without refetch; `compact` → relist then live;
       watch error → `liveStatus: 'paused'` then `'live'` after reconnect; two components with the same key open one
       stream; unmount aborts it; changing namespace closes the old stream (DATA-5).
-- [ ] `useK8sGet` sees an out-of-band modification; `useK8sDiscovery` hides projects on `lab-1`; `useCanI` dedupes two
+- [x] `useK8sGet` sees an out-of-band modification; `useK8sDiscovery` hides projects on `lab-1`; `useCanI` dedupes two
       identical checks into one POST and returns `false` for a view profile `delete`.
-- [ ] 401 from the proxy reaches the global handler (navigates to `/login`); 502 does not.
-- [ ] TSDoc on every exported function/hook. Build, lint and tests green (CLAUDE.md rule 4)
+- [x] 401 from the proxy reaches the global handler (navigates to `/login`); 502 does not.
+- [x] TSDoc on every exported function/hook. Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; ADR-0022 + contract §1–4 read.
+- 2026-11-20 frontend-engineer: url/client/errors/ndjson/watch/watchManager/queryKeys/hooks/discovery/access done;
+  3 test files (20 tests). Object watches start from the current state (seed rv → 410 in mock and real etcd).
+  `scripts/check-fe.sh` green → in_review.
+- 2026-11-20 frontend-engineer: round 1 fixes — streams closed within `minStreamMs` (1 s) or 2xx without body back
+  off; object 410 restarts at once only from a saved rv, else backs off; nits fixed; 3 tests added. Green → in_review.
 
 ## Review
+**Round 1 — frontend-architect: CHANGES_REQUESTED.** check-fe.sh green. ADR-0022 compliance, streaming (no buffering,
+abort on unmount), dedup, list rv/410 handling, error mapping, `useCanI` keys, no `any` all OK. Declared deviations
+accepted; ADR-0022 §6 amended (object watch from current state, check `error` before `data`; noted in T-0075).
+Required:
+- `web/src/shared/k8s/watchManager.ts:209` (+ `watch.ts:44`) — a clean end re-watches immediately with no floor, so a
+  proxy/router that closes the stream at once (or a 2xx with no body) becomes a hot request loop per open list — treat
+  a clean end that stayed open < ~1 s (`timing.minStreamMs`, test-overridable) as a failure (backoff path), and add a
+  test for it.
+- `web/src/shared/k8s/watchManager.ts:213-216` — object-mode 410 `continue`s without delay; if a watch from `''` also
+  returns 410 it spins — only restart at once when `streamRv !== ''`, otherwise take the backoff path.
+Nits (optional): `client.ts:147` comment says "drain" but the body is cancelled — reword; `watchManager.ts:109` TSDoc
+line exceeds the line length used elsewhere.
+
+**Round 2 — frontend-architect: APPROVE.** check-fe.sh green (51 files, 557 tests). Both required fixes verified:
+`watchManager.ts:218-231` (clean end < `minStreamMs` → backoff, no backoff reset; object 410 restarts at once only from a
+saved rv) and `watch.ts:43` (2xx without body → failure); nits fixed. Optional: a test for the immediate object restart
+from a saved rv (one-branch path, low risk).
 
 ## Handover notes
+- Public API in `shared/k8s/index.ts`; also `K8sListData`, `K8sLiveResult`, `AccessReview`, `LIST_PAGE_SIZE`,
+  `proxyBasePath`, `setWatchTimingForTests` (tests: `onTestFinished(setWatchTimingForTests({...}))`).
+- `shared/api` now exports `apiErrorFromProblemBody` / `apiErrorFromRejection` (aliases, no behaviour change).
+- List items are stamped with `apiVersion`/`kind` from the model.
+- `useK8sGet` watch starts without `resourceVersion` (synthetic ADDED) and re-watches from current state on 410 —
+  an object's own rv is usually outside the watch window. DELETED → refetch → `error` 404 while TanStack keeps the
+  old `data`: pages must check `error` first.
+- Backoff resets only after a stream stayed open ≥ `minStreamMs`; tests override it via `setWatchTimingForTests`.
+- Watch 401 → stop + refetch (so the global handler sees it); 403/404 → stop with `liveStatus: 'paused'`.
+- Not done (ADR §7): mutations writing the returned object into the `get` key — `k8sUpdate/k8sDelete` are plain
+  functions; the mutation hooks of T-0076/T-0077 should `setQueryData(k8sQueryKeys.get(...))`.
+- `useCanI` reflects SA RBAC only; read-only grant/user gating stays with T-0076.

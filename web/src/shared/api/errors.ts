@@ -145,3 +145,16 @@ export function errorMessage(error: unknown): string {
   }
   return GENERIC_MESSAGE;
 }
+
+/**
+ * Builds an {@link ApiError} from a non-2xx response and its parsed JSON body (ProblemDetails fields are read
+ * defensively). Exported for clients that do not go through openapi-fetch — the Kubernetes proxy client
+ * (`shared/k8s/errors.ts`) uses it for `application/problem+json` answers of the proxy itself.
+ */
+export const apiErrorFromProblemBody: (response: Response, body: unknown) => ApiError = fromErrorResponse;
+
+/**
+ * Maps a rejected `fetch` (network failure, unreadable body) to a thrown {@link ApiError} with `status` 0; aborts are
+ * rethrown unchanged. Exported for clients that call `fetch` directly (`shared/k8s/client.ts`).
+ */
+export const apiErrorFromRejection: (reason: unknown) => never = fromRejection;

@@ -26,7 +26,8 @@ The YAML tab is a read-only view here; T-0077 turns it into the editor.
 - Data: `useK8sGet(cluster, model, namespace, name)` (live, T-0071). Errors: `Kubernetes.NotFound` → EmptyState
   "`<Kind>` `<name>` not found on `<cluster>`" with a link to the kind's list in that namespace (SW-9 landing on a
   missing object); `Kubernetes.Forbidden` → "Restricted access" (`ResourceErrorState` from T-0073); `Proxy.*`/other →
-  `ErrorState` + Retry; pending → skeletons. Object deleted while open → the 404 state.
+  `ErrorState` + Retry; pending → skeletons. Object deleted while open → the 404 state. Check `error` **before**
+  `data`: after a DELETED event TanStack keeps the stale `data` next to the 404 `error` (ADR-0022 §6).
 - Header (spec §5): PF `Breadcrumb` `Projects › <ns> › <Kinds> › <name>` (cluster-scoped: `<Kinds> › <name>`), title
   `KindBadge` + name + `ResourceStatusLabel` (from `descriptor.status`), right-aligned actions slot; PF `Tabs` with
   link tabs (Details, YAML, Events — Events hidden when `hasEventsTab === false`).

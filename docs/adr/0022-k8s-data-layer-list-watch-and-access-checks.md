@@ -37,7 +37,10 @@ FRONTEND.md already fixes "server state in TanStack Query only", query keys star
 5. **Streams** are read with `fetch` + `response.body.pipeThrough(new TextDecoderStream())` and a small NDJSON line
    splitter (`TransformStream`, unit-tested with split chunks). No WebSocket, no EventSource.
 6. **Single objects** (`useK8sGet`) use the same pattern with `fieldSelector=metadata.name=<name>` so details and the
-   YAML editor see out-of-band changes (UI-7 "This object changed on the cluster").
+   YAML editor see out-of-band changes (UI-7 "This object changed on the cluster"). *Amended (T-0071):* the object
+   watch starts without `resourceVersion` (synthetic `ADDED` re-delivers the object; its own rv is usually outside the
+   watch window) and restarts the same way on 410 instead of refetching; `DELETED` refetches → 404 `error` while
+   TanStack keeps the last `data`, so pages check `error` before `data`.
 7. **Query keys** (factories in `shared/k8s/queryKeys.ts`, never inline), `modelKey = "<group>/<version>/<plural>"`:
    `['k8s', cluster, 'list', modelKey, namespace ?? '', labelSelector ?? '', fieldSelector ?? '']`,
    `['k8s', cluster, 'get', modelKey, namespace ?? '', name]`, `['k8s', cluster, 'discovery']`,
