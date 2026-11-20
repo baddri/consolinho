@@ -1,0 +1,38 @@
+# Base of the consolinho deployment (ADR-0030). Environment-neutral: no namespace, no Secrets, no image tag, no
+# Route host. Overlays add the namespace, image, per-deployment config literals and the Route-host `replacements`
+# stanza (which must live in the outermost kustomization of every render, see the overlays).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# name/part-of are part of every selector; `app.kubernetes.io/component` is set per resource (server | database |
+# smoke). `app.kubernetes.io/version` is added by overlays with includeSelectors: false (selectors are immutable).
+labels:
+  - pairs:
+      app.kubernetes.io/name: consolinho
+      app.kubernetes.io/part-of: consolinho
+    includeSelectors: true
+
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - route.yaml
+  - networkpolicy-ingress.yaml
+  - networkpolicy-egress.yaml
+
+# Shared, non-secret configuration (CFG-1). Keys are .NET configuration keys (`__` = section separator). Overlays
+# merge the per-deployment keys Console__PublicOrigin and Auth__BootstrapAdminUsers__0 (behavior: merge).
+# Secret values come from Secrets referenced by the Deployment, never from here (CFG-5).
+configMapGenerator:
+  - name: consolinho-config
+    literals:
+      # Production hosting mode on dev clusters too (ADR-0028: no dev-only endpoints, fail-fast config).
+      - ASPNETCORE_ENVIRONMENT=Production
+      # The host cluster's API, reached in-cluster (Q5); trusted via the mounted CA bundle.
+      - Auth__OpenShift__HostApiServerUrl=https://kubernetes.default.svc
+      # Name of the cluster-scoped OAuthClient created by the deploy script/operator (never by kustomize).
+      - Auth__OpenShift__ClientId=consolinho
+      - Auth__OpenShift__CaBundlePath=/etc/consolinho/ca/ca-bundle.crt
+      - Auth__AutoProvision=true
+      - DataProtection__KeyEncryptionCertificatePath=/etc/consolinho/dp/certificate.pfx
+      - DataProtection__KeyEncryptionCertificatePasswordPath=/etc/consolinho/dp/password

@@ -1,7 +1,7 @@
 ---
 id: T-0101
 title: Kustomize base + dev/production overlays + dev build objects, NetworkPolicies, dev Postgres, render check
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3
 depends_on: []
@@ -59,14 +59,41 @@ resources, Route annotations, NetworkPolicies, Postgres, smoke SA). Additional p
   port 5432, probes `/usr/libexec/check-container` and `/usr/libexec/check-container --live`.
 
 ## Acceptance criteria
-- [ ] K8S-1/QG-4: `scripts/check-deploy.sh` renders dev, production and build overlays and passes all assertions,
+- [x] K8S-1/QG-4: `scripts/check-deploy.sh` renders dev, production and build overlays and passes all assertions,
       kubeconform and shellcheck (summary in work log).
-- [ ] K8S-2..7, CFG-1, CFG-5, DB-3/DB-4, SMK-1 manifests match ADR-0030 (reviewer checks against the rendered output).
-- [ ] No secret values anywhere in `deploy/` (only Secret names and the fake example).
+- [x] K8S-2..7, CFG-1, CFG-5, DB-3/DB-4, SMK-1 manifests match ADR-0030 (reviewer checks against the rendered output).
+- [x] No secret values anywhere in `deploy/` (only Secret names and the fake example).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4) — unaffected, run `scripts/check-be.sh --no-test` at least.
+      (Not run: orchestrator forbade check-be.sh while src/ is edited concurrently; no dotnet/web files touched.)
 
 ## Work log
+- 2026-11-21 backend-engineer: started; ADR-0030 as spec. Tools: oc 4.20 (kustomize v5.6.0) local; kubeconform/shellcheck via podman.
+- 2026-11-21 backend-engineer: base/dev/production/build written per ADR-0030; `scripts/check-deploy.sh` added. Result:
+  dev 12 objects (kubeconform Valid 11, Skipped 1 Route), production 8 (Valid 7, Skipped 1), build 2 (Skipped 2),
+  shellcheck ok, DEPLOY CHECK ok. Negative tests (missing mem limit, rofs false, no replacements, Secret) all FAIL as
+  expected; podman kustomize fallback renders byte-identical to `oc kustomize`.
 
 ## Review
+- 2026-11-21 backend-architect — round 1: **APPROVE**. Reviewer ran `scripts/check-deploy.sh` and got DEPLOY CHECK ok
+  (dev 12, prod 8, build 2; kubeconform 0 invalid; shellcheck ok). Checked the dev and production renders against
+  ADR-0030: names, ConfigMap keys, Secret refs, mounts, probes, resources, securityContext, Route annotations/TLS,
+  NetworkPolicies, PDB, smoke RBAC and labels all match. No secret values are committed.
+- Decisions: `registry.redhat.io/rhel9/postgresql-16:latest` is accepted. The image name pins the major version, the
+  image is dev-only and minor updates are PVC-compatible, so no tag pin is needed. The `check-be.sh --no-test` AC is
+  waived because this task touches no dotnet or web files.
+- Optional: deploy/kustomize/overlays/dev/postgres-statefulset.yaml — `serviceName: postgres` points at a ClusterIP
+  (non-headless) Service. This is harmless (no per-pod DNS is used); a one-line comment would stop future "fixes".
+- Optional: scripts/check-deploy.sh:22 — `SHELLCHECK_IMAGE` uses `:stable` while kustomize/kubeconform are pinned.
+  Pin it (e.g. `v0.10.0`) so results are reproducible.
 
 ## Handover notes
+- Labels: name/part-of (`includeSelectors: true`) in base **and** repeated in each outermost kustomization (so dev
+  Postgres/smoke and the prod PDB get them); component set per resource. Production adds
+  `app.kubernetes.io/version: REPLACE_ME` (`includeSelectors: false`, `includeTemplates: true`); dev leaves it to T-0102.
+- Route `spec.host` comes only from the `replacements` stanza (`options.create: true`); T-0102's generated overlay must
+  repeat it verbatim (see dev kustomization).
+- `migrate` and `server` share the `/tmp` emptyDir (init finishes first). Postgres image `rhel9/postgresql-16:latest`
+  (ADR gave no tag); headless not needed — Service `postgres` is ClusterIP, connection host `postgres`.
+- Script: renderer oc > kubectl > kustomize > podman `kustomize:v5.6.0`; kubeconform v0.7.0, k8s 1.33.0 (OCP 4.20);
+  podman fallbacks need network on first use. Shellchecks check-image.sh/deploy-dev.sh once T-0100/T-0102 add them.
+- `check-be.sh --no-test` not run (concurrent src/ edits, per orchestrator).

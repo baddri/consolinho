@@ -1,0 +1,16 @@
+# Dev-only build objects (ADR-0026/0030), applied by scripts/deploy-dev.sh before the first binary build. Kept out of
+# the overlays so a production render never contains them (K8S-7).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: consolinho
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: consolinho
+      app.kubernetes.io/part-of: consolinho
+    includeSelectors: true
+
+resources:
+  - imagestream.yaml
+  - buildconfig.yaml

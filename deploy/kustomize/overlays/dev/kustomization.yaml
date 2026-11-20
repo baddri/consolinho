@@ -1,0 +1,55 @@
+# Dev overlay (ADR-0030): base + in-namespace Postgres (DB-3) + smoke ServiceAccount (SMK-1). The committed
+# PublicOrigin/admin values are placeholders; scripts/deploy-dev.sh renders the gitignored overlay
+# `../.dev-generated` on top of this one with the values derived from the current `oc` login.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: consolinho
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: consolinho
+      app.kubernetes.io/part-of: consolinho
+    includeSelectors: true
+
+resources:
+  - ../../base
+  - postgres-statefulset.yaml
+  - postgres-service.yaml
+  - postgres-networkpolicy.yaml
+  - smoke-serviceaccount.yaml
+  - smoke-rolebinding.yaml
+
+# The internal-registry image built by the dev BuildConfig (../../build); the script pins the built digest instead.
+images:
+  - name: consolinho
+    newName: image-registry.openshift-image-registry.svc:5000/consolinho/consolinho
+    newTag: latest
+
+configMapGenerator:
+  - name: consolinho-config
+    behavior: merge
+    literals:
+      - Console__PublicOrigin=https://consolinho.apps.dev.invalid
+      - Auth__BootstrapAdminUsers__0=REPLACE_ME
+
+# Route host := host part of Console__PublicOrigin ("https:" / "" / "<host>" -> index 2).
+# This stanza must sit in the OUTERMOST kustomization of every render (here, production, and the script's generated
+# overlay): replacements only see generator output of their own kustomization, so in base or a component they would
+# read the base value instead of the merged one.
+replacements:
+  - source:
+      kind: ConfigMap
+      name: consolinho-config
+      fieldPath: data.Console__PublicOrigin
+      options:
+        delimiter: "/"
+        index: 2
+    targets:
+      - select:
+          kind: Route
+          name: consolinho
+        fieldPaths:
+          - spec.host
+        options:
+          create: true

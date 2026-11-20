@@ -1,0 +1,24 @@
+# Public entry point (K8S-3). spec.host is filled by the overlay's `replacements` from
+# consolinho-config Console__PublicOrigin, so the Route and the OAuth redirect URI can't drift.
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: consolinho
+  labels:
+    app.kubernetes.io/component: server
+  annotations:
+    # Longer than the proxy's 300 s watch cap, so the router never cuts watch/log streams first.
+    haproxy.router.openshift.io/timeout: 330s
+    # No includeSubDomains/preload: must never affect other apps on the shared apps domain.
+    haproxy.router.openshift.io/hsts_header: max-age=31536000
+spec:
+  to:
+    kind: Service
+    name: consolinho
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

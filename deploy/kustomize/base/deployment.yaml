@@ -1,0 +1,143 @@
+# The consolinho workload (ADR-0030 §Workloads). One pod = init container `migrate` (EF migrations, ADR-0027) +
+# container `server` (API + SPA). Both run the same image; overlays rewrite `image: consolinho` via `images:`.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consolinho
+  labels:
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: server
+  # K8S-4: never drop below the desired count; a failed migration blocks the new pod, old pods keep serving (DB-2).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: server
+    spec:
+      serviceAccountName: consolinho
+      # Trust for kubernetes.default.svc comes from the mounted CA bundle, so no SA token is needed (K8S-5).
+      automountServiceAccountToken: false
+      # No runAsUser/fsGroup: the restricted-v2 SCC assigns the namespace's UID range.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # ADR-0027: idempotent migrations under an advisory lock, before the server starts. Gets only the DB
+        # connection string — no OAuth secret, no DP keys.
+        - name: migrate
+          image: consolinho
+          imagePullPolicy: IfNotPresent
+          args: ["migrate"]
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: Production
+            - name: ConnectionStrings__consoledb
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-db
+                  key: connection-string
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: server
+          image: consolinho
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: consolinho-config
+          env:
+            - name: ConnectionStrings__consoledb
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-db
+                  key: connection-string
+            # Must equal the OAuthClient `consolinho` secret (created together by the script/operator).
+            - name: Auth__OpenShift__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-oauth
+                  key: client-secret
+          # ADR-0028 §2: /alive checks only the process (PRB-2: a DB outage never restarts the pod);
+          # /health includes the database, so readiness drops the pod from the Service instead.
+          startupProbe:
+            httpGet:
+              path: /alive
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /alive
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # Sized for one replica / ~50 users, mostly I/O and long-lived watch streams. No CPU limit (throttling
+          # would stall streams); the memory limit bounds a leak.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: ca-bundle
+              mountPath: /etc/consolinho/ca
+              readOnly: true
+            - name: dp-cert
+              mountPath: /etc/consolinho/dp
+              readOnly: true
+      volumes:
+        # The only writable path (readOnlyRootFilesystem): .NET temp files, shared by migrate and server.
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        # Created by the deploy script/operator, not kustomize (ADR-0030 CA bundle; replaces system trust).
+        - name: ca-bundle
+          configMap:
+            name: consolinho-ca-bundle
+        # Data Protection key-encryption certificate + password (ADR-0028 §6).
+        - name: dp-cert
+          secret:
+            secretName: consolinho-dp-cert
+            defaultMode: 0440
