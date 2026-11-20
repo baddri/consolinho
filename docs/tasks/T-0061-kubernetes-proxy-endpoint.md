@@ -77,6 +77,7 @@ Update BACKEND.md only if you deviate (then say so in the work log).
 
 ## Acceptance criteria
 - [ ] PRX-1: GET list, PUT with body, DELETE, PATCH reach the fake server with method, raw path, query and body unchanged; ApiUrl with a path prefix works; response status/body/`Content-Type` pass through; upstream 404/409/422 `Status` bodies untouched (status-code pages off).
+- [ ] PRX-2 at HTTP level (real Postgres, proves T-0059's EF translation): unknown cluster, disabled cluster and no-grant → 404 `Proxy.NotAvailable` with identical body shape, nothing forwarded.
 - [ ] PRX-4: `/api/clusters/x/k8s/healthz`, `…/k8s/api/%2e%2e/x`, `…/k8s/api/v1/namespaces%2Fx` → 400 `Proxy.PathNotAllowed`, fake server saw nothing.
 - [ ] PRX-5: upstream 401 → 502 `Proxy.CredentialRejected`, no `WWW-Authenticate`; upstream 403 passes through as 403 `Status`.
 - [ ] PRX-6: stopped server → 502 `UpstreamUnavailable`; untrusted cert → 502 `UpstreamTls`; delayed response beyond a 1 s `RequestTimeout` (variant) → 504 `UpstreamTimeout`; no exception text in bodies.
