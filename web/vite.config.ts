@@ -121,6 +121,10 @@ export default defineConfig(({ command, mode }) => {
         output: {
           // Vite 8 / Rolldown replacement for Rollup's `manualChunks` (`advancedChunks` is deprecated).
           codeSplitting: { groups: vendorChunks },
+          // Without this the `maxSize` parts of `vendor-patternfly` import each other in a cycle and the built SPA
+          // crashed at startup (`D.modifiers` of PF's Table styles read before init; found by csp.e2e.ts, T-0104).
+          // Rolldown then wraps modules so they run in source order across chunks.
+          strictExecutionOrder: true,
         },
       },
     },

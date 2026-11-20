@@ -1,7 +1,7 @@
 ---
 id: T-0104
 title: "FE: prove the production build works under the CSP (Monaco YAML tab e2e) + login 'unavailable' copy"
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 3
 depends_on: [T-0092]
@@ -45,14 +45,41 @@ error copy. Spec: HOST-3 (Monaco part), SMK-2 (YAML under CSP, local proxy for i
   `web/src/features/auth/loginMessage.tsx:L41-45`; `web/vite.config.ts` `stripMonacoCdnDefault` (no CDN loads).
 
 ## Acceptance criteria
-- [ ] New e2e passes against the running stack with the production build: YAML tab renders under the CSP, zero CSP
+- [x] New e2e passes against the running stack with the production build: YAML tab renders under the CSP, zero CSP
       violations; CSP taken from the Api response, not hard-coded.
-- [ ] Any SPA change needed for the CSP is minimal and commented with ADR-0029.
-- [ ] `unavailable` login copy matches the spec; unit test updated.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4: `scripts/check-fe.sh`) + the new e2e run (result in work log)
+- [x] Any SPA change needed for the CSP is minimal and commented with ADR-0029.
+- [x] `unavailable` login copy matches the spec; unit test updated.
+- [x] Build, lint and tests green (CLAUDE.md rule 4: `scripts/check-fe.sh`) + the new e2e run (result in work log)
 
 ## Work log
+- 2026-11-21 frontend-engineer: started.
+- 2026-11-21 frontend-engineer: e2e found the built SPA crashing at boot (vendor-patternfly maxSize chunk cycle) and
+  zod's `new Function` probe (script-src 'eval'); fixed both SPA-side. `npx playwright test` 7/7 passed (csp.e2e.ts
+  included); `scripts/check-fe.sh` green. Login `unavailable` copy + LoginPage test updated.
 
 ## Review
+- 2026-11-21 frontend-architect: **APPROVE** (round 1). `scripts/check-fe.sh` green (693 tests, build ok).
+- Ruling (1) `web/vite.config.ts` `strictExecutionOrder: true` (outside paths): accepted. Correct, documented Rolldown fix
+  for cross-chunk cycles; it also protects the `maxSize`-split `vendor-monaco` parts. Cost measured: total JS 5.33 →
+  5.50 MB (+3%), `vendor-patternfly` main part gzip 148 → 162 kB. Alternative (own leaf group for
+  `@patternfly/react-styles`, or drop PF `maxSize`) is more fragile; not required. Comment is accurate.
+- Ruling (2) zod `jitless`: correct. Single zod copy (`npm ls`), shared `globalConfig`; `zodConfig` is main.tsx's first
+  import and strict execution order guarantees it evaluates first; lazy chunks load later. e2e confirms zero `eval` reports.
+- Ruling (3) post-callback page not served from `dist`: acceptable. The 302 target is the same `index.html`;
+  `reloadFromBuild` re-serves it under the CSP, and the login page itself is covered (client-side redirect from `/c/...`).
+- Nit (optional): web/src/app/zodConfig.ts:1-3 — zod reads `jitless`/probes eval when `z.object()` is *constructed*
+  (schemas.js `const jit = !globalConfig.jitless`), not "on the first object parse" — reword so nobody moves the import
+  below a module with top-level schemas.
+- Nit (optional): web/e2e/support/productionBuild.ts:46 — only a *missing* `dist` fails; a stale build is tested
+  silently. Consider noting "run `npm run build` first" in the e2e run instructions / handover.
 
 ## Handover notes
+- `web/e2e/csp.e2e.ts` + `e2e/support/productionBuild.ts`: CSP read from `GET /api/system/info`; `page.route` serves
+  `web/dist` (needs `npm run build` first) with that CSP on every response; `/api/**` goes to the stack. Violations
+  from `securitypolicyviolation` events + console errors; asserts editor worker `/assets/editor.worker-*.js` started.
+- Redirect targets bypass Playwright routes, so after the OAuth login chain the spec reloads (`reloadFromBuild`).
+- Bug found outside task paths (fixed, flag in review): `web/vite.config.ts` — `vendor-patternfly` `maxSize` parts
+  imported each other cyclically; production SPA died at boot (`D.modifiers` of PF Table styles undefined). Fix:
+  Rolldown `output.strictExecutionOrder: true`. Removing `maxSize` also works (one 527 kB chunk, size warning).
+- CSP violation found: `script-src` blocked `eval` = zod 4 JIT probe. Fix: `web/src/app/zodConfig.ts`
+  (`z.config({ jitless: true })`, imported first in main.tsx). Monaco + worker: no violations. CSP unchanged.

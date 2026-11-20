@@ -41,7 +41,7 @@ function callbackErrorMessage(error: string, username: string | null): LoginMess
     case 'unavailable':
       return {
         variant: 'danger',
-        text: 'OpenShift login is currently unavailable (host cluster OAuth server did not respond). Existing sessions are not affected.',
+        text: "Can't reach the cluster's sign-in service. Ask an administrator to check the console's CA bundle.",
       };
     default:
       return FAILED;

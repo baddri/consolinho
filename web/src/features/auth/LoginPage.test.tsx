@@ -52,7 +52,7 @@ describe('LoginPage', () => {
     [
       'error=unavailable',
       'Danger',
-      'OpenShift login is currently unavailable (host cluster OAuth server did not respond). Existing sessions are not affected.',
+      "Can't reach the cluster's sign-in service. Ask an administrator to check the console's CA bundle.",
     ],
     ['error=failed', 'Danger', 'Login failed. Please try again.'],
     ['error=something_new', 'Danger', 'Login failed. Please try again.'],

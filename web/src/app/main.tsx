@@ -1,3 +1,4 @@
+import './zodConfig';
 import '@patternfly/react-core/dist/styles/base.css';
 import '@patternfly/patternfly/patternfly-addons.css';
 import { StrictMode } from 'react';
