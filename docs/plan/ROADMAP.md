@@ -6,7 +6,7 @@ the human. Status: `planned` → `in_progress` → `done`.
 | CP | Name | Status |
 |---|---|---|
 | 0 | Foundations | done (tag cp-0) |
-| 1 | Identity & administration | next |
+| 1 | Identity & administration | done (tag cp-1) |
 | 2 | Proxy, cluster switcher & generic resource browser (MVP) | planned |
 | 3 | Deploy to OpenShift | planned |
 | 4 | Workloads day-2 operations | planned |
@@ -69,3 +69,19 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - Fleet-wide search ("where is image X running?").
 - Change windows policy (block mutations on prod outside business hours).
 - Per-cluster favourites and pinned resources.
+- Fleet access matrix (users × clusters, edit in place); bulk grant many users to one cluster; bulk re-assign grants between credentials.
+- Group-based grants using OCP groups recorded in CP1.
+- Time-bound / break-glass grants (auto-revert, audited).
+- Scheduled credential checks + expiry notifications (email/webhook).
+- Token auto-renewal via TokenRequest with a minimal "token minter" SA per cluster.
+- Audit export (CSV/JSON), retention policy, SIEM forwarding.
+- Optional OCP OAuth logout redirect (`Auth:LogoutRedirectUrl`).
+- Cluster labels (region, owner team, tier) for filtering.
+- (CP1 ACCEPT) "Copy access from user…": grant a new SRE the same clusters/modes/credentials as a teammate in one step.
+- (CP1 ACCEPT) Offboarding: "Revoke all grants" on a user (deactivate keeps grants) and bulk revoke on a cluster's Access tab.
+- (CP1 ACCEPT) Fleet administration overview page: counts of users, clusters, expiring/expired credentials, failed last tests, with filtered links.
+- (CP1 ACCEPT) "Test all credentials" button (on demand, bounded concurrency) on the Credentials page; precursor of scheduled checks.
+- (CP1 ACCEPT) Credential "last used" (from proxy audit, CP2+) to find stale SA tokens before rotation/deletion.
+- (CP1 ACCEPT) Audit entries link their target (user/cluster/credential) to its admin page; "View in audit log" from detail pages.
+- (CP1 ACCEPT) Masthead link-out to the cluster's own OCP web console (URL already stored per cluster) for features we don't cover yet.
+- (CP1 ACCEPT, for CP2 spec) Extend the token-leak sweep and authz matrix to proxy routes (QA R4); proxy strips client `Authorization`.

@@ -77,3 +77,19 @@ Tables and columns are snake_case, including EF's history table: `__ef_migration
 
 Test projects must reference `xunit.v3.mtp-off`, not `xunit.v3`; the solution runs tests through VSTest
 (`dotnet test FleetConsole.slnx`). Copy an existing test csproj.
+
+## `CS0433: The type 'Program' exists in both 'FleetConsole.Api' and 'FleetConsole.DevOAuth'` (T-0009)
+
+**Cause:** since .NET 10 the ASP.NET Core source generator makes a top-level `Program` **public** automatically. The
+Api test project references both web apps, so `WebApplicationFactory<Program>` became ambiguous.
+**Fix (in place):** `src/FleetConsole.DevOAuth/Program.cs` declares `internal partial class Program;`, which the
+generator respects. DevOAuth tests use `WebApplicationFactory<DevOAuthEntryPoint>`. Any new web project referenced by a
+test project needs the same treatment, and must not grant `InternalsVisibleTo` to a test project that also uses the
+Api's `Program`.
+
+## `devoauth` fails to start: address already in use on port 5190
+
+The emulator always uses http://localhost:5190 (its `http` launch profile, also under the https AppHost profile).
+**Cause:** an earlier `aspire run` or `dotnet run --project src/FleetConsole.DevOAuth` is still running.
+**Fix:** `aspire stop`, or find it with `pgrep -af FleetConsole.DevOAuth` and stop it. Running the emulator on its own
+(`dotnet run --project src/FleetConsole.DevOAuth`) works too; it only starts in the Development environment.

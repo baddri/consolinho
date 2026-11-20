@@ -2,41 +2,65 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-18 · **Current checkpoint:** CP1 — Identity & administration (not started) · **Branch:** `main` (CP0 merged, tag `cp-0`)
+**Last updated:** 2026-11-20 (CP1 closed) · **Current checkpoint:** CP2 — Proxy, cluster switcher & generic resource
+browser (MVP) · **Branch:** create `cp/2-proxy-browser` from `main`
 
 ## Where we are
-- **CP0 Foundations: DONE** (tasks T-0001..T-0006, QA report `docs/specs/CP0-qa-report.md`, all 9 criteria met).
-  Backend 137 tests, frontend 51 tests, `aspire run` verified incl. real browser.
-- CP0 had no product-owner ACCEPT step (technical checkpoint, spec written by orchestrator).
-- Human requirement recorded for CP1: login via **host-cluster OpenShift OAuth** (ADR-0007), dev uses in-repo emulator `FleetConsole.DevOAuth`.
+- **CP0 Foundations: DONE** (tag `cp-0`). **CP1 Identity & administration: DONE** (tag `cp-1`, merged to `main`).
+- CP1 evidence: QA `docs/specs/CP1-qa-report.md` (66/70 automated + H1–H4 browser checks passed by the human 2026-11-20,
+  0 bugs); acceptance `docs/specs/CP1-acceptance.md` (accepted with follow-ups).
+- Working tree clean, no worktrees.
 
-## In flight
-| Task | Status | Owner | Note |
-|---|---|---|---|
-| — | | | |
+## Next actions (resume here)
+1. `git checkout main && git checkout -b cp/2-proxy-browser`; ROADMAP CP2 → `in_progress`.
+2. SPEC: ocp-product-owner writes `docs/specs/CP2-*.md`. Must include (from CP1 ACCEPT): token-leak sweep + authorization
+   matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
+3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
+   T-0054 (Playwright smoke H1–H4, self-seeding).
+4. Carried optional nits (fold into nearby CP2 work or drop): T-0016 (map unique-constraint race → `Users.UsernameTaken`;
+   shared `MeStatusAsync` test helper); T-0019 (bulk else-branch should match `GrantErrors.AlreadyExists` explicitly;
+   `ArgumentNullException.ThrowIfNull(api)` in ClustersEndpoints); T-0041 ("To" date defaults 00:00 → 23:59; typeahead
+   skeleton test name); T-0040 (production rows use selected-row styling; >100 bulk rows unguarded); T-0036 follow-up
+   "load token from file" into the masked input.
 
-## Next actions (CP1)
-1. `git switch -c cp/1-identity-admin` from main.
-2. SPEC: `ocp-product-owner` writes `docs/specs/CP1-identity-and-admin.md` from ROADMAP CP1 (must include ADR-0007 login).
-3. DESIGN: `backend-architect` + `frontend-architect` (parallel) → ADRs + tasks T-0007+. Inputs they must address:
-   - audit: post-commit event dispatch vs outbox (ADR); integration test of domain-event dispatch with first aggregate (QA R5)
-   - OAuth callback under `/api/auth/...` (Vite proxies only `/api`); DevOAuth emulator project in AppHost + in-process for tests
-   - backend CSRF filter on `/api` non-GET + test (QA R2); decide whether `/api/system/info` stays anonymous (QA R3)
-   - replace temporary `IRequireRole.RequiredRole: string` / `ICurrentUser.UserId: Guid?` with domain types
-   - HTTP-level validation/malformed-body tests with first command endpoint (QA R6)
-4. BUILD → VERIFY → ACCEPT (product owner) → CLOSE per `docs/process/SDLC.md`.
+## How the human can test (current state)
+- `dotnet test FleetConsole.slnx` / `cd web && npm test -- --run`.
+- `aspire run` → real login via DevOAuth (users admin/alice/bob/ines); admin data APIs land with T-0016..T-0021.
+- After T-0042 lands: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`) — whole UI without backend.
+
+## Open for product owner at ACCEPT
+- (decided at ACCEPT: rename to "Fleet administration" in CP2, T-0053)
 
 ## Needs human
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
 
 ## Gotchas
+- **Token discipline (2026-11-19):** check scripts `scripts/check-{be,fe}.sh` (full logs in `.git/checks/`), `LSP` tool via
+  project plugins csharp-lsp + typescript-lsp (binaries: `csharp-ls` 0.28.0 dotnet tool symlinked into `~/.local/bin` —
+  0.29.0 fails to install; `typescript-language-server` in `~/.local`), hook `.claude/hooks/guard-bulk-cat.py` blocks
+  unfiltered `cat` > 40 KB. Delegation prompts carry a *context pack* (SDLC.md).
+  Worktrees on older bases lack `scripts/`: run `/home/bad/works/console/scripts/check-*.sh` from inside the worktree.
+- Agents' background wait loops: never `pgrep -f <name>` inside `bash -c` — it matches the loop's own command line and never exits (a reviewer loop ran 5 h on 2026-11-20).
+- **Subagents: read-only git only** in the shared tree (SDLC.md). Orchestrator commits by explicit paths.
+- Project agents (`.claude/agents/`) are available natively in a new session. Usage limits stop agents mid-task — within a
+  session resume with SendMessage; across sessions start a new agent from the task file's Handover notes.
+- Agent worktrees with no changes are auto-deleted when the agent stops; worktrees with changes persist.
+- Commit 6c2262f (T-0025) alone doesn't build (UserMenu deletion); fixed by T-0027's commit.
 - No docker: podman. Export `DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock TESTCONTAINERS_RYUK_DISABLED=true ASPIRE_CONTAINER_RUNTIME=podman` (fish: `$(id -u)`, not `$UID`).
-- Background runs: `aspire start --launch-profile http && aspire wait web`; stop with `aspire stop`. Api on :5180; web port changes per run (`aspire describe`).
+- Background runs: `aspire start --launch-profile http && aspire wait web`; `aspire stop`. Api on :5180; web port per run (`aspire describe`).
 - Aspire pinned to 13.6.5 (advisory on 13.6.4). CLI offers 17 — don't `aspire update`; needs an ADR.
 - Test projects must use `xunit.v3.mtp-off`.
-- `/health`, `/alive`, `/openapi/v1.json` are Development-only — revisit for OpenShift probes (CP3, QA R1).
-- Never name a folder/namespace after a BCL root (`System`, …). DTO `Dto` suffix is stripped in OpenAPI schema names.
-- Endpoint/DTO XML docs flow into OpenAPI → `schema.gen.ts`; regenerate with `cd web && npm run gen:api` (Api running).
-- API JSON uses strict number handling (quoted numbers → 400).
-- DbContext uses retrying execution strategy: explicit transactions must run inside `CreateExecutionStrategy().ExecuteAsync`.
-- Frontend follow-ups: route code-splitting (bundle 574 kB), DOM lint gaps (`globalThis.document`), dev-only npm audit findings (QA R7).
+- Never name a folder/namespace after a BCL root. DTO `Dto` suffix stripped in OpenAPI schema names (no `Foo` + `FooDto` pair).
+- Endpoint/DTO XML docs flow into OpenAPI → `schema.gen.ts`; regenerate with `cd web && npm run gen:api` (Api running, Development).
+- API JSON: strict numbers, enums camelCase strings. Pipeline: Logging → Authorization → ReadOnlyGuard → Validation → UnitOfWork.
+- DbContext retrying strategy: explicit transactions inside `CreateExecutionStrategy().ExecuteAsync`. Saving outside HTTP in
+  tests needs `CreateSignedInScope()` (audit requires an actor). Integration harness usage: see T-0015 Handover notes.
+- FE tests: first full-app render per file is slow under load → `test/coldStart.ts`; prefer `user.paste` for search inputs;
+  PF Table has `role="grid"`; jsdom 1024px vs PF xl 1200px → `mockViewportWidth`.
+- Follow-up F1 (T-0013 review): harden `AuditEntry.Actor` against shared instances.
+- `/health`, `/alive`, `/openapi/v1.json` are Development-only — revisit for OpenShift probes (CP3).
+- **CP3 follow-ups:** callback URL (code/state) must never reach request-line logs / OTel `url.query` — enforce in code (T-0015);
+  host CA bundle = SA `ca.crt` + OAuth-route ingress CA, OAuth metadata refresh (T-0014); DP-cert-missing warning → startup
+  error, key-encryption cert rotation, runbook (T-0012); Containerfile publishes only `src/FleetConsole.Api`, assert no
+  `FleetConsole.DevOAuth*` (T-0009); "new version — reload" on chunk-load failure (T-0028).
+- **CP2 follow-ups:** pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies (T-0010).

@@ -30,8 +30,10 @@ public sealed class ProblemDetailsTests(ApiFactory factory)
     public async Task WrongMethodOnKnownRoute_Returns405ProblemDetails()
     {
         using var client = factory.CreateApiClient();
+        using var request = new HttpRequestMessage(HttpMethod.Delete, new Uri("/api/system/info", UriKind.Relative));
+        request.Headers.Add("X-Console-Request", "1"); // otherwise the CSRF check answers 403 first (ADR-0012)
 
-        using var response = await client.DeleteAsync(new Uri("/api/system/info", UriKind.Relative), Ct);
+        using var response = await client.SendAsync(request, Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.MethodNotAllowed);
         response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");

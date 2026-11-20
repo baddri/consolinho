@@ -1,3 +1,5 @@
+using FleetConsole.Api.Endpoints.Admin;
+
 namespace FleetConsole.Api.Endpoints;
 
 /// <summary>
@@ -7,7 +9,12 @@ namespace FleetConsole.Api.Endpoints;
 /// <remarks>
 /// <para><b>Adding a feature:</b> create <c>Endpoints/&lt;Feature&gt;Endpoints.cs</c> with a
 /// <c>Map&lt;Feature&gt;Endpoints(this IEndpointRouteBuilder api)</c> extension and call it from
-/// <see cref="MapApiEndpoints"/>. Shared filters (auth, CSRF header check) are added here, once.</para>
+/// <see cref="MapApiEndpoints"/>. Administration endpoints go into <c>Endpoints/Admin/</c> and are mapped by
+/// <see cref="AdminEndpoints.MapAdminEndpoints"/>.</para>
+/// <para><b>Authorization:</b> the whole group requires an authenticated session. An endpoint that must be reachable
+/// without one opts out with <c>.AllowAnonymous()</c> and must be on ADR-0012's list; an integration test enumerates
+/// the endpoints and fails for anything else. <b>CSRF</b> is not an endpoint concern: <c>CsrfHeaderMiddleware</c>
+/// checks every unsafe <c>/api</c> request before authentication (ADR-0012).</para>
 /// <para><b>Error responses in OpenAPI:</b> endpoints return <c>ToHttpResult()</c> unions whose
 /// <c>ProblemHttpResult</c> arm carries no response metadata (its status varies per instance), so every error status
 /// the API can produce is declared once here. Some endpoints are therefore documented with statuses they never
@@ -22,6 +29,9 @@ public static class ApiEndpoints
     {
         var api = app.MapGroup("/api");
 
+        // Default policy = authenticated session (cookie scheme). Anonymous exceptions: ADR-0012.
+        api.RequireAuthorization();
+
         api.ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -29,7 +39,10 @@ public static class ApiEndpoints
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesProblem(StatusCodes.Status500InternalServerError);
 
+        api.MapAuthEndpoints();
         api.MapSystemEndpoints();
+        api.MapClustersEndpoints();
+        api.MapAdminEndpoints();
 
         return api;
     }

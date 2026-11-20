@@ -12,6 +12,10 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="EFCore.NamingConventions" />
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" />
+    <!-- IHttpClientFactory for the "openshift-host" client, and RemoveAllResilienceHandlers to opt it out of the
+         ServiceDefaults retries (single-use OAuth codes must never be replayed). Version shared with ServiceDefaults. -->
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
   </ItemGroup>
 
   <ItemGroup>

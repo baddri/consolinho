@@ -31,7 +31,7 @@ describe('apiClient', () => {
     expect(seen?.headers.has(CSRF_HEADER)).toBe(false);
   });
 
-  // The generated schema has no mutating operation yet (CP0), so the typed methods are called through an untyped
+  // One probe route for every method, outside the typed contract, so the typed methods are called through an untyped
   // view. This proves the middleware is registered on the shared client itself, not only that the helper works.
   it.each(['POST', 'PUT', 'PATCH', 'DELETE'] as const)(
     'sends the CSRF header on %s requests through the shared client',

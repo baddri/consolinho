@@ -22,6 +22,8 @@
   <ItemGroup>
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.5" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
+    <!-- Data Protection key ring persisted in the console database (ADR-0004; MIT). Same release train as the shared framework. -->
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
   </ItemGroup>
 
@@ -31,15 +33,17 @@
   </ItemGroup>
 
   <!--
-    Application layer: validation (FluentValidation, Apache-2.0) and the Microsoft.Extensions abstractions it may use
-    (BACKEND.md allow-list, enforced by ArchitectureTests). Abstractions are pinned to the lowest 10.0 release, as
-    libraries should; hosts run on the newer shared framework, which wins at runtime.
+    Application layer: validation (FluentValidation, Apache-2.0) and the Microsoft.Extensions packages it may use, the
+    abstractions plus Microsoft.Extensions.Options (BACKEND.md allow-list, enforced by ArchitectureTests). They are pinned
+    to the lowest 10.0 release, as libraries should; hosts run on the newer shared framework, which wins at runtime.
   -->
   <ItemGroup>
     <PackageVersion Include="FluentValidation" Version="12.2.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <!-- IOptions<T> for Application settings classes (e.g. CredentialsOptions); allowed by BACKEND.md since T-0012. -->
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.0" />
   </ItemGroup>
 
   <!-- ServiceDefaults: OpenTelemetry, service discovery, HTTP resilience. -->

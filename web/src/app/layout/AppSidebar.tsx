@@ -1,6 +1,7 @@
 import { Nav, NavExpandable, NavItem, NavList, PageSidebar, PageSidebarBody } from '@patternfly/react-core';
 import { NavLink, useLocation } from 'react-router';
-import { DEFAULT_CLUSTER, useActiveCluster } from '@/features/cluster-context';
+import { useCurrentUser } from '@/features/auth';
+import { usePreferredCluster } from '@/features/cluster-context';
 import { buildAdminNav, buildClusterNav, type NavSection } from './navigation';
 import { SystemInfoFooter } from './SystemInfoFooter';
 
@@ -24,13 +25,19 @@ function SidebarSection({ section, pathname }: { section: NavSection; pathname: 
 }
 
 /**
- * Left navigation: cluster sections (links target the active cluster, or the default cluster on non-cluster pages
- * such as admin) followed by the FleetConsole admin section, plus a footer with the deployment version.
+ * Left navigation: cluster sections followed by the FleetConsole admin section — for admins only (ADM-3) — plus a
+ * footer with the deployment version. Cluster links target `usePreferredCluster()` (the active cluster, else the last
+ * used or first granted one on non-cluster pages such as admin); the cluster sections are hidden while the user has
+ * no clusters.
  */
 export function AppSidebar() {
   const { pathname } = useLocation();
-  const cluster = useActiveCluster() ?? DEFAULT_CLUSTER;
-  const sections = [...buildClusterNav(cluster), buildAdminNav()];
+  const cluster = usePreferredCluster();
+  const isAdmin = useCurrentUser().data?.role === 'admin';
+  const sections = [
+    ...(cluster === undefined ? [] : buildClusterNav(cluster)),
+    ...(isAdmin ? [buildAdminNav()] : []),
+  ];
 
   return (
     <PageSidebar>

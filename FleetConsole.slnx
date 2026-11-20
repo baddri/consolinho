@@ -12,6 +12,7 @@
     <Project Path="src/FleetConsole.Api/FleetConsole.Api.csproj" />
     <Project Path="src/FleetConsole.ServiceDefaults/FleetConsole.ServiceDefaults.csproj" />
     <Project Path="src/FleetConsole.AppHost/FleetConsole.AppHost.csproj" />
+    <Project Path="src/FleetConsole.DevOAuth/FleetConsole.DevOAuth.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/FleetConsole.Domain.Tests/FleetConsole.Domain.Tests.csproj" />

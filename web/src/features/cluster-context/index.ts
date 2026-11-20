@@ -1,10 +1,11 @@
+// Public API of the cluster-context feature (SW-1..6): the user's clusters, the masthead switcher, the `/` landing
+// redirect and the `/c/:cluster` gate, plus the URL-derived active cluster.
+export { ClusterGate } from './ClusterGate';
 export { ClusterSwitcher } from './ClusterSwitcher';
-export { useActiveCluster } from './useActiveCluster';
 export { clusterSwitchPath } from './clusterSwitchPath';
-export {
-  DEFAULT_CLUSTER,
-  PLACEHOLDER_CLUSTERS,
-  environmentLabel,
-  type ClusterEnvironment,
-  type ClusterSummary,
-} from './clusters';
+export { LandingRedirect } from './LandingRedirect';
+export { NoClustersPage } from './NoClustersPage';
+export { accessibleClustersQueryKey, useAccessibleClusters } from './useAccessibleClusters';
+export { useActiveCluster } from './useActiveCluster';
+export { useLastCluster } from './useLastCluster';
+export { usePreferredCluster } from './usePreferredCluster';

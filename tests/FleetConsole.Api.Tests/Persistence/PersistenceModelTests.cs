@@ -1,5 +1,6 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Domain.Common;
+using FleetConsole.Domain.Users;
 using FleetConsole.Infrastructure.Persistence;
 using FleetConsole.Infrastructure.Persistence.Conventions;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +43,7 @@ public sealed class PersistenceModelTests
     }
 
     [Fact]
-    public void PendingDomainEvents_TakesEventsInOrder_AndClearsAggregates()
+    public void PendingDomainEvents_ListsEventsInOrder_AndClearsAggregatesOnlyOnClear()
     {
         using var db = WidgetDbContext.Create(withConvention: true);
         var first = Widget.Create("first");
@@ -52,12 +53,53 @@ public sealed class PersistenceModelTests
         db.AddRange(first, second, quiet);
 
         var pending = PendingDomainEvents.Capture(db.ChangeTracker);
-        var events = pending.TakeEvents();
 
-        events.Cast<WidgetEvent>().Select(e => e.What)
+        pending.Events.Cast<WidgetEvent>().Select(e => e.What)
             .ShouldBe(["created first", "renamed renamed", "created second"]);
+        first.DomainEvents.Count.ShouldBe(2, "events stay until the write succeeded");
+
+        pending.Clear();
+
         first.DomainEvents.ShouldBeEmpty();
         second.DomainEvents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void PendingDomainEvents_EnsureNoEventsRaisedSince_PassesWhenNothingNewWasRaised()
+    {
+        using var db = WidgetDbContext.Create(withConvention: true);
+        db.Add(Widget.Create("w"));
+        db.Add(new Widget(Guid.NewGuid(), "quiet"));
+        var pending = PendingDomainEvents.Capture(db.ChangeTracker);
+
+        Should.NotThrow(() => pending.EnsureNoEventsRaisedSince(db.ChangeTracker));
+    }
+
+    [Fact]
+    public void PendingDomainEvents_EnsureNoEventsRaisedSince_ThrowsForANewEventOnACapturedAggregate()
+    {
+        using var db = WidgetDbContext.Create(withConvention: true);
+        var widget = Widget.Create("w");
+        db.Add(widget);
+        var pending = PendingDomainEvents.Capture(db.ChangeTracker);
+
+        widget.Rename("again");
+
+        Should.Throw<InvalidOperationException>(() => pending.EnsureNoEventsRaisedSince(db.ChangeTracker))
+            .Message.ShouldContain(nameof(Widget));
+    }
+
+    [Fact]
+    public void PendingDomainEvents_EnsureNoEventsRaisedSince_ThrowsForANewlyTrackedAggregateWithEvents()
+    {
+        using var db = WidgetDbContext.Create(withConvention: true);
+        db.Add(Widget.Create("w"));
+        var pending = PendingDomainEvents.Capture(db.ChangeTracker);
+
+        db.Add(Widget.Create("added by a handler"));
+
+        Should.Throw<InvalidOperationException>(() => pending.EnsureNoEventsRaisedSince(db.ChangeTracker))
+            .Message.ShouldContain(nameof(Widget));
     }
 
     [Fact]
@@ -71,18 +113,32 @@ public sealed class PersistenceModelTests
         var late = Widget.Create("late");
         db.Add(late);
 
-        pending.TakeEvents().Count.ShouldBe(1);
+        pending.Events.Count.ShouldBe(1);
         late.DomainEvents.Count.ShouldBe(1);
     }
 
     [Fact]
-    public void ConsoleDbContext_SynchronousSaveChanges_IsNotSupported()
+    public void ConsoleDbContext_SynchronousSaveChanges_IsNotSupportedForApplicationData()
     {
         var options = new DbContextOptionsBuilder<ConsoleDbContext>();
         ConsoleDbContext.ConfigureProvider(options, connectionString: null);
         using var db = new ConsoleDbContext(options.Options, new NullDispatcher());
+        db.Add(User.Provision(Username.Create("sync-save").Value, DateTimeOffset.UtcNow));
 
+        // Refused before any database access (there is no connection string here).
         Should.Throw<NotSupportedException>(() => db.SaveChanges());
+    }
+
+    [Fact]
+    public void ConsoleDbContext_SynchronousSaveChanges_WithNothingPending_IsAllowed()
+    {
+        // The Data Protection key repository saves synchronously; with only key rows (here: nothing) pending, the guard
+        // lets the save through. Writing actual key rows is covered by the Data Protection integration tests.
+        var options = new DbContextOptionsBuilder<ConsoleDbContext>();
+        ConsoleDbContext.ConfigureProvider(options, connectionString: null);
+        using var db = new ConsoleDbContext(options.Options, new NullDispatcher());
+
+        db.SaveChanges().ShouldBe(0);
     }
 
     [Fact]

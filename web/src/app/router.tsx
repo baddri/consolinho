@@ -1,7 +1,7 @@
 import { Navigate, type RouteObject } from 'react-router';
-import { AdminPage } from '@/features/admin';
-import { LoginPage } from '@/features/auth';
-import { DEFAULT_CLUSTER } from '@/features/cluster-context';
+import { adminRoute } from '@/features/admin';
+import { LoginPage, RequireSession } from '@/features/auth';
+import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
 import { ResourceDetailsPage, ResourceListPage } from '@/features/resources';
 import { NotFoundPage } from '@/shared/ui';
@@ -15,34 +15,35 @@ import { RouteErrorPage } from './RouteErrorPage';
 export const routes: RouteObject[] = [
   { path: '/login', element: <LoginPage />, errorElement: <RouteErrorPage /> },
   {
-    path: '/',
-    element: <AppShell />,
+    // Everything except /login needs a session (ADR-0014 §3); a 401 is handled globally by the QueryClient.
+    element: <RequireSession />,
     errorElement: <RouteErrorPage />,
     children: [
       {
-        index: true,
-        element: <Navigate to={`/c/${encodeURIComponent(DEFAULT_CLUSTER)}/overview`} replace />,
-      },
-      {
-        path: 'c/:cluster',
+        path: '/',
+        element: <AppShell />,
         children: [
-          { index: true, element: <Navigate to="overview" replace /> },
-          { path: 'overview', element: <OverviewPage /> },
-          { path: 'search', element: <SearchPage /> },
-          { path: 'ns/:namespace/:resource', element: <ResourceListPage /> },
-          { path: 'ns/:namespace/:resource/:name', element: <ResourceDetailsPage /> },
-          { path: 'cluster/:resource', element: <ResourceListPage /> },
-          { path: 'cluster/:resource/:name', element: <ResourceDetailsPage /> },
+          // Last used or first granted cluster; "No clusters assigned yet" without grants (SW-3/4).
+          { index: true, element: <LandingRedirect /> },
+          {
+            // Only clusters in the user's list render; anything else is "not available" (SW-5).
+            path: 'c/:cluster',
+            element: <ClusterGate />,
+            children: [
+              { index: true, element: <Navigate to="overview" replace /> },
+              { path: 'overview', element: <OverviewPage /> },
+              { path: 'search', element: <SearchPage /> },
+              { path: 'ns/:namespace/:resource', element: <ResourceListPage /> },
+              { path: 'ns/:namespace/:resource/:name', element: <ResourceDetailsPage /> },
+              { path: 'cluster/:resource', element: <ResourceListPage /> },
+              { path: 'cluster/:resource/:name', element: <ResourceDetailsPage /> },
+            ],
+          },
+          // Admin pages are lazy route modules in their own chunks, gated by RequireAdmin (ADM-3).
+          adminRoute,
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
-      {
-        path: 'admin',
-        children: [
-          { index: true, element: <Navigate to="users" replace /> },
-          { path: ':section', element: <AdminPage /> },
-        ],
-      },
-      { path: '*', element: <NotFoundPage /> },
     ],
   },
 ];

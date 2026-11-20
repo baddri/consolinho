@@ -1,5 +1,5 @@
 import createClient, { type Middleware } from 'openapi-fetch';
-import type { paths } from './schema.gen';
+import type { paths } from './schema';
 
 /** Header every state-changing `/api` request must carry (CSRF defence, see docs/architecture/SECURITY.md). */
 export const CSRF_HEADER = 'X-Console-Request';
@@ -23,7 +23,9 @@ export const csrfMiddleware: Middleware = {
 };
 
 /**
- * Typed client for the FleetConsole Api, generated from its OpenAPI document (`npm run gen:api`).
+ * Typed client for the FleetConsole Api. Its types are the {@link paths} generated from the Api's OpenAPI document
+ * (`npm run gen:api`, ADR-0016). Hooks call it through `unwrap()` / `unwrapNoContent()` so failures are always an
+ * `ApiError` (ADR-0015).
  *
  * The base URL is the SPA's own origin rather than `/api`: the Api's OpenAPI document lists full routes
  * (`/api/system/info`), so paths passed to the client already start with `/api`. In development Vite proxies `/api`

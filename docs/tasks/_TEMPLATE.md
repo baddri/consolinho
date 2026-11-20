@@ -19,15 +19,20 @@ One paragraph: what and why.
 ## Contract / design notes
 Routes, types, interfaces, ADR links. Enough that the engineer doesn't have to guess.
 
+## Context pack
+<!-- architect: what to read and copy — keeps the engineer from reading whole docs/codebase -->
+- Docs: `BACKEND.md` § <heading>, ADR-00xx
+- Exemplars: `src/.../SomeUseCase/` (pattern to copy)
+
 ## Acceptance criteria
 - [ ] ...
 - [ ] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
-<!-- engineer/QA/reviewer append dated entries: what was done, commands run, results -->
+<!-- engineer/QA/reviewer append dated entries, ≤ 5 lines each: what was done, check results -->
 
 ## Review
 <!-- architect: APPROVE / CHANGES_REQUESTED + findings (file:line — issue — fix) -->
 
 ## Handover notes
-<!-- what is left, gotchas, where to look next -->
+<!-- ≤ 15 lines: what is left, gotchas, where to look next -->

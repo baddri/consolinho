@@ -67,6 +67,7 @@ public sealed class ExceptionPipelineTests(ApiFactory factory)
         await using var app = CreateHost("Production", throwing: false);
         using var client = app.CreateClient();
         using var request = new HttpRequestMessage(new HttpMethod(method), new Uri(path, UriKind.Relative));
+        request.Headers.Add("X-Console-Request", "1"); // pass the CSRF check (ADR-0012) to reach the framework error
 
         using var response = await client.SendAsync(request, Ct);
 

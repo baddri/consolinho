@@ -5,10 +5,10 @@ with a **cluster switcher** in the masthead. The backend is an authenticating pr
 picks a cluster, and every Kubernetes API call is forwarded to that cluster's API server with the **ServiceAccount token
 the admin assigned to that user for that cluster**. An admin area manages users, clusters, SA credentials and grants.
 
-> **Starting a session? Read `docs/process/HANDOVER.md` first** (imported below). It says where we are and what is next.
+> **Orchestrating? Read `docs/process/HANDOVER.md` first** (the `/continue` skill does this). It says where we are and
+> what is next. It is deliberately *not* imported here: every subagent loads this file, and they don't need it.
 > To resume autonomous work, run the `/continue` skill. Before stopping, run `/handover`.
 
-@docs/process/HANDOVER.md
 
 ## Stack (decided — change only through an ADR in `docs/adr/`)
 
@@ -57,12 +57,14 @@ docs/
 stream proxy bodies, never buffer watch/log streams.
 
 ### General
-1. Read the relevant architecture doc before touching a layer: `docs/architecture/BACKEND.md` / `FRONTEND.md` / `SECURITY.md`.
+1. Read the relevant architecture-doc sections before touching a layer: `docs/architecture/BACKEND.md` / `FRONTEND.md` /
+   `SECURITY.md` (by section — see *Context & token discipline*).
 2. Work is driven by task files in `docs/tasks/`. Don't start untracked work; create a task file if needed.
 3. Small, focused changes. No drive-by refactors outside the task; note them as follow-up tasks instead.
 4. Everything must build and tests must pass before a task is marked `in_review`:
-   - Backend: `dotnet build FleetConsole.slnx -warnaserror` and `dotnet test FleetConsole.slnx`
-   - Frontend: `cd web && npm run lint && npm run typecheck && npm test -- --run && npm run build`
+   - Backend: `scripts/check-be.sh` (= `dotnet build FleetConsole.slnx -warnaserror` + `dotnet test FleetConsole.slnx`)
+   - Frontend: `scripts/check-fe.sh` (= `cd web && npm run lint && npm run typecheck && npm test -- --run && npm run build`)
+   - The scripts print only a summary + failures; the scripts print the full-log path. Use the raw commands only to debug.
 5. Never commit secrets, tokens, kubeconfigs, or `.env` files. Test fixtures use obviously fake tokens.
 6. Never run mutating `oc`/`kubectl` commands against real clusters. Read-only (`oc get`, `oc whoami`) only if the human asked.
 7. Decisions that change the stack, layering, security model, or public API shape → write an ADR (`docs/adr/NNNN-title.md`).
@@ -86,6 +88,22 @@ stream proxy bodies, never buffer watch/log streams.
 - Kubernetes resources are described by **model descriptors** in a registry; generic list/detail/YAML pages render from them.
 - Typed everything. No `any` (lint-enforced). Admin API types are generated from the backend OpenAPI document.
 - Components and hooks get a short TSDoc comment explaining purpose and non-obvious behaviour.
+
+## Context & token discipline (every agent, every session)
+
+Everything you read stays in context and is re-sent on every later turn, so reading is the main cost of this project.
+- **This file is already in your context. Never re-read it.** Read any other doc at most once per session.
+- **Docs by section:** `grep -n '^#' <doc>` then Read with `offset`/`limit`. Don't read whole specs/contracts
+  (`docs/specs/CP*`) — your task file holds your contract; grep the spec for a specific AC or endpoint if needed.
+- **Code by symbol, not by file:** use the `LSP` tool (`documentSymbol`, `hover`, `goToDefinition`, `findReferences`,
+  `workspaceSymbol`) or `grep -n`, then Read only the relevant range. Read whole files only when you will edit most of
+  them. Never `cat` several files/directories at once (a hook blocks large unfiltered `cat`s).
+- **One exemplar:** to learn a pattern, read one existing example of it (e.g. one use-case folder), not all of them.
+- **Library APIs:** `grep -n` the `.d.ts` / XML docs for the member you need; never dump `node_modules` files.
+- **Output:** use `scripts/check-*.sh`; pipe any other noisy command through `tail`/`grep`. Re-run only what you
+  changed while iterating (`scripts/check-fe.sh <test path>`, `dotnet test <project> --filter ...`); full gate once at the end.
+- **Writing:** Work log entries ≤ 5 lines, Handover notes ≤ 15 lines, review findings one line each. Task files are
+  read by every later agent.
 
 ## How work runs here (summary — full detail in `docs/process/SDLC.md`)
 

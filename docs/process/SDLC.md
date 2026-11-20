@@ -37,7 +37,7 @@ committed, task file work log updated.
               ADRs (if needed) + task files with contracts. Orchestrator reconciles FE/BE contracts.
 3. BUILD    — repeat until no `todo` tasks remain in CP<n>:
               a. pick ready tasks (deps done). Run in parallel only if they touch disjoint paths
-                 (src/+tests/ vs web/) — max 3 concurrent agents; same-area parallel work uses isolation: worktree.
+                 (src/+tests/ vs web/) — max 3 concurrent backend/doc agents plus 1 frontend (web/-only) agent; same-area parallel work uses isolation: worktree.
               b. engineer agent implements → sets status in_review, fills work log.
               c. architect agent reviews `git diff` for that task → APPROVE or CHANGES_REQUESTED (findings list).
               d. on changes: same engineer type fixes (max 2 rounds; then mark blocked + note in HANDOVER).
@@ -59,9 +59,11 @@ In those cases: record in HANDOVER "Needs human", continue with other unblocked 
 
 ## Delegation contract (every subagent prompt includes)
 
-1. The task file path(s) and the instruction to read `CLAUDE.md` + the relevant architecture doc first.
+1. The task file path(s), and a **context pack** so the agent doesn't rediscover what the orchestrator knows:
+   the relevant architecture-doc sections (by heading), 1–3 exemplar files to copy patterns from, and known gotchas.
+   Don't tell agents to read `CLAUDE.md` — it is already loaded. Keep the prompt short; point to files, don't paste them.
 2. Scope boundary: which directories it may change.
-3. Required checks to run before finishing (from CLAUDE.md rule 4).
+3. Required checks to run before finishing: `scripts/check-be.sh` / `scripts/check-fe.sh` (CLAUDE.md rule 4).
 4. Before returning: update the task file (status, **Work log**, **Handover notes**: what's done, what's not, gotchas).
 5. Final report format:
    ```
@@ -72,10 +74,18 @@ In those cases: record in HANDOVER "Needs human", continue with other unblocked 
    ```
 
 Subagents do **not** commit, do not edit HANDOVER.md or ROADMAP.md, and do not spawn other agents.
+**Subagents never run git commands that change the index, HEAD or stash** (`git add`, `git rm`, `git stash`, `git checkout`,
+`git reset`, `git restore --staged`, `git commit`) in the shared tree: other agents' uncommitted work lives there. Delete
+files with `rm`; read-only git (`status`, `diff`, `log`, `show`) is fine. Worktree agents may use git only inside their worktree.
 
 **Agent registration fallback:** project agents in `.claude/agents/` are loaded at session start. If the Agent tool
 reports the type as not found (e.g. agents edited mid-session), spawn `general-purpose` and begin the prompt with
 "First read `.claude/agents/<name>.md` and adopt that role and its rules completely."
+
+**Reviews:** give the reviewer the exact file list / diff range and the engineer's CHECKS line. The reviewer reads
+the diff (`git diff -- <paths>`, plus new files) and only the surrounding code it needs; it runs the check scripts once.
+**Fix rounds:** prefer `SendMessage` to the same engineer agent when it is still running in this session (its context
+is warm and cached); start a new agent only across sessions, with the findings list + task file.
 
 ## Commits & branches
 

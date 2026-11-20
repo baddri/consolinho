@@ -1,13 +1,12 @@
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
-import { createQueryClient } from './queryClient';
 import { AppProviders } from './providers';
 import { routes } from './router';
+import { createAppRuntime } from './session';
 
-const queryClient = createQueryClient();
-const router = createBrowserRouter(routes);
+const { router, queryClient } = createAppRuntime(() => createBrowserRouter(routes));
 
-/** Root component: providers around the browser router. */
+/** Root component: providers around the browser router; a 401 anywhere leads to `/login` (ADR-0014 §2). */
 export function App() {
   return (
     <AppProviders queryClient={queryClient}>
