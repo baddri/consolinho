@@ -108,4 +108,31 @@ describe('AppShell', () => {
     expect(screen.getByRole('button', { name: 'Dark theme' })).toHaveAttribute('aria-pressed', 'true');
     expect(localStorage.getItem('fleetconsole.theme')).toBe('dark');
   });
+
+  describe('environment band (SW-10)', () => {
+    it('marks a production cluster', async () => {
+      setMockUser('alice');
+      renderApp('/c/prod-eu-1/overview');
+
+      expect(await screen.findByText('Production cluster prod-eu-1')).toBeInTheDocument();
+    });
+
+    it('marks a staging cluster', async () => {
+      setMockUser('alice');
+      renderApp('/c/staging-eu-1/overview');
+
+      expect(await screen.findByText('Staging cluster staging-eu-1')).toBeInTheDocument();
+    });
+
+    it.each([
+      ['a development cluster', 'admin', '/c/dev-1/overview'],
+      ['an admin page', 'alice', '/admin/users'],
+    ])('is absent on %s', async (_case, username, path) => {
+      setMockUser(username);
+      renderApp(path);
+
+      await screen.findByRole('button', { name: /switch cluster|Select a cluster/ });
+      expect(screen.queryByText(/^(Production|Staging) cluster /)).not.toBeInTheDocument();
+    });
+  });
 });

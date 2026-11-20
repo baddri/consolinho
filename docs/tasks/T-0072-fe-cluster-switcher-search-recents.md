@@ -1,7 +1,7 @@
 ---
 id: T-0072
 title: Cluster switcher with search and recents, environment band, keep-context switching
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 2
 depends_on: [T-0055]
@@ -60,18 +60,37 @@ switching that keeps path and filters (SW-9), and an environment band under the 
   dev-1, dev-2, lab-1). Fill the search with `user.paste`; first full-app render uses `test/coldStart.ts`.
 
 ## Acceptance criteria
-- [ ] SW-7: typing `us` shows only `prod-us-1`; `staging` (environment) matches `staging-eu-1`; Enter navigates to the
+- [x] SW-7: typing `us` shows only `prod-us-1`; `staging` (environment) matches `staging-eu-1`; Enter navigates to the
       first match; no match → "No clusters match `zzz`"; search box has focus on open.
-- [ ] SW-8: after visiting dev-1 then prod-eu-1 the "Recent" group lists prod-eu-1, dev-1 (max 5, per username); a
+- [x] SW-8: after visiting dev-1 then prod-eu-1 the "Recent" group lists prod-eu-1, dev-1 (max 5, per username); a
       recent cluster no longer granted is not shown; group absent for a fresh user.
-- [ ] SW-9: on `/c/dev-1/k8s/ns/shop/pods?label=app%3Dweb` choosing dev-2 lands on
+- [x] SW-9: on `/c/dev-1/k8s/ns/shop/pods?label=app%3Dweb` choosing dev-2 lands on
       `/c/dev-2/k8s/ns/shop/pods?label=app%3Dweb`; from `/admin/users` → `/c/dev-2`.
-- [ ] SW-10: band shown for prod/staging with the cluster name, absent for dev and on admin pages.
-- [ ] Toggle accessible name still repeats env and read-only cues; existing SW-1..6 tests green.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] SW-10: band shown for prod/staging with the cluster name, absent for dev and on admin pages.
+- [x] Toggle accessible name still repeats env and read-only cues; existing SW-1..6 tests green.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 frontend-engineer: worktree fast-forwarded to cp/2-proxy-browser. Switcher rewritten on PF MenuContainer +
+  Menu(role=listbox) with SearchInput, Recent/All groups; `shared/hooks/useStoredValue`, `useRecentClusters`,
+  `clusterSwitchPath(location, cluster)`, `EnvironmentBanner` via `Page banner`. Tests for SW-7..10 added;
+  `scripts/check-fe.sh` green (520 tests).
 
 ## Review
+- 2026-11-20 frontend-architect: **APPROVE** (round 1). check-fe.sh green (520 tests). SW-7..10 covered by tests;
+  PF MenuContainer/Menu(listbox)/SearchInput idiomatic, focus via owned ref (`shouldFocusFirstItemOnOpen` stays
+  false, so no race), no DOM querying. `useStoredValue(key | undefined)` deviation accepted (avoids a guest key).
+  Nits (optional, follow-up only):
+  - web/src/features/cluster-context/useRecentClusters.ts:remember — ungranted names keep using the 5 slots, so fewer than 5 may show; consider dropping names absent from `clusters` on write.
+  - web/src/features/cluster-context/ClusterSwitcher.tsx:allList — "No clusters match" is a disabled option, not announced on typing; a polite live region (or SR-only count) would help screen-reader users.
 
 ## Handover notes
+- `useStoredValue` takes `key: string | undefined` (deviation from the contract): `undefined` = user not loaded yet →
+  no value, no-op setter. Snapshot is the raw string; `parse`/`serialize` must be stable (module-level).
+- `useRecentClusters` hides ungranted names but does not prune them (re-granted cluster reappears).
+- Switcher lists are `listbox` "All clusters" (+ "Recent clusters" under h3 "Recent"); tests query those names.
+  When the Recent group toggles, the All list remounts — re-query it in tests.
+- Search focus on open: `setTimeout(0)` + `searchRef.focus()` (ref owned by the component, FRONTEND.md UI conventions);
+  choosing an item returns focus to the toggle.
+- From admin/cluster root the switch goes to `/c/<target>`; the index route still redirects to `overview` until T-0073.
+- Banner renders inside PF's main PageGroup (PF places `banner` there), not between masthead and sidebar.
