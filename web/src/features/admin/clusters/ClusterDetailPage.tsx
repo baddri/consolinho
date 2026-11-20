@@ -17,10 +17,11 @@ import type { ClusterDetail } from '@/shared/api';
 import { ErrorState, useToast } from '@/shared/ui';
 import { CLUSTER_DETAIL_TABS, useAdminTab, type ClusterDetailTab } from '../adminTabs';
 import { ClusterCredentialsTab } from '../credentials/ClusterCredentialsTab';
+import { ClusterGrantsTab } from '../grants/GrantsTab';
 import { useCluster } from './api';
 import { ClusterDetailHeader } from './ClusterDetailHeader';
 import { ClusterDetailsTab } from './ClusterDetailsTab';
-import { clusterDetailPath, plural } from './clusterTarget';
+import { clusterDetailPath } from './clusterTarget';
 import { CLUSTER_GONE_BODY, clusterGoneTitle, isClusterGone } from './useClusterGone';
 
 /** Path of the clusters list, the way back from a missing or deleted cluster. */
@@ -69,14 +70,7 @@ function ClusterTabPanel({ cluster, tab }: { cluster: ClusterDetail; tab: Cluste
   if (tab === 'credentials') {
     return <ClusterCredentialsTab cluster={cluster} />;
   }
-  // The grants table arrives with T-0039.
-  return (
-    <EmptyState titleText={TAB_TITLES[tab]} headingLevel="h2">
-      <EmptyStateBody>
-        {`${plural(cluster.grantCount, 'user')} can access ${cluster.name}. The access list is coming soon.`}
-      </EmptyStateBody>
-    </EmptyState>
-  );
+  return <ClusterGrantsTab cluster={cluster} />;
 }
 
 /**

@@ -1,12 +1,12 @@
 ---
 id: T-0039
 title: Grants — tables on user and cluster pages, create / change / revoke
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 1
 depends_on: [T-0032, T-0036]
-paths: [web/src/features/admin/grants/, web/src/features/admin/users/UserDetailPage.tsx, web/src/features/admin/clusters/ClusterDetailPage.tsx]
-review_rounds: 0
+paths: [web/src/features/admin/grants/, web/src/features/admin/users/UserDetailPage.tsx, web/src/features/admin/clusters/ClusterDetailPage.tsx, web/src/features/admin/credentials/api.ts, web/src/features/admin/credentials/DeleteCredentialModal.tsx]
+review_rounds: 2
 ---
 
 ## Goal
@@ -51,20 +51,45 @@ an admin granting/revoking their own access (GRANT-6) must see the switcher upda
   with grants.
 
 ## Acceptance criteria
-- [ ] USR-7/CLU-8: both tabs list grants with all columns; GRANT-5 labels for the disabled cluster, deactivated user
+- [x] USR-7/CLU-8: both tabs list grants with all columns; GRANT-5 labels for the disabled cluster, deactivated user
       and expired credential fixtures; text filter on the cluster Access tab.
-- [ ] GRANT-2: create from both pages; credential pre-selected for single-credential cluster; default ReadOnly;
+- [x] GRANT-2: create from both pages; credential pre-selected for single-credential cluster; default ReadOnly;
       production RW warning; Q7 labels in the picker; request body exact + CSRF header.
-- [ ] GRANT-1: duplicate → 409 detail inline on the picker field; credential of another cluster (MSW 400) inline on
+- [x] GRANT-1: duplicate → 409 detail inline on the picker field; credential of another cluster (MSW 400) inline on
       `credentialId`.
-- [ ] GRANT-3: change mode/credential with `version` (conflict handled, ADM-4); revoke text names user, cluster and
+- [x] GRANT-3: change mode/credential with `version` (conflict handled, ADM-4); revoke text names user, cluster and
       environment; 204 removes the row.
-- [ ] Create, change and revoke invalidate `accessibleClustersQueryKey`: an admin granting themselves a cluster
+- [x] Create, change and revoke invalidate `accessibleClustersQueryKey`: an admin granting themselves a cluster
       sees it in the switcher without reload (test with the `admin` persona).
-- [ ] QG-3 loading/empty/error per tab; ADM-2 disabled for `ines`. TSDoc. Build, lint, tests green.
+- [x] QG-3 loading/empty/error per tab; ADM-2 disabled for `ines`. TSDoc. Build, lint, tests green.
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; grants/ api + table + modals, wired into user/cluster detail tabs.
+- 2026-11-20 frontend-engineer: done; 12 tests in `grants/GrantsTab.test.tsx`; `scripts/check-fe.sh` green → in_review.
+- 2026-11-20 frontend-engineer: round 1 fixes — `version` in form values (reset only by reload) + repeat-409 test; revoke 404 → toast+close; picker load errors; `useClusterGrants` deduped into `grants/api.ts`.
 
 ## Review
+**Round 1 — frontend-architect: CHANGES_REQUESTED** (`scripts/check-fe.sh` green: 41 files / 477 tests)
+- Required: `grants/GrantFormModal.tsx:177` — edit sends `props.grant.version`, the *live* cache value; a 409 runs `invalidateAfterError` → list refetch → `GrantsTab.tsx:68` passes the fresh grant, so a second "Save" without "Reload latest values" silently overwrites the other admin's change (ADM-4 lost update) — capture `version` with the form values (in the schema/`valuesOf`, reset only by `reload`), as `ClusterForm` does; add a test: 409, Save again → still a conflict.
+- Judged OK: `POST /api/admin/grants` matches `schema.gen.ts:506` + mock; `target` + `fieldMap`/`codeToField` mapping; invalidation of `adminKeys.all` + `accessibleClustersQueryKey` (tested with spy); `grants → ../credentials|users|clusters` imports are intra-feature (`features/admin` is one boundary element, precedent in clusters/credentials/audit) — no index needed.
+- Nit: `grants/RevokeGrantModal.tsx:213` — a 404 shows inline, then the refetch drops the row and the modal vanishes without feedback; treat 404 as "already revoked" (warning toast + close) like the edit path.
+- Nit: `grants/TypeaheadSelectField.tsx:164` — duplicates the audit `TypeaheadFilter` keyboard logic; also no `aria-controls` → `SelectList` id (same gap in audit); generalise both into `shared/forms` in T-0040 (follow-up).
+- Nit: `grants/ClusterTypeahead.tsx:272` / `UserTypeahead.tsx:324` — options-query error renders as "No results"; show "Could not load …".
+- Nit/follow-up: `credentials/api.ts:46` duplicate `useClusterGrants` — T-0037 has landed, dedupe in a follow-up task.
+
+**Round 2 — frontend-architect: APPROVE** (scoped: grants + credentials vitest 3 files / 41, typecheck, eslint green)
+- Fixed: `version` lives in form values (`grantForm.schema.ts:16`, `GrantFormModal.tsx:181`), reset only by `reload`; test proves a second Save after 409 still sends version 1 and conflicts.
+- Fixed: revoke 404 → "already revoked" warning toast + close (`RevokeGrantModal.tsx:38`, tested); "Could not load clusters/users" via `loadError`; `useClusterGrants` deduped (`DeleteCredentialModal.tsx:17` imports `grants/api`).
+- Deferred to T-0040: `TypeaheadSelectField`/`TypeaheadFilter` consolidation + `aria-controls`.
 
 ## Handover notes
+- Files: `grants/` = `api.ts` (queries + create/update/revoke; success invalidates `adminKeys.all` + `accessibleClustersQueryKey`,
+  update/revoke also patch both cached lists), `GrantsTab.tsx` (`UserGrantsTab`, `ClusterGrantsTab`, shared dialog state by
+  grant id so dialogs always get the current `version`), `GrantsTable`/`GrantRow`, `GrantFormModal`, `RevokeGrantModal`,
+  `GrantStateLabels`, `AccessModeLabel`, `CredentialPicker`, `ClusterTypeahead`/`UserTypeahead` over `TypeaheadSelectField`.
+- Form field `target` = the picked side; server `clusterName`/`username` errors map onto it via `fieldMap`, and
+  `Grants.AlreadyExists` via `codeToField` (same effect as the spec's mapping, one schema for both perspectives).
+- 404 on change or revoke closes with an "already revoked" warning toast; other revoke errors show inline.
+- Edit form keeps `version` in its values (seeded on open, changed only by "Reload latest values"), so a background refetch after a 409 never turns a stale save into an overwrite (ADM-4). `credentials/DeleteCredentialModal` now uses `grants/api.ts` `useClusterGrants`.
+- Follow-up (T-0040): merge `TypeaheadSelectField` and audit `TypeaheadFilter` into `shared/forms`, adding `aria-controls`.
+- Text filter `q` is on both tabs (spec AC only requires the cluster tab).

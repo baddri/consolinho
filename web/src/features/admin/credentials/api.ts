@@ -8,7 +8,6 @@ import {
   unwrapNoContent,
   type AddCredentialRequest,
   type Credential,
-  type Grant,
   type RotateCredentialTokenRequest,
 } from '@/shared/api';
 import { adminKeys } from '../queryKeys';
@@ -39,17 +38,6 @@ export function useFleetCredentials() {
   return useQuery({
     queryKey: adminKeys.credentials(),
     queryFn: ({ signal }): Promise<Credential[]> => unwrap(apiClient.GET('/api/admin/credentials', { signal })),
-  });
-}
-
-/** Loads `GET /api/admin/clusters/{name}/grants`: who can access the cluster and through which credential (CRED-6). */
-export function useClusterGrants(clusterName: string) {
-  return useQuery({
-    queryKey: adminKeys.clusterGrants(clusterName),
-    queryFn: ({ signal }): Promise<Grant[]> =>
-      unwrap(
-        apiClient.GET('/api/admin/clusters/{name}/grants', { params: { path: { name: clusterName } }, signal }),
-      ),
   });
 }
 

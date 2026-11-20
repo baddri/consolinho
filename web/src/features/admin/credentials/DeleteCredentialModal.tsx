@@ -14,7 +14,8 @@ import {
 import type { AccessMode, Credential } from '@/shared/api';
 import { errorMessage } from '@/shared/api';
 import { ConfirmModal, EnvironmentLabel, ErrorState, useToast } from '@/shared/ui';
-import { isCredentialGone, isCredentialInUse, useClusterGrants, useDeleteCredential } from './api';
+import { useClusterGrants } from '../grants/api';
+import { isCredentialGone, isCredentialInUse, useDeleteCredential } from './api';
 import { affectedUsersText } from './credentialText';
 import { CredentialModalFrame, type CredentialCluster } from './CredentialModalFrame';
 import { useCredentialGoneToast } from './useCredentialGoneToast';

@@ -16,6 +16,7 @@ import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import { isApiError, type UserDetail } from '@/shared/api';
 import { ErrorState, useToast } from '@/shared/ui';
 import { USER_DETAIL_TABS, useAdminTab, type UserDetailTab } from '../adminTabs';
+import { UserGrantsTab } from '../grants/GrantsTab';
 import { useUser } from './api';
 import { UserDetailHeader } from './UserDetailHeader';
 import { UserDetailsTab } from './UserDetailsTab';
@@ -77,15 +78,7 @@ function UserTabPanel({ user, tab }: { user: UserDetail; tab: UserDetailTab }) {
   if (tab === 'details') {
     return <UserDetailsTab user={user} />;
   }
-  // Grants table and actions arrive with T-0039.
-  return (
-    <EmptyState titleText="Cluster access" headingLevel="h2">
-      <EmptyStateBody>
-        {user.username} has {user.grantCount} cluster grant{user.grantCount === 1 ? '' : 's'}. The grants list is
-        coming soon.
-      </EmptyStateBody>
-    </EmptyState>
-  );
+  return <UserGrantsTab user={user} />;
 }
 
 /**
