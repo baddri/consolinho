@@ -37,7 +37,7 @@ namespace FleetConsole.Infrastructure.Persistence;
 /// ring (<c>data_protection_keys</c>, ADR-0004).</para>
 /// <para><b>Lifetime:</b> registered as a scoped (not pooled) context because it depends on the scoped dispatcher.</para>
 /// <para><b>Migrations:</b> live in <c>Persistence/Migrations</c>; applied automatically on startup in Development only
-/// (<see cref="DevelopmentDatabaseMigrator"/>), by a migration job in production.</para>
+/// (<see cref="DevelopmentDatabaseMigrator"/>), by the image's <c>migrate</c> init container in production (<see cref="DatabaseMigrator"/>, ADR-0027).</para>
 /// </remarks>
 public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKeyContext
 {

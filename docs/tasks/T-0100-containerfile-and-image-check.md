@@ -43,8 +43,12 @@ Authoring the Containerfile may start before the dependencies land; the check sc
      `CaBundlePath` = fake CA; published on `127.0.0.1:<random>`. Wait for `/alive` (≤ 60 s). Assert: `/` and
      `/c/x/k8s/ns/a/pods/b` → 200 with `<div id="root">`; `/api/nope` → 404 `application/problem+json`; `/alive`
      and `/health` → 200 `Healthy`; `index.html` `Cache-Control: no-cache`; `Content-Security-Policy` present.
-  7. Same web host **without** the DP cert path → exits non-zero within 30 s and its log contains
-     `DataProtection:KeyEncryptionCertificatePath`.
+  7. Same web host **without** the DP cert path → exit code **1** within 30 s and its log contains
+     `Startup configuration error: DataProtection:KeyEncryptionCertificatePath` (T-0099 `ConsoleHostRunner`; a crash
+     with a stack trace does not count). Also without the DP cert path **and** without `Console__PublicOrigin` → exit
+     1 with one such line per key (failures of several options types arrive as an `AggregateException`).
+  7b. `migrate` against an unreachable database (e.g. `Host=db.invalid`) → exit code **1** and one
+     `Database migration failed:` line (T-0099 `MigrateMode`; untested in-process, factory race T-0094).
   8. No log of steps 5–7 contains the fake client secret, the DB password or the PFX password.
 - Never use `docker`; never push the image.
 

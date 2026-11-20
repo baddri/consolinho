@@ -54,6 +54,12 @@ builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddSource(App
 
 var app = builder.Build();
 
+// `migrate` (ADR-0027): apply database migrations and exit, before the host starts (no start-time validation).
+if (MigrateMode.IsRequested(args))
+{
+    return await MigrateMode.RunAsync(app, CancellationToken.None).ConfigureAwait(false);
+}
+
 // First in the pipeline so exceptions from everything after it become ProblemDetails (GlobalExceptionHandler).
 app.UseExceptionHandler();
 
@@ -90,7 +96,8 @@ app.MapApiEndpoints();
 // Deep links (/c/{cluster}/...) answer with index.html; never /api, never paths with a file extension.
 app.MapSpaFallback();
 
-await app.RunAsync().ConfigureAwait(false);
+// Invalid configuration: one Critical line per failure and exit code 1 (ADR-0028 §6).
+return await ConsoleHostRunner.RunAsync(app).ConfigureAwait(false);
 
 /// <summary>
 /// The Api's entry point type, made visible so integration tests can host the real application with

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace FleetConsole.Api.Tests.Integration.Hosting;
@@ -40,6 +41,10 @@ public sealed class ProductionHost : IAsyncDisposable
     /// <returns>The host; dispose it.</returns>
     public static ProductionHost Create(ApiFactory factory, IReadOnlyDictionary<string, string?>? settings = null)
     {
+        // Production hosts don't migrate: start the shared Development host first, so the shared database has its
+        // schema even when only Production tests run (e.g. a filtered run).
+        _ = factory.Services;
+
         var webRoot = Path.Combine(Path.GetTempPath(), "fleetconsole-webroot-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(webRoot, "assets"));
         File.WriteAllText(Path.Combine(webRoot, "index.html"), IndexHtml);
@@ -49,10 +54,9 @@ public sealed class ProductionHost : IAsyncDisposable
         {
             builder.UseEnvironment(Environments.Production);
             builder.UseSetting(WebHostDefaults.WebRootKey, webRoot);
-            foreach (var (key, value) in settings ?? new Dictionary<string, string?>())
-            {
-                builder.UseSetting(key, value);
-            }
+            // As a configuration source, not UseSetting: it must also win over ApiFactory's Production defaults
+            // (TestHostConfiguration.Offline), which are added as a later source than host settings.
+            builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>()));
         });
         return new ProductionHost(derived, webRoot);
     }

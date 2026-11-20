@@ -18,8 +18,10 @@ idempotent step that runs before a new version serves traffic, blocks the rollou
    (IServiceProvider, CancellationToken)` returning the applied migration names) and is shared by migrate mode and
    `DevelopmentDatabaseMigrator`. It logs the applied migration names at Information.
 4. **Init container** `migrate` in the `consolinho` Deployment, same image, env: only the DB Secret and the
-   environment. Every pod start runs it; EF Core 9+'s migration lock (Npgsql: table lock on the history table)
-   serialises concurrent pods, and already-applied migrations are no-ops.
+   environment. Every pod start runs it; `DatabaseMigrator` holds a session-level Postgres advisory lock (unpooled
+   connection) from reading the pending list until migration ends, so concurrent pods are serialised and a later run
+   finds nothing pending. *Amended in T-0099:* EF Core 9+'s own migration lock (Npgsql: a table lock released per
+   migration transaction) was assumed to suffice but let two concurrent runs both apply a migration (42P07).
 5. **Forward-only**: no down-migrations are run. Rolling back the image is allowed only if the old version works on
    the new schema; otherwise restore the database backup (runbook).
 

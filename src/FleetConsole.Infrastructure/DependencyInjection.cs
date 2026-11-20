@@ -30,14 +30,14 @@ public static class DependencyInjection
     /// <remarks>
     /// <para><b>Database:</b> the connection string comes from <c>ConnectionStrings:consoledb</c> (injected by the
     /// Aspire AppHost; set by the integration tests). It is read when the first context is created, not here, so tests
-    /// can supply it late through configuration.</para>
+    /// can supply it late through configuration; its presence is validated on start.</para>
     /// <para><b>Why not Aspire's <c>AddNpgsqlDbContext</c>:</b> it registers a <em>pooled</em> context, and a pooled
     /// context can't take scoped constructor dependencies such as <see cref="IDomainEventDispatcher"/>. We register a
     /// regular scoped context and call <c>EnrichNpgsqlDbContext</c>, which adds the same Aspire extras (retries, health
     /// check, logging, OpenTelemetry).</para>
     /// <para><b>Development:</b> pending migrations are applied on startup (<see cref="DevelopmentDatabaseMigrator"/>).</para>
     /// <para><b>Data Protection</b> (ADR-0004): key ring in the database, shared by the session cookie and SA token
-    /// encryption; optionally encrypted with <c>DataProtection:KeyEncryptionCertificatePath</c>.</para>
+    /// encryption; encrypted with <c>DataProtection:KeyEncryptionCertificatePath</c> (required outside Development).</para>
     /// </remarks>
     /// <param name="builder">The host builder (configuration, environment and services).</param>
     /// <returns>The same builder, for chaining.</returns>
@@ -54,6 +54,13 @@ public static class DependencyInjection
             ConsoleDbContext.ConfigureProvider(options, connectionString);
         });
         builder.EnrichNpgsqlDbContext<ConsoleDbContext>();
+
+        // Fail fast without a connection string, in every environment (ADR-0028 §6); the context above still reads it lazily.
+        builder.Services.AddOptions<ConsoleDatabaseOptions>()
+            .Configure<IConfiguration>((options, configuration) =>
+                options.ConnectionString = configuration.GetConnectionString(ConsoleDbContext.ConnectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.ConnectionString), ConsoleDatabaseOptions.MissingMessage)
+            .ValidateOnStart();
 
         // Hosted services start in registration order. The migrator must run before Data Protection's own hosted
         // service loads the key ring, or a fresh development database has no data_protection_keys table yet.

@@ -16,10 +16,10 @@ public sealed class OpenShiftHostOptions
     /// </summary>
     public Uri? HostApiServerUrl { get; set; }
 
-    /// <summary>OAuth client id (production: <c>system:serviceaccount:&lt;ns&gt;:&lt;sa&gt;</c>). Required.</summary>
+    /// <summary>OAuth client id (production: the name of the console's <c>OAuthClient</c>, <c>consolinho</c>; ADR-0030). Required.</summary>
     public string? ClientId { get; set; }
 
-    /// <summary>OAuth client secret (production: that ServiceAccount's token, from a Secret). Required; never logged.</summary>
+    /// <summary>OAuth client secret (production: the <c>OAuthClient</c>'s secret, from a Secret). Required; never logged.</summary>
     public string? ClientSecret { get; set; }
 
     /// <summary>Optional static authorization endpoint; together with <see cref="TokenEndpoint"/> it skips discovery.</summary>
