@@ -1,7 +1,7 @@
 ---
 id: T-0073
 title: Resource registry, /k8s routes, registry-driven nav and the generic live list page (Pods, ConfigMaps, Events)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 2
 depends_on: [T-0071, T-0072]
@@ -73,21 +73,50 @@ Events. Other kinds follow in T-0078; details in T-0075.
   `web/src/test/coldStart.ts:preloadLazyRoutes`. PF `Table` rows are in `role="grid"`.
 
 ## Acceptance criteria
-- [ ] UI-1/UI-2: `/c/dev-1` lands on Projects (Namespaces on `lab-1`); nav shows exactly the registered + served kinds
+- [x] UI-1/UI-2: `/c/dev-1` lands on Projects (Namespaces on `lab-1`); nav shows exactly the registered + served kinds
       in the spec's sections, active item highlighted; "Fleet administration" still last for admins (SW-11).
-- [ ] QG-3 per kind (Pods, ConfigMaps, Events): render with fixtures; loading skeleton; empty; 403 restricted; 502
+- [x] QG-3 per kind (Pods, ConfigMaps, Events): render with fixtures; loading skeleton; empty; 403 restricted; 502
       `Proxy.CredentialRejected` shows its detail with Retry and does **not** log out (ines on prod-us-1).
-- [ ] UI-3: name filter, label filter (`app=web,tier!=db` sent as `labelSelector`), pod status filter, Event type
+- [x] UI-3: name filter, label filter (`app=web,tier!=db` sent as `labelSelector`), pod status filter, Event type
       filter, sorting, Namespace column only in all-namespaces, filters survive reload (URL).
-- [ ] Live: `mockK8s.upsert` of a new pod appears and a removed pod disappears without reload; "Paused — retrying" while
+- [x] Live: `mockK8s.upsert` of a new pod appears and a removed pod disappears without reload; "Paused — retrying" while
       the watch fails.
-- [ ] DATA-4: 2,000 seeded pods render one page of 50 rows, the name filter narrows them, and a watch update to a
+- [x] DATA-4: 2,000 seeded pods render one page of 50 rows, the name filter narrows them, and a watch update to a
       visible pod shows — within the cold-start timeouts, no global timeout raised.
-- [ ] Unknown plural and not-served kind empty states; registry plural uniqueness unit test.
-- [ ] Build (no chunk-size warning), lint and tests green (CLAUDE.md rule 4)
+- [x] Unknown plural and not-served kind empty states; registry plural uniqueness unit test.
+- [x] Build (no chunk-size warning), lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; registry, routes, nav, generic list page.
+- 2026-11-20 frontend-engineer: done. `features/resources/{paths,routes,resourceRoute,ClusterLanding,NamespaceRedirect}`,
+  `registry/` (pods, configmaps, events), `list/`, `components/`, `nav/useClusterNav`; sidebar/router wired, old
+  placeholders gone. Outside `paths`: `LandingRedirect` → `/c/<name>` (so `/` reaches Projects) + its/session tests.
+  check-fe green (55 files / 618 tests, build without chunk warning).
 
 ## Review
+**APPROVE** (frontend-architect, round 1). check-fe green (55 files / 618 tests, build ok). Conforms to ADR-0023 §1–3/§5
+(routes, scope-mismatch redirect, descriptor shape, nav from registry + discovery) and ADR-0022 (error checked before
+data, `useK8sList` only, one watch per list, no per-row hooks beyond `useActiveCluster`). No feature cycle
+(cluster-context doesn't import resources), no `any`/DOM access. Deviations accepted: lazy `resourceDescriptors()`
+(import cycle, documented), cluster-scoped nav links straight to `k8s/cluster/<plural>`, `nameColumn(model)`/
+`namespaceColumn(model)`, no Name column on Events (not in the task's column list), discovery failure → Namespaces;
+`/c/<x>` showing "Kind not supported yet" is acceptable only until T-0078 lands — T-0078 must not slip out of CP2.
+Nits (optional):
+- list/ResourceListPage.tsx:135-138 — page isn't reset when name/label/status filters change (clamped only), so filtering on page 3 shows page 3 of the result — reset to 1 on filter change (e.g. page state tagged with a filter signature), here or in T-0078.
+- app/layout/AppSidebar.tsx:22 — `aria-current` is redundant: PF `NavItem` sets it on the cloned child from `isActive`.
+- list/ResourceListPage.test.tsx — no test for the scope-mismatch redirect (`k8s/cluster/pods` → `all-namespaces`); add one with T-0078's cluster-scoped kinds.
 
 ## Handover notes
+- Paths only via `resourcePath(cluster, model, { namespace?, name?, tab?, search? })`; `ALL_NAMESPACES = 'all'`.
+  Cluster-scoped kinds always build `k8s/cluster/<plural>` (nav links there directly, not via `k8s/<plural>`).
+- Route `handle: { scope: 'ns'|'all'|'cluster', tab? }`; `useResourceRoute()` (resourceRoute.ts) decodes params +
+  handle. T-0075: replace `ResourceDetailsPage` (lazy in routes.tsx, tabs already routed); scope-mismatch redirect
+  exists only on list routes. Reuse `ResourceErrorState` (`verb="get"`; add the 404 case), `ResourceLink`,
+  `ObjectReferenceLink`, `KindBadge`, `ResourceStatusLabel`, `eventColumns({ withInvolvedObject: false })`.
+- T-0074: `NamespaceRedirect` (→ all-namespaces now) and the marked slot comment in `ResourceList`'s header.
+- T-0078: one `registry/kinds/<plural>.tsx` + a line in `registry.ts:resourceDescriptors()` (lazy array — kind modules
+  import the registry via `ObjectReferenceLink`, a cycle). Use `nameColumn(model)`/`namespaceColumn(model)` (take the
+  model), `ageColumn()`, `labelsColumn()`, `statusColor()`. Projects → `/c/x` landing stops showing "not supported".
+- Descriptor callbacks are methods (bivariance), incl. `DetailsSection?(props)`; lint `unbound-method` → call them
+  through arrows. `useK8sDiscovery().isServed` likewise: don't destructure it.
+- Landing falls back to Namespaces when discovery fails (baseline set).

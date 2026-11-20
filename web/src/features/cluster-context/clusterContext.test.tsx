@@ -248,12 +248,12 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
 describe('ClusterSwitcher keeps context (SW-9)', () => {
   it('keeps the path and filters when switching between clusters', async () => {
     grantAllClusters();
-    const { user, router } = renderApp('/c/dev-1/ns/shop/pods?label=app%3Dweb');
+    const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/pods?label=app%3Dweb');
 
     const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     await user.click(optionOf(options, 'dev-2'));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-2/ns/shop/pods'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-2/k8s/ns/shop/pods'));
     expect(router.state.location.search).toBe('?label=app%3Dweb');
     expect(screen.getByRole('button', { name: 'Cluster dev-2 (dev), switch cluster' })).toHaveFocus();
   });
@@ -265,8 +265,9 @@ describe('ClusterSwitcher keeps context (SW-9)', () => {
     const options = await openSwitcher(user, 'Select a cluster');
     await user.click(optionOf(options, 'dev-2'));
 
-    // `/c/dev-2` — the cluster's index route then picks its landing page.
-    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-2/overview'));
+    // `/c/dev-2` — the cluster's index route then picks its landing page (Projects, or Namespaces when discovery
+    // fails: the mock proxy has no grant for admin on dev-2, only the switcher list is widened here).
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/c\/dev-2\/k8s\/cluster\//));
   });
 });
 
@@ -276,8 +277,7 @@ describe('landing on / (SW-3/SW-4)', () => {
     localStorage.setItem(LAST_CLUSTER_KEY, 'staging-eu-1');
     const { router } = renderApp('/');
 
-    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/staging-eu-1/overview');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/staging-eu-1/k8s/cluster/projects'));
   });
 
   it('ignores a stale remembered cluster and goes to the first one', async () => {
@@ -285,8 +285,7 @@ describe('landing on / (SW-3/SW-4)', () => {
     localStorage.setItem(LAST_CLUSTER_KEY, 'dev-1');
     const { router } = renderApp('/');
 
-    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/prod-eu-1/overview');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/prod-eu-1/k8s/cluster/projects'));
   });
 
   it('remembers the granted cluster being viewed', async () => {
@@ -366,8 +365,7 @@ describe('landing on / (SW-3/SW-4)', () => {
     expect(await screen.findByText('Could not load your clusters')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 
-    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/c/dev-1/overview');
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/k8s/cluster/projects'));
   });
 });
 
@@ -398,9 +396,9 @@ describe('sidebar cluster links', () => {
     const { user } = renderApp('/admin/users');
 
     const nav = await openSidebar(user);
-    expect(await within(nav).findByRole('link', { name: 'Overview' })).toHaveAttribute(
+    expect(await within(nav).findByRole('link', { name: 'Events' })).toHaveAttribute(
       'href',
-      '/c/prod-eu-1/overview',
+      '/c/prod-eu-1/k8s/events',
     );
   });
 
@@ -411,9 +409,9 @@ describe('sidebar cluster links', () => {
 
     await screen.findByRole('heading', { name: 'Cluster nope is not available' });
     const nav = await openSidebar(user);
-    expect(within(nav).getByRole('link', { name: 'Overview' })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: 'Events' })).toHaveAttribute(
       'href',
-      '/c/staging-eu-1/overview',
+      '/c/staging-eu-1/k8s/events',
     );
   });
 
@@ -424,7 +422,7 @@ describe('sidebar cluster links', () => {
     await screen.findByRole('heading', { name: 'No clusters assigned yet' });
     const nav = await openSidebar(user);
     expect(within(nav).queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
-    expect(within(nav).queryByRole('link', { name: 'Overview' })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Events' })).not.toBeInTheDocument();
   });
 });
 

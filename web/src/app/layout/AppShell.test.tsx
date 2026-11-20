@@ -36,44 +36,39 @@ describe('AppShell', () => {
     },
   );
 
-  it('renders OCP-like navigation sections and an admin section', async () => {
-    const { user } = renderApp('/c/dev-1/overview');
+  // Sections come from the registry (T-0073): only sections with registered kinds are listed, admin last (SW-11).
+  it('renders registry-driven navigation sections and an admin section', async () => {
+    const { user } = renderApp('/c/dev-1/k8s/all-namespaces/events');
 
     const nav = await openSidebar(user);
-    for (const section of [
-      'Home',
-      'Workloads',
-      'Networking',
-      'Storage',
-      'Compute',
-      'Administration',
-      'Fleet administration',
-    ]) {
-      expect(within(nav).getByRole('button', { name: section })).toBeInTheDocument();
-    }
-    const overview = within(nav).getByRole('link', { name: 'Overview' });
-    expect(overview).toHaveAttribute('href', '/c/dev-1/overview');
-    expect(overview).toHaveAttribute('aria-current', 'page');
+    const sections = within(nav)
+      .getAllByRole('button')
+      .map((button) => button.textContent);
+    expect(sections).toEqual(['Home', 'Workloads', 'Fleet administration']);
+    const events = within(nav).getByRole('link', { name: 'Events' });
+    expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
+    expect(events).toHaveAttribute('aria-current', 'page');
   });
 
   it('expands the section of the current page and targets the active cluster', async () => {
-    const { user } = renderApp('/c/dev-1/ns/default/pods');
+    const { user } = renderApp('/c/dev-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
-    expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('href', '/c/dev-1/ns/all/pods');
-    expect(within(nav).getByRole('link', { name: 'Deployments' })).toBeVisible();
+    expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('href', '/c/dev-1/k8s/pods');
+    expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('aria-current', 'page');
+    expect(within(nav).getByRole('link', { name: 'ConfigMaps' })).toBeVisible();
   });
 
   it('switches cluster while keeping the current page', async () => {
     setMockUser('alice');
-    const { user, router } = renderApp('/c/prod-eu-1/ns/default/pods');
+    const { user, router } = renderApp('/c/prod-eu-1/k8s/ns/default/pods');
 
     await user.click(
       await screen.findByRole('button', { name: 'Cluster prod-eu-1 (prod, read only), switch cluster' }),
     );
     await user.click(await screen.findByRole('option', { name: /staging-eu-1/ }));
 
-    expect(router.state.location.pathname).toBe('/c/staging-eu-1/ns/default/pods');
+    expect(router.state.location.pathname).toBe('/c/staging-eu-1/k8s/ns/default/pods');
     expect(
       await screen.findByRole('button', { name: 'Cluster staging-eu-1 (staging), switch cluster' }),
     ).toBeInTheDocument();
