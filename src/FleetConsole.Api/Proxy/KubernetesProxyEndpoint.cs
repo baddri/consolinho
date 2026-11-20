@@ -85,7 +85,7 @@ public static class KubernetesProxyEndpoint
             return;
         }
 
-        var isUpgrade = context.Features.Get<IHttpUpgradeFeature>()?.IsUpgradableRequest == true || context.WebSockets.IsWebSocketRequest;
+        var isUpgrade = IsUpgradeRequest(context);
         if (isUpgrade && !string.Equals(context.Request.Headers.Origin, publicOrigin.Value.GetOrigin(), StringComparison.OrdinalIgnoreCase))
         {
             await ProxyProblems.WriteAsync(context, ProxyErrors.OriginNotAllowed).ConfigureAwait(false);
@@ -166,6 +166,16 @@ public static class KubernetesProxyEndpoint
             await audit.RecordAsync(status, reason: null).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// Whether the browser asked for a protocol upgrade (HTTP/1.1 <c>Upgrade</c> or an HTTP/2 extended-CONNECT
+    /// WebSocket). Shared by the <c>Origin</c> check and <see cref="KubernetesRequestTransformer"/>, which must leave
+    /// the upgrade handshake to YARP.
+    /// </summary>
+    /// <param name="context">The incoming request.</param>
+    /// <returns><see langword="true"/> for an upgrade request.</returns>
+    internal static bool IsUpgradeRequest(HttpContext context) =>
+        context.Features.Get<IHttpUpgradeFeature>()?.IsUpgradableRequest == true || context.WebSockets.IsWebSocketRequest;
 
     /// <summary>
     /// Splits the raw request target into the forwarded path (everything after <c>/api/clusters/&lt;c&gt;/k8s</c>,

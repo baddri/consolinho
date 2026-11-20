@@ -115,7 +115,7 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
         await AssertEventsStreamAsync(sending, watch);
     }
 
-    [Fact(Skip = "T-0090: the proxy holds the watch response headers until the first event")]
+    [Fact]
     public async Task Watch_Response_Headers_Arrive_Before_The_First_Event()
     {
         await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);

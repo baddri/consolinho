@@ -1,7 +1,7 @@
 ---
 id: T-0090
 title: "label: bug — proxy holds watch response headers until the first event"
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 2
 depends_on: [T-0061]
@@ -33,11 +33,15 @@ over sockets: the fake API server flushes `200` + headers at once (like kube-api
   flushed headers; same under TestServer).
 
 ## Acceptance criteria
-- [ ] `Watch_Response_Headers_Arrive_Before_The_First_Event` unskipped and green; the other proxy tests stay green.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `Watch_Response_Headers_Arrive_Before_The_First_Event` unskipped and green; the other proxy tests stay green.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
 - 2026-11-20 qa-engineer: filed from T-0062 (PRX-8 suite). Not blocking: events themselves arrive in < 1 s.
+- 2026-11-20 backend-engineer: fixed in `TransformResponseAsync`: streaming, non-upgrade → `Response.Body.FlushAsync`
+  (deviation: `StartAsync` alone left headers in Kestrel's buffer — test still timed out; `StatusCode != 101` broke WS exec,
+  YARP got 200 from the destination). Upgrade check extracted to `KubernetesProxyEndpoint.IsUpgradeRequest` (shared with
+  the Origin check). Test unskipped; `AssertEventsStreamAsync` doc updated. BACKEND.md has no header-timing text: unchanged.
 
 ## Review
 - 2026-11-20 backend-architect (triage): **CP2-blocking** (fix before the CP2 gate). `web/src/shared/k8s/watchManager.ts`
@@ -52,5 +56,21 @@ over sockets: the fake API server flushes `200` + headers at once (like kube-api
   - Unskip `ProxyKestrelTests.Watch_Response_Headers_Arrive_Before_The_First_Event`; also drop the T-0090 remark in
     `ProxyStreamingAndAuditTests.AssertEventsStreamAsync` docs (headers can then be awaited before the first event).
   - Not in scope: OpenShift router idle timeout on silent watches (`haproxy.router.openshift.io/timeout`) — CP3 deploy concern either way.
+- 2026-11-20 backend-architect (fix review): **APPROVE**. check-be: 325/684/706 passed, 0 skipped.
+  Checked: YARP calls the transform only after upstream status and headers are known, so the flush sends the real
+  upstream status. The 401→502 `CredentialRejected` path returns before the flush. Upstream 403/410 on a watch pass
+  through unchanged (as before). Watches/follows are GETs, so they are not audited. `Set-Cookie`/`WWW-Authenticate`
+  are stripped before the flush. Base returns false for a null `proxyResponse`, so no flush happens and the
+  endpoint's 502 mapping still applies. Kestrel uses chunked framing (no Content-Length), with no response compression
+  in the Api, and HTTP/2 clients get an early HEADERS frame. Choosing upgrades by the incoming request (not by 101) is
+  correct given HTTP/2 extended CONNECT (T-0091).
+  Optional:
+  - `Proxy/KubernetesRequestTransformer.cs:101` — add `proxyResponse is not null &&` to the condition, so the guard
+    doesn't rely on YARP's base returning false for null.
+  - `Proxy/` tests — a watch to an unreachable cluster (502 problem) and a watch the cluster answers 401 (502
+    `CredentialRejected`) would pin both edges.
 
 ## Handover notes
+- Early flush applies only to `IsStreaming && !upgrade` with `proceed` true; normal GETs, errors, the 401→502 mapping
+  and audit status keep their timing. After the flush, mid-stream failures can't become ProblemDetails (HasStarted guard).
+- Router idle timeout on silent watches remains a CP3 deploy concern (see Review).

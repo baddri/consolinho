@@ -22,7 +22,9 @@ namespace FleetConsole.Api.Proxy;
 /// <c>timeoutSeconds</c> capped), built without canonicalization so the cluster receives the bytes that were validated.</para>
 /// <para><b>Response:</b> an upstream 401 means the cluster rejected <em>our</em> credential; it is replaced by 502
 /// <c>Proxy.CredentialRejected</c> so the SPA never treats it as its own session ending. Everything else is copied,
-/// minus <c>Set-Cookie</c> and <c>WWW-Authenticate</c>.</para>
+/// minus <c>Set-Cookie</c> and <c>WWW-Authenticate</c>. For streaming requests (watch, log follow; not protocol
+/// upgrades) the status line and headers are sent to the client immediately, before the first body byte, so a quiet
+/// watch is visibly open; non-streaming responses keep the default timing.</para>
 /// </remarks>
 /// <param name="target">The authorized cluster and the user's SA token.</param>
 /// <param name="request">The validated, classified request.</param>
@@ -95,6 +97,18 @@ internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequ
         var proceed = await base.TransformResponseAsync(httpContext, proxyResponse, cancellationToken).ConfigureAwait(false);
         httpContext.Response.Headers.Remove(HeaderNames.SetCookie);
         httpContext.Response.Headers.Remove(HeaderNames.WWWAuthenticate);
+
+        if (proceed && request.IsStreaming && !KubernetesProxyEndpoint.IsUpgradeRequest(httpContext))
+        {
+            // kube-apiserver flushes a watch's (or log follow's) status and headers at once, then may stay silent for
+            // minutes. Without this the client only sees them with the first body bytes, so its fetch() stays pending
+            // and the SPA can't tell a live watch from a stuck one (T-0090). An empty flush starts the response and
+            // pushes the headers to the socket (StartAsync alone leaves them in Kestrel's output buffer). Upgrades are
+            // left to YARP, which owns the handshake (the destination may even answer an HTTP/2 WebSocket with 200).
+            // Once started, the endpoint no longer writes error problems (it checks Response.HasStarted).
+            await httpContext.Response.Body.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         return proceed;
     }
 

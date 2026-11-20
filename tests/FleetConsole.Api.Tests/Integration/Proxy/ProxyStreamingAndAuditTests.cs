@@ -42,8 +42,9 @@ public sealed class ProxyStreamingAndAuditTests(ApiFactory factory)
     /// <summary>
     /// Sends three events through <paramref name="watch"/> one at a time and asserts each is read by the client within
     /// 1 s of <see cref="WatchStream.SendAsync"/> while the upstream response is still open (PRX-8), then that closing
-    /// it ends the client's stream. The response headers are awaited after the first event is sent (T-0090: the proxy
-    /// sends them only with the first body bytes).
+    /// it ends the client's stream. The response headers are awaited after the first event is sent, so this also works
+    /// for transports that only surface headers with body bytes; header timing itself is covered by
+    /// <c>ProxyKestrelTests.Watch_Response_Headers_Arrive_Before_The_First_Event</c>.
     /// </summary>
     /// <param name="sending">The watch request, sent with <see cref="HttpCompletionOption.ResponseHeadersRead"/>.</param>
     /// <param name="watch">The fake's watch the request is attached to.</param>
