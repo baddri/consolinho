@@ -15,7 +15,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
 2. SPEC + DESIGN done. BE: ADR-0019..21, T-0056..62 (56/57/58 ∥ → 59/60 ∥ → 61 → 62 QA). FE: ADR-0022..24, T-0070..79
    (70→71 ∥ 72; then 73 → 74 ∥ 75 → 76 → 77; 78 after 75; 79 after 60). T-0054 now depends on T-0061+T-0073 (QG-4 step).
-   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53), T-0061 (8fbd137) done. Running: T-0062 QA proxy security suites + T-0073 list page (shared tree, tests/ vs web/), T-0079 (agent worktree), T-0063 Aspire 17 upgrade (human request 2026-11-20, agent worktree, ADR-0025). FE needs `gen:api` for audit `proxy` (T-0079). T-0053, T-0055 done.
+   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53), T-0061 (8fbd137), T-0079 done. Running: T-0062 QA proxy security suites + T-0073 list page (shared tree, tests/ vs web/), T-0063 Aspire 17 upgrade (human request 2026-11-20, agent worktree, ADR-0025). FE needs `gen:api` for audit `proxy` (T-0079). T-0053, T-0055 done.
    CSP needs (CP3): `img-src 'self' data:`, Monaco `worker-src 'self'` + `style-src 'unsafe-inline'`.
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
