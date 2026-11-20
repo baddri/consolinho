@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { parse, stringify } from 'yaml';
@@ -161,6 +161,17 @@ describe('YAML tab save (UI-7, QG-3)', () => {
     expect(saved.data).toEqual({ greeting: 'hello' });
     await waitFor(() => expect(editor.value).toContain(`resourceVersion: "${saved.metadata.resourceVersion}"`));
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('names the cluster and its environment label next to Save (SW-10)', async () => {
+    renderApp(CM_YAML);
+    await findEditableEditor();
+
+    // The flex row that holds Save, Reload, the target cluster and its environment label.
+    const bar = screen.getByText('Saving to dev-1').parentElement;
+    if (!bar) throw new Error('Save bar not found');
+    expect(within(bar).getByText('dev')).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
   it('stale edit: banner while dirty, 409 alert on Save, edits kept until Reload', async () => {

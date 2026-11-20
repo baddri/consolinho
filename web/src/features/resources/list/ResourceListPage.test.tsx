@@ -125,6 +125,8 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['pods', 'Pods'],
     ['configmaps', 'ConfigMaps'],
     ['events', 'Events'],
+    ['deployments', 'Deployments'],
+    ['services', 'Services'],
   ])('shows skeleton rows while %s load', async (plural, title) => {
     answerLists(plural, async () => {
       await delay('infinite');
@@ -139,6 +141,8 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['pods', 'Pods'],
     ['configmaps', 'ConfigMaps'],
     ['events', 'Events'],
+    ['deployments', 'Deployments'],
+    ['services', 'Services'],
   ])('shows the empty state for %s in an empty namespace', async (plural, title) => {
     renderApp(`/c/dev-1/k8s/ns/empty/${plural}`);
 
@@ -152,6 +156,8 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['pods', 'ns/shop', "The service account for dev-1 can't list pods in shop."],
     ['configmaps', 'all-namespaces', "The service account for dev-1 can't list configmaps in any project."],
     ['events', 'ns/shop', "The service account for dev-1 can't list events in shop."],
+    ['deployments', 'ns/shop', "The service account for dev-1 can't list deployments in shop."],
+    ['services', 'ns/shop', "The service account for dev-1 can't list services in shop."],
   ])('shows "Restricted access" when listing %s is forbidden', async (plural, scope, text) => {
     answerLists(plural, () =>
       HttpResponse.json(
@@ -176,6 +182,8 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['pods', 'Pods'],
     ['configmaps', 'ConfigMaps'],
     ['events', 'Events'],
+    ['deployments', 'Deployments'],
+    ['services', 'Services'],
   ])('shows a rejected credential for %s with Retry, without logging out', async (plural, title) => {
     setMockUser('ines');
     const { user, router } = renderApp(`/c/prod-us-1/k8s/ns/shop/${plural}`);
@@ -270,6 +278,26 @@ describe('resource list filters and sorting (UI-3)', () => {
     await user.click(within(table).getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(linkNames(table)).toEqual(WEB_PODS));
     expect(router.state.location.search).toBe('');
+  });
+
+  it('lists events with the UI-3 columns and links a registered involved object', async () => {
+    renderApp('/c/dev-1/k8s/ns/shop/events');
+    const table = await findTable('Events');
+    const reason = await within(table).findByText('BackOff');
+
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((header) => header.textContent);
+    for (const name of ['Type', 'Reason', 'Involved object', 'Message', 'Count', 'Last seen']) {
+      expect(headers).toContain(name);
+    }
+    const row = reason.closest('tr');
+    if (!row) throw new Error('row not found');
+    expect(within(row).getByText('Warning')).toBeInTheDocument();
+    expect(within(row).getByRole('link', { name: new RegExp(CRASHING_POD) })).toHaveAttribute(
+      'href',
+      `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`,
+    );
   });
 
   it('filters events by type, newest first', async () => {

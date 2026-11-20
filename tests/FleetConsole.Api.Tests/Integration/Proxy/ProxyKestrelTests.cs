@@ -130,6 +130,28 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // QA (CP2 verify), SEC-1 over real sockets: a header the client nominates as hop-by-hop in Connection must not be
+    // forwarded (RFC 9110 §7.6.1), like the fixed hop-by-hop set. Fails today: YARP forwards it.
+    [Fact(Skip = "T-0093: headers nominated by the client's Connection header are forwarded upstream")]
+    public async Task Connection_Nominated_Header_Is_Not_Forwarded_Over_Sockets()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.Respond("GET", Pods, 200, new { kind = "PodList" });
+        var (client, cluster, _, _) = await SignedInAsync(server);
+        using var _ = client;
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/clusters/{cluster}/k8s{Pods}");
+        request.Headers.TryAddWithoutValidation("Connection", "X-Qa-Hop");
+        request.Headers.TryAddWithoutValidation("X-Qa-Hop", "sec1-hop");
+        request.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
+
+        using var response = await client.SendAsync(request, Ct);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var seen = server.Requests.ShouldHaveSingleItem();
+        seen.Headers.ContainsKey("Keep-Alive").ShouldBeFalse("Keep-Alive");
+        seen.Headers.ContainsKey("X-Qa-Hop").ShouldBeFalse("X-Qa-Hop");
+    }
+
     // A fresh user with a ReadWrite grant on a cluster at server, signed in over sockets; the cookie jar is returned
     // too, for the WebSocket handshake.
     private async Task<(HttpClient Client, string Cluster, string Username, CookieContainer Cookies)> SignedInAsync(FakeKubeApiServer server)

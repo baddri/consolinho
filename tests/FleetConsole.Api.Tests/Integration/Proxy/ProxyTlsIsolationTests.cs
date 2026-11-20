@@ -80,6 +80,36 @@ public sealed class ProxyTlsIsolationTests(ApiFactory factory)
         again.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
     }
 
+    // QA (CP2 verify), PRX-7: turning skip-TLS off through the admin API takes effect on the very next request
+    // (a cached lenient handler must not survive the change).
+    [Fact]
+    public async Task Turning_SkipTls_Off_Makes_The_Next_Request_Verify_The_Certificate()
+    {
+        await using var server = await StartAsync(FakeServerCertificate.WrongHost);
+        var username = (await factory.Data.UserAsync()).Username;
+        var cluster = await GrantedAsync(username, server, caBundlePem: null, skipTlsVerify: true);
+        using var client = await ProxyTestClient.LoginAsync(factory, username);
+        (await StatusAsync(client, cluster)).ShouldBe(HttpStatusCode.OK);
+
+        using var admin = await factory.AdminClientAsync();
+        var version = await admin.VersionAsync(cluster);
+        using (var update = await admin.PutAsJsonAsync(
+                   ClusterTestSupport.ClusterPath(cluster),
+                   ClusterTestSupport.UpdateBody(version, body =>
+                   {
+                       body["apiUrl"] = server.BaseAddress.GetLeftPart(UriPartial.Authority);
+                       body["caBundle"] = server.CaBundlePem;
+                       body["skipTlsVerify"] = false;
+                   }),
+                   Ct))
+        {
+            update.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var verifying = await client.SendAsync(HttpMethod.Get, cluster, Pods);
+        await KubernetesProxyForwardingTests.ShouldBeProblemAsync(verifying, HttpStatusCode.BadGateway, ProxyErrors.UpstreamTls(cluster));
+    }
+
     private static async Task<FakeKubeApiServer> StartAsync(FakeServerCertificate certificate)
     {
         var server = await FakeKubeApiServer.StartAsync(certificate, Ct);

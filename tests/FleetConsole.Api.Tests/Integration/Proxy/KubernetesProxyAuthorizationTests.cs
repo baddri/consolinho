@@ -177,6 +177,47 @@ public sealed class KubernetesProxyAuthorizationTests(ApiFactory factory)
         details.RootElement.GetProperty("reason").GetString().ShouldBe("readOnlyGrant");
     }
 
+    // QA (CP2 verify), PAUD-1/2: a mutation refused as "not available" is audited as denied/noAccess with the parsed
+    // resource, dryRun/fieldManager and a correlation id; a GET refused the same way is not audited.
+    [Fact]
+    public async Task NotAvailable_Mutation_Is_Audited_As_NoAccess_And_NotAvailable_Get_Is_Not()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        var username = factory.NewUsername();
+        await factory.Data.ProxyClusterAsync(server, username, AccessMode.ReadWrite); // the user has *some* access
+        var ungranted = await factory.Data.ClusterAsync(apiUrl: server.BaseAddress.ToString(), caBundlePem: server.CaBundlePem);
+        await factory.Data.CredentialAsync(ungranted.Name);
+        using var client = await ProxyTestClient.LoginAsync(factory, username);
+
+        using (var get = await client.SendAsync(HttpMethod.Get, ungranted.Name, ConfigMap))
+        {
+            get.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+        }
+
+        (await ProxyEntriesAsync(username)).ShouldBeEmpty();
+
+        using var put = await client.SendAsync(
+            HttpMethod.Put, ungranted.Name, ConfigMap + "?dryRun=All&fieldManager=qa", Json("{}"));
+        put.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        var entry = (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
+        entry.Action.ShouldBe("proxy.update");
+        entry.TargetName.ShouldBe("shop/configmaps/web");
+        entry.CorrelationId.ShouldNotBeNullOrWhiteSpace();
+        using var details = JsonDocument.Parse(entry.DetailsJson);
+        var root = details.RootElement;
+        root.GetProperty("outcome").GetString().ShouldBe("denied");
+        root.GetProperty("reason").GetString().ShouldBe("noAccess");
+        root.GetProperty("statusCode").GetInt32().ShouldBe(404);
+        root.GetProperty("dryRun").GetString().ShouldBe("All");
+        root.GetProperty("fieldManager").GetString().ShouldBe("qa");
+        root.GetProperty("namespace").GetString().ShouldBe("shop");
+        root.GetProperty("name").GetString().ShouldBe("web");
+        root.EnumerateObject().Select(p => p.Name).ShouldNotContain(n => n.Contains("body", StringComparison.OrdinalIgnoreCase)
+            || n.Contains("header", StringComparison.OrdinalIgnoreCase)); // PAUD-1: no bodies, no headers
+        server.Requests.ShouldBeEmpty();
+    }
+
     [Theory]
     [InlineData("https://evil.example")]
     [InlineData(null)]

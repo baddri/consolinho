@@ -133,6 +133,32 @@ public sealed class AuditEndpointsTests(ApiFactory factory)
             .ShouldBe([grantCreated]);
     }
 
+    // QA (CP2 verify), PAUD-4: proxy entries are a category of their own and the cluster filter applies to them.
+    [Fact]
+    public async Task Proxy_Category_And_Cluster_Filter_Select_Proxy_Entries()
+    {
+        var client = await AdminAsync(factory);
+        var actor = Unique("actor");
+        var cluster = Unique("c");
+        var other = Unique("c");
+
+        var update = await SeedAsync(
+            factory, T0, actor, "proxy.update", "shop/configmaps/web", cluster, targetType: AuditTargetType.KubernetesResource);
+        var delete = await SeedAsync(
+            factory, T0.AddSeconds(1), actor, "proxy.delete", "shop/pods/web-1", cluster, targetType: AuditTargetType.KubernetesResource);
+        await SeedAsync(
+            factory, T0.AddSeconds(2), actor, "proxy.create", "shop/pods", other, targetType: AuditTargetType.KubernetesResource);
+        var clusterUpdated = await SeedAsync(
+            factory, T0.AddSeconds(3), actor, "cluster.updated", cluster, cluster, targetType: AuditTargetType.Cluster);
+
+        Ids(await PageAsync(client, ("cluster", cluster), ("category", "proxy"))).ShouldBe([delete, update]);
+        Ids(await PageAsync(client, ("cluster", cluster))).ShouldBe([clusterUpdated, delete, update]);
+        var page = await PageAsync(client, ("cluster", cluster), ("category", "proxy"), ("limit", "1"));
+        var item = page.GetProperty("items")[0];
+        item.GetProperty("category").GetString().ShouldBe("proxy");
+        item.GetProperty("targetType").GetString().ShouldBe("kubernetesResource");
+    }
+
     [Theory]
     [InlineData("limit", "0")]
     [InlineData("limit", "201")]

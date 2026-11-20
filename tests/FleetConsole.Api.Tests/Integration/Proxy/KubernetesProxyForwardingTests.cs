@@ -171,6 +171,35 @@ public sealed class KubernetesProxyForwardingTests(ApiFactory factory)
         seen.Headers.SelectMany(h => h.Value).ShouldNotContain(v => v.Contains("sec1", StringComparison.Ordinal));
     }
 
+    // QA (CP2 verify), SEC-1: the fixed hop-by-hop request headers and the remaining X-Forwarded-*/X-Remote-* variants
+    // never reach the cluster. (Headers nominated by Connection: see ProxyKestrelTests, T-0093.)
+    [Fact]
+    public async Task Hop_By_Hop_And_Forwarding_Headers_From_The_Client_Are_Not_Forwarded()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.Respond("GET", Pods, 200, new { kind = "PodList" });
+        var (client, cluster, _) = await SetUpAsync(server, AccessMode.ReadOnly);
+        using var __ = client;
+        string[] stripped = ["Keep-Alive", "Proxy-Connection", "X-Forwarded-Port", "X-Forwarded-Prefix", "X-Remote-Extra-Scopes"];
+
+        using var response = await client.SendAsync(HttpMethod.Get, cluster, Pods, configure: request =>
+        {
+            foreach (var name in stripped)
+            {
+                request.Headers.TryAddWithoutValidation(name, "sec1-" + name);
+            }
+        });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var seen = server.Requests.ShouldHaveSingleItem();
+        foreach (var name in stripped)
+        {
+            seen.Headers.ContainsKey(name).ShouldBeFalse(name);
+        }
+
+        seen.Headers.SelectMany(h => h.Value).ShouldNotContain(v => v.Contains("sec1", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task Stopped_Server_Gives_502_UpstreamUnavailable()
     {
