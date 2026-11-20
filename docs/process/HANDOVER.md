@@ -2,40 +2,39 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-20 (CP2 started) · **Current checkpoint:** CP2 — Proxy, cluster switcher & generic resource
-browser (MVP) · **Branch:** `cp/2-proxy-browser`
+**Last updated:** 2026-11-20 (CP2 closed) · **Current checkpoint:** CP3 — Deploy to OpenShift (not started) ·
+**Branch:** `main`
 
 ## Where we are
-- **CP0 Foundations: DONE** (tag `cp-0`). **CP1 Identity & administration: DONE** (tag `cp-1`, merged to `main`).
-- CP1 evidence: QA `docs/specs/CP1-qa-report.md` (66/70 automated + H1–H4 browser checks passed by the human 2026-11-20,
-  0 bugs); acceptance `docs/specs/CP1-acceptance.md` (accepted with follow-ups).
+- **CP0: DONE** (`cp-0`). **CP1: DONE** (`cp-1`). **CP2 Proxy, cluster switcher & generic resource browser: DONE**
+  (tag `cp-2`, merged `--no-ff` to `main`). Not pushed (no remote push without the human).
+- CP2 evidence: `docs/specs/CP2-acceptance.md` — 55/55 ACs after T-0093 (SEC-1) fix; PO ACCEPT-WITH-FOLLOWUPS.
+  Human checks H1–H6 against real clusters are listed there and still open.
+- Gates at close: check-be 325/684/711 (0 skipped), check-fe 693 tests, e2e 6/6.
 - Working tree clean, no worktrees.
 
 ## Next actions (resume here)
-1. (done) branch created; ROADMAP CP2 → `in_progress`.
-2. SPEC + DESIGN done. BE: ADR-0019..21, T-0056..62 (56/57/58 ∥ → 59/60 ∥ → 61 → 62 QA). FE: ADR-0022..24, T-0070..79
-   (70→71 ∥ 72; then 73 → 74 ∥ 75 → 76 → 77; 78 after 75; 79 after 60). T-0054 now depends on T-0061+T-0073 (QG-4 step).
-   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072, T-0070 (6409194), T-0060 (8ba7b49), T-0059 (e9fc417), T-0071 (580eb53), T-0061 (8fbd137), T-0079, T-0063 Aspire 17 (882884f), T-0073 (17178bc), T-0062 (3c05ad5) done. T-0090 (1629399) done. T-0075 (fe46d9a), T-0074 (c82b549), T-0054 (94df9ef), T-0078 (fc6036b), T-0076 (14f7ca0), T-0077 (7bc2841) done — BUILD complete. Running: T-0076 actions/delete (shared tree), T-0078 kinds (worktree); VERIFY done (ea16853, docs/specs/CP2-acceptance.md: 54/55 AC pass). Now: T-0093 SEC-1 fix (Connection-nominated headers, backend) ∥ ACCEPT (ocp-product-owner); then VERIFY/ACCEPT/CLOSE. e2e: `aspire start` → `cd web && npm run e2e` (users e2e-user/e2e-admin); re-check YAML locator when T-0077 lands Monaco. Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` from the T-0054 worktree — safe to remove. CP2 must not close before T-0078 (cluster landing needs the Projects descriptor). T-0053, T-0055 done.
-   CSP needs (CP3): `img-src 'self' data:`, Monaco `worker-src 'self'` + `style-src 'unsafe-inline'`.
-   matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
-3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
-   T-0054 (Playwright smoke H1–H4, self-seeding).
-4. Carried optional nits (fold into nearby CP2 work or drop): T-0016 (map unique-constraint race → `Users.UsernameTaken`;
-   shared `MeStatusAsync` test helper); T-0019 (bulk else-branch should match `GrantErrors.AlreadyExists` explicitly;
-   `ArgumentNullException.ThrowIfNull(api)` in ClustersEndpoints); T-0041 ("To" date defaults 00:00 → 23:59; typeahead
-   skeleton test name); T-0040 (production rows use selected-row styling; >100 bulk rows unguarded); T-0036 follow-up
-   "load token from file" into the masked input.
+1. Human: run CP2 H1–H6 (`docs/specs/CP2-acceptance.md`) on real clusters; report failures as bug tasks.
+2. Start CP3 (ROADMAP): branch `cp/3-deploy`, ROADMAP CP3 → `in_progress`, SPEC (ocp-product-owner) → DESIGN.
+   Fold in T-0092 (SPA security headers/CSP) and T-0094 (flaky DevOAuth config test).
+3. Later-checkpoint tasks already filed: T-0091 (CP4 exec over HTTP/1.1), T-0095/T-0096 (CP4 UI), T-0097 (CP6).
 
 ## How the human can test (current state)
-- `dotnet test FleetConsole.slnx` / `cd web && npm test -- --run`.
-- `aspire run` → real login via DevOAuth (users admin/alice/bob/ines); admin data APIs land with T-0016..T-0021.
-- After T-0042 lands: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`) — whole UI without backend.
-
-## Open for product owner at ACCEPT
-- (decided at ACCEPT: rename to "Fleet administration" in CP2, T-0053)
+- `aspire start --launch-profile http && aspire wait web` → login via DevOAuth (admin/alice/bob/ines; e2e-user/e2e-admin
+  for e2e); `aspire stop`. Mock UI: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`).
+- e2e: with Aspire running, `cd web && npm run e2e`.
 
 ## Needs human
-- (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
+- CP2 H1–H6 manual checks on real clusters. Optional: confirm product name before CP3 (image/Route names; UI brand is
+  "Consolinho" since T-0055).
+- Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` (T-0054 worktree) — safe to remove.
+
+## Follow-ups (optional, not filed)
+- T-0090 review: explicit `proxyResponse is not null` in flush condition; tests watch→unreachable (502), watch→401.
+- T-0093 review: extend Connection test with `Authorization` nominated, assert bearer still sent.
+- T-0078 review: shared DetailItem used by PodDetails; `labelSelectorString` ignores matchExpressions.
+- T-0075/T-0078: Pod details Node link + init containers. `ProxyErrors` *Code constants (T-0061).
+- `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` 13.6.5 → 17.x once stable (ADR-0025).
 
 ## Gotchas
 - **Token discipline (2026-11-19):** check scripts `scripts/check-{be,fe}.sh` (full logs in `.git/checks/`), `LSP` tool via
@@ -52,11 +51,6 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 - Commit 6c2262f (T-0025) alone doesn't build (UserMenu deletion); fixed by T-0027's commit.
 - No docker: podman. Export `DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock TESTCONTAINERS_RYUK_DISABLED=true ASPIRE_CONTAINER_RUNTIME=podman` (fish: `$(id -u)`, not `$UID`).
 - Background runs: `aspire start --launch-profile http && aspire wait web`; `aspire stop`. Api on :5180; web port per run (`aspire describe`).
-- Optional (T-0090 review): explicit `proxyResponse is not null` in flush condition `KubernetesRequestTransformer.cs:101`; tests for watch→unreachable (502) and watch→401 (CredentialRejected).
-- Follow-ups (T-0078 review): shared DetailItem used by PodDetails, kind sections in one place; `labelSelectorString` ignores matchExpressions.
-- T-0094 (CP3): flaky DevOAuthConfigurationTests.InvalidConfiguration_FailsAtStartup under parallel gates.
-- T-0092 (CP3): CSP/security headers when the Api serves the SPA (none sent today; Monaco needs style-src 'unsafe-inline' + workers). Filed from T-0077 review.
-- T-0091 (CP4): send exec/attach upgrades upstream as HTTP/1.1 (today HTTP/2 extended CONNECT; real kube-apiserver risk).
 - Aspire 17.0.0 (ADR-0025): AppHost is plain Microsoft.NET.Sdk + `AddDotnetProject` by path; CLI 17 via aspire.dev install script. `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` stays 13.6.5 until a stable 17.x exists — bump then. Microsoft Aspire skills plugin enabled in project settings (telemetry hooks removed from user settings at the human's request).
 - Test projects must use `xunit.v3.mtp-off`.
 - Never name a folder/namespace after a BCL root. DTO `Dto` suffix stripped in OpenAPI schema names (no `Foo` + `FooDto` pair).
