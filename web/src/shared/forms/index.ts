@@ -19,6 +19,7 @@ export { CheckboxField, type CheckboxFieldProps } from './CheckboxField';
 export { ConflictAlert, type ConflictAlertProps } from './ConflictAlert';
 export { dnsLabel, type DnsLabelOptions } from './dnsLabel';
 export { fieldIdFor } from './fieldA11y';
+export { FileUploadField, type FileUploadAccept, type FileUploadFieldProps } from './FileUploadField';
 export { FormProblemAlert, type FormProblemAlertProps } from './FormProblemAlert';
 export { RadioGroupField, type RadioGroupFieldOption, type RadioGroupFieldProps } from './RadioGroupField';
 export { SelectField, type SelectFieldOption, type SelectFieldProps } from './SelectField';

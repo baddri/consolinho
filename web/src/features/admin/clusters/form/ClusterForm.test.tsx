@@ -132,13 +132,14 @@ describe('Register cluster (CLU-1..3)', () => {
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await fillRequired(user);
+    expectDescription(field('CA bundle'), 'Leave empty to use the system trust store.');
     await user.click(field('CA bundle'));
     await user.paste('not a certificate');
     await user.click(screen.getByRole('button', { name: 'Register' }));
 
-    expect(
-      await screen.findByText('The CA bundle must contain at least one PEM certificate.'),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expectDescription(field('CA bundle'), 'The CA bundle must contain at least one PEM certificate.'),
+    );
     expect(field('CA bundle')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -159,7 +160,21 @@ describe('Register cluster (CLU-1..3)', () => {
     await user.click(screen.getByRole('button', { name: 'Register' }));
 
     await waitFor(() => expectDescription(field('API URL'), 'API URL must be an absolute https:// URL.'));
-    expect(screen.getByText('The CA bundle must not contain a private key.')).toBeInTheDocument();
+    expectDescription(field('CA bundle'), 'The CA bundle must not contain a private key.');
+  });
+
+  it('CLU-2: a CA bundle over 256 KiB is rejected client-side', async () => {
+    const commands = recordCommands();
+    const { user } = renderApp('/admin/clusters/new');
+    await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
+
+    await fillRequired(user);
+    await user.click(field('CA bundle'));
+    await user.paste('x'.repeat(256 * 1024 + 1));
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    await waitFor(() => expectDescription(field('CA bundle'), 'The CA bundle must be at most 256 KiB.'));
+    expect(await commands()).toEqual([]);
   });
 
   it('CLU-1: 409 Clusters.NameTaken shows on the name', async () => {

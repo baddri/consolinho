@@ -11,6 +11,8 @@ import { dnsLabel } from '@/shared/forms';
 const MAX_DISPLAY_NAME = 100;
 const MAX_DESCRIPTION = 1000;
 const MAX_URL = 2048;
+/** Server limit of a CA bundle (`CaBundle.MaxSizeBytes`): 256 KiB of UTF-8 PEM text. */
+export const MAX_CA_BUNDLE_BYTES = 256 * 1024;
 
 /** The environments in the order the form offers them. */
 export const CLUSTER_ENVIRONMENTS = [
@@ -79,7 +81,13 @@ export const clusterFormSchema = z
       .trim()
       .max(MAX_DESCRIPTION, `Description must be at most ${MAX_DESCRIPTION} characters long.`),
     apiUrl,
-    caBundle: z.string().trim(),
+    caBundle: z
+      .string()
+      .trim()
+      // Client-side pre-check of the server's byte limit; `TextEncoder` counts UTF-8 bytes like the server does.
+      .refine((value) => new TextEncoder().encode(value).length <= MAX_CA_BUNDLE_BYTES, {
+        message: 'The CA bundle must be at most 256 KiB.',
+      }),
     skipTlsVerify: z.boolean(),
     webConsoleUrl: z
       .string()
