@@ -13,7 +13,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 
 ## Next actions (resume here)
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
-2. SPEC done (`docs/specs/CP2-proxy-and-resource-browser.md`). DESIGN in progress: BE architect (T-0056..69, ADR 0019–21, `CP2-api-contract.md`) + FE architect (T-0070..89, ADR 0022–24). T-0053 done; T-0055 rebrand in build.
+2. SPEC done (`docs/specs/CP2-proxy-and-resource-browser.md`). DESIGN in progress: BE architect (T-0056..69, ADR 0019–21, `CP2-api-contract.md`) + FE architect (T-0070..89, ADR 0022–24). T-0053 done (c3c7102), T-0055 Consolinho rebrand done (6c84565).
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
    T-0054 (Playwright smoke H1–H4, self-seeding).
@@ -63,4 +63,5 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
   host CA bundle = SA `ca.crt` + OAuth-route ingress CA, OAuth metadata refresh (T-0014); DP-cert-missing warning → startup
   error, key-encryption cert rotation, runbook (T-0012); Containerfile publishes only `src/FleetConsole.Api`, assert no
   `FleetConsole.DevOAuth*` (T-0009); "new version — reload" on chunk-load failure (T-0028).
+- **CSP (CP3/CP6):** logos are inlined as `data:` URIs → SPA CSP must allow `img-src 'self' data:` (T-0055 review).
 - **CP2 follow-ups:** pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies (T-0010).
