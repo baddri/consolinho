@@ -13,7 +13,8 @@ namespace FleetConsole.Infrastructure.Kubernetes;
 /// One record per handler, written by the callback and read after the failed request. Connections of the same handler
 /// may handshake concurrently, so access is locked; they all talk to the same server, so "last rejection wins" is exact
 /// enough. Successful validations are not recorded and never clear an earlier rejection — fine for a short-lived probe
-/// session; a long-lived pooled handler (CP2) must use a fresh record per connection attempt or clear it on success.
+/// session. Long-lived forwarding handlers (<see cref="ClusterForwardingClientPool"/>) never write one: the proxy classifies
+/// TLS failures from the exception instead, which resolves the "stale record across connections" caveat (ADR-0020 §3).
 /// </remarks>
 internal sealed class TlsValidationRecord
 {

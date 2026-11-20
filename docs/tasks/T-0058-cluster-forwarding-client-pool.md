@@ -1,7 +1,7 @@
 ---
 id: T-0058
 title: Per-cluster forwarding client pool with value-keyed invalidation
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 2
 depends_on: []
@@ -57,15 +57,38 @@ public ClusterTlsHandler CreateForwarding(ClusterConnection connection); // same
 - Tests exemplar: `tests/FleetConsole.Api.Tests/Kubernetes/ClusterProbeClientTests.cs:L26-50` (fake server + CA); Infrastructure internals are visible to `FleetConsole.Api.Tests`.
 
 ## Acceptance criteria
-- [ ] Corrupt CA bundle → `TryGetInvoker` false, Warning logged, no CA text in logs.
-- [ ] Same cluster + equal connection → same invoker instance; changed URL, CA PEM or skip flag → new invoker (PRX-7 "next request uses the new settings").
-- [ ] Two fake servers with two CAs: cluster A's invoker trusts A and fails with `HttpRequestError.SecureConnectionError` against B (PRX-7 isolation); skip-TLS works only for the cluster that has it.
-- [ ] Retired handler disposed after the grace period (fake `TimeProvider`), not before; `Dispose()` disposes all.
-- [ ] Probe tests unchanged and green.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Corrupt CA bundle → `TryGetInvoker` false, Warning logged, no CA text in logs.
+- [x] Same cluster + equal connection → same invoker instance; changed URL, CA PEM or skip flag → new invoker (PRX-7 "next request uses the new settings").
+- [x] Two fake servers with two CAs: cluster A's invoker trusts A and fails with `HttpRequestError.SecureConnectionError` against B (PRX-7 isolation); skip-TLS works only for the cluster that has it.
+- [x] Retired handler disposed after the grace period (fake `TimeProvider`), not before; `Dispose()` disposes all.
+- [x] Probe tests unchanged and green.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 backend-engineer: worktree fast-forwarded main→cp/2-proxy-browser (was created from main). Added port,
+  `ClusterForwardingClientPool`, `CreateForwarding` + shared `BuildSslOptions`/`ParseTrust`, DI (+`TryAddSingleton(TimeProvider.System)`),
+  doc updates on `TlsValidationRecord`/`ClusterTlsHandler`. 7 pool tests with an in-file timer-capable fake `TimeProvider`
+  (`ManualTimeProvider` has no timers; no new package). check-be.sh green (Testcontainers via podman ran).
 
 ## Review
+- 2026-11-20 backend-architect: **APPROVE**. check-be.sh green (323/402/619). Matches ADR-0020 §1–3 and the contract;
+  lock-free fast path + per-cluster build lock, exactly-once retire/dispose via `_retired.TryRemove`, `_disposed` races
+  covered, no URL/CA in logs (tested), EventIds 3400/3401 unique.
+  Optional (no change required):
+  - `ClusterForwardingClientPool.cs:L18-19` — the grace period bounds *total* stream age, but `StreamIdleTimeout` is an
+    idle timeout, so a followed log stream older than 6 min is cut after an admin edit; acceptable (new trust applies),
+    T-0059 may note it in the ADR/BACKEND.md when wiring the options.
+  - `ClusterForwardingClientPool.cs:L56` — requests that loaded the connection before vs. after an admin edit can
+    alternate rebuilds briefly (A→B→A); transient and harmless, worth a one-line remark if touched again.
 
 ## Handover notes
+- `ClusterTlsHandler.Tls` kept non-nullable: `CreateForwarding` passes a fresh, never-written record (smaller change);
+  `BuildSslOptions` takes `(connection, trustedCertificates, record?)` — certs parsed separately by `ParseTrust`.
+- Pool: lock-free fast path on `ClusterConnection` equality; per-cluster `Lock` for builds; replaced entries tracked in
+  `_retired` with an unarmed timer armed after registration (zero grace can't leak). Removal from `_retired` is the
+  single-dispose claim (timer vs `Dispose()`). `TryGetInvoker` after `Dispose()` throws `ObjectDisposedException`.
+- `RetiredHandlerGracePeriod` is an `init` property (default `DefaultRetiredHandlerGracePeriod` = 6 min); DI uses the
+  default — T-0059 can register via factory to tie it to `StreamIdleTimeout` if wanted.
+- A failed rebuild (corrupt CA) leaves the previous entry in place but returns false; nothing cached for the bad bundle.
+- Log EventIds 3400 (Information rebuild) / 3401 (Warning invalid CA); cluster id only.
+- Test-only `TimerTimeProvider` lives in the pool test file (internal); move to `Fakes/` if T-0059+ need it.
