@@ -7,7 +7,7 @@
 
 ## Where we are
 - **CP0 Foundations: DONE** (tag `cp-0`).
-- **CP1 loop step: BUILD.** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
+- **CP1 loop step: CLOSE (pending human browser checks H1–H4).** Design complete: backend T-0007..T-0021 (+T-0044), frontend T-0022..T-0043 (+T-0045, T-0046),
   ADR-0008..0018, contract `docs/specs/CP1-api-contract.md` (orchestrator amendments 2026-11-18/19 inline).
 - Committed & approved: T-0007..T-0015, T-0044 (backend); T-0022..T-0030, T-0031..T-0043, T-0049, T-0051, T-0045, T-0046 (frontend); T-0016..T-0021, T-0047, T-0048, T-0050 (session 2; all CP1 backend APIs merged; T-0017/18 merged from worktrees, no worktrees left).
   Real OpenShift-OAuth login works end-to-end against `FleetConsole.DevOAuth` (T-0015).
@@ -28,7 +28,7 @@ committing either.
 - T-0031 FE user actions: frontend-engineer was running in the main tree (`web/src/features/admin/`, mocks) — uncommitted WIP.
 - T-0016 review nits (optional follow-ups): map unique-constraint race to `Users.UsernameTaken`; shared `MeStatusAsync` helper.
 - schema.gen.ts regenerated after T-0020 merge — every contract route is generated now (T-0043 retires the contract fallback). QA leak-scan `/clusters` endpoints still open.
-- All CP1 feature tasks done; T-0043 demo passed via curl against the real Api (results in its Work log). In flight: T-0052 (small). Next: VERIFY (qa-engineer) incl. CRED-2 leak scan `/clusters` + connection-test, browser-only checks listed in T-0043 Handover notes → ACCEPT → CLOSE.
+- BUILD done (T-0007..T-0052). VERIFY passed: `docs/specs/CP1-qa-report.md` (66/70 pass, 4 needs-human H1–H4, 0 bugs). ACCEPT: `docs/specs/CP1-acceptance.md` (accepted with follow-ups; T-0053 nav rename + T-0054 Playwright smoke → CP2). Next: human runs H1–H4 → merge `cp/1-identity-admin` into main, tag `cp-1`, ROADMAP CP1 done.
 - Optional follow-ups from reviews: T-0033 nits (deleted-cluster toast in T-0035, version-in-body test, status-filter test); T-0032 aria-labelledby nit; T-0041 nits (typeahead aria-controls, "To" date defaults 00:00 → consider 23:59, skeleton test name).
 
 ## Next actions (resume here)
@@ -49,7 +49,7 @@ committing either.
 - After T-0042 lands: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`) — whole UI without backend.
 
 ## Open for product owner at ACCEPT
-- Nav naming: sidebar "Admin" vs spec ADM-3 "Administration" (cluster nav already has "Administration").
+- (decided at ACCEPT: rename to "Fleet administration" in CP2, T-0053)
 
 ## Needs human
 - (none) — optional: confirm product name "FleetConsole" before CP3 (image/Route names).
