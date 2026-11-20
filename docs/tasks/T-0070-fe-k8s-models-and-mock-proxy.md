@@ -1,7 +1,7 @@
 ---
 id: T-0070
 title: K8s models/types and the MSW mock Kubernetes proxy (stateful, streamed watches)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 2
 depends_on: []
@@ -80,17 +80,40 @@ Backend contract: `docs/specs/CP2-api-contract.md` §1–4 (route, headers, watc
   `HttpResponse` if unsure.
 
 ## Acceptance criteria
-- [ ] Models/types compile under `strict`; `modelKey`/`apiVersionOf` unit-tested (core vs named group).
-- [ ] Mock tests (`mocks/k8s.test.ts`, plain `fetch`): paging with `continue`, label/field selectors, PUT 200/409/422,
+- [x] Models/types compile under `strict`; `modelKey`/`apiVersionOf` unit-tested (core vs named group).
+- [x] Mock tests (`mocks/k8s.test.ts`, plain `fetch`): paging with `continue`, label/field selectors, PUT 200/409/422,
       DELETE, SSAR per profile, 404/403/502 guard codes per persona in contract check order, CSRF on PUT.
-- [ ] Watch test: a mutation via `mockK8s.upsert` arrives on an open stream as one NDJSON line; aborting closes it;
+- [x] Watch test: a mutation via `mockK8s.upsert` arrives on an open stream as one NDJSON line; aborting closes it;
       `compact` → `ERROR` 410 event.
-- [ ] `lab-1` discovery has no `project.openshift.io`.
-- [ ] `npm run dev:mock` → requests to `/api/clusters/dev-1/k8s/api/v1/namespaces/shop/pods` answered by the worker.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `lab-1` discovery has no `project.openshift.io`.
+- [x] (wired: `k8sProxyHandler` is in `handlers`, which the worker uses; not clicked through in a browser) `npm run dev:mock` → requests to `/api/clusters/dev-1/k8s/api/v1/namespaces/shop/pods` answered by the worker.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; models/types, mock k8s store + handlers + simulator.
+- 2026-11-20 frontend-engineer: done. `shared/k8s/{models,types,index}.ts`, `mocks/k8s/*` (store, fixtures, selectors,
+  rbac, apiServer, watch, handlers, simulator), `mocks/k8s.test.ts` (14 tests). Deps kubernetes-types 1.30.0, yaml 2.9.1.
+  `access.test.ts` used the k8s path as its "unmocked route" example → switched to another path. check-fe green.
 
 ## Review
+- 2026-11-20 frontend-architect: **APPROVE** (round 1). check-fe green (48 files / 537 tests, build ok); `dev:mock`
+  starts and serves the mock modules; no mock code in `dist/` (dynamic import behind `MODE === 'mock'`). The checks follow
+  the contract §4 order, watch NDJSON / 300 s cap / ERROR 410 / continue 410 match §3, and errors are Status vs ProblemDetails as §4 requires.
+  Nits (optional, can go into T-0071 or a later mock task):
+  - `web/src/mocks/k8s/apiServer.ts:356` — `body?.spec.resourceAttributes` throws (→ MSW 500) when `spec` is missing — use `body?.spec?.resourceAttributes`.
+  - `web/src/mocks/k8s/apiServer.ts:readResource` — a body `metadata.namespace` that differs from the URL is silently overwritten; the apiserver answers 400 BadRequest.
+  - `web/src/mocks/k8s/watch.ts` — a non-numeric `resourceVersion` replays nothing instead of 400; and a name mismatch on PUT is 422 here vs 400 on the real apiserver. Both are harmless for the console.
+  - Handover for T-0071/T-0074+: SSAR reflects only the cluster RBAC (credential profile), so it says `allowed` for alice-style ReadOnly grants with an edit/admin credential. The UI must AND it with the grant's `accessMode` and the user's `isReadOnly` (pending-paul = RW grant + view credential covers the reverse case).
 
 ## Handover notes
+- List items have **no `apiVersion`/`kind`** (real apiserver behaviour); single objects and watch events do. T-0071
+  must stamp them from the model if the UI needs them (e.g. YAML of a list item).
+- MSW's Node interceptor resolves `fetch` only after the first body chunk; the mock watch enqueues an empty chunk at
+  start so the response arrives immediately (`watch.ts`). Clients must tolerate empty chunks.
+- `watch` without `resourceVersion` (or `0`) sends ADDED for all current objects first, like the apiserver.
+- `mockK8s.compact` advances the rv, so every rv handed out before it gets 410 (watch ERROR event / continue 410).
+- Delete Status is `{kind:'Status', status:'Success', details}` (task contract), not the deleted object.
+- `lab-1` has no credential/grant in fixtures; the discovery test adds them to `mockDb` locally.
+- Proxy audit hook for T-0079: `proxyMutationListeners` in `mocks/k8s/handlers.ts`.
+- Not mocked: PATCH / deletecollection (405), subresources (log/exec/scale → 404), BOOKMARKs.
+- Added `findModel`, `K8S_MODELS`, `PROJECT_ANNOTATIONS` and SSAR/discovery type re-exports to `shared/k8s`.
