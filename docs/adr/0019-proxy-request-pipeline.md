@@ -19,13 +19,16 @@ CLAUDE.md requires every use case to be a command or query.
    byte what the cluster sees (no decode/re-encode ambiguity). `ProxyPath.TryParse` rejects: empty path; any `%2e`,
    `%2f`, `%5c` (any case), `\`, `//`, `.`/`..` segments, control characters, a scheme or authority (`://`, leading
    `//`), and prefixes other than `/api`, `/apis`, `/version`, `/openapi`, `/.well-known` (segment match, case-
-   sensitive like the apiserver). Other percent-escapes (e.g. `%3A` in names) pass through unchanged.
+   sensitive like the apiserver). Other percent-escapes (e.g. `%3A` in names) pass through unchanged *on the wire*,
+   but classification (§3–4) runs on **percent-decoded segments**, because the apiserver routes and builds its
+   RequestInfo from the decoded `URL.Path` (`/pods/b/%65xec` *is* `exec` upstream). Malformed escapes are rejected.
 3. **`KubernetesRequestInfo`** (Application, pure) parses a validated path into group, version, resource,
    subresource, namespace, name and the Kubernetes verb, mirroring apiserver `RequestInfoFactory` for the subset we
    need: `/api/v1/...` (core) vs `/apis/<group>/<version>/...`, `namespaces/<ns>/<resource>`, the `namespaces/<ns>`
    object itself (+ its subresources `status`, `finalize`), legacy `/watch/` prefix, non-resource paths
    (`/version`, `/openapi/...`, discovery roots) → `IsResourceRequest = false`.
-4. **Mutation classification (MUT-1, MUT-4)** — `ProxyRequestClassifier`:
+4. **Mutation classification (MUT-1, MUT-4)** — in `ProxyRequest.Create` (T-0056); query keys are matched
+   case-sensitively and first-value-wins, exactly like Go's `url.Values.Get`:
    - any method other than GET/HEAD/OPTIONS is a mutation, except `POST` to `selfsubjectaccessreviews` /
      `selfsubjectrulesreviews` in `authorization.k8s.io/v1` (collection path, no name), which is a read;
    - any method on the subresources `exec`, `attach`, `portforward` **and `proxy`** (pods/services/nodes) is a
