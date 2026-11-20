@@ -20,4 +20,10 @@ public enum AuditCategory
 
     /// <summary>Cluster access grants (<c>grant.*</c>).</summary>
     Grants = 4,
+
+    /// <summary>
+    /// Mutations proxied to a managed cluster, allowed or denied (<c>proxy.*</c>, ADR-0021). Unlike the other
+    /// categories these entries describe a change in a cluster, not in a FleetConsole aggregate.
+    /// </summary>
+    Proxy = 5,
 }

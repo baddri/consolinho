@@ -17,4 +17,10 @@ public enum AuditTargetType
 
     /// <summary>A user's access grant to a cluster.</summary>
     Grant = 4,
+
+    /// <summary>
+    /// A Kubernetes resource (or non-resource path) in a managed cluster, addressed by a proxied mutation
+    /// (ADR-0021). Has no target id; the target name is the kubectl-style display name.
+    /// </summary>
+    KubernetesResource = 5,
 }

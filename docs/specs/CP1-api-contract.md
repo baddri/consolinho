@@ -75,8 +75,8 @@ field errors**, not 404 (ADR-0013 §8). Field messages are listed with each requ
 | `CapabilityCategory` | `read`, `write` | |
 | `HintSeverity` | `info`, `warning` | |
 | `IdentitySource` | `selfSubjectReview`, `tokenSubject` | |
-| `AuditCategory` | `auth`, `users`, `clusters`, `credentials`, `grants` | |
-| `AuditTargetType` | `session`, `user`, `cluster`, `credential`, `grant` | |
+| `AuditCategory` | `auth`, `users`, `clusters`, `credentials`, `grants`, `proxy` | `proxy` added in CP2 (CP2 contract §5). |
+| `AuditTargetType` | `session`, `user`, `cluster`, `credential`, `grant`, `kubernetesResource` | `kubernetesResource` added in CP2 (CP2 contract §5). |
 
 ### Shared record: `ConnectionTestSummaryDto`
 Last stored test result of a credential (TEST-5).
@@ -527,6 +527,8 @@ Actions (AUD-1) and `details` shapes:
 
 Grant entries use `targetName` "alice → prod-eu-1" and `clusterName` set. Category for the UI filter maps 1:1 to the
 action prefix. No endpoint modifies or deletes audit entries (AUD-3).
+
+Proxy entries (category `proxy`): see CP2 contract §5 (`docs/specs/CP2-api-contract.md`).
 
 ---
 

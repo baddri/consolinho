@@ -239,7 +239,7 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         var component = document.GetProperty("components").GetProperty("schemas").GetProperty("AuditCategory");
         component.GetProperty("type").GetString().ShouldBe("string");
         component.GetProperty("enum").EnumerateArray().Select(v => v.GetString())
-            .ShouldBe(["auth", "users", "clusters", "credentials", "grants"], ignoreOrder: true);
+            .ShouldBe(["auth", "users", "clusters", "credentials", "grants", "proxy"], ignoreOrder: true);
     }
 
     private async Task<JsonElement> GetDocumentAsync()

@@ -1,7 +1,7 @@
 ---
 id: T-0060
 title: Proxy mutation audit — Proxy category, KubernetesResource target, RecordProxyAudit command
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 2
 depends_on: [T-0056]
@@ -52,15 +52,35 @@ public static class ProxyAuditActions { const string Prefix = "proxy."; static s
 - Tests: `tests/FleetConsole.Domain.Tests/Audit/AuditEntryTests.cs:L71-73` (category InlineData — add `proxy.update`), `tests/FleetConsole.Application.Tests/Audit/AuditTrailTests.cs`, `Audit/ListAuditEntries/ListAuditEntriesTests.cs`, fakes in `Audit/AuditFakes.cs`.
 
 ## Acceptance criteria
-- [ ] PAUD-1: handler test — PUT configmap allowed 200 → action `proxy.update`, category Proxy, target `shop/configmaps/web`, details exactly the contract keys/values incl. `dryRun`/`fieldManager`; no body/header/other query data.
-- [ ] PAUD-2: denied record (`ReadOnlyGrant`, 403) → `outcome: denied`, `reason: readOnlyGrant`; `NoAccess` with null cluster name works.
-- [ ] Command is not `IMutatingCommand` (read-only user's denial is recorded through the real pipeline — behavior test with `ReadOnlyGuardBehavior`).
-- [ ] Verb → action table test (all 7); Get/List/Watch throw.
-- [ ] `ListAuditEntries` filters `category=proxy` and `cluster` over proxy entries.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] PAUD-1: handler test — PUT configmap allowed 200 → action `proxy.update`, category Proxy, target `shop/configmaps/web`, details exactly the contract keys/values incl. `dryRun`/`fieldManager`; no body/header/other query data.
+- [x] PAUD-2: denied record (`ReadOnlyGrant`, 403) → `outcome: denied`, `reason: readOnlyGrant`; `NoAccess` with null cluster name works.
+- [x] Command is not `IMutatingCommand` (read-only user's denial is recorded through the real pipeline — behavior test with `ReadOnlyGuardBehavior`).
+- [x] Verb → action table test (all 7); Get/List/Watch throw.
+- [x] `ListAuditEntries` filters `category=proxy` and `cluster` over proxy entries.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 backend-engineer: ff-merged cp/2-proxy-browser. Added `Proxy`/`KubernetesResource` enum values + `proxy` prefix,
+  `Application/Proxy/RecordProxyAudit` (command, handler, record, outcome/reason enums, actions). Details = private fixed record.
+  Outside paths (one line each, expected-value updates): `Api.Tests/.../OpenApiDocumentTests.cs` AuditCategory enum list
+  gains `proxy`; Domain test "unknown prefix" sample `proxy.mutated` → `kube.mutated`. No migration. check-be green.
 
 ## Review
+**2026-11-20 backend-architect — APPROVE** (round 1). Matches ADR-0021 §1/§4/§5 and CP2 contract §5; details are a fixed
+private record (exact key set asserted, no token/query leak); enums stored as plain ints (no `HasConversion`) → no
+migration needed; outside-path test edits are expected-value updates — accepted.
+- Scope note: own unit of work = the dispatch's `UnitOfWorkBehavior`; try/catch + Error log (EventId 2400) + swallow and
+  `CancellationToken.None` are **T-0061's** job (ADR-0021 §2) — the handler's `ArgumentException`s rely on that catch.
+- Optional: `details.path`/`dryRun`/`fieldManager`/`targetName` are unbounded `text`; effectively capped by Kestrel's
+  request-line limit (8 KB). If T-0061 raises that limit, add truncation there — no change here.
+- Optional: summary wording for delete_collection/connect/other is engineer's choice; PO may adjust in UX review.
 
 ## Handover notes
+- T-0061: dispatch `RecordProxyAuditCommand(new ProxyAuditRecord(clusterNameOrNull, request, status, outcome, reason))`
+  with `CancellationToken.None`; handler throws `ArgumentException` for Get/List/Watch and for outcome/reason mismatch
+  (Denied requires a reason, Allowed forbids one) — both are caller bugs.
+- Summary wording beyond contract examples (my choice): delete_collection "deleted all of shop/pods", connect
+  "connected to …", other "sent TRACE to …"; reasons "no access"/"read-only user"/"read-only grant"/"body too large";
+  " on <cluster>" omitted when the cluster name is null.
+- FE: run `npm run gen:api` after merge (AuditCategory `proxy`, AuditTargetType `kubernetesResource`).
+- CP1 contract §3 enum rows and §10 got the CP2 cross-reference.
