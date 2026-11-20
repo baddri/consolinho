@@ -133,6 +133,8 @@ curl -s -b jar '<web>/api/auth/me'                                              
 | `alice` | Alice Example | `sre` | regular user |
 | `bob` | (none) | (none) | user with no full name and no groups |
 | `ines` | Ines Auditor | `auditors` | an admin can make her a read-only admin (auditor demo) |
+| `e2e-user` | E2E User | (none) | reserved for the Playwright smoke: kept grantless (no-clusters landing) |
+| `e2e-admin` | E2E Admin | `fleetconsole-admins` | reserved for the Playwright smoke: grantless admin |
 
 Like a real cluster, `users/~` also reports the virtual groups `system:authenticated` and `system:authenticated:oauth`
 for every user. Users and the OAuth client (`fleetconsole-dev` / `dev-only-not-a-secret`, an obviously fake value)
@@ -159,6 +161,24 @@ npm run lint && npm run typecheck && npm test -- --run && npm run build
 ```
 
 Both sets must pass before a task goes to review (CLAUDE.md rule 4).
+
+### End-to-end smoke (Playwright)
+
+A Chromium smoke (`web/e2e/`) logs in through DevOAuth and checks deep-link login, logout, the switcher labels, the
+no-clusters landing and Pods browsing through the real proxy. It runs against a started stack:
+
+```bash
+cd web && npx playwright install chromium          # once; downloads into ~/.cache/ms-playwright; needs openssl on PATH
+aspire start --launch-profile http && aspire wait web
+cd web && npm run e2e                               # base URL from `aspire describe web`, or set E2E_BASE_URL
+aspire stop
+```
+
+Global setup seeds through the admin API as `admin`: it starts an in-process fake Kubernetes API (HTTPS, self-signed,
+registered with `skipTlsVerify`), registers a `e2e-smoke-<id>` cluster with a fake token and an alice read-only grant,
+and deletes it afterwards (and any `e2e-smoke-*` leftovers on the next run). The no-clusters check uses the reserved
+DevOAuth users `e2e-user` and `e2e-admin`; setup revokes any grants *those two* hold and never touches other users'
+grants. `openssl` must be on PATH (fake API certificate). Failure traces go to `web/e2e/.results/`.
 
 ## Regenerating API types for the SPA
 

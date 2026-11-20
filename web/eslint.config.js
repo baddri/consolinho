@@ -59,6 +59,7 @@ export default tseslint.config(
     ignores: [
       'dist',
       'coverage',
+      'e2e/.results',
       'node_modules',
       'src/shared/api/schema.gen.ts',
       // Generated MSW worker script (`npx msw init msw`), served only in mock mode.
