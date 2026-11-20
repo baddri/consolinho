@@ -103,7 +103,7 @@ describe('routes', () => {
   it('renders the login page outside the shell', async () => {
     renderApp('/login');
 
-    expect(await screen.findByRole('heading', { name: 'Log in to FleetConsole' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Log in to Consolinho' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Global' })).not.toBeInTheDocument();
   });
 

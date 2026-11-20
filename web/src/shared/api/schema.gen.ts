@@ -1258,7 +1258,7 @@ export interface components {
              */
             version: number;
         };
-        /** @description A user with everything the Administration user detail page shows. */
+        /** @description A user with everything the Fleet administration user detail page shows. */
         UserDetail: {
             /** @description The OpenShift username (exact, case-sensitive). */
             username: string;
@@ -1301,7 +1301,7 @@ export interface components {
              */
             version: number;
         };
-        /** @description A user as shown in the Administration user list. */
+        /** @description A user as shown in the Fleet administration user list. */
         UserListItem: {
             /** @description The OpenShift username (exact, case-sensitive). */
             username: string;

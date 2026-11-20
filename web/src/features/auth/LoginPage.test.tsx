@@ -8,13 +8,15 @@ describe('LoginPage', () => {
   it('shows one login button pointing at the Api login endpoint, and no message on a plain visit', async () => {
     renderApp('/login');
 
-    expect(await screen.findByRole('heading', { name: 'Log in to FleetConsole' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Log in to Consolinho' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Consolinho' })).toBeInTheDocument();
+    expect(screen.getByText('Consolinho — one console for your OpenShift fleet.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Log in with OpenShift' })).toHaveAttribute(
       'href',
       '/api/auth/login?returnUrl=%2F',
     );
     expect(screen.queryByRole('heading', { name: /alert:/ })).not.toBeInTheDocument();
-    expect(await screen.findByText('FleetConsole 0.0.0-test · Test')).toBeInTheDocument();
+    expect(await screen.findByText('Consolinho 0.0.0-test · Test')).toBeInTheDocument();
   });
 
   it('keeps a safe return URL and drops an unsafe one', async () => {
@@ -38,14 +40,14 @@ describe('LoginPage', () => {
     [
       'error=not_registered&username=jdoe',
       'Danger',
-      'Your OpenShift account jdoe is not registered in FleetConsole. Ask a FleetConsole administrator to add you.',
+      'Your OpenShift account jdoe is not registered in Consolinho. Ask a Consolinho administrator to add you.',
     ],
     [
       'error=not_registered',
       'Danger',
-      'Your OpenShift account is not registered in FleetConsole. Ask a FleetConsole administrator to add you.',
+      'Your OpenShift account is not registered in Consolinho. Ask a Consolinho administrator to add you.',
     ],
-    ['error=deactivated', 'Danger', 'Your FleetConsole account is deactivated.'],
+    ['error=deactivated', 'Danger', 'Your Consolinho account is deactivated.'],
     ['error=cancelled', 'Info', 'Login was cancelled.'],
     [
       'error=unavailable',
@@ -57,7 +59,7 @@ describe('LoginPage', () => {
     [
       'error=deactivated&loggedOut=1&reason=session_ended',
       'Danger',
-      'Your FleetConsole account is deactivated.',
+      'Your Consolinho account is deactivated.',
     ],
   ])('?%s shows the %s message (AUTH-6/7/10/11/14)', async (query, variant, text) => {
     renderApp(`/login?${query}&returnUrl=%2Fc%2Fdev-1%2Foverview`);
@@ -79,11 +81,12 @@ describe('LoginPage', () => {
       await screen.findByRole('heading', {
         name: alertTitle(
           'Danger',
-          `Your OpenShift account ${username} is not registered in FleetConsole. Ask a FleetConsole administrator to add you.`,
+          `Your OpenShift account ${username} is not registered in Consolinho. Ask a Consolinho administrator to add you.`,
         ),
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(username)).toBeInTheDocument();
-    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    // The brand logo is the only image; the username must not have become one.
+    expect(screen.getAllByRole('img').map((img) => img.getAttribute('alt'))).toEqual(['Consolinho']);
   });
 });

@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { LOGO_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
@@ -24,8 +25,8 @@ describe('AppShell', () => {
       renderApp('/c/dev-1/overview');
 
       expect(
-        await screen.findByRole('link', { name: 'FleetConsole' }, { timeout: COLD_START_TIMEOUT_MS }),
-      ).toBeInTheDocument();
+        await screen.findByRole('link', { name: 'Consolinho' }, { timeout: COLD_START_TIMEOUT_MS }),
+      ).toHaveAttribute('href', '/');
       expect(
         await screen.findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' }),
       ).toHaveTextContent('dev');
@@ -78,15 +79,15 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the FleetConsole version from the Api', async () => {
+  it('shows the Consolinho version from the Api', async () => {
     const { user } = renderApp('/c/dev-1/overview');
     await openSidebar(user);
 
-    // `getByText` matches own text nodes only: the footer's are "FleetConsole · Test" (the version is a child
-    // element), and the `·` keeps the masthead logo ("FleetConsole") from matching too.
-    const footer = await screen.findByText(/^FleetConsole ·/);
+    // `getByText` matches own text nodes only: the footer's are "Consolinho · Test" (the version is a child
+    // element), and the `·` keeps the masthead logo ("Consolinho") from matching too.
+    const footer = await screen.findByText(/^Consolinho ·/);
     expect(footer).toBeVisible();
-    expect(footer).toHaveTextContent('FleetConsole 0.0.0-test · Test');
+    expect(footer).toHaveTextContent('Consolinho 0.0.0-test · Test');
   });
 
   it('shows a fallback when version information cannot be loaded', async () => {
@@ -96,10 +97,13 @@ describe('AppShell', () => {
     expect(await screen.findByText('Version information unavailable')).toBeInTheDocument();
   });
 
-  it('toggles the dark theme', async () => {
+  it('toggles the dark theme and switches to the light-on-dark logo', async () => {
     const { user } = renderApp('/c/dev-1/overview');
+    expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
 
     await user.click(await screen.findByRole('button', { name: 'Dark theme' }));
+
+    expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
 
     expect(screen.getByRole('button', { name: 'Dark theme' })).toHaveAttribute('aria-pressed', 'true');
     expect(localStorage.getItem('fleetconsole.theme')).toBe('dark');

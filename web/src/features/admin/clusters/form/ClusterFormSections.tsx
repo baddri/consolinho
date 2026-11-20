@@ -10,6 +10,7 @@ import {
 import { EnvironmentLabel } from '@/shared/ui';
 import { CaBundleField } from './CaBundleField';
 import { CLUSTER_ENVIRONMENTS, type ClusterFormInput, type ClusterFormValues } from './clusterForm.schema';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** The form's `control`, typed with the schema's input and output. */
 type ClusterFormControl = Control<ClusterFormInput, unknown, ClusterFormValues>;
@@ -111,7 +112,7 @@ export function ConnectionSection({ control, isEdit }: SectionProps) {
         <Alert
           variant="warning"
           isInline
-          title="TLS verification is disabled — FleetConsole cannot detect a man-in-the-middle. Prefer a CA bundle."
+          title={`TLS verification is disabled — ${PRODUCT_NAME} cannot detect a man-in-the-middle. Prefer a CA bundle.`}
         />
       )}
     </FormSection>

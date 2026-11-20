@@ -1,5 +1,6 @@
 import type { AccessMode, ClusterEnvironment, Grant } from '@/shared/api';
 import type { RadioGroupFieldOption } from '@/shared/forms';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Display names of the access modes (table labels, radios). */
 export const ACCESS_MODE_TEXT: Record<AccessMode, string> = { readOnly: 'Read only', readWrite: 'Read write' };
@@ -47,7 +48,7 @@ export const ACCESS_MODE_OPTIONS: readonly RadioGroupFieldOption[] = [
   {
     value: 'readOnly',
     label: ACCESS_MODE_TEXT.readOnly,
-    description: 'View resources, logs and events. FleetConsole blocks every change.',
+    description: `View resources, logs and events. ${PRODUCT_NAME} blocks every change.`,
   },
   {
     value: 'readWrite',

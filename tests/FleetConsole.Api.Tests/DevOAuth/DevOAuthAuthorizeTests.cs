@@ -17,7 +17,7 @@ public sealed class DevOAuthAuthorizeTests(DevOAuthFactory factory) : IClassFixt
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
         response.Headers.CacheControl?.NoStore.ShouldBeTrue();
         var html = await response.Content.ReadAsStringAsync(Ct);
-        html.ShouldContain("FleetConsole DevOAuth — pick a user");
+        html.ShouldContain("Consolinho DevOAuth — pick a user");
         html.ShouldNotContain("<script", Case.Insensitive);
         foreach (var user in new[] { "admin", "alice", "bob", "ines" })
         {

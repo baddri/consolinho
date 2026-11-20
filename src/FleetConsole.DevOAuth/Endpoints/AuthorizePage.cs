@@ -11,7 +11,7 @@ namespace FleetConsole.DevOAuth.Endpoints;
 /// </summary>
 internal static class AuthorizePage
 {
-    private const string Title = "FleetConsole DevOAuth — pick a user";
+    private const string Title = "Consolinho DevOAuth — pick a user";
 
     private static readonly HtmlEncoder Html = HtmlEncoder.Default;
 

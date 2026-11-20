@@ -1,10 +1,10 @@
-# FleetConsole
+# Consolinho (codename FleetConsole)
 
-FleetConsole is a self-hosted, OpenShift-console-like web UI for operating many (~40) OpenShift clusters from one
+Consolinho is a self-hosted, OpenShift-console-like web UI for operating many (~40) OpenShift clusters from one
 place. A cluster switcher in the masthead picks the active cluster; the generic resource pages (lists, details, YAML,
-logs, exec) then work against that cluster. An admin area manages FleetConsole users, the registered clusters, the
+logs, exec) then work against that cluster. An admin area manages Consolinho users, the registered clusters, the
 ServiceAccount credentials used to reach them, and which user may use which cluster in which mode (read-only or
-read-write).
+read-write). The source code keeps the codename FleetConsole (solution, projects, namespaces).
 
 The backend is an authenticating proxy. Users log in with the OpenShift OAuth server of the cluster FleetConsole runs
 on ([ADR-0007](docs/adr/0007-openshift-oauth-login.md)); every Kubernetes API call from the SPA goes to

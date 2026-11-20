@@ -10,6 +10,7 @@ import {
 import { CubesIcon } from '@patternfly/react-icons';
 import { Link, type LinkProps } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Router link to the admin users list that PatternFly's `Button` can render as. */
 function AdminUsersLink(props: Omit<LinkProps, 'to'>) {
@@ -31,8 +32,8 @@ export function NoClustersPage() {
     <PageSection>
       <EmptyState titleText="No clusters assigned yet" headingLevel="h1" icon={CubesIcon}>
         <EmptyStateBody>
-          You are logged in as <strong>{username}</strong>, but no clusters have been assigned to you. Ask a
-          FleetConsole administrator to grant you access.
+          You are logged in as <strong>{username}</strong>, but no clusters have been assigned to you.
+          Ask a {PRODUCT_NAME} administrator to grant you access.
         </EmptyStateBody>
         {isAdmin && (
           <EmptyStateFooter>

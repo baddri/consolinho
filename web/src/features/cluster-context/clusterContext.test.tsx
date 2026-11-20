@@ -142,7 +142,7 @@ describe('landing on / (SW-3/SW-4)', () => {
       screen.getByText(
         (_content, element) =>
           element?.textContent ===
-          'You are logged in as bob, but no clusters have been assigned to you. Ask a FleetConsole administrator ' +
+          'You are logged in as bob, but no clusters have been assigned to you. Ask a Consolinho administrator ' +
             'to grant you access.',
       ),
     ).toBeInTheDocument();

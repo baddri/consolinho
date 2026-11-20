@@ -1,5 +1,6 @@
 import { Content, Skeleton, Tooltip } from '@patternfly/react-core';
 import { useSystemInfo } from '@/shared/api';
+import { PRODUCT_NAME } from '@/shared/branding';
 import { formatVersion } from './formatVersion';
 
 /**
@@ -37,7 +38,7 @@ export function SystemInfoFooter() {
   }
   return (
     <Content component="small" className="pf-v6-u-text-break-word">
-      FleetConsole <VersionLabel version={data.version} /> · {data.environment}
+      {PRODUCT_NAME} <VersionLabel version={data.version} /> · {data.environment}
     </Content>
   );
 }

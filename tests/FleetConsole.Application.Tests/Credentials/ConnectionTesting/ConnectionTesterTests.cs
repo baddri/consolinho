@@ -307,7 +307,7 @@ public sealed class ConnectionTesterTests
         var result = await RunAsync(grants: new GrantModeCounts(ReadOnly: 2, ReadWrite: 1));
 
         result.Hints.ShouldBe([new ConnectionTestHintDto(
-            HintSeverity.Info, "This credential is cluster-admin; ReadOnly grants rely on FleetConsole's read-only guard")]);
+            HintSeverity.Info, "This credential is cluster-admin; ReadOnly grants rely on Consolinho's read-only guard")]);
     }
 
     [Fact]

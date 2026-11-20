@@ -51,7 +51,7 @@ describe('session handling (ADR-0014)', () => {
       expect(screen.queryByRole('navigation', { name: 'Global' })).not.toBeInTheDocument();
 
       // Only the session guard asked `me`; the login page never does, so it cannot loop.
-      await screen.findByText(/^FleetConsole 0\.0\.0-test/);
+      await screen.findByText(/^Consolinho 0\.0\.0-test/);
       expect(meCalls).toHaveBeenCalledTimes(1);
     },
   );

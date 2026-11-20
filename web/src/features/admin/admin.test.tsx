@@ -44,7 +44,7 @@ describe('admin area access (ADM-3)', () => {
           { timeout: COLD_START_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
-      expect(screen.getByText('Ask a FleetConsole administrator if you need access.')).toBeInTheDocument();
+      expect(screen.getByText('Ask a Consolinho administrator if you need access.')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
       expect(screen.queryByRole('heading', { name: 'Users' })).not.toBeInTheDocument();
       expect(requests).toContain('/api/auth/me');

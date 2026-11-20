@@ -174,8 +174,8 @@ describe('unwrap', () => {
 
     expect(error.status).toBe(0);
     expect(error.code).toBeUndefined();
-    expect(error.detail).toBe('The FleetConsole API could not be reached.');
-    expect(errorMessage(error)).toBe('The FleetConsole API could not be reached.');
+    expect(error.detail).toBe('The Consolinho API could not be reached.');
+    expect(errorMessage(error)).toBe('The Consolinho API could not be reached.');
   });
 
   it('rethrows cancellations unchanged', async () => {

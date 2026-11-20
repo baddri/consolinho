@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Detail of an {@link ApiError} whose request never got an HTTP response. */
-const NETWORK_FAILURE_DETAIL = 'The FleetConsole API could not be reached.';
+const NETWORK_FAILURE_DETAIL = `The ${PRODUCT_NAME} API could not be reached.`;
 
 /** Detail of an {@link ApiError} for a 2xx response whose body could not be read as JSON. */
-const UNREADABLE_RESPONSE_DETAIL = 'The FleetConsole API returned a response that could not be read.';
+const UNREADABLE_RESPONSE_DETAIL = `The ${PRODUCT_NAME} API returned a response that could not be read.`;
 
 /** Shown by {@link errorMessage} when an error carries nothing presentable. */
 const GENERIC_MESSAGE = 'Something went wrong. Please try again.';

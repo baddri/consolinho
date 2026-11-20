@@ -198,7 +198,7 @@ describe('Register cluster (CLU-1..3)', () => {
     await user.click(skip);
     expect(
       screen.getByText(
-        'TLS verification is disabled — FleetConsole cannot detect a man-in-the-middle. Prefer a CA bundle.',
+        'TLS verification is disabled — Consolinho cannot detect a man-in-the-middle. Prefer a CA bundle.',
       ),
     ).toBeInTheDocument();
 

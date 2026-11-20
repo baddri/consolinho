@@ -54,7 +54,7 @@ public static class UserErrors
     /// </summary>
     /// <returns>A <c>Users.Deactivated</c> error.</returns>
     public static Error Deactivated() =>
-        Error.Forbidden("Users.Deactivated", "Your FleetConsole account is deactivated.");
+        Error.Forbidden("Users.Deactivated", "Your Consolinho account is deactivated.");
 
     /// <summary>
     /// A username breaks the OpenShift user-name rules (USR-2). Produced by <see cref="Username.Create"/>; validators

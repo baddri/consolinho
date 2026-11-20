@@ -18,6 +18,7 @@ import {
 } from './clusterForm.schema';
 import { ConnectionSection, IdentitySection, LinksSection, StatusSection } from './ClusterFormSections';
 import { useSaveCluster } from './useSaveCluster';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Path of the clusters list (Cancel target of the register form). */
 const CLUSTERS_PATH = '/admin/clusters';
@@ -123,7 +124,7 @@ export function ClusterForm({ cluster, onReload }: ClusterFormProps) {
         onClose={() => setConfirmingName(null)}
       >
         <Content component="p">
-          {`Save ${confirmingName ?? ''} (production) without TLS verification? FleetConsole will not be able to ` +
+          {`Save ${confirmingName ?? ''} (production) without TLS verification? ${PRODUCT_NAME} will not be able to ` +
             "detect a man-in-the-middle between itself and this cluster's API server."}
         </Content>
       </ConfirmModal>

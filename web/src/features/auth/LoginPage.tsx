@@ -10,6 +10,7 @@ import {
 import { useSearchParams } from 'react-router';
 import { useSystemInfo } from '@/shared/api';
 import { buildLoginUrl } from '@/shared/auth';
+import { PRODUCT_NAME, useLogoSrc } from '@/shared/branding';
 import { loginMessage } from './loginMessage';
 
 /** Footer line with the deployed version (anonymous `GET /api/system/info`); omitted while loading or on failure. */
@@ -17,7 +18,7 @@ function VersionFooterItem() {
   const { data } = useSystemInfo();
   return data ? (
     <ListItem className="pf-v6-u-text-break-word">
-      FleetConsole {data.version} · {data.environment}
+      {PRODUCT_NAME} {data.version} · {data.environment}
     </ListItem>
   ) : null;
 }
@@ -33,12 +34,15 @@ function VersionFooterItem() {
 export function LoginPage() {
   const [searchParams] = useSearchParams();
   const message = loginMessage(searchParams);
+  const logoSrc = useLogoSrc();
 
   return (
     <PfLoginPage
-      loginTitle="Log in to FleetConsole"
+      brandImgSrc={logoSrc}
+      brandImgAlt={PRODUCT_NAME}
+      loginTitle={`Log in to ${PRODUCT_NAME}`}
       loginSubtitle="Use your OpenShift account of the host cluster."
-      textContent="FleetConsole — one console for your OpenShift fleet."
+      textContent={`${PRODUCT_NAME} — one console for your OpenShift fleet.`}
       footerListVariants={ListVariant.inline}
       footerListItems={<VersionFooterItem />}
     >
