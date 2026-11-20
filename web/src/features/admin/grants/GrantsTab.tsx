@@ -1,5 +1,5 @@
 import type { UseQueryResult } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Grant, UserDetail } from '@/shared/api';
 import { ActionButton, ErrorState } from '@/shared/ui';
 import { useAdminAccess } from '../useAdminAccess';
@@ -20,6 +20,8 @@ interface GrantsTabContentProps {
   createLabel: string;
   emptyTitle: string;
   emptyBody: string;
+  /** Extra empty-state actions after the create button (e.g. bulk grant). */
+  emptyActions?: ReactNode;
 }
 
 /**
@@ -27,7 +29,15 @@ interface GrantsTabContentProps {
  * create button, and the create / change / revoke dialogs. Read-only admins see every action disabled with the
  * reason (ADM-2). A dialog for a grant that disappears (revoked meanwhile) closes with the list.
  */
-function GrantsTabContent({ query, target, ariaLabel, createLabel, emptyTitle, emptyBody }: GrantsTabContentProps) {
+function GrantsTabContent({
+  query,
+  target,
+  ariaLabel,
+  createLabel,
+  emptyTitle,
+  emptyBody,
+  emptyActions,
+}: GrantsTabContentProps) {
   const { readOnlyReason } = useAdminAccess();
   const [dialog, setDialog] = useState<GrantDialog>(null);
   const { data, error, refetch } = query;
@@ -55,7 +65,16 @@ function GrantsTabContent({ query, target, ariaLabel, createLabel, emptyTitle, e
         readOnlyReason={readOnlyReason}
         onChange={(grant) => setDialog({ kind: 'change', grantId: grant.id })}
         onRevoke={(grant) => setDialog({ kind: 'revoke', grantId: grant.id })}
-        emptyState={{ title: emptyTitle, body: emptyBody, action: createButton }}
+        emptyState={{
+          title: emptyTitle,
+          body: emptyBody,
+          action: (
+            <>
+              {createButton}
+              {emptyActions}
+            </>
+          ),
+        }}
         toolbarActions={createButton}
       />
       {dialog?.kind === 'create' && (
@@ -77,10 +96,12 @@ function GrantsTabContent({ query, target, ariaLabel, createLabel, emptyTitle, e
 
 /**
  * "Cluster access" tab of the user detail page (USR-7): the clusters `user` can reach, through which credential and
- * in which mode, with "Add access" and per-row Change / Revoke. Admins appear only with grants (GRANT-6).
+ * in which mode, with "Add access" and per-row Change / Revoke. Admins appear only with grants (GRANT-6). The empty
+ * state also offers "Grant access to clusters" (`onBulkGrant`, GRANT-4).
  */
-export function UserGrantsTab({ user }: { user: Pick<UserDetail, 'username'> }) {
+export function UserGrantsTab({ user, onBulkGrant }: { user: Pick<UserDetail, 'username'>; onBulkGrant?: () => void }) {
   const query = useUserGrants(user.username);
+  const { readOnlyReason } = useAdminAccess();
   return (
     <GrantsTabContent
       query={query}
@@ -89,6 +110,13 @@ export function UserGrantsTab({ user }: { user: Pick<UserDetail, 'username'> }) 
       createLabel="Add access"
       emptyTitle="No cluster access yet"
       emptyBody={`${user.username} can't reach any cluster until you grant access.`}
+      emptyActions={
+        onBulkGrant && (
+          <ActionButton variant="secondary" disabledReason={readOnlyReason} onClick={onBulkGrant}>
+            Grant access to clusters
+          </ActionButton>
+        )
+      }
     />
   );
 }

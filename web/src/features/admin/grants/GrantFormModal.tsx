@@ -8,7 +8,6 @@ import {
   FormProblemAlert,
   RadioGroupField,
   useFormProblem,
-  type RadioGroupFieldOption,
 } from '@/shared/forms';
 import { EnvironmentLabel, useToast } from '@/shared/ui';
 import { useClusters } from '../clusters/api';
@@ -17,7 +16,7 @@ import { ClusterTypeahead } from './ClusterTypeahead';
 import { CredentialPicker } from './CredentialPicker';
 import { grantFormSchema, type GrantFormValues } from './grantForm.schema';
 import type { GrantPerspective } from './GrantRow';
-import { ACCESS_MODE_TEXT, alreadyRevokedText, changedText, grantedText, productionWriteWarning } from './grantText';
+import { ACCESS_MODE_OPTIONS, alreadyRevokedText, changedText, grantedText, productionWriteWarning } from './grantText';
 import { UserTypeahead } from './UserTypeahead';
 
 /** The cluster a grant dialog on the cluster page acts on. */
@@ -49,20 +48,6 @@ export type GrantFormModalProps =
       onReload: () => Promise<Grant | undefined>;
       onClose: () => void;
     };
-
-/** Access mode radios; read only first, the default (GRANT-2). */
-const ACCESS_MODE_OPTIONS: readonly RadioGroupFieldOption[] = [
-  {
-    value: 'readOnly',
-    label: ACCESS_MODE_TEXT.readOnly,
-    description: 'View resources, logs and events. FleetConsole blocks every change.',
-  },
-  {
-    value: 'readWrite',
-    label: ACCESS_MODE_TEXT.readWrite,
-    description: 'Change resources as far as the credential allows.',
-  },
-];
 
 /** Form values showing `grant` as it is now. */
 const valuesOf = (grant: Grant, perspective: GrantPerspective): GrantFormValues => ({

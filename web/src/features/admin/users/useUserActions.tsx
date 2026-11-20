@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useCurrentUser } from '@/features/auth';
 import { disabledActionProps, type DisabledActionProps } from '@/shared/ui';
+import { BulkGrantWizard } from '../grants/bulk/BulkGrantWizard';
 import { useAdminAccess } from '../useAdminAccess';
 import { UserActionDialog, type UserActionKind, type UserActionTarget } from './UserActionDialogs';
 import { adminViaConfigurationText } from './UserRoleLabels';
@@ -8,12 +9,15 @@ import { adminViaConfigurationText } from './UserRoleLabels';
 /** ADM-5: why an admin can't demote or deactivate their own account (same wording as the Api's `Users.SelfChange`). */
 export const SELF_CHANGE_REASON = "You can't demote or deactivate yourself.";
 
+/** What a user menu item opens: a confirmation dialog, or the bulk grant wizard (T-0040). */
+export type UserMenuActionKind = UserActionKind | 'grantAccess';
+
 /**
  * One user action. Assignable to PatternFly's `IAction` as is (row `ActionsColumn`); the detail page's Actions
  * dropdown (T-0032) maps it to `DropdownItem`s. Disabled items stay visible with a tooltip (ADR-0014 §6).
  */
 export interface UserActionItem extends DisabledActionProps {
-  itemKey: UserActionKind;
+  itemKey: UserMenuActionKind;
   title: string;
   onClick: () => void;
   isDanger?: boolean;
@@ -23,7 +27,7 @@ export interface UserActionItem extends DisabledActionProps {
 export interface UserActions {
   /** Menu items in display order. */
   items: UserActionItem[];
-  /** The open confirmation dialog, or `null`; render it next to the menu. */
+  /** The open confirmation dialog or wizard, or `null`; render it next to the menu. */
   dialog: ReactNode;
 }
 
@@ -35,16 +39,16 @@ export interface UserActions {
  * - Disabled reasons, first match wins: the signed-in admin is read-only (every item), then configuration admin
  *   (Demote), then self (Demote, Deactivate). A disabled item's click is a no-op, so no request is ever sent.
  *
- * Dialogs send `user.version`; pass the freshest representation (list row or loaded detail). "Grant access to
- * clusters" is added by T-0040.
+ * "Grant access to clusters" (first item, GRANT-4) opens the bulk grant wizard; only a read-only admin is refused.
+ * Dialogs send `user.version`; pass the freshest representation (list row or loaded detail).
  */
 export function useUserActions(user: UserActionTarget): UserActions {
   const { readOnlyReason } = useAdminAccess();
   const { data: me } = useCurrentUser();
-  const [open, setOpen] = useState<UserActionKind | null>(null);
+  const [open, setOpen] = useState<UserMenuActionKind | null>(null);
   const isSelf = me?.username === user.username;
 
-  const item = (itemKey: UserActionKind, title: string, reason?: string, isDanger?: boolean): UserActionItem => {
+  const item = (itemKey: UserMenuActionKind, title: string, reason?: string, isDanger?: boolean): UserActionItem => {
     const effectiveReason = readOnlyReason ?? reason;
     return {
       itemKey,
@@ -57,7 +61,7 @@ export function useUserActions(user: UserActionTarget): UserActions {
     };
   };
 
-  const items: UserActionItem[] = [];
+  const items: UserActionItem[] = [item('grantAccess', 'Grant access to clusters')];
   if (!user.isAdminByAssignment) {
     items.push(item('promote', 'Promote to administrator'));
   }
@@ -78,6 +82,9 @@ export function useUserActions(user: UserActionTarget): UserActions {
       : item('deactivate', 'Deactivate', isSelf ? SELF_CHANGE_REASON : undefined, true),
   );
 
-  const dialog = open === null ? null : <UserActionDialog kind={open} user={user} onClose={() => setOpen(null)} />;
+  const close = () => setOpen(null);
+  let dialog: ReactNode = null;
+  if (open === 'grantAccess') dialog = <BulkGrantWizard username={user.username} isOpen onClose={close} />;
+  else if (open !== null) dialog = <UserActionDialog kind={open} user={user} onClose={close} />;
   return { items, dialog };
 }

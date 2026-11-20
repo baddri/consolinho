@@ -115,6 +115,7 @@ describe('User actions (T-0031)', () => {
     const table = await findUsersTable();
 
     expect(await openKebab(user, table, 'admin')).toEqual([
+      'Grant access to clusters',
       'Promote to administrator',
       'Demote to user',
       'Set read-only',
@@ -128,9 +129,19 @@ describe('User actions (T-0031)', () => {
     );
     await user.keyboard('{Escape}');
 
-    expect(await openKebab(user, table, 'carol')).toEqual(['Demote to user', 'Set read-only', 'Deactivate']);
+    expect(await openKebab(user, table, 'carol')).toEqual([
+      'Grant access to clusters',
+      'Demote to user',
+      'Set read-only',
+      'Deactivate',
+    ]);
     await user.keyboard('{Escape}');
-    expect(await openKebab(user, table, 'alice')).toEqual(['Promote to administrator', 'Set read-only', 'Deactivate']);
+    expect(await openKebab(user, table, 'alice')).toEqual([
+      'Grant access to clusters',
+      'Promote to administrator',
+      'Set read-only',
+      'Deactivate',
+    ]);
   });
 
   it('ADR-0017: promoting a configuration admin explains why and records the role', async () => {

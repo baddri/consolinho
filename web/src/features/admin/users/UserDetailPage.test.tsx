@@ -89,6 +89,7 @@ describe('UserDetailPage (T-0032)', () => {
     await user.click(screen.getByRole('button', { name: 'Actions' }));
     const items = await screen.findAllByRole('menuitem');
     expect(items.map((item) => item.textContent)).toEqual([
+      'Grant access to clusters',
       'Promote to administrator',
       'Demote to user',
       'Set read-only',

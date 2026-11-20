@@ -47,6 +47,14 @@ function CredentialFacts({ credential }: { credential: Credential }) {
   );
 }
 
+/** {@link CredentialSelect} fed by one cluster's credentials; mounted only with a cluster, so the query never runs for `''`. */
+function ClusterCredentialSelect(
+  props: Omit<CredentialSelectProps, 'credentials' | 'isPending' | 'isLoadError'>,
+) {
+  const { data, error, isPending } = useClusterCredentials(props.clusterName);
+  return <CredentialSelect {...props} credentials={data} isPending={isPending} isLoadError={error !== null} />;
+}
+
 /**
  * Credential of a grant (GRANT-2, Q7): a single select of the chosen cluster's credentials, each option with its
  * expiry label and "Never tested" / "Last test failed" — information only, no credential is blocked. With exactly one
@@ -72,9 +80,9 @@ export function CredentialPicker({ control, clusterName }: CredentialPickerProps
           Select a cluster first
         </MenuToggle>
       ) : (
-        <CredentialSelect
+        <ClusterCredentialSelect
           clusterName={clusterName}
-          fieldId={fieldId}
+          toggleId={fieldId}
           value={field.value}
           onChange={field.onChange}
           onBlur={field.onBlur}
@@ -97,9 +105,18 @@ export function CredentialPicker({ control, clusterName }: CredentialPickerProps
 }
 
 /** Props of {@link CredentialSelect}. */
-interface CredentialSelectProps {
+export interface CredentialSelectProps {
+  /** Cluster whose credentials are offered; names the option list. */
   clusterName: string;
-  fieldId: string;
+  /** The credentials of `clusterName`; `undefined` while loading. */
+  credentials: readonly Credential[] | undefined;
+  isPending: boolean;
+  /** The credentials failed to load. */
+  isLoadError: boolean;
+  /** `id` of the toggle (label `for`). */
+  toggleId?: string;
+  /** Accessible name of the toggle when no `<label>` points at it, e.g. a table row ("Credential for dev-1"). */
+  ariaLabel?: string;
   value: string;
   onChange: (value: string) => void;
   onBlur: () => void;
@@ -108,10 +125,18 @@ interface CredentialSelectProps {
   describedBy: string | undefined;
 }
 
-/** The select itself; mounted only with a cluster, so its credentials query never runs for `''`. */
-function CredentialSelect({
+/**
+ * Credential single select of one cluster (Q7): each option shows its expiry label and test hint; with exactly one
+ * credential it is pre-selected. Takes the credentials as data, so the grant dialog (one cluster's query) and the
+ * bulk grant review (one fleet-wide query, filtered per row) share it.
+ */
+export function CredentialSelect({
   clusterName,
-  fieldId,
+  credentials,
+  isPending,
+  isLoadError,
+  toggleId,
+  ariaLabel,
   value,
   onChange,
   onBlur,
@@ -119,7 +144,6 @@ function CredentialSelect({
   isInvalid,
   describedBy,
 }: CredentialSelectProps) {
-  const { data: credentials, error, isPending } = useClusterCredentials(clusterName);
   const [isOpen, setIsOpen] = useState(false);
   const selected = credentials?.find((credential) => credential.id === value);
 
@@ -132,8 +156,8 @@ function CredentialSelect({
   let toggleText = 'Select a credential';
   if (selected) toggleText = selected.name;
   else if (isPending) toggleText = 'Loading credentials…';
-  else if (error) toggleText = 'Could not load credentials';
-  else if (credentials.length === 0) toggleText = 'No credentials on this cluster';
+  else if (isLoadError) toggleText = 'Could not load credentials';
+  else if (credentials?.length === 0) toggleText = 'No credentials on this cluster';
 
   return (
     <Select
@@ -151,12 +175,13 @@ function CredentialSelect({
         toggleRef,
         toggleNode: (
           <MenuToggle
-            id={fieldId}
+            id={toggleId}
             ref={toggleRef}
             isFullWidth
             isExpanded={isOpen}
             isDisabled={!credentials || credentials.length === 0}
             status={isInvalid ? 'danger' : undefined}
+            aria-label={ariaLabel}
             aria-invalid={isInvalid}
             aria-describedby={describedBy}
             onClick={() => setIsOpen((open) => !open)}

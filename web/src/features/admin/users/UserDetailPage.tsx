@@ -11,11 +11,12 @@ import {
   Tabs,
   TabTitleText,
 } from '@patternfly/react-core';
-import { useEffect, useRef } from 'react';
-import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams, type LinkProps } from 'react-router';
 import { isApiError, type UserDetail } from '@/shared/api';
 import { ErrorState, useToast } from '@/shared/ui';
 import { USER_DETAIL_TABS, useAdminTab, type UserDetailTab } from '../adminTabs';
+import { BulkGrantWizard } from '../grants/bulk/BulkGrantWizard';
 import { UserGrantsTab } from '../grants/GrantsTab';
 import { useUser } from './api';
 import { UserDetailHeader } from './UserDetailHeader';
@@ -67,6 +68,31 @@ function useLeaveVanishedUser(username: string, vanished: boolean) {
   }, [vanished, username, navigate, toast]);
 }
 
+/** Router state that asks the user page to open the bulk grant wizard once ("Create and grant access", USR-2). */
+export interface OpenBulkGrantState {
+  openBulkGrant: true;
+}
+
+/** `true` when the router `state` is an {@link OpenBulkGrantState}. */
+function asksForBulkGrant(state: unknown): boolean {
+  return typeof state === 'object' && state !== null && 'openBulkGrant' in state && state.openBulkGrant === true;
+}
+
+/**
+ * Open state of the page's bulk grant wizard. Starts open when the page was reached with {@link OpenBulkGrantState};
+ * that state is then dropped from the history entry (`replace`), so a reload or Back doesn't open it again.
+ */
+function useBulkGrantOpen() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const asked = asksForBulkGrant(location.state);
+  const [isOpen, setOpen] = useState(asked);
+  useEffect(() => {
+    if (asked) void navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: null });
+  }, [asked, navigate, location.pathname, location.search]);
+  return [isOpen, setOpen] as const;
+}
+
 /** Tab titles, also the accessible names of their panels. */
 const TAB_TITLES: Record<UserDetailTab, string> = { details: 'Details', access: 'Cluster access' };
 
@@ -74,18 +100,26 @@ const TAB_TITLES: Record<UserDetailTab, string> = { details: 'Details', access: 
 const panelId = (tab: UserDetailTab) => `user-detail-${tab}-panel`;
 
 /** Content of the active tab; only that one is mounted, so e.g. the grants query runs only on its tab. */
-function UserTabPanel({ user, tab }: { user: UserDetail; tab: UserDetailTab }) {
+function UserTabPanel({ user, tab, onGrantAccess }: UserTabsProps) {
   if (tab === 'details') {
     return <UserDetailsTab user={user} />;
   }
-  return <UserGrantsTab user={user} />;
+  return <UserGrantsTab user={user} onBulkGrant={onGrantAccess} />;
+}
+
+/** Props of {@link UserTabs} and {@link UserTabPanel}. */
+interface UserTabsProps {
+  user: UserDetail;
+  tab: UserDetailTab;
+  /** Opens the bulk grant wizard (Cluster access empty state). */
+  onGrantAccess: () => void;
 }
 
 /**
  * URL-driven Details / Cluster access tabs of a loaded user: the tab bar sits in a `PageSection type="tabs"` (PF6
  * page-tabs idiom), the active panel in its own `PageSection` below; selecting a tab navigates to its URL.
  */
-function UserTabs({ user, tab }: { user: UserDetail; tab: UserDetailTab }) {
+function UserTabs({ user, tab, onGrantAccess }: UserTabsProps) {
   const navigate = useNavigate();
   return (
     <>
@@ -110,7 +144,7 @@ function UserTabs({ user, tab }: { user: UserDetail; tab: UserDetailTab }) {
       </PageSection>
       <PageSection>
         <TabContent id={panelId(tab)} eventKey={tab} activeKey={tab} aria-label={TAB_TITLES[tab]}>
-          <UserTabPanel user={user} tab={tab} />
+          <UserTabPanel user={user} tab={tab} onGrantAccess={onGrantAccess} />
         </TabContent>
       </PageSection>
     </>
@@ -123,7 +157,8 @@ function UserTabs({ user, tab }: { user: UserDetail; tab: UserDetailTab }) {
  * decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
  * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry —
  * both only while nothing is loaded: a failed background refetch keeps the loaded data, and a 404 after load sends
- * the admin back to the list with a toast.
+ * the admin back to the list with a toast. "Grant access to clusters" (header, Cluster access empty state, or router
+ * state {@link OpenBulkGrantState} after "Create and grant access") opens the bulk grant wizard.
  * Lazy-loaded by `routes.tsx`.
  */
 export function UserDetailPage() {
@@ -132,10 +167,12 @@ export function UserDetailPage() {
   const tab = useAdminTab(USER_DETAIL_TABS);
   const { data: user, error, isPending, refetch } = useUser(username);
   useLeaveVanishedUser(username, user !== undefined && isUserNotFound(error));
+  const [isBulkGrantOpen, setBulkGrantOpen] = useBulkGrantOpen();
+  const openBulkGrant = () => setBulkGrantOpen(true);
 
   return (
     <>
-      <UserDetailHeader username={username} user={user} isLoading={isPending} />
+      <UserDetailHeader username={username} user={user} isLoading={isPending} onGrantAccess={openBulkGrant} />
       {isPending && (
         <PageSection>
           <Skeleton height="10rem" screenreaderText="Loading user" />
@@ -150,7 +187,8 @@ export function UserDetailPage() {
           )}
         </PageSection>
       )}
-      {user && <UserTabs user={user} tab={tab} />}
+      {user && <UserTabs user={user} tab={tab} onGrantAccess={openBulkGrant} />}
+      <BulkGrantWizard username={username} isOpen={isBulkGrantOpen} onClose={() => setBulkGrantOpen(false)} />
     </>
   );
 }

@@ -1,11 +1,11 @@
 ---
 id: T-0040
 title: Bulk grant wizard — grant one user many clusters (all-or-nothing)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 1
 depends_on: [T-0039, T-0031]
-paths: [web/src/features/admin/grants/bulk/, web/src/features/admin/users/]
+paths: [web/src/features/admin/grants/bulk/, web/src/features/admin/users/, web/src/features/admin/grants/TypeaheadSelectField.tsx, web/src/features/admin/grants/CredentialPicker.tsx, web/src/features/admin/grants/GrantsTab.tsx, web/src/features/admin/grants/GrantFormModal.tsx, web/src/features/admin/grants/grantText.ts, web/src/features/admin/audit/TypeaheadFilter.tsx, web/src/shared/ui/TypeaheadSelect.tsx, web/src/shared/ui/TypeaheadSelect.test.tsx, web/src/shared/ui/index.ts]
 review_rounds: 0
 ---
 
@@ -49,17 +49,41 @@ credentialId }] }`, 1–100 items) → 200 `Grant[]`; 400 field errors keyed `it
 - All entry points aria-disabled for read-only admins.
 
 ## Acceptance criteria
-- [ ] GRANT-4: select 3 clusters (one already granted shown disabled), choose mode, review pre-fills credentials by
+- [x] GRANT-4: select 3 clusters (one already granted shown disabled), choose mode, review pre-fills credentials by
       single-credential and preferred-name rules; submit blocked until every row has a credential; POST body lists
       items in order with CSRF header; success toast and grants appear on the tab; `accessibleClustersQueryKey`
       invalidated.
-- [ ] Production rows highlighted; RW + production warning lists the clusters.
-- [ ] MSW 400 with `items[1].credentialId` marks row 2 inline and keeps all selections; no grants created.
-- [ ] `pickCredential` unit tests. USR-2: "Create and grant access" opens the wizard for the new user.
-- [ ] Keyboard: wizard navigable, table checkboxes labelled per cluster. TSDoc. Build, lint, tests green.
+- [x] Production rows highlighted; RW + production warning lists the clusters.
+- [x] MSW 400 with `items[1].credentialId` marks row 2 inline and keeps all selections; no grants created.
+- [x] `pickCredential` unit tests. USR-2: "Create and grant access" opens the wizard for the new user.
+- [x] Keyboard: wizard navigable, table checkboxes labelled per cluster. TSDoc. Build, lint, tests green.
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; shared typeahead consolidation + bulk wizard.
+- 2026-11-20 frontend-engineer: `shared/ui/TypeaheadSelect` (aria-controls) behind grants field + audit filter; bulk wizard
+  (`grants/bulk/`), entry points (header, empty state, user menu, "Create and grant access"); `check-fe.sh` green (504 tests).
 
 ## Review
+- 2026-11-20 frontend-architect, round 1: **APPROVE**. Scoped vitest (11 files/118), typecheck, eslint green.
+  Verified: `items[i].*` → `items.i.*` via `toFormPath` + `isLeafField`, row ref focus; invalidates `adminKeys.all` +
+  `accessibleClustersQueryKey`; RW+prod warning; entry points aria-disabled (ADM-2); combobox `aria-controls` /
+  `aria-activedescendant` hit PF `role="option"` buttons; audit/grant typeahead tests unchanged and green.
+  Nits (optional):
+  - `grants/bulk/ReviewStep.tsx:239` — `Tr isRowSelected` reads as "selected" in PF; a `pf-m-warning`-style row
+    modifier or warning label would match intent better (spec allows either).
+  - `grants/bulk/BulkGrantWizard.tsx:166` — no client cap at 100 items (contract max); harmless at ~40 clusters,
+    server 400 lands in the alert.
+  - `users/UserDetailHeader.tsx:649` + `useUserActions.tsx:60` — detail page offers the action twice (header + menu),
+    each with its own wizard instance; as specified, but consider hiding the menu item on the detail page later.
 
 ## Handover notes
+- Shared typeahead lives in `shared/ui/TypeaheadSelect.tsx` (not `shared/forms`): the audit filter isn't form-bound. Callers own
+  input text + filtering; it owns open/highlight/keyboard/ARIA. `grants/TypeaheadSelectField` is now a thin RHF adapter.
+- `CredentialPicker.tsx` now exports `CredentialSelect` (credentials passed as data); the grant dialog wraps it with the
+  per-cluster query, the bulk review with the one fleet query grouped by cluster.
+- `ACCESS_MODE_OPTIONS` moved from `GrantFormModal` to `grantText.ts`; added `bulkGrantedText`, `productionClustersWriteWarning`.
+- Wizard: items rebuilt on entering Review (`onStepChange`), kept while the preferred name is unchanged, else
+  `pickCredential`. Rows follow the admin clusters list order (name), not click order. Server `items[i].*` errors show on row i.
+- Wizard owners: `UserDetailPage` (header button, empty-state button, router state `{ openBulkGrant: true }` — cleared with
+  `replace` so reload doesn't reopen) and `useUserActions` (menu item `grantAccess`, first in the list).
+- Production review rows use `Tr isRowSelected` for the highlight (visual only; env label carries the meaning).

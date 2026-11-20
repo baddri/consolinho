@@ -1,21 +1,8 @@
-import {
-  Button,
-  FormGroup,
-  FormHelperText,
-  HelperText,
-  HelperTextItem,
-  MenuToggle,
-  Select,
-  SelectList,
-  SelectOption,
-  TextInputGroup,
-  TextInputGroupMain,
-  TextInputGroupUtilities,
-} from '@patternfly/react-core';
-import { TimesIcon } from '@patternfly/react-icons';
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { FormGroup, FormHelperText, HelperText, HelperTextItem } from '@patternfly/react-core';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useController, type Control } from 'react-hook-form';
 import { fieldIdFor } from '@/shared/forms';
+import { TypeaheadSelect, type TypeaheadItem } from '@/shared/ui';
 import type { GrantFormValues } from './grantForm.schema';
 
 /** One choice of a {@link TypeaheadSelectField}. */
@@ -47,11 +34,10 @@ export interface TypeaheadSelectFieldProps {
 const MAX_OPTIONS = 50;
 
 /**
- * Required typeahead single select bound to the grant form's `target` (PF6 typeahead `Select` + `TextInputGroup`
- * pattern, as in the audit `TypeaheadFilter`): typing filters the options by value and `searchText`, a click or Enter
- * on a highlighted option selects it, and editing the text clears the selection, so only listed values are ever
- * submitted. Disabled options stay visible with their reason. Arrow Up/Down move the highlight
- * (`aria-activedescendant`, focus stays in the input). Server and zod errors show under the field, which RHF focuses
+ * Required typeahead single select bound to the grant form's `target`, on top of the shared `TypeaheadSelect`
+ * (keyboard and ARIA live there): typing filters the options by value and `searchText`, a click or Enter on a
+ * highlighted option selects it, and editing the text clears the selection, so only listed values are ever submitted.
+ * Disabled options stay visible with their reason. Server and zod errors show under the field, which RHF focuses
  * through the input ref this component owns.
  */
 export function TypeaheadSelectField({
@@ -64,11 +50,8 @@ export function TypeaheadSelectField({
   onValueChange,
 }: TypeaheadSelectFieldProps) {
   const { field, fieldState } = useController({ control, name: 'target' });
-  const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState(field.value);
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const idPrefix = useId();
   const fieldId = fieldIdFor(field.name);
   const helperId = `${fieldId}-helper`;
   const error = fieldState.error;
@@ -80,12 +63,10 @@ export function TypeaheadSelectField({
 
   // With a selection shown in the input the whole list is offered again; otherwise the typed text filters it.
   const needle = field.value !== '' && input === field.value ? '' : input.trim().toLowerCase();
-  const shown = options
+  const items: TypeaheadItem[] = options
     .filter((option) => `${option.value} ${option.searchText ?? ''}`.toLowerCase().includes(needle))
-    .slice(0, MAX_OPTIONS);
-  const enabledIndexes = shown.flatMap((option, index) => (option.isDisabled ? [] : [index]));
-  const optionId = (index: number) => `${idPrefix}-option-${index}`;
-  const focused = isOpen && focusedIndex !== null ? shown[focusedIndex] : undefined;
+    .slice(0, MAX_OPTIONS)
+    .map(({ value, description, isDisabled }) => ({ value, description, isDisabled }));
 
   const setValue = (value: string) => {
     if (value === field.value) return;
@@ -93,131 +74,37 @@ export function TypeaheadSelectField({
     onValueChange?.(value);
   };
 
-  const select = (value: string) => {
-    const option = options.find((candidate) => candidate.value === value);
-    if (!option || option.isDisabled) return;
-    setValue(value);
-    setInput(value);
-    setFocusedIndex(null);
-    setIsOpen(false);
-  };
-
-  /** Moves the highlight by `step` over the enabled options, wrapping around; opens the menu first. */
-  const moveFocus = (step: 1 | -1) => {
-    if (enabledIndexes.length === 0) return;
-    setIsOpen(true);
-    const position = focusedIndex === null || !isOpen ? -1 : enabledIndexes.indexOf(focusedIndex);
-    const next =
-      position === -1
-        ? step === 1
-          ? 0
-          : enabledIndexes.length - 1
-        : (position + step + enabledIndexes.length) % enabledIndexes.length;
-    setFocusedIndex(enabledIndexes[next] ?? null);
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      moveFocus(event.key === 'ArrowDown' ? 1 : -1);
-    } else if (event.key === 'Enter') {
-      // Never submit the dialog from the typeahead.
-      event.preventDefault();
-      if (focused !== undefined) select(focused.value);
-    } else if (event.key === 'Escape' && isOpen) {
-      event.stopPropagation();
-      setFocusedIndex(null);
-      setIsOpen(false);
-    }
-  };
-
-  const onInput = (next: string) => {
-    setInput(next);
-    setValue('');
-    setFocusedIndex(null);
-    setIsOpen(true);
-  };
-
   return (
     <FormGroup label={label} isRequired fieldId={fieldId}>
-      <Select
-        variant="typeahead"
-        isOpen={isOpen}
+      <TypeaheadSelect
+        ariaLabel={label}
+        clearAriaLabel={`Clear ${label}`}
+        listAriaLabel={`${label} options`}
+        placeholder={placeholder}
+        inputId={fieldId}
+        inputRef={inputRef}
+        inputProps={{
+          'aria-required': true,
+          'aria-invalid': error !== undefined,
+          'aria-describedby': error ? helperId : undefined,
+        }}
+        isFullWidth
+        status={error ? 'danger' : undefined}
+        inputValue={input}
+        onInputChange={(text) => {
+          setInput(text);
+          setValue('');
+        }}
+        items={items}
         selected={field.value}
-        onSelect={(_event, value) => {
-          if (typeof value === 'string') select(value);
+        onSelect={(value) => {
+          setValue(value);
+          setInput(value);
         }}
-        onOpenChange={(open) => {
-          setIsOpen(open);
-          if (!open) {
-            setFocusedIndex(null);
-            field.onBlur();
-          }
-        }}
-        toggle={(toggleRef) => (
-          <MenuToggle
-            ref={toggleRef}
-            variant="typeahead"
-            isFullWidth
-            isExpanded={isOpen}
-            status={error ? 'danger' : undefined}
-            onClick={() => setIsOpen((open) => !open)}
-          >
-            <TextInputGroup isPlain>
-              <TextInputGroupMain
-                ref={inputRef}
-                inputId={fieldId}
-                value={input}
-                placeholder={placeholder}
-                aria-label={label}
-                role="combobox"
-                isExpanded={isOpen}
-                aria-activedescendant={focused !== undefined && focusedIndex !== null ? optionId(focusedIndex) : undefined}
-                inputProps={{
-                  autoComplete: 'off',
-                  'aria-required': true,
-                  'aria-invalid': error !== undefined,
-                  'aria-describedby': error ? helperId : undefined,
-                }}
-                onClick={() => setIsOpen(true)}
-                onChange={(_event, next) => onInput(next)}
-                onKeyDown={onKeyDown}
-              />
-              {input !== '' && (
-                <TextInputGroupUtilities>
-                  <Button variant="plain" aria-label={`Clear ${label}`} icon={<TimesIcon />} onClick={() => onInput('')} />
-                </TextInputGroupUtilities>
-              )}
-            </TextInputGroup>
-          </MenuToggle>
-        )}
-      >
-        <SelectList aria-label={`${label} options`}>
-          {isLoading && (
-            <SelectOption isDisabled value="">
-              Loading…
-            </SelectOption>
-          )}
-          {!isLoading &&
-            shown.map((option, index) => (
-              <SelectOption
-                key={option.value}
-                value={option.value}
-                id={optionId(index)}
-                isFocused={focusedIndex === index}
-                isDisabled={option.isDisabled}
-                description={option.description}
-              >
-                {option.value}
-              </SelectOption>
-            ))}
-          {!isLoading && shown.length === 0 && (
-            <SelectOption isDisabled value="">
-              {loadError ?? 'No results'}
-            </SelectOption>
-          )}
-        </SelectList>
-      </Select>
+        onClose={field.onBlur}
+        isLoading={isLoading}
+        emptyText={loadError}
+      />
       {error && (
         <FormHelperText>
           <HelperText>

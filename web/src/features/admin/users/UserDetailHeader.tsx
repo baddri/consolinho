@@ -12,6 +12,8 @@ import {
 } from '@patternfly/react-core';
 import { Link } from 'react-router';
 import type { UserDetail } from '@/shared/api';
+import { ActionButton } from '@/shared/ui';
+import { useAdminAccess } from '../useAdminAccess';
 import { UserActionsDropdown } from './UserActionsDropdown';
 import { UserStatusLabel } from './UserStatusLabel';
 
@@ -58,14 +60,18 @@ export interface UserDetailHeaderProps {
   user?: UserDetail;
   /** The user is still loading: show a skeleton in place of display name and labels. */
   isLoading: boolean;
+  /** Opens the bulk grant wizard ("Grant access to clusters", GRANT-4). */
+  onGrantAccess: () => void;
 }
 
 /**
  * Header of the user detail page (USR-7): breadcrumb Users › name, the username as `h1`, the display name below,
- * role/state labels and the shared Actions menu ({@link UserActionsDropdown}). While loading it shows the breadcrumb and
+ * role/state labels, "Grant access to clusters" (aria-disabled for read-only admins) and the shared Actions menu
+ * ({@link UserActionsDropdown}). While loading it shows the breadcrumb and
  * title with a skeleton in place of the details; after a failure only breadcrumb and title.
  */
-export function UserDetailHeader({ username, user, isLoading }: UserDetailHeaderProps) {
+export function UserDetailHeader({ username, user, isLoading, onGrantAccess }: UserDetailHeaderProps) {
+  const { readOnlyReason } = useAdminAccess();
   return (
     <PageSection>
       <UserBreadcrumb username={username} />
@@ -82,7 +88,16 @@ export function UserDetailHeader({ username, user, isLoading }: UserDetailHeader
         </FlexItem>
         {user && (
           <FlexItem>
-            <UserActionsDropdown user={user} />
+            <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+              <FlexItem>
+                <ActionButton variant="secondary" disabledReason={readOnlyReason} onClick={onGrantAccess}>
+                  Grant access to clusters
+                </ActionButton>
+              </FlexItem>
+              <FlexItem>
+                <UserActionsDropdown user={user} />
+              </FlexItem>
+            </Flex>
           </FlexItem>
         )}
       </Flex>

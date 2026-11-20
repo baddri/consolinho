@@ -22,6 +22,7 @@ export { NotFoundPage } from './NotFoundPage';
 export { PlaceholderPage, type PlaceholderPageProps } from './PlaceholderPage';
 export { RelativeTime, type RelativeTimeProps } from './RelativeTime';
 export { TOAST_TIMEOUT_MS, ToastProvider } from './ToastProvider';
+export { TypeaheadSelect, type TypeaheadItem, type TypeaheadSelectProps } from './TypeaheadSelect';
 export type { ShowToast, ToastApi } from './toastContext';
 export { useNow } from './useNow';
 export { useToast } from './useToast';

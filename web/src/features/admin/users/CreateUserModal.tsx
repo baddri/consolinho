@@ -14,6 +14,7 @@ import {
 import { useToast } from '@/shared/ui';
 import { useCreateUser } from './api';
 import { CREATE_USER_DEFAULTS, createUserSchema, type CreateUserFormValues } from './CreateUserForm.schema';
+import type { OpenBulkGrantState } from './UserDetailPage';
 import { userDetailPath } from './UserRow';
 
 const ROLE_CHOICES: readonly RadioGroupFieldOption[] = [
@@ -34,8 +35,9 @@ export interface CreateUserModalProps {
 /**
  * "Add user" dialog (USR-2): pre-creates a user before their first login with role and read-only flag. Client rules
  * come from `createUserSchema`; server 400s land on their fields and 409 `Users.UsernameTaken` on the username. On
- * success it toasts "User <name> created" and opens the new user's detail page. The form mounts only while open, so
- * every opening starts empty.
+ * success it toasts "User <name> created" and opens the new user's detail page; "Create and grant access" opens its
+ * Cluster access tab with the bulk grant wizard instead (USR-2, GRANT-4). The form mounts only while open, so every
+ * opening starts empty.
  */
 export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
   const titleId = useId();
@@ -57,13 +59,21 @@ function CreateUserForm({ titleId, onClose }: { titleId: string; onClose: () => 
     defaultValues: CREATE_USER_DEFAULTS,
   });
   const { problem, handleSubmit } = useFormProblem(form, { codeToField: { 'Users.UsernameTaken': 'username' } });
-
-  const submit = handleSubmit(async (values) => {
-    const user = await createUser.mutateAsync(values);
-    toast.success(`User ${user.username} created`);
-    onClose();
-    await navigate(userDetailPath(user.username));
-  });
+  /** Creates the user, then opens their page — the Cluster access tab with the bulk grant wizard when `grantAccess`. */
+  const submitThen = (grantAccess: boolean) =>
+    handleSubmit(async (values) => {
+      const user = await createUser.mutateAsync(values);
+      toast.success(`User ${user.username} created`);
+      onClose();
+      if (grantAccess) {
+        const state: OpenBulkGrantState = { openBulkGrant: true };
+        await navigate(`${userDetailPath(user.username)}/access`, { state });
+      } else {
+        await navigate(userDetailPath(user.username));
+      }
+    });
+  const submit = submitThen(false);
+  const submitAndGrant = submitThen(true);
 
   return (
     <>
@@ -97,6 +107,13 @@ function CreateUserForm({ titleId, onClose }: { titleId: string; onClose: () => 
           isLoading={form.formState.isSubmitting}
         >
           Create
+        </Button>
+        <Button
+          variant="secondary"
+          isAriaDisabled={form.formState.isSubmitting}
+          onClick={() => void submitAndGrant()}
+        >
+          Create and grant access
         </Button>
         <Button variant="link" onClick={onClose}>
           Cancel
