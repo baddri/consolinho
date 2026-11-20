@@ -228,6 +228,7 @@ docs/                                architecture, ADRs, roadmap, specs, tasks, 
   [docs/process/HANDOVER.md](docs/process/HANDOVER.md): current state
 - [docs/tasks/](docs/tasks/): one file per task
 - [docs/dev/TROUBLESHOOTING.md](docs/dev/TROUBLESHOOTING.md): problems we've hit and their fixes
+- [docs/ops/RUNBOOK.md](docs/ops/RUNBOOK.md): deploying to OpenShift (dev script, production overlay), upgrades, backups, troubleshooting
 
 ## Try the UI without a backend
 

@@ -85,4 +85,5 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP1 ACCEPT) Audit entries link their target (user/cluster/credential) to its admin page; "View in audit log" from detail pages.
 - (CP1 ACCEPT) Masthead link-out to the cluster's own OCP web console (URL already stored per cluster) for features we don't cover yet.
 - (CP3 Q10) Trust `X-Forwarded-For` from the Route and record the client IP in audit entries (CP6).
+- (CP3 T-0103) DP certificate rotation supports one previous cert only: accept a list of previous certs, or add a re-encrypt-all-keys command, so repeated rotations never orphan old keys.
 - (CP1 ACCEPT, for CP2 spec) Extend the token-leak sweep and authz matrix to proxy routes (QA R4); proxy strips client `Authorization`.

@@ -1,12 +1,12 @@
 ---
 id: T-0103
 title: docs/ops/RUNBOOK.md — dev and production deploy, upgrade/rollback, backup/restore, key loss, troubleshooting
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3
 depends_on: [T-0101]
 paths: [docs/ops/RUNBOOK.md, README.md]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -58,12 +58,45 @@ Sections (headings stable — later docs link to them):
   the rotation section.
 
 ## Acceptance criteria
-- [ ] OPS-1..3 and SMK-3 covered; every key/name matches ADR-0030 and the rendered manifests.
-- [ ] Rotation procedure true to the implemented code (T-0099).
-- [ ] No real hostnames, tokens or secrets; examples use `example.com`/`REPLACE_ME`.
+- [x] OPS-1..3 and SMK-3 covered; every key/name matches ADR-0030 and the rendered manifests.
+- [x] Rotation procedure true to the implemented code (T-0099): current + previous loaded by `KeyEncryptionCertificates`, previous decrypt-only.
+- [x] No real hostnames, tokens or secrets; examples use `example.com`/`REPLACE_ME`.
 
 ## Work log
+- 2026-11-21 backend-engineer: in_progress → in_review. Wrote `docs/ops/RUNBOOK.md` (9 stable sections + top key-loss
+  warning) from ADR-0026..0030, committed manifests, T-0099/T-0100/T-0102 contracts and current auth code.
+  README.md link NOT added: orchestrator restricted scope to `docs/ops/**` + this file (follow-up, one line).
+  Rotation: previous cert goes into the same Secret `consolinho-dp-cert` (keys `previous-certificate.pfx`/
+  `previous-password`, matching the production overlay comment) instead of a second Secret + volume patch.
+- 2026-11-21 reconciled with landed T-0099/T-0100/T-0102 (984b2bb, 4b1a5f6, 584cc8b): script flags/output/teardown TTY
+  + build log; base images `:9.9`, `check-image.sh`; OAuthClient now `--server-side` (secret not in annotation); RSA
+  key, `:`-form error messages, advisory lock, create-if-missing DB, migrate ~60 s failure; README link added.
+- 2026-11-21 review round 1 fixes: client-secret without trailing newline; rotation Secret via `--server-side
+  --force-conflicts` (why stated); umask/private-dir block at the start of §4.3, connection string written with an
+  editor; optional items done (steps 3+4 back to back; restore loses data since backup + fresh dump first). → in_review.
 
 ## Review
+**2026-11-21 backend-architect — CHANGES_REQUESTED** (round 1; docs only, checked against manifests, deploy-dev.sh, check-image.sh, Crypto/*)
+1. docs/ops/RUNBOOK.md:202 — `openssl rand -hex 32 > client-secret` keeps the trailing newline: Secret `consolinho-oauth` gets `…\n` (env via secretKeyRef, `ClientSecret` not trimmed, OpenShiftOAuthOptionsSetup.cs:50) while §4.6 `"$(cat client-secret)"` strips it → OAuthClient secret mismatch, every login fails at token exchange — pipe through `| tr -d '\n'` as deploy-dev.sh:143 does.
+2. docs/ops/RUNBOOK.md:402-405 — rotation uses `--dry-run=client -o yaml | oc apply -f -` on a Secret: client-side apply copies both PFX files + passwords into `kubectl.kubernetes.io/last-applied-configuration`, which `oc describe secret` prints — use `oc apply --server-side --force-conflicts --field-manager=consolinho-operator -f -` (or `| oc replace -f -`) and say why, like §4.6.
+3. docs/ops/RUNBOOK.md:172-179 — the first secret file (`connection-string`, then `client-secret`) is written before the "private directory / umask 077" advice and with the real password typed into a `printf` (shell history) — move the `umask 077; mkdir -p …; cd …` block to the start of §4.3 (it covers §4.3–4.6) and tell the operator to write `connection-string` with an editor; keep printf only with `REPLACE_ME`.
+Optional:
+- RUNBOOK.md:400-413 — say to run steps 3 and 4 back-to-back: a pod restarting in between loads the new cert as current without a previous one, so old tokens are unreadable until step 4 (no data loss).
+- RUNBOOK.md:330, 360-364 — note that restoring loses data written since the backup, and suggest a fresh `pg_dump` of the current state before `pg_restore --clean`.
+Verified OK: object/Secret/key names, mount paths + `0440`, base ConfigMap defaults, egress ports, Route 330 s, PDB, script flags (`--admin=`), teardown TTY/can-i, `:9.9` images, `REVISION` arg, `--no-build`, DP password newline trim, RSA check, Previous decrypt-only, production path independent of the script, top warning box.
+Agree with the engineer's backlog item: "DP: support a list of previous key-encryption certificates (`DataProtection__PreviousKeyEncryptionCertificates__N__{Path,PasswordPath}`, all decrypt-only) or a re-wrap command that re-encrypts all `data_protection_keys` under the current certificate, so repeated rotations never orphan keys; update RUNBOOK §8.2."
 
 ## Handover notes
+- Reconciled with the landed code of T-0099 (DP cert + rotation, validation messages, migrate mode), T-0100
+  (Containerfile `ubi9/*:9.9`, `check-image.sh`) and T-0102 (`deploy-dev.sh` flags, output, interactive-only teardown).
+  The rotation AC is now ticked.
+- Rotation deviation: the previous certificate goes into the same Secret `consolinho-dp-cert` (`previous-certificate.pfx`/
+  `previous-password`, as the production overlay comment shows), not a second Secret. Same effect, no Deployment patch.
+- Limitation: the code supports only ONE previous certificate, so a second rotation orphans the oldest keys. The
+  runbook warns. Backlog idea: a list of previous certificates, or re-wrapping keys under the new certificate.
+- Production OAuthClient example uses `oc apply --server-side`, like the script, because a plain `oc apply` would store
+  the client secret in the last-applied annotation.
+- Unverified without a cluster (check during H1–H6): OAuth error text on redirect_uri mismatch (§9), `oc create token`
+  behaviour when the duration is capped (§3.1), dev `pg_dump`/`pg_restore` via `oc exec statefulset/postgres` (§7).
+- README: one line under "Further reading" (README has no deployment section).
+- 2026-11-21 orchestrator: round-1 fixes verified (tr -d newline, server-side apply in rotation, umask block first). APPROVE.
