@@ -24,3 +24,9 @@ Never edit an accepted ADR's decision — supersede it.
 | 0016 | Contract-first API types and an MSW mock backend for frontend work | Accepted |
 | 0017 | Promote always records the admin assignment (refines 0009) | Accepted |
 | 0018 | OpenShift OAuth handler: live endpoints, configured redirect URI, classified token exchange (refines 0010) | Accepted |
+| 0019 | Proxy request pipeline: raw-path validation, one authorization query, ordered policies | Accepted |
+| 0020 | Proxy forwarding: per-cluster invoker pool, header transforms, streaming watches, timeouts, error mapping | Accepted |
+| 0021 | Proxy mutation audit: written after the response, in its own unit of work | Accepted |
+| 0022 | Kubernetes data layer: list + watch in TanStack Query, error mapping, access checks | Accepted |
+| 0023 | Resource registry, OCP-shaped routes and generic resource pages | Accepted |
+| 0024 | YAML editor: PatternFly CodeEditor with a bundled, lazy-loaded Monaco | Accepted |
