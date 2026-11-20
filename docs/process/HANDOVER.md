@@ -15,7 +15,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
 2. SPEC + DESIGN done. BE: ADR-0019..21, T-0056..62 (56/57/58 ∥ → 59/60 ∥ → 61 → 62 QA). FE: ADR-0022..24, T-0070..79
    (70→71 ∥ 72; then 73 → 74 ∥ 75 → 76 → 77; 78 after 75; 79 after 60). T-0054 now depends on T-0061+T-0073 (QG-4 step).
-   BUILD: T-0058 (3378b32), T-0057, T-0072 done. Running: T-0056 (re-review after security fixes), T-0070 in agent worktrees (uncommitted there), T-0070 in shared tree. T-0053, T-0055 done.
+   BUILD: T-0058 (3378b32), T-0056 (1a21868), T-0057, T-0072 done. Running: T-0059 + T-0060 (agent worktrees, uncommitted there), T-0070 (shared tree). T-0053, T-0055 done.
    CSP needs (CP3): `img-src 'self' data:`, Monaco `worker-src 'self'` + `style-src 'unsafe-inline'`.
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
@@ -43,6 +43,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
   0.29.0 fails to install; `typescript-language-server` in `~/.local`), hook `.claude/hooks/guard-bulk-cat.py` blocks
   unfiltered `cat` > 40 KB. Delegation prompts carry a *context pack* (SDLC.md).
   Worktrees on older bases lack `scripts/`: run `/home/bad/works/console/scripts/check-*.sh` from inside the worktree.
+- **Agent worktrees start from `main`**: tell worktree agents to `git merge --ff-only cp/<n>-…` first; orchestrator commits in the worktree, then cherry-picks onto the cp branch.
 - Agents' background wait loops: never `pgrep -f <name>` inside `bash -c` — it matches the loop's own command line and never exits (a reviewer loop ran 5 h on 2026-11-20).
 - **Subagents: read-only git only** in the shared tree (SDLC.md). Orchestrator commits by explicit paths.
 - Project agents (`.claude/agents/`) are available natively in a new session. Usage limits stop agents mid-task — within a
