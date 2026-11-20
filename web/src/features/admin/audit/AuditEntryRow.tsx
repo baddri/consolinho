@@ -12,6 +12,7 @@ import { ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { AuditEntry } from '@/shared/api';
 import { RelativeTime } from '@/shared/ui';
+import { proxyOutcome } from './proxyOutcome';
 
 /** Columns of the audit table incl. the expand toggle (for skeleton/empty rows). */
 export const AUDIT_COLUMN_COUNT = 7;
@@ -25,6 +26,24 @@ export function formatDetails(details: unknown): string | undefined {
   if (typeof details === 'object') return JSON.stringify(details, null, 2);
   // A scalar is not what the contract promises, but shown rather than hidden.
   return JSON.stringify(details);
+}
+
+/**
+ * Target of a proxied Kubernetes mutation (PAUD-4): the kubectl-style path (`shop/configmaps/web`) in monospace and
+ * its outcome label (status code, or "Denied — <reason>"); no label when `details` can't be read.
+ */
+function KubernetesTarget({ entry }: { entry: AuditEntry }) {
+  const outcome = proxyOutcome(entry);
+  return (
+    <>
+      <code>{entry.targetName}</code>{' '}
+      {outcome && (
+        <Label isCompact color={outcome.color}>
+          {outcome.label}
+        </Label>
+      )}
+    </>
+  );
 }
 
 /** Props for {@link AuditEntryRow}. */
@@ -64,7 +83,13 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
           <code>{entry.action}</code>
         </Td>
         <Td dataLabel="Target">
-          <span className="pf-v6-u-text-color-subtle">{entry.targetType}</span> {entry.targetName}
+          {entry.targetType === 'kubernetesResource' ? (
+            <KubernetesTarget entry={entry} />
+          ) : (
+            <>
+              <span className="pf-v6-u-text-color-subtle">{entry.targetType}</span> {entry.targetName}
+            </>
+          )}
         </Td>
         <Td dataLabel="Cluster">
           {entry.clusterName ? (

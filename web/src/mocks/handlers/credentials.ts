@@ -12,6 +12,7 @@ import { bindBody, DNS_LABEL, type BodyBinder } from './body';
 import { clusterNotFound } from './adminClusters';
 import { http } from './http';
 import { credentialsOfCluster, ordinal, toCredential } from './representations';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** 404 `Credentials.NotFound` (unknown id, or it belongs to another cluster). */
 function credentialNotFound() {
@@ -102,7 +103,7 @@ function hintsFor(
   if (result.capabilities.headline === 'clusterAdmin' && grants.length > readWrite) {
     hints.push({
       severity: 'info',
-      message: "This credential is cluster-admin; ReadOnly grants rely on FleetConsole's read-only guard",
+      message: `This credential is cluster-admin; ReadOnly grants rely on ${PRODUCT_NAME}'s read-only guard`,
     });
   }
   return hints;

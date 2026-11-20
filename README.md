@@ -1,10 +1,10 @@
-# FleetConsole
+# Consolinho (codename FleetConsole)
 
-FleetConsole is a self-hosted, OpenShift-console-like web UI for operating many (~40) OpenShift clusters from one
+Consolinho is a self-hosted, OpenShift-console-like web UI for operating many (~40) OpenShift clusters from one
 place. A cluster switcher in the masthead picks the active cluster; the generic resource pages (lists, details, YAML,
-logs, exec) then work against that cluster. An admin area manages FleetConsole users, the registered clusters, the
+logs, exec) then work against that cluster. An admin area manages Consolinho users, the registered clusters, the
 ServiceAccount credentials used to reach them, and which user may use which cluster in which mode (read-only or
-read-write).
+read-write). The source code keeps the codename FleetConsole (solution, projects, namespaces).
 
 The backend is an authenticating proxy. Users log in with the OpenShift OAuth server of the cluster FleetConsole runs
 on ([ADR-0007](docs/adr/0007-openshift-oauth-login.md)); every Kubernetes API call from the SPA goes to
@@ -21,7 +21,7 @@ assigned to that user for that cluster. Tokens are stored encrypted and never re
 | Tool | Version | Notes |
 |---|---|---|
 | .NET SDK | 10.0.100 or newer 10.0.x | pinned by `global.json` (`rollForward: latestFeature`) |
-| Aspire CLI | 13.x (verified with 13.6.4) | `curl -sSL https://aspire.dev/install.sh \| bash` or `dotnet tool install -g Aspire.Cli`. The CLI may announce a newer major version: **don't run `aspire update`** (it rewrites the repo's Aspire package versions; the stack is pinned to Aspire 13, see ADR-0001). |
+| Aspire CLI | **17.0.0** (must match the `Aspire.Hosting.*` versions) | `curl -sSL https://aspire.dev/install.sh \| bash -s -- --version 17.0.0` (installs the CLI bundle to `~/.aspire`; the C# AppHost requires the bundle, so use this script rather than the dotnet tool). Check with `aspire --version`. **Don't run `aspire update`** without a task: it rewrites the repo's Aspire package versions (ADR-0025). |
 | Node.js | 22.22 or newer (npm included) | `web/package.json` `engines` |
 | podman | 5.x | there is no Docker on the dev machines; Aspire and Testcontainers use podman's Docker-compatible socket |
 
@@ -86,7 +86,8 @@ aspire describe                     # resources, state, health and URLs
 aspire stop                         # stops the AppHost; Postgres container is removed (volume kept)
 ```
 
-Fallback without the Aspire CLI: `dotnet run --project src/FleetConsole.AppHost --launch-profile http` (stop it with
+Fallback without the `aspire` command: `dotnet run --project src/FleetConsole.AppHost --launch-profile http` (since
+Aspire 17 this still needs the installed CLI bundle in `~/.aspire`, ADR-0025; not re-verified in T-0063; stop it with
 Ctrl+C, or SIGTERM when backgrounded; see [docs/dev/TROUBLESHOOTING.md](docs/dev/TROUBLESHOOTING.md)).
 
 Quick check that it works:
@@ -132,6 +133,8 @@ curl -s -b jar '<web>/api/auth/me'                                              
 | `alice` | Alice Example | `sre` | regular user |
 | `bob` | (none) | (none) | user with no full name and no groups |
 | `ines` | Ines Auditor | `auditors` | an admin can make her a read-only admin (auditor demo) |
+| `e2e-user` | E2E User | (none) | reserved for the Playwright smoke: kept grantless (no-clusters landing) |
+| `e2e-admin` | E2E Admin | `fleetconsole-admins` | reserved for the Playwright smoke: grantless admin |
 
 Like a real cluster, `users/~` also reports the virtual groups `system:authenticated` and `system:authenticated:oauth`
 for every user. Users and the OAuth client (`fleetconsole-dev` / `dev-only-not-a-secret`, an obviously fake value)
@@ -158,6 +161,24 @@ npm run lint && npm run typecheck && npm test -- --run && npm run build
 ```
 
 Both sets must pass before a task goes to review (CLAUDE.md rule 4).
+
+### End-to-end smoke (Playwright)
+
+A Chromium smoke (`web/e2e/`) logs in through DevOAuth and checks deep-link login, logout, the switcher labels, the
+no-clusters landing and Pods browsing through the real proxy. It runs against a started stack:
+
+```bash
+cd web && npx playwright install chromium          # once; downloads into ~/.cache/ms-playwright; needs openssl on PATH
+aspire start --launch-profile http && aspire wait web
+cd web && npm run e2e                               # base URL from `aspire describe web`, or set E2E_BASE_URL
+aspire stop
+```
+
+Global setup seeds through the admin API as `admin`: it starts an in-process fake Kubernetes API (HTTPS, self-signed,
+registered with `skipTlsVerify`), registers a `e2e-smoke-<id>` cluster with a fake token and an alice read-only grant,
+and deletes it afterwards (and any `e2e-smoke-*` leftovers on the next run). The no-clusters check uses the reserved
+DevOAuth users `e2e-user` and `e2e-admin`; setup revokes any grants *those two* hold and never touches other users'
+grants. `openssl` must be on PATH (fake API certificate). Failure traces go to `web/e2e/.results/`.
 
 ## Regenerating API types for the SPA
 

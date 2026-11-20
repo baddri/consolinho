@@ -8,6 +8,7 @@ import {
 } from '@patternfly/react-core';
 import { LockIcon } from '@patternfly/react-icons';
 import { Link, type LinkProps } from 'react-router';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Router link to `/` that PatternFly's `Button` can render as (keeps client-side navigation). */
 function HomeLink(props: Omit<LinkProps, 'to'>) {
@@ -21,8 +22,8 @@ function HomeLink(props: Omit<LinkProps, 'to'>) {
 export function AdminNoAccessPage() {
   return (
     <PageSection>
-      <EmptyState titleText="You don't have access to Administration" headingLevel="h1" icon={LockIcon}>
-        <EmptyStateBody>Ask a FleetConsole administrator if you need access.</EmptyStateBody>
+      <EmptyState titleText="You don't have access to Fleet administration" headingLevel="h1" icon={LockIcon}>
+        <EmptyStateBody>Ask a {PRODUCT_NAME} administrator if you need access.</EmptyStateBody>
         <EmptyStateFooter>
           <EmptyStateActions>
             <Button variant="primary" component={HomeLink}>

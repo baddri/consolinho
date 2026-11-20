@@ -334,7 +334,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         if (capabilities.Headline == CapabilityLevel.ClusterAdmin && grants.ReadOnly > 0)
         {
             hints.Add(new ConnectionTestHintDto(
-                HintSeverity.Info, "This credential is cluster-admin; ReadOnly grants rely on FleetConsole's read-only guard"));
+                HintSeverity.Info, "This credential is cluster-admin; ReadOnly grants rely on Consolinho's read-only guard"));
         }
 
         return hints;

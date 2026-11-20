@@ -74,6 +74,8 @@ public sealed class AuditEntryTests
     [InlineData("cluster.registered", AuditCategory.Clusters)]
     [InlineData("credential.token_tested", AuditCategory.Credentials)]
     [InlineData("grant.revoked", AuditCategory.Grants)]
+    [InlineData("proxy.update", AuditCategory.Proxy)]
+    [InlineData("proxy.delete_collection", AuditCategory.Proxy)]
     public void Record_DerivesCategoryFromActionPrefix(string action, AuditCategory category)
     {
         Record(action).Category.ShouldBe(category);
@@ -99,7 +101,7 @@ public sealed class AuditEntryTests
 
     [Theory]
     [InlineData("users.created")]
-    [InlineData("proxy.mutated")]
+    [InlineData("kube.mutated")]
     [InlineData("session.login")]
     public void Record_RejectsUnknownActionPrefix(string action)
     {

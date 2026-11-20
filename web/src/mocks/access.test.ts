@@ -58,7 +58,7 @@ describe('mock access guard (contract §1, §2)', () => {
     const error = await expectApiError(unwrap(apiClient.GET('/api/admin/users')));
 
     expect([error.status, error.code]).toEqual([403, 'Auth.Forbidden']);
-    expect(error.detail).toBe("You don't have access to Administration.");
+    expect(error.detail).toBe("You don't have access to Fleet administration.");
   });
 
   it('lets a read-only admin read but not run commands (403 Auth.ReadOnly), including connection tests', async () => {
@@ -93,7 +93,7 @@ describe('mock access guard (contract §1, §2)', () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await expect(fetch(url('/api/admin/not-a-route'))).rejects.toThrow();
-    await expect(fetch(url('/api/clusters/prod-eu-1/k8s/api/v1/pods'))).rejects.toThrow();
+    await expect(fetch(url('/api/clusters/prod-eu-1/not-a-route'))).rejects.toThrow();
     expect(log).toHaveBeenCalledWith(
       expect.stringContaining('No mock handler for GET /api/admin/not-a-route'),
     );

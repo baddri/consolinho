@@ -22,7 +22,7 @@ const ROLE_CHOICES: readonly RadioGroupFieldOption[] = [
   {
     value: 'admin',
     label: 'Admin',
-    description: 'Also manages users, clusters, credentials and grants in Administration.',
+    description: 'Also manages users, clusters, credentials and grants in Fleet administration.',
   },
 ];
 
@@ -95,7 +95,7 @@ function CreateUserForm({ titleId, onClose }: { titleId: string; onClose: () => 
             control={form.control}
             name="isReadOnly"
             label="Read only"
-            helperText="Read-only users can't change anything on any cluster or in Administration."
+            helperText="Read-only users can't change anything on any cluster or in Fleet administration."
           />
         </Form>
       </ModalBody>

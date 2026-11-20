@@ -59,11 +59,13 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 
 ```
 /login                                         # "Log in with OpenShift" → full-page redirect to /api/auth/login?returnUrl=…
-/c/:cluster/overview
-/c/:cluster/search
-/c/:cluster/ns/:namespace/:resource            # list (namespace "all" = all namespaces)
-/c/:cluster/ns/:namespace/:resource/:name      # details (tabs: details | yaml | events | logs | terminal ...)
-/c/:cluster/cluster/:resource[/:name]          # cluster-scoped kinds (nodes, PVs, namespaces...)
+/c/:cluster                                    # ClusterLanding → k8s/cluster/projects (else namespaces)  (ADR-0023)
+/c/:cluster/k8s/:plural                        # NamespaceRedirect → last project of this cluster, else all-namespaces
+/c/:cluster/k8s/all-namespaces/:plural         # list, all namespaces   ?name=&label=&status=|type=
+/c/:cluster/k8s/ns/:namespace/:plural          # list, one namespace
+/c/:cluster/k8s/ns/:namespace/:plural/:name[/yaml|/events]   # details tabs (CP4 adds logs | terminal)
+/c/:cluster/k8s/cluster/:plural[/:name[/yaml|/events]]       # cluster-scoped kinds (projects, namespaces, nodes…)
+/c/:cluster/overview | /c/:cluster/search      # placeholders, not in the nav until CP5
 /admin/users                                   # ?q=&role=&status=&readOnly=
 /admin/users/:username[/access]                # tabs: details (index) | access; username URL-encoded
 /admin/clusters                                # ?q=&env=&status=
@@ -85,9 +87,11 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
   Vite's 500 kB warning without raising the limit.
 
 - `useActiveCluster()` reads `:cluster` from the URL — no global store to drift out of sync. Links are shareable.
-- Switching cluster keeps the current page type where it makes sense (`/c/a/ns/x/pods` → `/c/b/ns/x/pods`, falling back
-  to the cluster overview if the namespace doesn't exist).
-- Last-used cluster and namespace per cluster are remembered in `localStorage` (convenience only).
+- Switching cluster keeps path and search (`/c/a/k8s/ns/x/pods?label=app%3Dweb` → `/c/b/k8s/ns/x/pods?…`, SW-9); a
+  missing namespace/object on the target shows the normal empty/404 state with a link to the list, never a redirect.
+  SPA resource paths are built only by `features/resources/paths.ts:resourcePath()`.
+- `localStorage` (convenience only, `fleetconsole.*` keys via `shared/hooks/useStoredValue`): last cluster, recent
+  clusters per username (SW-8), last project per cluster (NS-2), "show default projects" (NS-4).
 - Environment tag drives a coloured label in the masthead (e.g. prod = red) so users always know where they are.
 
 ## The resource registry
@@ -104,11 +108,19 @@ export const deploymentDescriptor: ResourceDescriptor<Deployment> = {
 Adding a kind = one descriptor file + register it + optional kind-specific components. The generic pages handle
 loading/error/empty states, filtering, sorting, pagination and watch updates.
 
+**CP2 shape (ADR-0023):** `{ model, nav?, columns, filters?, defaultSort?, status?, DetailsSection?, hasEventsTab?,
+deleteRequiresName? }` in `features/resources/registry/kinds/<plural>.tsx`; tabs are fixed (Details · YAML · Events)
+and actions generic (Edit YAML, Delete, gated by `useResourceAccess`). The `detailTabs`/`actions` fields above arrive
+with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (registry + discovery).
+
 ## Data fetching rules
 
 - All k8s calls go through `shared/k8s/client.ts`; all FleetConsole API calls through `shared/api`.
 - Query keys always start with `['k8s', cluster, ...]` so switching cluster can never show another cluster's data.
-- Lists use watch to stay live; fall back to polling when watch fails. Keep watches per visible list only.
+- Lists use watch to stay live (ADR-0022): the list query holds `{ items, resourceVersion }`, a ref-counted watch
+  (one per key per tab) patches it; 410 → relist; errors → backoff 1 s → 30 s with a "Paused — retrying" label.
+  Kubernetes `Status` errors map to `ApiError` with `code = "Kubernetes.<reason>"`; proxy errors keep their `Proxy.*`
+  code. Big lists paginate client-side (PF `Pagination`), no virtualisation.
 - Mutations invalidate/update the relevant query keys; show PatternFly alerts for success/failure.
 - A 403 from the MutationGuard policy shows its `detail` ("Your access to cluster X is read-only").
 - All non-GET `/api` requests send `X-Console-Request: 1` (CSRF defence, see SECURITY.md).
@@ -180,7 +192,9 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 
 - Unit/component: Vitest + RTL + MSW (mock `/api/...` and `/api/clusters/:c/k8s/...`). FleetConsole API mocks come
   from `src/mocks` (typed with `openapi-msw`, stateful in-memory db reset after each test; `setMockUser()` switches
-  persona). Tests override single endpoints with `server.use(...)` for error cases.
+  persona). Tests override single endpoints with `server.use(...)` for error cases. The k8s proxy is mocked by
+  `src/mocks/k8s` (per-cluster in-memory store, streamed watches, 410, SSAR by credential profile, proxy guard; T-0070);
+  tests mutate it with `mockK8s.*` helpers. `YamlEditor` (Monaco) is replaced by a textarea double via `vi.mock`.
 - `npm run dev:mock` runs the SPA against the MSW browser worker, without the backend (ADR-0016, T-0042). Persona:
   `?mockUser=<admin|alice|bob|ines|carol|none>` on any URL (kept in `sessionStorage` for the tab), else
   `VITE_MOCK_USER`, else `admin`. The worker script lives in `web/msw/` (Vite `publicDir` in mock mode only), so it

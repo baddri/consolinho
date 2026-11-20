@@ -17,9 +17,9 @@ public sealed class DevOAuthAuthorizeTests(DevOAuthFactory factory) : IClassFixt
         response.Content.Headers.ContentType?.MediaType.ShouldBe("text/html");
         response.Headers.CacheControl?.NoStore.ShouldBeTrue();
         var html = await response.Content.ReadAsStringAsync(Ct);
-        html.ShouldContain("FleetConsole DevOAuth — pick a user");
+        html.ShouldContain("Consolinho DevOAuth — pick a user");
         html.ShouldNotContain("<script", Case.Insensitive);
-        foreach (var user in new[] { "admin", "alice", "bob", "ines" })
+        foreach (var user in new[] { "admin", "alice", "bob", "ines", "e2e-user", "e2e-admin" })
         {
             html.ShouldContain($"name=\"username\" value=\"{user}\"");
         }
@@ -28,9 +28,9 @@ public sealed class DevOAuthAuthorizeTests(DevOAuthFactory factory) : IClassFixt
         html.ShouldContain("fleetconsole-admins");
         html.ShouldContain("auditors");
         html.ShouldContain("name=\"cancel\" value=\"1\"");
-        // 4 users + Cancel, each form carrying the original parameters.
-        CountOf(html, "<form method=\"post\" action=\"/oauth/authorize\">").ShouldBe(5);
-        CountOf(html, $"name=\"code_challenge\" value=\"{challenge}\"").ShouldBe(5);
+        // 6 users (incl. the Playwright smoke's e2e-user/e2e-admin) + Cancel, each form carrying the original parameters.
+        CountOf(html, "<form method=\"post\" action=\"/oauth/authorize\">").ShouldBe(7);
+        CountOf(html, $"name=\"code_challenge\" value=\"{challenge}\"").ShouldBe(7);
     }
 
     [Fact]

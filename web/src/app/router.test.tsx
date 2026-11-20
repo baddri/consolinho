@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import { routes } from '@/app/router';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { renderApp } from '@/test/render';
@@ -18,7 +18,7 @@ describe('routes', () => {
   // Landing details (last cluster, no clusters) are covered in features/cluster-context.
   // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
   it(
-    "redirects / to the overview of the user's first granted cluster",
+    "redirects / to the Projects list of the user's first granted cluster",
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const { router } = renderApp('/');
@@ -26,37 +26,49 @@ describe('routes', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { name: 'Overview', level: 1 },
+          { name: 'Projects', level: 1 },
           { timeout: COLD_START_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe('/c/dev-1/overview');
-      expect(await routeParams()).toEqual({ cluster: 'dev-1' });
+      expect(router.state.location.pathname).toBe('/c/dev-1/k8s/cluster/projects');
     },
   );
 
-  it('renders a namespaced resource list with its params', async () => {
-    renderApp('/c/dev-1/ns/default/deployments');
+  it('keeps overview as an unlisted placeholder', async () => {
+    renderApp('/c/dev-1/overview');
 
-    expect(await routeParams()).toEqual({ cluster: 'dev-1', namespace: 'default', resource: 'deployments' });
+    expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
+    expect(await routeParams()).toEqual({ cluster: 'dev-1' });
   });
 
-  it('renders namespaced resource details with its params', async () => {
-    renderApp('/c/dev-1/ns/default/pods/web-1');
+  it.each([
+    ['/c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp', 'Details'],
+    ['/c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp/yaml', 'YAML'],
+    ['/c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp/events', 'Events'],
+  ])('renders the details page for %s on the %s tab', async (path, tab) => {
+    renderApp(path);
 
-    expect(await screen.findByRole('heading', { name: 'Resource details: web-1' })).toBeInTheDocument();
-    expect(await routeParams()).toEqual({
-      cluster: 'dev-1',
-      namespace: 'default',
-      resource: 'pods',
-      name: 'web-1',
-    });
+    expect(
+      await screen.findByRole('heading', { name: 'web-7d4b9c8f6d-2xkqp', level: 1 }),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('renders cluster-scoped list and details', async () => {
-    renderApp('/c/dev-1/cluster/nodes/node-a');
+  it('renders cluster-scoped details routes', async () => {
+    renderApp('/c/dev-1/k8s/cluster/namespaces/shop');
 
-    expect(await routeParams()).toEqual({ cluster: 'dev-1', resource: 'nodes', name: 'node-a' });
+    expect(await screen.findByRole('heading', { name: 'shop', level: 1 })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['/c/dev-1/k8s/pods?name=web', '/c/dev-1/k8s/all-namespaces/pods', '?name=web'],
+    ['/c/dev-1/k8s/cluster/pods', '/c/dev-1/k8s/all-namespaces/pods', ''],
+    ['/c/dev-1/k8s/unknownthings', '/c/dev-1/k8s/all-namespaces/unknownthings', ''],
+  ])('redirects %s to %s', async (path, pathname, search) => {
+    const { router } = renderApp(path);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(pathname));
+    expect(router.state.location.search).toBe(search);
   });
 
   it('redirects /admin to the users list', async () => {
@@ -103,7 +115,7 @@ describe('routes', () => {
   it('renders the login page outside the shell', async () => {
     renderApp('/login');
 
-    expect(await screen.findByRole('heading', { name: 'Log in to FleetConsole' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Log in to Consolinho' })).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Global' })).not.toBeInTheDocument();
   });
 
@@ -113,7 +125,8 @@ describe('routes', () => {
     '/admin/x/y',
     '/admin/users/alice/unknown-tab',
     '/admin/clusters/dev-1/credentials/extra',
-    '/c/dev-1/ns/default/pods/web-1/extra/deep',
+    '/c/dev-1/k8s/ns/default/pods/web-1/extra/deep',
+    '/c/dev-1/ns/default/pods',
   ])('renders 404 for %s', async (path) => {
     renderApp(path);
 

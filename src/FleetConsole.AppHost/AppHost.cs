@@ -14,14 +14,18 @@ var consoleDb = postgres.AddDatabase("consoledb");
 // Development-only emulator of the OpenShift OAuth server + users/~ (ADR-0007, ADR-0010); never deployed. Always its
 // "http" launch profile (fixed port http://localhost:5190), whichever profile the AppHost runs with, so the login URL
 // is stable. The health check makes the dashboard show it healthy and lets the Api wait for it.
-var devOAuth = builder.AddProject<Projects.FleetConsole_DevOAuth>("devoauth", launchProfileName: "http")
+// Projects are added by path (relative to the AppHost directory); Aspire builds them before starting them.
+var devOAuth = builder.AddDotnetProject(
+        "devoauth",
+        "../FleetConsole.DevOAuth/FleetConsole.DevOAuth.csproj",
+        options => options.LaunchProfileName = "http")
     .WithHttpHealthCheck("/health");
 
 // The resource name "api" is a contract: WithReference(api) below exposes it to the web app as
 // services__api__http__0 / services__api__https__0, which web/vite.config.ts reads as its /api proxy target.
 // Auth__OpenShift__HostApiServerUrl points the Api's OpenShift login at the emulator; the client id/secret and admin
 // group come from the Api's appsettings.Development.json (contract §11).
-var api = builder.AddProject<Projects.FleetConsole_Api>("api")
+var api = builder.AddDotnetProject("api", "../FleetConsole.Api/FleetConsole.Api.csproj")
     .WithReference(consoleDb)
     .WaitFor(consoleDb)
     .WithEnvironment("Auth__OpenShift__HostApiServerUrl", devOAuth.GetEndpoint("http"))

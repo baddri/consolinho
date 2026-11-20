@@ -5,7 +5,7 @@ namespace FleetConsole.Application.Users.ListUsers;
 // Returned by GET /api/admin/users. Published in the OpenAPI document as the "UserListItem" schema; the XML docs below
 // are written for API consumers.
 
-/// <summary>A user as shown in the Administration user list.</summary>
+/// <summary>A user as shown in the Fleet administration user list.</summary>
 /// <param name="Username">The OpenShift username (exact, case-sensitive).</param>
 /// <param name="DisplayName">The OpenShift full name from the last login, or null when unknown or not set.</param>
 /// <param name="Role">The effective role: admin when assigned by an administrator or granted by configuration.</param>

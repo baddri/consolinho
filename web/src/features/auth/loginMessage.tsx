@@ -1,5 +1,6 @@
 import type { AlertProps } from '@patternfly/react-core';
 import type { ReactNode } from 'react';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** A message the login page shows above the login button. */
 export interface LoginMessage {
@@ -12,7 +13,7 @@ export interface LoginMessage {
 const FAILED: LoginMessage = { variant: 'danger', text: 'Login failed. Please try again.' };
 
 /** What an unregistered user can do about it (AUTH-6). */
-const NOT_REGISTERED_HINT = 'Ask a FleetConsole administrator to add you.';
+const NOT_REGISTERED_HINT = `Ask a ${PRODUCT_NAME} administrator to add you.`;
 
 /** Message for a backend `error` code from the OAuth callback (contract §4.2; spec AUTH-6/7/14). */
 function callbackErrorMessage(error: string, username: string | null): LoginMessage {
@@ -29,12 +30,12 @@ function callbackErrorMessage(error: string, username: string | null): LoginMess
                 <strong>{username}</strong>
               </>
             ) : null}{' '}
-            is not registered in FleetConsole. {NOT_REGISTERED_HINT}
+            is not registered in {PRODUCT_NAME}. {NOT_REGISTERED_HINT}
           </>
         ),
       };
     case 'deactivated':
-      return { variant: 'danger', text: 'Your FleetConsole account is deactivated.' };
+      return { variant: 'danger', text: `Your ${PRODUCT_NAME} account is deactivated.` };
     case 'cancelled':
       return { variant: 'info', text: 'Login was cancelled.' };
     case 'unavailable':

@@ -142,6 +142,7 @@ public sealed partial class AuditEntry : AggregateRoot<AuditEntryId>
             "cluster" => AuditCategory.Clusters,
             "credential" => AuditCategory.Credentials,
             "grant" => AuditCategory.Grants,
+            "proxy" => AuditCategory.Proxy,
             _ => throw new ArgumentException($"Audit action '{action}' has an unknown area prefix.", nameof(action)),
         };
     }

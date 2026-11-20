@@ -10,6 +10,7 @@ import {
 import { CubesIcon } from '@patternfly/react-icons';
 import { Link, type LinkProps } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Router link to the admin users list that PatternFly's `Button` can render as. */
 function AdminUsersLink(props: Omit<LinkProps, 'to'>) {
@@ -17,7 +18,7 @@ function AdminUsersLink(props: Omit<LinkProps, 'to'>) {
 }
 
 /**
- * Landing page for a signed-in user without any cluster (SW-4). Admins additionally get a way into Administration and
+ * Landing page for a signed-in user without any cluster (SW-4). Admins additionally get a way into Fleet administration and
  * the reminder that the Admin role alone grants no cluster access (GRANT-6), with a link to their own access tab —
  * or, for a read-only admin who cannot grant, the advice to ask another administrator.
  * Rendered inside `RequireSession`, so `me` is loaded.
@@ -31,14 +32,14 @@ export function NoClustersPage() {
     <PageSection>
       <EmptyState titleText="No clusters assigned yet" headingLevel="h1" icon={CubesIcon}>
         <EmptyStateBody>
-          You are logged in as <strong>{username}</strong>, but no clusters have been assigned to you. Ask a
-          FleetConsole administrator to grant you access.
+          You are logged in as <strong>{username}</strong>, but no clusters have been assigned to you.
+          Ask a {PRODUCT_NAME} administrator to grant you access.
         </EmptyStateBody>
         {isAdmin && (
           <EmptyStateFooter>
             <EmptyStateActions>
               <Button variant="primary" component={AdminUsersLink}>
-                Go to Administration
+                Go to Fleet administration
               </Button>
             </EmptyStateActions>
             {me.isReadOnly ? (

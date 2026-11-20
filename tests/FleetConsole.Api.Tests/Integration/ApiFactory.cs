@@ -6,6 +6,9 @@ using FleetConsole.Application.Abstractions;
 using FleetConsole.Infrastructure.Identity;
 using FleetConsole.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.AspNetCore.WebUtilities;
@@ -43,22 +46,35 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private readonly bool _ownsPostgres;
     private readonly string _database;
     private readonly IReadOnlyDictionary<string, string?> _overrides;
+    private readonly Action<IServiceCollection>? _configureServices;
 
     /// <summary>Creates the shared default host (xUnit collection fixture); it owns the container.</summary>
     public ApiFactory()
-        : this(new PostgresFixture(), ownsPostgres: true, DefaultDatabase, new Dictionary<string, string?>(), clock: null)
+        : this(new PostgresFixture(), ownsPostgres: true, DefaultDatabase, new Dictionary<string, string?>(), clock: null, configureServices: null)
     {
     }
 
     private ApiFactory(
-        PostgresFixture postgres, bool ownsPostgres, string database, IReadOnlyDictionary<string, string?> overrides, ManualClock? clock)
+        PostgresFixture postgres,
+        bool ownsPostgres,
+        string database,
+        IReadOnlyDictionary<string, string?> overrides,
+        ManualClock? clock,
+        Action<IServiceCollection>? configureServices)
     {
         _postgres = postgres;
         _ownsPostgres = ownsPostgres;
         _database = database;
         _overrides = overrides;
+        _configureServices = configureServices;
         Clock = clock;
     }
+
+    /// <summary>
+    /// The base address of a variant created with <c>kestrel: true</c> (real sockets, e.g. <c>http://127.0.0.1:51234/</c>);
+    /// null for TestServer hosts, whose clients come from <see cref="WebApplicationFactory{TEntryPoint}.Server"/>.
+    /// </summary>
+    internal Uri? KestrelAddress { get; private set; }
 
     /// <summary>The host's <c>IClock</c> when the variant was created with a manual one; otherwise null (system clock).</summary>
     internal ManualClock? Clock { get; }
@@ -101,17 +117,48 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <param name="overrides">Configuration values (e.g. <c>["Auth:AutoProvision"] = "false"</c>).</param>
     /// <param name="configureHost">Sets <see cref="HostStub"/> switches before the host starts (e.g. host down).</param>
     /// <param name="clock">Replaces the Api's <c>IClock</c> (e.g. to pass the OAuth discovery retry window).</param>
+    /// <param name="configureServices">Extra test service registrations, applied last (e.g. a failing decorator).</param>
+    /// <param name="kestrel">Host on real Kestrel (loopback, random port, see <see cref="KestrelAddress"/>) instead of
+    /// TestServer — for behaviour TestServer doesn't have (request body size feature, real upgrades, socket aborts).
+    /// <see cref="WebApplicationFactory{TEntryPoint}.Server"/> is unavailable then; use <see cref="CreateKestrelBrowserClient"/>.</param>
     /// <returns>The started variant; the caller disposes it.</returns>
     internal async Task<ApiFactory> CreateVariantAsync(
         IReadOnlyDictionary<string, string?> overrides,
         Action<OpenShiftHostStub>? configureHost = null,
-        ManualClock? clock = null)
+        ManualClock? clock = null,
+        Action<IServiceCollection>? configureServices = null,
+        bool kestrel = false)
     {
-        var variant = new ApiFactory(_postgres, ownsPostgres: false, $"fleetconsole_v_{Guid.NewGuid():N}", overrides, clock);
+        var variant = new ApiFactory(_postgres, ownsPostgres: false, $"fleetconsole_v_{Guid.NewGuid():N}", overrides, clock, configureServices);
         configureHost?.Invoke(variant.HostStub);
         await variant.InitializeAsync();
-        _ = variant.Server; // start now: migrations run here, not in the middle of the first request
+        if (kestrel)
+        {
+            variant.UseKestrel(options => options.Listen(IPAddress.Loopback, 0));
+            variant.StartServer();
+            var address = variant.Services.GetRequiredService<IServer>().Features.GetRequiredFeature<IServerAddressesFeature>().Addresses.Single();
+            variant.KestrelAddress = new Uri(address + "/");
+        }
+        else
+        {
+            _ = variant.Server; // start now: migrations run here, not in the middle of the first request
+        }
+
         return variant;
+    }
+
+    /// <summary>
+    /// A browser-like client (cookies, no redirects, <c>X-Console-Request: 1</c>) over real sockets to a Kestrel variant.
+    /// </summary>
+    /// <param name="cookies">The cookie jar to use (e.g. shared with a <c>ClientWebSocket</c>); a new one when null.</param>
+    /// <returns>The client; log in with <see cref="RunLoginAsync"/>.</returns>
+    internal HttpClient CreateKestrelBrowserClient(CookieContainer? cookies = null)
+    {
+        var address = KestrelAddress ?? throw new InvalidOperationException("Not a Kestrel variant.");
+        var handler = new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = true, CookieContainer = cookies ?? new CookieContainer() };
+        var client = new HttpClient(handler) { BaseAddress = address };
+        client.DefaultRequestHeaders.Add(CsrfHeaderMiddleware.HeaderName, CsrfHeaderMiddleware.HeaderValue);
+        return client;
     }
 
     /// <summary>A pool user unknown to every other test of this host (no groups).</summary>
@@ -273,6 +320,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             {
                 services.AddSingleton<IClock>(Clock);
             }
+
+            _configureServices?.Invoke(services);
         });
     }
 }

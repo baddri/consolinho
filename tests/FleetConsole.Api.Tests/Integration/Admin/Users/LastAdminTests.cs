@@ -53,11 +53,11 @@ public sealed class LastAdminTests(ApiFactory factory)
         await host.Data.GrantAsync(user.Username, cluster.Name, credential.Id);
         using var adminClient = await host.LoginAsAsync(admin.Username);
         using var userClient = await host.LoginAsAsync(user.Username);
-        (await MeStatusAsync(userClient)).ShouldBe(HttpStatusCode.OK);
+        (await userClient.MeStatusAsync()).ShouldBe(HttpStatusCode.OK);
 
         var deactivated = await OkAsync(await TransitionAsync(adminClient, user.Username, "deactivate"));
 
         deactivated.GetProperty("grantCount").GetInt32().ShouldBe(1);
-        (await MeStatusAsync(userClient)).ShouldBe(HttpStatusCode.Unauthorized);
+        (await userClient.MeStatusAsync()).ShouldBe(HttpStatusCode.Unauthorized);
     }
 }

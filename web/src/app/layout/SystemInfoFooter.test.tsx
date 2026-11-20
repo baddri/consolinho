@@ -18,7 +18,7 @@ describe('SystemInfoFooter', () => {
     renderWithProviders(<SystemInfoFooter />);
 
     expect(await screen.findByText('Loading version information')).toBeInTheDocument();
-    expect(await screen.findByText(/^FleetConsole ·/)).toHaveTextContent('FleetConsole 9.9.9 · Slow');
+    expect(await screen.findByText(/^Consolinho ·/)).toHaveTextContent('Consolinho 9.9.9 · Slow');
   });
 
   it('shortens a full commit SHA and shows the full version in a tooltip on hover', async () => {
@@ -30,8 +30,8 @@ describe('SystemInfoFooter', () => {
 
     const { user } = renderWithProviders(<SystemInfoFooter />);
 
-    expect(await screen.findByText(/^FleetConsole ·/)).toHaveTextContent(
-      'FleetConsole 1.0.0+dc5aff8 · Production',
+    expect(await screen.findByText(/^Consolinho ·/)).toHaveTextContent(
+      'Consolinho 1.0.0+dc5aff8 · Production',
     );
     expect(screen.queryByText(LONG_VERSION, { exact: false })).not.toBeInTheDocument();
 

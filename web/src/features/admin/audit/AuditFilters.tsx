@@ -107,7 +107,11 @@ export function AuditFilters({ filters }: AuditFiltersProps) {
                 <DateTimeField label="From" value={values.from} onChange={(value) => setText('from', value ?? '')} />
               </ToolbarItem>
               <ToolbarItem>
-                <DateTimeField label="To" value={values.to} onChange={(value) => setText('to', value ?? '')} />
+                <DateTimeField
+                  label="To"
+                  defaultTime="23:59"
+                  value={values.to}
+                  onChange={(value) => setText('to', value ?? '')} />
               </ToolbarItem>
             </>
           )}

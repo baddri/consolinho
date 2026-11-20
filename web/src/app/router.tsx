@@ -1,9 +1,9 @@
-import { Navigate, type RouteObject } from 'react-router';
+import type { RouteObject } from 'react-router';
 import { adminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
-import { ResourceDetailsPage, ResourceListPage } from '@/features/resources';
+import { resourceRoutes } from '@/features/resources';
 import { NotFoundPage } from '@/shared/ui';
 import { AppShell } from './layout/AppShell';
 import { RouteErrorPage } from './RouteErrorPage';
@@ -30,13 +30,11 @@ export const routes: RouteObject[] = [
             path: 'c/:cluster',
             element: <ClusterGate />,
             children: [
-              { index: true, element: <Navigate to="overview" replace /> },
+              // Landing, `k8s/...` lists and details (ADR-0023); page modules are lazy.
+              ...resourceRoutes,
+              // Unlisted placeholders until CP5.
               { path: 'overview', element: <OverviewPage /> },
               { path: 'search', element: <SearchPage /> },
-              { path: 'ns/:namespace/:resource', element: <ResourceListPage /> },
-              { path: 'ns/:namespace/:resource/:name', element: <ResourceDetailsPage /> },
-              { path: 'cluster/:resource', element: <ResourceListPage /> },
-              { path: 'cluster/:resource/:name', element: <ResourceDetailsPage /> },
             ],
           },
           // Admin pages are lazy route modules in their own chunks, gated by RequireAdmin (ADM-3).

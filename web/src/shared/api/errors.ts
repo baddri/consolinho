@@ -1,10 +1,11 @@
 import { z } from 'zod';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Detail of an {@link ApiError} whose request never got an HTTP response. */
-const NETWORK_FAILURE_DETAIL = 'The FleetConsole API could not be reached.';
+const NETWORK_FAILURE_DETAIL = `The ${PRODUCT_NAME} API could not be reached.`;
 
 /** Detail of an {@link ApiError} for a 2xx response whose body could not be read as JSON. */
-const UNREADABLE_RESPONSE_DETAIL = 'The FleetConsole API returned a response that could not be read.';
+const UNREADABLE_RESPONSE_DETAIL = `The ${PRODUCT_NAME} API returned a response that could not be read.`;
 
 /** Shown by {@link errorMessage} when an error carries nothing presentable. */
 const GENERIC_MESSAGE = 'Something went wrong. Please try again.';
@@ -144,3 +145,16 @@ export function errorMessage(error: unknown): string {
   }
   return GENERIC_MESSAGE;
 }
+
+/**
+ * Builds an {@link ApiError} from a non-2xx response and its parsed JSON body (ProblemDetails fields are read
+ * defensively). Exported for clients that do not go through openapi-fetch — the Kubernetes proxy client
+ * (`shared/k8s/errors.ts`) uses it for `application/problem+json` answers of the proxy itself.
+ */
+export const apiErrorFromProblemBody: (response: Response, body: unknown) => ApiError = fromErrorResponse;
+
+/**
+ * Maps a rejected `fetch` (network failure, unreadable body) to a thrown {@link ApiError} with `status` 0; aborts are
+ * rethrown unchanged. Exported for clients that call `fetch` directly (`shared/k8s/client.ts`).
+ */
+export const apiErrorFromRejection: (reason: unknown) => never = fromRejection;

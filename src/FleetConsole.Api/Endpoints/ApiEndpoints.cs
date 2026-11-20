@@ -1,4 +1,5 @@
 using FleetConsole.Api.Endpoints.Admin;
+using FleetConsole.Api.Proxy;
 
 namespace FleetConsole.Api.Endpoints;
 
@@ -42,6 +43,7 @@ public static class ApiEndpoints
         api.MapAuthEndpoints();
         api.MapSystemEndpoints();
         api.MapClustersEndpoints();
+        api.MapKubernetesProxy();
         api.MapAdminEndpoints();
 
         return api;

@@ -27,7 +27,7 @@ public sealed class SessionRevalidationTests(ApiFactory factory) : IAsyncLifetim
     {
         var user = await _host.Data.UserAsync();
         using var client = await _host.LoginAsAsync(user.Username);
-        (await MeStatusAsync(client)).ShouldBe(HttpStatusCode.OK);
+        (await client.MeStatusAsync()).ShouldBe(HttpStatusCode.OK);
 
         await _host.Data.DeactivateAsync(user.Username);
 
@@ -67,9 +67,9 @@ public sealed class SessionRevalidationTests(ApiFactory factory) : IAsyncLifetim
         await _host.Data.DeactivateAsync(user.Username);
         await _host.Data.ReactivateAsync(user.Username);
 
-        (await MeStatusAsync(client)).ShouldBe(HttpStatusCode.Unauthorized);
+        (await client.MeStatusAsync()).ShouldBe(HttpStatusCode.Unauthorized);
         using var again = await _host.LoginAsAsync(user.Username); // a fresh login works
-        (await MeStatusAsync(again)).ShouldBe(HttpStatusCode.OK);
+        (await again.MeStatusAsync()).ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]

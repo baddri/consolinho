@@ -3,6 +3,7 @@ import { setupWorker } from 'msw/browser';
 import { sanitizeReturnUrl } from '@/shared/auth';
 import { userFixtures } from './fixtures';
 import { handlers } from './handlers';
+import { startK8sSimulator } from './k8s';
 import { DEFAULT_MOCK_USER, setMockUser } from './session';
 
 /**
@@ -68,12 +69,14 @@ const loginNavigation = http.get('*/api/auth/login', ({ request }) => {
  * Sets the mock persona and starts the MSW service worker (`/mockServiceWorker.js`, served from `web/msw/` in mock
  * mode). Resolves once the worker intercepts requests, so the app must be rendered after it. Requests MSW has no
  * handler for (Vite modules, assets) pass through untouched; unknown `/api/*` routes still fail loudly through the
- * mocks' own catch-all. Mock data lives in memory: a page reload resets it.
+ * mocks' own catch-all. Mock data lives in memory: a page reload resets it. Also starts the Kubernetes activity
+ * simulator, so watched lists change while you look at them.
  */
 export async function startMockBackend(): Promise<void> {
   const persona = resolvePersona();
   setMockUser(persona);
   await setupWorker(loginNavigation, ...handlers).start({ onUnhandledFrame: 'bypass', quiet: true });
+  startK8sSimulator();
   console.info(
     `[mocks] Mock backend active as ${persona ?? 'signed-out user'}. ` +
       `Switch persona with ?${PERSONA_PARAM}=<admin|alice|bob|ines|carol|none>.`,

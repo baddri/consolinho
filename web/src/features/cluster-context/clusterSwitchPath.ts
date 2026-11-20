@@ -1,17 +1,17 @@
 const CLUSTER_PATH = /^\/c\/[^/]+(\/.*)?$/;
 
 /**
- * Path to navigate to when switching to `cluster` from `pathname`.
+ * Where to navigate when switching to `cluster` from `location` (SW-9).
  *
- * Keeps the current page type (`/c/a/ns/x/pods` → `/c/b/ns/x/pods`) so operators can compare clusters quickly;
- * from pages outside a cluster (admin, 404) it goes to the target cluster's overview.
+ * Keeps the rest of the path and the query string (`/c/a/ns/x/pods?label=…` → `/c/b/ns/x/pods?label=…`) so operators
+ * can compare clusters quickly. From the cluster root and from pages outside a cluster (admin, 404) it goes to the
+ * target cluster's root, whose index route picks the landing page; filters of those pages are not carried over.
  */
-export function clusterSwitchPath(pathname: string, cluster: string): string {
-  const target = encodeURIComponent(cluster);
-  const match = CLUSTER_PATH.exec(pathname);
-  const rest = match?.[1];
+export function clusterSwitchPath(location: { pathname: string; search: string }, cluster: string): string {
+  const target = `/c/${encodeURIComponent(cluster)}`;
+  const rest = CLUSTER_PATH.exec(location.pathname)?.[1];
   if (rest === undefined || rest === '/') {
-    return `/c/${target}/overview`;
+    return target;
   }
-  return `/c/${target}${rest}`;
+  return `${target}${rest}${location.search}`;
 }

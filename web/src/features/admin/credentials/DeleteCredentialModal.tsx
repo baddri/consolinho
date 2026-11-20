@@ -19,6 +19,7 @@ import { isCredentialGone, isCredentialInUse, useDeleteCredential } from './api'
 import { affectedUsersText } from './credentialText';
 import { CredentialModalFrame, type CredentialCluster } from './CredentialModalFrame';
 import { useCredentialGoneToast } from './useCredentialGoneToast';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Display names of the grant access modes. */
 const ACCESS_MODE_LABELS: Record<AccessMode, string> = { readOnly: 'Read only', readWrite: 'Read-write' };
@@ -107,7 +108,7 @@ export function DeleteCredentialModal({ cluster, credential, onClose }: DeleteCr
       onClose={onClose}
     >
       <Content component="p">
-        No grants use this credential. Its token is removed from FleetConsole; this cannot be undone.
+        No grants use this credential. Its token is removed from {PRODUCT_NAME}; this cannot be undone.
       </Content>
     </ConfirmModal>
   );

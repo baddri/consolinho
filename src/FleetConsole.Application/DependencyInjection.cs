@@ -4,6 +4,8 @@ using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Audit;
 using FleetConsole.Application.Behaviors;
 using FleetConsole.Application.Credentials.ConnectionTesting;
+using FleetConsole.Application.Proxy;
+using FleetConsole.Application.Proxy.Policies;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -50,6 +52,12 @@ public static class DependencyInjection
 
         // Connection tests (ADR-0011): step orchestration shared by the TestCredential and TestToken handlers.
         services.AddScoped<ConnectionTester>();
+
+        // Proxy policies (ADR-0019 §7) run in registration order, first refusal wins. The order is contract (CP2 §4):
+        // user read-only before read-only grant (both in MutationGuardPolicy), then 413 last, so a read-only user
+        // with an oversized body gets 403, not 413.
+        services.AddProxyPolicy<MutationGuardPolicy>();
+        services.AddProxyPolicy<RequestBodyLimitPolicy>();
 
         // Pipeline — order matters, see remarks. Keep the slots for future behaviors so insertion points stay obvious.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));

@@ -106,6 +106,25 @@ public sealed class ListAuditEntriesTests
     }
 
     [Fact]
+    public async Task ProxyCategoryAndClusterFilters_SelectProxyEntries_WithoutQueryChanges()
+    {
+        // PAUD-4 backend half: "proxy" parses like every other category name and filters on the derived category.
+        var model = new AuditReadModel();
+        var match = model.Add(T0, "sam", "proxy.update", "shop/configmaps/web", cluster: "dev-1");
+        model.Add(T0, "sam", "proxy.delete", "shop/pods/web-1", cluster: "dev-2");      // other cluster
+        model.Add(T0, "sam", "cluster.updated", "dev-1", cluster: "dev-1");             // other category
+        model.Add(T0, "sam", "proxy.create", "shop/pods", cluster: null);               // denied, no cluster
+
+        var page = await Handle(model, new ListAuditEntriesQuery(Category: "proxy", Cluster: "dev-1"));
+
+        var item = page.Items.ShouldHaveSingleItem();
+        item.Id.ShouldBe(match.Id.Value);
+        item.Category.ShouldBe(AuditCategory.Proxy);
+        (await Handle(model, new ListAuditEntriesQuery(Category: "proxy"))).Items.Count.ShouldBe(3);
+        new ListAuditEntriesValidator().Validate(new ListAuditEntriesQuery(Category: "proxy")).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Details_AreParsedJsonObjects()
     {
         var model = new AuditReadModel();

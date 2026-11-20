@@ -23,6 +23,7 @@ import {
   matchesClusterFilters,
 } from './clusterFilters';
 import { CLUSTER_COLUMN_COUNT, ClusterRow } from './ClusterRow';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Path of the register form (T-0034). */
 const REGISTER_PATH = '/admin/clusters/new';
@@ -67,7 +68,7 @@ export function ClustersListPage() {
       <PageSection>
         <Title headingLevel="h1">Clusters</Title>
         <Content component="p">
-          OpenShift clusters FleetConsole can connect to, with their credentials and users.
+          OpenShift clusters {PRODUCT_NAME} can connect to, with their credentials and users.
         </Content>
       </PageSection>
       <PageSection>

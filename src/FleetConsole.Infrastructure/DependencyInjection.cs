@@ -11,6 +11,7 @@ using FleetConsole.Infrastructure.Persistence.Repositories;
 using FleetConsole.Infrastructure.Time;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -71,13 +72,16 @@ public static class DependencyInjection
         builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         builder.Services.AddSingleton<IClock, SystemClock>();
 
-        // Kubernetes: the TLS handler factory is stateless and shared (CP2's client pool will use it too); the probe
-        // client opens a short-lived session per connection test (ADR-0011).
+        // Kubernetes: the TLS handler factory is stateless and shared; the probe client opens a short-lived session per
+        // connection test (ADR-0011); the proxy's forwarding pool keeps one long-lived invoker per cluster, rebuilt when
+        // the cluster's connection settings change, and disposes them all on shutdown (ADR-0020).
+        builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<ClusterTlsHandlerFactory>();
         builder.Services.AddSingleton<IClusterProbeClient>(services => new ClusterProbeClient(
             services.GetRequiredService<ClusterTlsHandlerFactory>(),
             services.GetRequiredService<ILogger<ClusterProbeClient>>(),
             ClusterProbeClient.DefaultRequestTimeout));
+        builder.Services.AddSingleton<IClusterForwardingClients, ClusterForwardingClientPool>();
 
         builder.AddConsoleDataProtection();
         builder.Services.AddSingleton<ITokenProtector, DataProtectionTokenProtector>();

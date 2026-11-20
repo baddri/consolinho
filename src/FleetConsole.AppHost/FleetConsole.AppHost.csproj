@@ -1,6 +1,8 @@
-<Project Sdk="Aspire.AppHost.Sdk/13.6.5">
+<Project Sdk="Microsoft.NET.Sdk">
   <!-- Aspire orchestration for local development: Postgres + DevOAuth emulator + Api + the Vite dev server (web/).
-       Keep the SDK version in step with Aspire.Hosting.* versions in Directory.Packages.props. -->
+       Plain Microsoft.NET.Sdk + the Aspire.Hosting.AppHost package (Aspire.AppHost.Sdk is obsolete since Aspire 17,
+       ADR-0025). Services are added by path (AddDotnetProject), so there are no ProjectReferences here. Running it needs
+       the Aspire CLI bundle (ASPIRE013) at the same version as the Aspire.Hosting.* packages. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>FleetConsole.AppHost</RootNamespace>
@@ -9,12 +11,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.Dotnet" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\FleetConsole.Api\FleetConsole.Api.csproj" />
-    <ProjectReference Include="..\FleetConsole.DevOAuth\FleetConsole.DevOAuth.csproj" />
   </ItemGroup>
 </Project>

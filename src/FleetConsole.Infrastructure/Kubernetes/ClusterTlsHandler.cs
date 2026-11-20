@@ -8,8 +8,9 @@ namespace FleetConsole.Infrastructure.Kubernetes;
 /// and the CA certificates it trusts.
 /// </summary>
 /// <param name="handler">The configured handler. Wrap it in an <see cref="HttpClient"/> (probe) or
-/// <see cref="HttpMessageInvoker"/> (CP2 proxy) with <c>disposeHandler: false</c>; this object owns it.</param>
-/// <param name="tls">Where the callback records rejected certificates, for failure classification.</param>
+/// <see cref="HttpMessageInvoker"/> (forwarding pool) with <c>disposeHandler: false</c>; this object owns it.</param>
+/// <param name="tls">Where the callback records rejected certificates, for failure classification (stays empty for
+/// forwarding handlers, ADR-0020 §3).</param>
 /// <param name="trustedCertificates">The parsed CA bundle, owned and disposed by this object.</param>
 internal sealed class ClusterTlsHandler(
     SocketsHttpHandler handler, TlsValidationRecord tls, X509Certificate2Collection? trustedCertificates) : IDisposable

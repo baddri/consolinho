@@ -60,7 +60,7 @@ public sealed class AuthenticationSetupTests
 
         using var response = await SendWithCookieAsync(client, "/admin", cookie);
 
-        await ShouldBeProblemAsync(response, HttpStatusCode.Forbidden, "Auth.Forbidden", "You don't have access to Administration.");
+        await ShouldBeProblemAsync(response, HttpStatusCode.Forbidden, "Auth.Forbidden", "You don't have access to Fleet administration.");
         response.Headers.Location.ShouldBeNull();
     }
 

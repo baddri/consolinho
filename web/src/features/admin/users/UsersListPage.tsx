@@ -24,6 +24,7 @@ import {
   USER_FILTERS,
 } from './userFilters';
 import { USER_COLUMN_COUNT, UserRow } from './UserRow';
+import { PRODUCT_NAME } from '@/shared/branding';
 
 type SortColumn = 'username' | 'lastLogin';
 
@@ -58,7 +59,7 @@ export function UsersListPage() {
       <PageSection>
         <Title headingLevel="h1">Users</Title>
         <Content component="p">
-          Everyone who has logged in to FleetConsole or was added by an administrator.
+          Everyone who has logged in to {PRODUCT_NAME} or was added by an administrator.
         </Content>
       </PageSection>
       <PageSection>

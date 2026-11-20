@@ -17,6 +17,7 @@ public static class ClustersEndpoints
     /// <returns>The <c>/api/clusters</c> group.</returns>
     public static RouteGroupBuilder MapClustersEndpoints(this IEndpointRouteBuilder api)
     {
+        ArgumentNullException.ThrowIfNull(api);
         var group = api.MapGroup("/clusters").WithTags("Clusters");
         group.MapGet("", ListMyClusters).WithName("ListMyClusters");
         return group;

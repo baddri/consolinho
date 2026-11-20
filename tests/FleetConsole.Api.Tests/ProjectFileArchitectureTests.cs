@@ -73,14 +73,18 @@ public sealed partial class ProjectFileArchitectureTests
         ProjectReferenceNames(LoadProject("FleetConsole.Api")).ShouldNotContain(DevOAuthProjectName);
     }
 
+    /// <summary>
+    /// No project may reference the emulator: since Aspire 17 (ADR-0025) the AppHost adds it by path
+    /// (<c>AddDotnetProject</c>) instead of a ProjectReference, so nothing can pull it into a deployed build.
+    /// </summary>
     [Fact]
-    public void OnlyTheAppHost_DeclaresDevOAuthProjectReference()
+    public void NoProject_DeclaresDevOAuthProjectReference()
     {
         var referencing = Directory.EnumerateFiles(SourceRoot, "*.csproj", SearchOption.AllDirectories)
             .Where(path => ProjectReferenceNames(XDocument.Load(path)).Contains(DevOAuthProjectName))
             .Select(Path.GetFileNameWithoutExtension);
 
-        referencing.ShouldBe(["FleetConsole.AppHost"]);
+        referencing.ShouldBeEmpty();
     }
 
     [Fact]

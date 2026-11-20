@@ -51,7 +51,7 @@ public sealed class AuthorizationBehaviorTests
         result.Error.ShouldBe(AuthErrors.Forbidden);
         result.Error!.Type.ShouldBe(ErrorType.Forbidden);
         result.Error.Code.ShouldBe("Auth.Forbidden");
-        result.Error.Message.ShouldBe("You don't have access to Administration.");
+        result.Error.Message.ShouldBe("You don't have access to Fleet administration.");
         log.Entries.ShouldNotContain("handler");
     }
 

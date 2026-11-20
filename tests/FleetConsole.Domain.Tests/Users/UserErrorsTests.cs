@@ -21,7 +21,7 @@ public sealed class UserErrorsTests
             UserErrors.AdminViaConfiguration("group fleetconsole-admins"), "Users.AdminViaConfiguration", ErrorType.Conflict,
             "Admin granted by configuration (group fleetconsole-admins). Change the configuration to remove."
         },
-        { UserErrors.Deactivated(), "Users.Deactivated", ErrorType.Forbidden, "Your FleetConsole account is deactivated." },
+        { UserErrors.Deactivated(), "Users.Deactivated", ErrorType.Forbidden, "Your Consolinho account is deactivated." },
     };
 
     [Theory]

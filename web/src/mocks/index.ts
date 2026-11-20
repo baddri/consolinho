@@ -4,3 +4,4 @@ export { mockDb, resetMockDb, type MockDb } from './db';
 export { DEFAULT_MOCK_USER, getMockUser, setMockUser } from './session';
 export { problem, validationProblem, type FieldErrors, type ProblemInit } from './problem';
 export * from './fixtures';
+export { mockK8s, type StoreChange } from './k8s';

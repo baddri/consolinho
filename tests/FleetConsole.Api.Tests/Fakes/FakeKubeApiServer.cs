@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,7 +31,18 @@ public enum FakeServerCertificate
 /// <param name="Query">Query string including <c>?</c>, or empty.</param>
 /// <param name="Authorization">The raw <c>Authorization</c> header, or <see langword="null"/>.</param>
 /// <param name="Body">The request body as text (empty for none).</param>
-public sealed record RecordedRequest(string Method, string Path, string Query, string? Authorization, string Body);
+/// <param name="Headers">Every request header as received (case-insensitive keys); a header sent on several lines has
+/// one value per line, so proxy tests can assert exactly what was forwarded or stripped.</param>
+/// <param name="RawTarget">The request target (path + query) exactly as received, percent-encoding preserved — proxy
+/// tests use it to prove the path was forwarded without re-encoding.</param>
+public sealed record RecordedRequest(
+    string Method,
+    string Path,
+    string Query,
+    string? Authorization,
+    string Body,
+    IReadOnlyDictionary<string, string[]> Headers,
+    string RawTarget);
 
 /// <summary>
 /// A fake Kubernetes API server for tests: real Kestrel on <c>127.0.0.1</c> with a random port and <b>real TLS</b>
@@ -40,7 +52,10 @@ public sealed record RecordedRequest(string Method, string Path, string Query, s
 /// <remarks>
 /// <para>Used by the probe client tests (T-0010), the connection-test endpoint tests (T-0020) and, in CP2, the proxy
 /// tests (forwarded headers, paths, streaming). Routes can be changed while the server runs.</para>
-/// <para>Routes match on method + exact path. Unmatched requests get a Kubernetes-style 404 <c>Status</c> object.
+/// <para>Routes match on method + exact path (<see cref="Map"/>), then on the longest matching path prefix
+/// (<see cref="MapPrefix"/>). A <c>GET</c> with <c>?watch=</c> on a path registered by <see cref="MapWatch"/> is
+/// answered by its <see cref="WatchStream"/> before any other route. Unmatched requests get a Kubernetes-style 404
+/// <c>Status</c> object.
 /// Built-in helpers script the calls the connection test makes (<see cref="MapVersion"/>,
 /// <see cref="MapSelfSubjectReview"/>, <see cref="MapClusterVersion"/>, <see cref="SetAccessReview"/>,
 /// <see cref="MapRulesReview"/>); <see cref="Map"/> covers anything else.</para>
@@ -67,6 +82,12 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     private readonly TestCertificateAuthority _authority;
     private readonly X509Certificate2 _serverCertificate;
     private readonly ConcurrentDictionary<(string Method, string Path), RequestDelegate> _routes = new();
+    private readonly ConcurrentDictionary<(string Method, string Prefix), RequestDelegate> _prefixRoutes = new();
+    private readonly ConcurrentDictionary<string, WatchStream> _watches = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<(string Method, string Path), TimeSpan> _delays = new();
+
+    // Cancelled on dispose, so held-open watches and delayed answers don't make Kestrel's graceful stop wait.
+    private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<(string Verb, string Group, string Resource, string Subresource, string Namespace), (bool Allowed, string? Reason)> _accessReviews = new();
     private readonly ConcurrentQueue<RecordedRequest> _requests = new();
 
@@ -114,6 +135,7 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
 
         var app = builder.Build();
         var server = new FakeKubeApiServer(app, authority, serverCertificate);
+        app.UseWebSockets(); // upgrades (exec/attach/port-forward) are answered by Map handlers via context.WebSockets
         app.Run(server.HandleAsync);
 
         await app.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -129,6 +151,58 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     /// <param name="handler">Writes the response.</param>
     public void Map(string method, string path, RequestDelegate handler) =>
         _routes[(method.ToUpperInvariant(), path)] = handler;
+
+    /// <summary>
+    /// Sets (or replaces) the handler for every <paramref name="method"/> request whose path starts with
+    /// <paramref name="pathPrefix"/> (ordinal). Exact routes (<see cref="Map"/>) win; among prefixes the longest wins.
+    /// </summary>
+    /// <param name="method">HTTP method, e.g. <c>GET</c>.</param>
+    /// <param name="pathPrefix">Path prefix, e.g. <c>/api/v1/namespaces/</c>.</param>
+    /// <param name="handler">Writes the response.</param>
+    public void MapPrefix(string method, string pathPrefix, RequestDelegate handler) =>
+        _prefixRoutes[(method.ToUpperInvariant(), pathPrefix)] = handler;
+
+    /// <summary>
+    /// Answers <c>GET <paramref name="path"/>?watch=…</c> with a held-open, chunked <c>200</c> the test feeds through
+    /// the returned <see cref="WatchStream"/>. Non-watch requests to the same path use the normal routes (so a list and
+    /// a watch can be scripted side by side). Calling it again for the same path returns the same stream.
+    /// </summary>
+    /// <param name="path">Exact path, e.g. <c>/api/v1/namespaces/default/pods</c>.</param>
+    /// <returns>The stream that writes events to the connected client.</returns>
+    public WatchStream MapWatch(string path) => _watches.GetOrAdd(path, _ => new WatchStream(_stopping.Token));
+
+    /// <summary>
+    /// Answers <paramref name="method"/> + <paramref name="path"/> with a fixed status, extra response headers (e.g.
+    /// <c>Set-Cookie</c>, <c>WWW-Authenticate</c> — for tests that the proxy strips or passes them) and a JSON body.
+    /// </summary>
+    /// <param name="method">HTTP method.</param>
+    /// <param name="path">Exact path.</param>
+    /// <param name="status">Status to return.</param>
+    /// <param name="headers">Response headers to set. A <c>Content-Type</c> here is overwritten with
+    /// <c>application/json</c>, as the body is always JSON; use <see cref="Map"/> for other content types.</param>
+    /// <param name="body">Object serialized as JSON (camelCase), or <see langword="null"/> for a Kubernetes <c>Status</c>.</param>
+    public void RespondWithHeaders(string method, string path, int status, IDictionary<string, string> headers, object? body = null)
+    {
+        var copy = new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
+        Map(method, path, context =>
+        {
+            foreach (var (name, value) in copy)
+            {
+                context.Response.Headers.Append(name, value);
+            }
+
+            return WriteJsonAsync(context, status, body ?? StatusObject(status));
+        });
+    }
+
+    /// <summary>
+    /// Holds every <paramref name="method"/> + <paramref name="path"/> request for <paramref name="delay"/> before it
+    /// is routed as usual — for timeout tests. The wait ends early (without a response) when the client aborts.
+    /// </summary>
+    /// <param name="method">HTTP method.</param>
+    /// <param name="path">Exact path.</param>
+    /// <param name="delay">How long to wait before answering.</param>
+    public void Delay(string method, string path, TimeSpan delay) => _delays[(method.ToUpperInvariant(), path)] = delay;
 
     /// <summary>Sets a GET handler.</summary>
     /// <param name="path">Exact path.</param>
@@ -216,10 +290,12 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     /// <returns>A task that completes when the server has stopped.</returns>
     public async ValueTask DisposeAsync()
     {
+        await _stopping.CancelAsync().ConfigureAwait(false);
         await _app.StopAsync().ConfigureAwait(false);
         await _app.DisposeAsync().ConfigureAwait(false);
         _serverCertificate.Dispose();
         _authority.Dispose();
+        _stopping.Dispose();
     }
 
     private async Task HandleAsync(HttpContext context)
@@ -227,20 +303,60 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
         var request = context.Request;
         using var reader = new StreamReader(request.Body);
         var body = await reader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false);
+        var path = request.Path.Value ?? "";
+        var headers = request.Headers.ToDictionary(
+            header => header.Key, header => header.Value.Select(value => value ?? "").ToArray(), StringComparer.OrdinalIgnoreCase);
         _requests.Enqueue(new RecordedRequest(
-            request.Method, request.Path.Value ?? "", request.QueryString.Value ?? "",
-            request.Headers.Authorization.Count > 0 ? request.Headers.Authorization.ToString() : null, body));
+            request.Method, path, request.QueryString.Value ?? "",
+            request.Headers.Authorization.Count > 0 ? request.Headers.Authorization.ToString() : null, body,
+            headers, context.Features.Get<IHttpRequestFeature>()?.RawTarget ?? path + request.QueryString.Value));
 
         // Handlers that need the body (access reviews) read it again from here.
         context.Items[BodyItemKey] = body;
 
-        if (_routes.TryGetValue((request.Method, request.Path.Value ?? ""), out var handler))
+        if (_delays.TryGetValue((request.Method, path), out var delay))
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, _stopping.Token);
+            try
+            {
+                await Task.Delay(delay, linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // The client gave up (the timeout under test) or the server is stopping: nobody reads an answer.
+                return;
+            }
+        }
+
+        if (HttpMethods.IsGet(request.Method) && request.Query.ContainsKey("watch") && _watches.TryGetValue(path, out var watch))
+        {
+            await watch.ServeAsync(context).ConfigureAwait(false);
+            return;
+        }
+
+        var handler = FindHandler(request.Method, path);
+        if (handler is not null)
         {
             await handler(context).ConfigureAwait(false);
             return;
         }
 
         await WriteJsonAsync(context, 404, StatusObject(404)).ConfigureAwait(false);
+    }
+
+    /// <summary>Exact route first, then the longest prefix route for the method; null when nothing matches.</summary>
+    private RequestDelegate? FindHandler(string method, string path)
+    {
+        if (_routes.TryGetValue((method, path), out var exact))
+        {
+            return exact;
+        }
+
+        return _prefixRoutes
+            .Where(route => route.Key.Method == method && path.StartsWith(route.Key.Prefix, StringComparison.Ordinal))
+            .OrderByDescending(route => route.Key.Prefix.Length)
+            .Select(route => route.Value)
+            .FirstOrDefault();
     }
 
     private const string BodyItemKey = "fake-kube-apiserver.body";

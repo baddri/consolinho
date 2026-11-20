@@ -11,6 +11,7 @@ import {
   type MockGrant,
   type MockUser,
 } from './fixtures';
+import { resetK8sStore } from './k8s/store';
 import { getMockUser } from './session';
 
 /** The stateful in-memory store of the mock backend. Handlers mutate it; tests may read it to assert side effects. */
@@ -40,9 +41,10 @@ export const mockDb: MockDb = seed();
 const FIRST_RUNTIME_ID = 0x900000;
 let nextId = FIRST_RUNTIME_ID;
 
-/** Restores the fixture state (runs after every test, `test/setup.ts`). */
+/** Restores the fixture state, including the mock clusters' objects, and closes open watches (`test/setup.ts`). */
 export function resetMockDb(): void {
   Object.assign(mockDb, seed());
+  resetK8sStore();
   nextId = FIRST_RUNTIME_ID;
 }
 
