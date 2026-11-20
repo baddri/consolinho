@@ -14,6 +14,7 @@ Auditors filter the audit log by the new `proxy` category and by cluster, and re
 outcome (PAUD-4, US-10). The mock proxy records audit entries so the whole flow works in `dev:mock`.
 
 ## Scope
+- Optional T-0070 mock nit: `web/src/mocks/k8s/apiServer.ts:~356` → `body?.spec?.resourceAttributes` (no 500 on SSAR without spec).
 - In: regenerate `schema.gen.ts` once the BE audit enums land (`npm run gen:api`, or hand-sync from the contract if
   the Api can't run — then note it); `CATEGORIES` gains `proxy`; proxy rows show the target + an outcome label; mock
   fixtures (a few proxy entries incl. a denied one) and the mock proxy's `onProxyMutation` hook (T-0070) writing

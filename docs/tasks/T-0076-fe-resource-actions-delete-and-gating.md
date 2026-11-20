@@ -15,6 +15,8 @@ and the details Actions menu, disabled with the first applicable reason, and a d
 cluster and its environment (SW-10).
 
 ## Scope
+- From T-0070 review: SSAR (`useCanI`) reflects only the cluster RBAC of the assigned SA. Write actions must ALSO
+  be gated on the grant's `accessMode` (ReadOnly) and the user's `isReadOnly`, with the matching reason text.
 - In: `actions/{useResourceAccess.ts,ResourceActionsMenu.tsx,ResourceRowActions.tsx,DeleteResourceModal.tsx,useDeleteResource.ts}`,
   wiring into the list table rows and the details header slot.
 - Out: YAML save gating UI (T-0077 consumes `useResourceAccess`), scale/restart/labels actions (CP4).
