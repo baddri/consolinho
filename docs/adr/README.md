@@ -30,3 +30,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0022 | Kubernetes data layer: list + watch in TanStack Query, error mapping, access checks | Accepted |
 | 0023 | Resource registry, OCP-shaped routes and generic resource pages | Accepted |
 | 0024 | YAML editor: PatternFly CodeEditor with a bundled, lazy-loaded Monaco | Accepted |
+| 0025 | Upgrade Aspire 13.6.5 → 17.0.0 (Microsoft.NET.Sdk AppHost, AddDotnetProject) | Accepted |

@@ -8,10 +8,16 @@
     <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
-  <!-- Aspire hosting (AppHost only). 13.6.5+ required (GHSA-f7vh-h5g3-7jrh). Keep in step with the Aspire.AppHost.Sdk version in the AppHost csproj. -->
+  <!--
+    Aspire hosting (AppHost only), all on one version (ADR-0025). The AppHost is a plain Microsoft.NET.Sdk project:
+    Aspire.Hosting.AppHost replaces the obsolete Aspire.AppHost.Sdk, Aspire.Hosting.Dotnet provides AddDotnetProject.
+    The installed Aspire CLI (the bundle C# AppHosts require) must match this version.
+  -->
   <ItemGroup>
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
-    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.Dotnet" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="17.0.0" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="17.0.0" />
   </ItemGroup>
 
   <!--
@@ -20,6 +26,9 @@
     referenced by the Api (the migrations startup project) with PrivateAssets=all.
   -->
   <ItemGroup>
+    <!-- Stays on 13.6.5 (ADR-0025): Aspire 17.0.0 ships this package only as a preview (its net11.0 target depends on
+         Npgsql EF Core 11 RCs). Client integrations only read the connection string the AppHost injects, so they need not
+         match the hosting version. Move to the first stable 17.x when it ships. -->
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.5" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
     <!-- Data Protection key ring persisted in the console database (ADR-0004; MIT). Same release train as the shared framework. -->

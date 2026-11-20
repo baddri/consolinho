@@ -1,6 +1,6 @@
 # Troubleshooting the local dev workflow
 
-Problems actually hit while setting up and running FleetConsole locally (Fedora, rootless podman 5, Aspire CLI 13.6),
+Problems actually hit while setting up and running FleetConsole locally (Fedora, rootless podman 5, Aspire CLI 13.6, since T-0063 Aspire CLI 17.0),
 with the fix. Add new entries when you hit something; keep each one short: symptom, cause, fix.
 
 ## Integration tests fail with `DockerUnavailableException`
@@ -56,11 +56,14 @@ After `aspire stop` (or SIGTERM), DCP needs a few seconds to stop the Api/Vite p
 container. Check with `aspire ps`, `pgrep -af 'dcp|FleetConsole'` and `podman ps`. The Postgres **volume**
 (`fleetconsole.apphost-<hash>-postgres-data`) is kept on purpose; `podman volume rm` it to start from an empty database.
 
-## "A new version of Aspire is available: 17.0.0"
+## "A new version of Aspire is available" / the AppHost won't start after pulling T-0063
 
-Ignore it. **Don't run `aspire update`**: it updates the Aspire package references in the repo. The stack is pinned to
-Aspire 13 (ADR-0001); moving to a new major needs an ADR. The `Aspire.AppHost.Sdk/<version>` in the AppHost csproj and
-the `Aspire.Hosting.*` versions in `Directory.Packages.props` must stay in step.
+The repo is on Aspire 17.0.0 (ADR-0025) and needs the **matching CLI**. Install/repin it with
+`curl -sSL https://aspire.dev/install.sh | bash -s -- --version 17.0.0` (add `--skip-path` if `~/.aspire/bin` is
+already on PATH), then check `aspire --version`. A 13.x CLI can't run the AppHost. **Don't run `aspire update`** for
+a newer version without a task: it rewrites the repo's Aspire package references. All `Aspire.Hosting.*` versions in
+`Directory.Packages.props` stay in step; `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` is deliberately on 13.6.5
+until a stable 17.x exists. Build error ASPIRE013 means `AspireUseCliBundle` was removed/false in the AppHost csproj.
 
 ## Inspecting the dev database
 

@@ -21,7 +21,7 @@ assigned to that user for that cluster. Tokens are stored encrypted and never re
 | Tool | Version | Notes |
 |---|---|---|
 | .NET SDK | 10.0.100 or newer 10.0.x | pinned by `global.json` (`rollForward: latestFeature`) |
-| Aspire CLI | 13.x (verified with 13.6.4) | `curl -sSL https://aspire.dev/install.sh \| bash` or `dotnet tool install -g Aspire.Cli`. The CLI may announce a newer major version: **don't run `aspire update`** (it rewrites the repo's Aspire package versions; the stack is pinned to Aspire 13, see ADR-0001). |
+| Aspire CLI | **17.0.0** (must match the `Aspire.Hosting.*` versions) | `curl -sSL https://aspire.dev/install.sh \| bash -s -- --version 17.0.0` (installs the CLI bundle to `~/.aspire`; the C# AppHost requires the bundle, so use this script rather than the dotnet tool). Check with `aspire --version`. **Don't run `aspire update`** without a task: it rewrites the repo's Aspire package versions (ADR-0025). |
 | Node.js | 22.22 or newer (npm included) | `web/package.json` `engines` |
 | podman | 5.x | there is no Docker on the dev machines; Aspire and Testcontainers use podman's Docker-compatible socket |
 
@@ -86,7 +86,8 @@ aspire describe                     # resources, state, health and URLs
 aspire stop                         # stops the AppHost; Postgres container is removed (volume kept)
 ```
 
-Fallback without the Aspire CLI: `dotnet run --project src/FleetConsole.AppHost --launch-profile http` (stop it with
+Fallback without the `aspire` command: `dotnet run --project src/FleetConsole.AppHost --launch-profile http` (since
+Aspire 17 this still needs the installed CLI bundle in `~/.aspire`, ADR-0025; not re-verified in T-0063; stop it with
 Ctrl+C, or SIGTERM when backgrounded; see [docs/dev/TROUBLESHOOTING.md](docs/dev/TROUBLESHOOTING.md)).
 
 Quick check that it works:
