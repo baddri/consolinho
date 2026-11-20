@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
-import type { K8sModel, K8sResource } from '@/shared/k8s';
+import { PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
 import { LabelList, RelativeTime } from '@/shared/ui';
 import { ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
@@ -56,6 +56,33 @@ export function ageColumn<T extends K8sResource>(): ColumnDef<T> {
     cell: (obj) => <RelativeTime value={obj.metadata.creationTimestamp ?? null} />,
     sortValue: (obj) => timestampValue(obj.metadata.creationTimestamp),
   };
+}
+
+/** `matchLabels` as a label-selector string (`app=web,tier=front`); empty string without labels. */
+export function labelSelectorString(matchLabels: Record<string, string> | undefined): string {
+  return Object.entries(matchLabels ?? {})
+    .map(([key, value]) => `${key}=${value}`)
+    .join(',');
+}
+
+/** Props for {@link PodSelectorLink}. */
+export interface PodSelectorLinkProps {
+  /** Namespace of the selecting object (Deployment, Service); the pods are in the same one. */
+  namespace: string | undefined;
+  matchLabels: Record<string, string> | undefined;
+}
+
+/**
+ * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2); "—" without a selector,
+ * plain text outside a cluster or namespace.
+ */
+export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps) {
+  const cluster = useActiveCluster();
+  const selector = labelSelectorString(matchLabels);
+  if (selector === '') return <>—</>;
+  if (cluster === undefined || namespace === undefined) return <>{selector}</>;
+  const search = new URLSearchParams({ label: selector }).toString();
+  return <Link to={resourcePath(cluster, PodModel, { namespace, search })}>{selector}</Link>;
 }
 
 /** Labels column: `key=value` labels, collapsed after three. Not sortable. */

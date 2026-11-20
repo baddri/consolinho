@@ -23,11 +23,10 @@ describe('routes', () => {
     async () => {
       const { router } = renderApp('/');
 
-      // Projects get their descriptor in T-0078; until then the page is the "not supported" state.
       expect(
         await screen.findByRole(
           'heading',
-          { name: 'Kind not supported yet', level: 1 },
+          { name: 'Projects', level: 1 },
           { timeout: COLD_START_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
@@ -56,12 +55,9 @@ describe('routes', () => {
   });
 
   it('renders cluster-scoped details routes', async () => {
-    // Namespaces get their descriptor in T-0078; until then the page is the "not supported" state.
-    renderApp('/c/dev-1/k8s/cluster/namespaces/web-1');
+    renderApp('/c/dev-1/k8s/cluster/namespaces/shop');
 
-    expect(
-      await screen.findByRole('heading', { name: 'Kind not supported yet', level: 1 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'shop', level: 1 })).toBeInTheDocument();
   });
 
   it.each([

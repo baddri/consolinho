@@ -1,7 +1,11 @@
 import { apiVersionOf } from '@/shared/k8s';
 import { configMapDescriptor } from './kinds/configmaps';
+import { deploymentDescriptor } from './kinds/deployments';
 import { eventDescriptor } from './kinds/events';
+import { namespaceDescriptor } from './kinds/namespaces';
 import { podDescriptor } from './kinds/pods';
+import { projectDescriptor } from './kinds/projects';
+import { serviceDescriptor } from './kinds/services';
 import type { ResourceDescriptor } from './types';
 
 /**
@@ -12,7 +16,15 @@ import type { ResourceDescriptor } from './types';
  * so the modules import each other in a cycle and a descriptor may not be initialised yet while this module loads.
  */
 export function resourceDescriptors(): readonly ResourceDescriptor[] {
-  registry ??= [podDescriptor, configMapDescriptor, eventDescriptor];
+  registry ??= [
+    projectDescriptor,
+    eventDescriptor,
+    podDescriptor,
+    deploymentDescriptor,
+    configMapDescriptor,
+    serviceDescriptor,
+    namespaceDescriptor,
+  ];
   return registry;
 }
 

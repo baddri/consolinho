@@ -44,7 +44,7 @@ describe('AppShell', () => {
     const sections = within(nav)
       .getAllByRole('button')
       .map((button) => button.textContent);
-    expect(sections).toEqual(['Home', 'Workloads', 'Fleet administration']);
+    expect(sections).toEqual(['Home', 'Workloads', 'Networking', 'Administration', 'Fleet administration']);
     const events = within(nav).getByRole('link', { name: 'Events' });
     expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
     expect(events).toHaveAttribute('aria-current', 'page');
