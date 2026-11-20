@@ -52,6 +52,10 @@ builder.AddKubernetesProxy();
 // Export the per-request spans created by the Application layer's LoggingBehavior alongside ASP.NET Core's.
 builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddSource(ApplicationDiagnostics.ActivitySourceName));
 
+// Last before Build: no service registered after this may re-add Data Protection's start-time key-ring load (T-0106),
+// which would block Kestrel for ~60 s when the database is down at container start.
+builder.LoadDataProtectionKeyRingInBackground();
+
 var app = builder.Build();
 
 // `migrate` (ADR-0027): apply database migrations and exit, before the host starts (no start-time validation).

@@ -34,3 +34,11 @@ idempotent step that runs before a new version serves traffic, blocks the rollou
 - A failed migration leaves the new pod in `Init:Error`/`Init:CrashLoopBackOff`; with `maxUnavailable: 0` the old pods
   keep serving and `oc logs <pod> -c migrate` shows the error (DB-2).
 - Every pod start opens one extra short DB connection; negligible.
+
+## Amendment (2026-11-21, T-0106) — pod started during a database outage
+A pod created while the database is unreachable stays in `Init:Error`/`Init:CrashLoopBackOff`: `migrate` fails after
+EF's ~60 s of retries and kubelet restarts the init container with its back-off (capped at 5 min). **Accepted**, no extra
+wait/retry loop in `migrate`: the server container never starts against a schema of unknown state, it isn't
+restarted itself, the pod self-heals on the first init retry after the database returns (at most ~5 min later), and
+with `maxUnavailable: 0` running pods keep serving (a rollout just stalls). A longer in-process retry would only trade
+kubelet's back-off for our own and hide the state from `oc get pods`. Documented in RUNBOOK §9.

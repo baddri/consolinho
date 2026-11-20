@@ -51,3 +51,17 @@ router) and must be probed by the kubelet. SECURITY.md left a follow-up: the req
   OAuth, temp DP certificate, temp web root with `index.html` and a hashed asset) for HOST-1/2/3/5 and PRB-1/2.
 - `/health` and `/alive` join the anonymous surface (ADR-0012 list/tests).
 - If the console is ever run behind a proxy that rewrites paths, revisit (out of scope).
+
+## Amendment (2026-11-21, T-0106) — the database never gates liveness
+- The framework's Data Protection hosted service (synchronous key-ring read before Kestrel binds) is removed and
+  replaced by `KeyRingWarmupService` (background, failure only logged), via `LoadDataProtectionKeyRingInBackground()`,
+  the **last** call before `Build()` (any later `AddDataProtection`/`AddAuthentication` re-adds the blocking service;
+  `ProductionProbeTests.KeyRingLoad_IsNotOnTheStartupPath` guards this, the helper throws if the framework type is
+  renamed). Key protection is unchanged: the certificate encryptor applies to every load; a first key is created
+  encrypted, as before; concurrent first-key creation across replicas is the same benign framework race as before (two
+  valid encrypted keys).
+- The DbContext readiness check has a 2 s `Timeout` (< the 3 s readiness probe timeout), so `/health` answers 503.
+- **Accepted:** during an outage a request that needs the key ring (session cookie) may wait up to ~60 s on EF's
+  retries when the ring isn't cached yet (pod started during the outage). No extra bound: such a pod is NotReady, so the
+  Service routes no user traffic to it, and `/alive` uses no Data Protection. A pod with a cached ring keeps using it
+  while a refresh retries. Revisit if a non-Service client (e.g. direct pod access) ever matters.

@@ -64,6 +64,44 @@ internal static class DataProtectionSetup
         AddDecryptionCertificates(dataProtection);
     }
 
+    /// <summary>Full name of the framework's internal hosted service that loads the key ring synchronously on start.</summary>
+    private const string FrameworkKeyRingHostedServiceName = "Microsoft.AspNetCore.DataProtection.Internal.DataProtectionHostedService";
+
+    /// <summary>
+    /// Replaces the framework's start-time key-ring load with <see cref="KeyRingWarmupService"/>, which loads it in the
+    /// background (T-0106, ADR-0028 §2).
+    /// </summary>
+    /// <remarks>
+    /// The framework's hosted service reads the key ring inside <c>StartAsync</c>, i.e. before Kestrel binds. With the
+    /// database unreachable that read waits for EF's retrying execution strategy (~60 s), so <c>/alive</c> stays
+    /// unanswered and the startup probe restarts the pod. Loading lazily changes nothing about key protection: the
+    /// encryptor and decryptors configured above apply to every load, whenever it happens.
+    /// <para>Every <c>AddDataProtection</c> call (e.g. by <c>AddAuthentication</c>) re-adds the framework service, so this
+    /// must run after all service registrations. If a framework update renames the service, this throws at startup
+    /// rather than silently bringing the blocking load back.</para>
+    /// </remarks>
+    /// <param name="services">The complete service collection.</param>
+    public static void LoadKeyRingInBackground(IServiceCollection services)
+    {
+        var frameworkLoaders = services
+            .Where(descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType?.FullName == FrameworkKeyRingHostedServiceName)
+            .ToList();
+        if (frameworkLoaders.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"'{FrameworkKeyRingHostedServiceName}' is not registered; call this after AddDataProtection, and check " +
+                "whether a framework update renamed it (T-0106).");
+        }
+
+        foreach (var descriptor in frameworkLoaders)
+        {
+            services.Remove(descriptor);
+        }
+
+        services.AddHostedService<KeyRingWarmupService>();
+    }
+
     /// <summary>
     /// Registers the loaded certificates for key decryption, so keys can be read back without a machine certificate store.
     /// </summary>
