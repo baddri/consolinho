@@ -13,7 +13,7 @@ browser (MVP) · **Branch:** `cp/2-proxy-browser`
 
 ## Next actions (resume here)
 1. (done) branch created; ROADMAP CP2 → `in_progress`.
-2. SPEC done (`docs/specs/CP2-proxy-and-resource-browser.md`). DESIGN in progress: BE architect (T-0056..69, ADR 0019–21, `CP2-api-contract.md`) + FE architect (T-0070..89, ADR 0022–24). T-0053 done (c3c7102), T-0055 Consolinho rebrand done (6c84565).
+2. SPEC done. BE DESIGN done (ADR-0019..21, `docs/specs/CP2-api-contract.md`, T-0056..62; order: 56/57/58 ∥ → 59/60 ∥ → 61 → 62 QA). FE DESIGN in progress (T-0070.., ADR-0022..24 written). BUILD: T-0056/57/58 running in agent worktrees (uncommitted there). T-0053, T-0055 done.
    matrix extended to proxy routes; proxy strips the client `Authorization` header; switcher search/recents.
 3. DESIGN → BUILD per SDLC. CP2 tasks already filed: T-0053 (rename admin area to "Fleet administration"),
    T-0054 (Playwright smoke H1–H4, self-seeding).
