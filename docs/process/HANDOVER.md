@@ -61,6 +61,7 @@ committing either.
   0.29.0 fails to install; `typescript-language-server` in `~/.local`), hook `.claude/hooks/guard-bulk-cat.py` blocks
   unfiltered `cat` > 40 KB. Delegation prompts carry a *context pack* (SDLC.md).
   Worktrees on older bases lack `scripts/`: run `/home/bad/works/console/scripts/check-*.sh` from inside the worktree.
+- Agents' background wait loops: never `pgrep -f <name>` inside `bash -c` — it matches the loop's own command line and never exits (a reviewer loop ran 5 h on 2026-11-20).
 - **Subagents: read-only git only** in the shared tree (SDLC.md). Orchestrator commits by explicit paths.
 - Project agents (`.claude/agents/`) are available natively in a new session. Usage limits stop agents mid-task — within a
   session resume with SendMessage; across sessions start a new agent from the task file's Handover notes.
