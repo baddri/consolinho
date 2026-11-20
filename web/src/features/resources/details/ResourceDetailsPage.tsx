@@ -14,6 +14,7 @@ import {
 import type { ReactNode } from 'react';
 import { Navigate, Outlet, useNavigate } from 'react-router';
 import { apiVersionOf, useK8sDiscovery, useK8sGet, type K8sResource } from '@/shared/k8s';
+import { ResourceActionsMenu } from '../actions/ResourceActionsMenu';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { ResourcePageSkeleton } from '../components/ResourcePageSkeleton';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
@@ -154,13 +155,17 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 
   return (
     <>
-      {/* T-0076: the Actions dropdown goes into the header's `actions` slot. */}
       <ResourceHeader
         cluster={cluster}
         model={model}
         namespace={namespace}
         name={name}
         status={obj && descriptor.status?.(obj)}
+        actions={
+          obj && (
+            <ResourceActionsMenu cluster={cluster} descriptor={descriptor} namespace={namespace} name={name} />
+          )
+        }
       />
       {body}
     </>

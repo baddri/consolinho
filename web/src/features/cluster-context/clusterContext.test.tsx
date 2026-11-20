@@ -255,7 +255,9 @@ describe('ClusterSwitcher keeps context (SW-9)', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-2/k8s/ns/shop/pods'));
     expect(router.state.location.search).toBe('?label=app%3Dweb');
-    expect(screen.getByRole('button', { name: 'Cluster dev-2 (dev), switch cluster' })).toHaveFocus();
+    // The switcher re-renders with the new cluster after the navigation commits; wait for its new name and focus.
+    const toggle = await screen.findByRole('button', { name: 'Cluster dev-2 (dev), switch cluster' });
+    await waitFor(() => expect(toggle).toHaveFocus());
   });
 
   it('goes to the cluster root from a non-cluster page', async () => {

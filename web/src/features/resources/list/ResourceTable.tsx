@@ -16,6 +16,8 @@ export interface ResourceTableProps {
   isPending: boolean;
   /** A `TableEmptyRow` to show instead of rows, if any. */
   emptyRow?: ReactNode;
+  /** The trailing actions cell (`<Td isActionCell>`) of a row (T-0076: `ResourceRowActions`); none without it. */
+  rowActions?: (obj: K8sResource) => ReactNode;
 }
 
 /** Stable React key of a listed object. */
@@ -24,8 +26,8 @@ function rowKey(obj: K8sResource): string {
 }
 
 /**
- * Compact composable PF table of descriptor columns: sortable headers for columns with `sortValue`, skeleton rows
- * while pending, or the given empty row. Rendering only one page keeps 2,000-object lists responsive (DATA-4).
+ * Compact composable PF table of descriptor columns: sortable headers for columns with `sortValue`, an optional
+ * trailing actions column, skeleton rows while pending, or the given empty row. Rendering only one page keeps 2,000-object lists responsive (DATA-4).
  */
 export function ResourceTable({
   ariaLabel,
@@ -34,6 +36,7 @@ export function ResourceTable({
   sortProps,
   isPending,
   emptyRow,
+  rowActions,
 }: ResourceTableProps) {
   return (
     <Table aria-label={ariaLabel} variant="compact">
@@ -48,10 +51,11 @@ export function ResourceTable({
               {column.title}
             </Th>
           ))}
+          {rowActions && <Th screenReaderText="Actions" />}
         </Tr>
       </Thead>
       <Tbody>
-        {isPending && <TableSkeletonRows columns={columns.length} />}
+        {isPending && <TableSkeletonRows columns={columns.length + (rowActions ? 1 : 0)} />}
         {!isPending && emptyRow}
         {!isPending &&
           !emptyRow &&
@@ -62,6 +66,7 @@ export function ResourceTable({
                   {column.cell(obj)}
                 </Td>
               ))}
+              {rowActions?.(obj)}
             </Tr>
           ))}
       </Tbody>

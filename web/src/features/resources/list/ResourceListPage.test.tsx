@@ -313,6 +313,7 @@ describe('resource list filters and sorting (UI-3)', () => {
       'Restarts',
       'Owner',
       'Created',
+      'Actions',
     ]);
     expect(within(all).getAllByRole('link', { name: 'shop' })[0]).toHaveAttribute(
       'href',
@@ -325,7 +326,15 @@ describe('resource list filters and sorting (UI-3)', () => {
     const table = await findTable('Pods');
     await within(table).findByText(CRASHING_POD);
 
-    expect(columnHeaders(table)).toEqual(['Name', 'Status', 'Ready', 'Restarts', 'Owner', 'Created']);
+    expect(columnHeaders(table)).toEqual([
+      'Name',
+      'Status',
+      'Ready',
+      'Restarts',
+      'Owner',
+      'Created',
+      'Actions',
+    ]);
     expect(within(table).getByRole('link', { name: CRASHING_POD })).toHaveAttribute(
       'href',
       `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`,

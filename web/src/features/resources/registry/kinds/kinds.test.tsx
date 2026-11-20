@@ -69,7 +69,14 @@ describe('deployments (QG-3)', () => {
         { name: 'Deployments' },
         { timeout: COLD_START_TIMEOUT_MS },
       );
-      expect(columnHeaders(table)).toEqual(['Name', 'Status', 'Labels', 'Pod selector', 'Created']);
+      expect(columnHeaders(table)).toEqual([
+        'Name',
+        'Status',
+        'Labels',
+        'Pod selector',
+        'Created',
+        'Actions',
+      ]);
       const row = await findRow(table, 'web');
       expect(within(row).getByText('2 of 3 pods')).toBeInTheDocument();
       expect(within(row).getByRole('link', { name: 'app=web' })).toHaveAttribute('href', PODS_OF_WEB);
@@ -109,7 +116,7 @@ describe('services (QG-3)', () => {
     renderApp('/c/dev-1/k8s/ns/shop/services');
 
     const table = await screen.findByRole('grid', { name: 'Services' });
-    expect(columnHeaders(table)).toEqual(['Name', 'Type', 'Cluster IP', 'Ports', 'Selector']);
+    expect(columnHeaders(table)).toEqual(['Name', 'Type', 'Cluster IP', 'Ports', 'Selector', 'Actions']);
     const row = await findRow(table, 'web');
     expect(within(row).getByText('ClusterIP')).toBeInTheDocument();
     expect(within(row).getByText('80/TCP → 8080')).toBeInTheDocument();
@@ -131,7 +138,14 @@ describe('projects and namespaces (QG-3)', () => {
     renderApp('/c/dev-1/k8s/cluster/projects');
 
     const table = await screen.findByRole('grid', { name: 'Projects' });
-    expect(columnHeaders(table)).toEqual(['Name', 'Display name', 'Status', 'Requester', 'Created']);
+    expect(columnHeaders(table)).toEqual([
+      'Name',
+      'Display name',
+      'Status',
+      'Requester',
+      'Created',
+      'Actions',
+    ]);
     const shop = await findRow(table, 'shop');
     expect(within(shop).getByText('Web shop')).toBeInTheDocument();
     expect(within(shop).getByText('Active')).toBeInTheDocument();
@@ -151,7 +165,7 @@ describe('projects and namespaces (QG-3)', () => {
     const { user } = renderApp('/c/dev-1/k8s/cluster/namespaces');
 
     const table = await screen.findByRole('grid', { name: 'Namespaces' });
-    expect(columnHeaders(table)).toEqual(['Name', 'Display name', 'Status', 'Created']);
+    expect(columnHeaders(table)).toEqual(['Name', 'Display name', 'Status', 'Created', 'Actions']);
     await user.click(within(await findRow(table, 'default')).getByRole('link', { name: 'default' }));
 
     const details = await screen.findByLabelText('Namespace details');

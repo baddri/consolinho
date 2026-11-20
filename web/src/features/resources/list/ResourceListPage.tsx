@@ -17,6 +17,7 @@ import { NamespaceSelector, useLastNamespace } from '@/features/cluster-context'
 import { apiVersionOf, useK8sDiscovery, useK8sList, type K8sResource } from '@/shared/k8s';
 import { TableEmptyRow, useClientSort, type SortValue } from '@/shared/table';
 import { KindBadge } from '../components/KindBadge';
+import { ResourceRowActions } from '../actions/ResourceRowActions';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { ResourcePageSkeleton } from '../components/ResourcePageSkeleton';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
@@ -202,12 +203,13 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
               rows={pageRows}
               sortProps={sortProps}
               isPending={list.isPending}
+              rowActions={(obj) => <ResourceRowActions cluster={cluster} descriptor={descriptor} obj={obj} />}
               emptyRow={
                 sorted.length === 0 && (
                   <ListEmptyRow
                     descriptor={descriptor}
                     namespace={namespace}
-                    colSpan={columns.length}
+                    colSpan={columns.length + 1}
                     isFiltered={filters.isFiltered}
                     onClearFilters={filters.clearAll}
                   />
