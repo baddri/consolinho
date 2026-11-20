@@ -20,6 +20,7 @@ import { useLocation, useNavigate } from 'react-router';
 import type { AccessibleCluster } from '@/shared/api';
 import { EnvironmentLabel, environmentLabel } from '@/shared/ui';
 import { clusterSwitchPath } from './clusterSwitchPath';
+import { NoMatchStatus } from './NoMatchStatus';
 import { useAccessibleClusters } from './useAccessibleClusters';
 import { useActiveCluster } from './useActiveCluster';
 import { useRecentClusters } from './useRecentClusters';
@@ -175,6 +176,7 @@ export function ClusterSwitcher() {
             }}
           />
         </MenuSearchInput>
+        <NoMatchStatus text={matches.length === 0 ? `No clusters match "${searchText.trim()}"` : undefined} />
       </MenuSearch>
       <Divider />
       <MenuContent maxMenuHeight="60vh">

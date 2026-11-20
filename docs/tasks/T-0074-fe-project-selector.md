@@ -1,7 +1,7 @@
 ---
 id: T-0074
 title: Project/namespace selector with remembered project, default-project toggle and typed fallback
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 2
 depends_on: [T-0073]
@@ -51,16 +51,42 @@ hidden by default and a typed fallback when the SA can't list projects.
   `NamespaceModel`), mocks: `mockK8s` + `server.use` to force a 403 on the projects list (QG-3 "project selector fallback").
 
 ## Acceptance criteria
-- [ ] NS-1: selector on namespaced lists only; "All projects" + projects of `dev-1`; namespaces on `lab-1`; search filters.
-- [ ] NS-2: choosing `shop` on all-namespaces Pods → `/c/dev-1/k8s/ns/shop/pods` (search kept); nav "Pods" later
+- [x] NS-1: selector on namespaced lists only; "All projects" + projects of `dev-1`; namespaces on `lab-1`; search filters.
+- [x] NS-2: choosing `shop` on all-namespaces Pods → `/c/dev-1/k8s/ns/shop/pods` (search kept); nav "Pods" later
       opens `/k8s/ns/shop/pods`; remembered separately per cluster.
-- [ ] NS-3: projects list 403 → message shown, typing `shop` + Enter navigates to `ns/shop`.
-- [ ] NS-4: `openshift-monitoring`, `kube-system`, `default` hidden until the toggle is on; toggle remembered.
-- [ ] A project created via `mockK8s.upsert` appears in the open menu (live).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] NS-3: projects list 403 → message shown, typing `shop` + Enter navigates to `ns/shop`.
+- [x] NS-4: `openshift-monitoring`, `kube-system`, `default` hidden until the toggle is on; toggle remembered.
+- [x] A project created via `mockK8s.upsert` appears in the open menu (live).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 frontend-engineer: started; ff-merged cp/2-proxy-browser (T-0073).
+- 2026-11-20 frontend-engineer: NamespaceSelector + useLastNamespace/useShowDefaultProjects/useProjectOptions; ProjectBar
+  in list header, NamespaceRedirect uses remembered project; T-0072/T-0073 nits done. Fixed latent mock bug: aborted
+  watches raised undici `!aborted` unhandled errors (watch response now chunked). check-fe green → in_review.
 
 ## Review
+**APPROVE** (frontend-architect, round 1). check-fe green in the worktree (56 files / 626 tests, build ok). NS-1..4 met
+(projects/namespaces source, URL-driven + remembered per cluster, 403 typed fallback with the spec text + DNS-label
+check, default-project toggle per browser). Boundaries right: cluster-context imports only `shared`; resources uses
+cluster-context's public index. Storage goes through `useStoredValue` (try/catch, malformed JSON → nothing remembered);
+a deleted/unreadable remembered project falls back to the list's own empty/"Restricted access" state with the selector
+available — acceptable (spec calls it a hint). Cluster switch keeps path + search (T-0072). Menu `role="listbox"` lands
+on the `ul` (PF MenuList), footer switch outside it; no-match live region fine. Page reset without an effect.
+Merge: `web/src/mocks/k8s/watch.ts` — keep the committed T-0075 version (fe46d9a, same header); drop this worktree's hunk.
+Nits (optional):
+- cluster-context/NamespaceSelector.tsx:19 — import `dnsLabel` from `@/shared/forms` (public index) rather than the module path.
+- resources/list/ResourceListPage.tsx (ProjectBar effect) — skip the write when the stored value already equals `selected` (avoids a redundant storage write per map change).
 
 ## Handover notes
+- `NamespaceSelector` is controlled; `ProjectBar` (in `ResourceListPage.tsx`) maps `onSelect` to `resourcePath` and
+  writes `useLastNamespace` (`"#all"` = all). Not shown for cluster-scoped kinds (none registered yet → untestable).
+- Project list is fetched/watched only while the menu is open (`useProjectOptions(cluster, isOpen)`), waits for
+  discovery; noun "Project" while discovery is pending, "Namespace" on vanilla K8s.
+- NS-3 fallback triggers on any list error without data; Enter validates with `dnsLabel(63)`.
+- `NoMatchStatus` (sr-only `role=status`, PF `pf-v6-screen-reader`) announces "No … match" in both menus.
+- Mock fix outside paths: `mocks/k8s/watch.ts` sends `Transfer-Encoding: chunked`. Any watch abort followed by ≥100 ms
+  of test time raised undici's `assert(!this.aborted)` (MSW ends the unframed body on cancel). Human: confirm the
+  browser MSW worker still streams watches (`npm run dev`, Pods page shows "Live").
+- `app/layout/AppSidebar.tsx`: dropped redundant `aria-current` (PF NavItem sets it on the cloned child).
+

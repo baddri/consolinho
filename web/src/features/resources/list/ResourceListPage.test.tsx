@@ -197,6 +197,13 @@ describe('resource list states (QG-3, UI-10)', () => {
     ).toBeInTheDocument();
   });
 
+  it('redirects a namespaced plural under the cluster scope to all namespaces, keeping the query', async () => {
+    const { router } = renderApp('/c/dev-1/k8s/cluster/pods?name=web');
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/k8s/all-namespaces/pods'));
+    expect(router.state.location.search).toBe('?name=web');
+  });
+
   it('says a registered kind is not available when the cluster does not serve it', async () => {
     server.use(
       http.get('*/api/clusters/:cluster/k8s/api', () =>

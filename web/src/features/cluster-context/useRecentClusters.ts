@@ -32,8 +32,8 @@ export interface RecentClusters {
 /**
  * The user's recently used clusters for the switcher's "Recent" group (SW-8), remembered per user in
  * `localStorage['fleetconsole.recentClusters.<username>']` as a JSON array of names, newest first. Names that are no
- * longer in {@link useAccessibleClusters} are hidden (not pruned, so a re-granted cluster reappears). `ClusterGate`
- * calls `remember` for every granted cluster it shows.
+ * longer in {@link useAccessibleClusters} are hidden, and pruned on the next `remember`. `ClusterGate` calls
+ * `remember` for every granted cluster it shows.
  */
 export function useRecentClusters(): RecentClusters {
   const { data: user } = useCurrentUser();
@@ -49,9 +49,14 @@ export function useRecentClusters(): RecentClusters {
     [names, clusters],
   );
   const remember = useCallback(
-    (name: string) =>
-      setNames([name, ...(names ?? []).filter((other) => other !== name)].slice(0, MAX_RECENT_CLUSTERS)),
-    [names, setNames],
+    (name: string) => {
+      // Drop names the user lost access to (once the list is known) so all slots stay useful.
+      const kept = (names ?? []).filter(
+        (other) => other !== name && (!clusters || clusters.some((cluster) => cluster.name === other)),
+      );
+      setNames([name, ...kept].slice(0, MAX_RECENT_CLUSTERS));
+    },
+    [names, clusters, setNames],
   );
   return { recent, remember };
 }

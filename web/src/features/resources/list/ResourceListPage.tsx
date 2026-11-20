@@ -11,8 +11,9 @@ import {
   type PerPageOptions,
 } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
-import { useDeferredValue, useMemo, useState } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router';
+import { NamespaceSelector, useLastNamespace } from '@/features/cluster-context';
 import { apiVersionOf, useK8sDiscovery, useK8sList, type K8sResource } from '@/shared/k8s';
 import { TableEmptyRow, useClientSort, type SortValue } from '@/shared/table';
 import { KindBadge } from '../components/KindBadge';
@@ -133,7 +134,11 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
   });
 
   const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
-  const [page, setPage] = useState(1);
+  // Back to page 1 whenever the filters change (the namespace remounts the whole list).
+  const filterKey = JSON.stringify([deferredName, filters.labelSelector, filters.selected]);
+  const [paging, setPaging] = useState({ page: 1, filterKey });
+  const page = paging.filterKey === filterKey ? paging.page : 1;
+  const setPage = (next: number) => setPaging({ page: next, filterKey });
   const lastPage = Math.max(1, Math.ceil(sorted.length / perPage));
   const currentPage = Math.min(page, lastPage);
   const pageRows = useMemo(
@@ -165,8 +170,8 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
 
   return (
     <>
+      {model.namespaced && <ProjectBar descriptor={descriptor} cluster={cluster} namespace={namespace} />}
       <PageSection>
-        {/* T-0074: the project/namespace selector (NamespaceSelector) goes here, above the title, for namespaced kinds. */}
         <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
           <FlexItem>
             <KindBadge model={model} />
@@ -214,6 +219,42 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
         )}
       </PageSection>
     </>
+  );
+}
+
+/**
+ * The project selector above a namespaced list (NS-1/NS-2): selecting navigates to the same kind in the chosen
+ * project (or all projects), keeping the query string; the shown project is remembered for the cluster.
+ */
+function ProjectBar({
+  descriptor,
+  cluster,
+  namespace,
+}: {
+  descriptor: ResourceDescriptor;
+  cluster: string;
+  /** A namespace or {@link ALL_NAMESPACES}. */
+  namespace: string | undefined;
+}) {
+  const navigate = useNavigate();
+  const { search } = useLocation();
+  const [, rememberNamespace] = useLastNamespace(cluster);
+  const selected = namespace === ALL_NAMESPACES ? undefined : namespace;
+
+  useEffect(() => rememberNamespace(selected), [rememberNamespace, selected]);
+
+  return (
+    <PageSection>
+      <NamespaceSelector
+        cluster={cluster}
+        namespace={selected}
+        onSelect={(next) =>
+          void navigate(
+            resourcePath(cluster, descriptor.model, { namespace: next ?? ALL_NAMESPACES, search }),
+          )
+        }
+      />
+    </PageSection>
   );
 }
 

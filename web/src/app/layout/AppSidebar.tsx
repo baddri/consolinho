@@ -18,10 +18,8 @@ function SidebarSection({ section, pathname }: { section: NavSection; pathname: 
     >
       {section.items.map((item) => (
         <NavItem key={item.to} groupId={section.id} isActive={item.isActive(pathname)}>
-          {/* Not `NavLink`: items target redirect paths (`k8s/pods`), so activity comes from `isActive`. */}
-          <Link to={item.to} aria-current={item.isActive(pathname) ? 'page' : undefined}>
-            {item.label}
-          </Link>
+          {/* Not `NavLink`: items target redirect paths (`k8s/pods`), so activity comes from `isActive`; NavItem sets aria-current. */}
+          <Link to={item.to}>{item.label}</Link>
         </NavItem>
       ))}
     </NavExpandable>
