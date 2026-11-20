@@ -24,6 +24,11 @@ internal static partial class ConsoleHostRunner
         {
             try
             {
+                // Validate before starting: Host.StartAsync resolves the hosted services *before* it runs the startup
+                // validator, and Data Protection's hosted service eagerly reads the (invalid) certificate options, so
+                // only that one failure would surface and the others (e.g. Console:PublicOrigin) would stay hidden.
+                // Running the validator first reports every invalid options type at once (found by check-image.sh).
+                app.Services.GetService<IStartupValidator>()?.Validate();
                 await app.StartAsync().ConfigureAwait(false);
             }
             catch (Exception exception) when (TryGetConfigurationFailures(exception, out var failures))

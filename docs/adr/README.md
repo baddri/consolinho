@@ -31,7 +31,7 @@ Never edit an accepted ADR's decision — supersede it.
 | 0023 | Resource registry, OCP-shaped routes and generic resource pages | Accepted |
 | 0024 | YAML editor: PatternFly CodeEditor with a bundled, lazy-loaded Monaco | Accepted |
 | 0025 | Upgrade Aspire 13.6.5 → 17.0.0 (Microsoft.NET.Sdk AppHost, AddDotnetProject) | Accepted |
-| 0026 | Container image: UBI 9 .NET 10 runtime, three-stage Containerfile, in-cluster binary build (amends 0006) | Accepted |
+| 0026 | Container image: UBI 9 .NET 10 (ASP.NET) runtime, three-stage Containerfile, in-cluster binary build (amends 0006) | Accepted |
 | 0027 | Schema migrations: the Api image's `migrate` mode as an init container | Accepted |
 | 0028 | Production hosting behind an edge Route: SPA fallback, probes, no forwarded headers, safe logs, fail-fast config | Accepted |
 | 0029 | HTTP security headers and the Content-Security-Policy | Accepted |
