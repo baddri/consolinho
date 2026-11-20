@@ -12,7 +12,7 @@
   `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
 
 ## Next actions (resume here)
-1. BUILD waves: (1) T-0098, T-0101, T-0094 → (2) T-0099, T-0092, T-0103 → (3) T-0100, T-0104 → (4) T-0102.
+1. BUILD: done T-0094, T-0101, T-0098, T-0092, T-0099. Running wave 3: T-0100, T-0104. Then T-0102; T-0103 (in_review, review after T-0102).
 2. Then orchestrator deploys (check `oc whoami --show-server` first) and runs cluster checks H1–H6 → VERIFY → ACCEPT.
 3. Still open from CP2: human checks H1–H6 in `docs/specs/CP2-acceptance.md`.
 
