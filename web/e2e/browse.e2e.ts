@@ -33,8 +33,10 @@ test.describe('QG-4: browsing as alice', () => {
     await page.getByRole('tab', { name: 'YAML' }).click();
     // Tabs are lazy routes: the URL changes once the chunk loads, which a cold Vite dev server compiles on demand.
     await expect(page).toHaveURL(new RegExp(`/pods/${FAKE_POD}/yaml$`), { timeout: 15_000 });
-    // Read-only view (PF CodeBlock until the Monaco editor in T-0077): assert visible YAML text, no edit controls.
+    // Read-only Monaco editor (ADR-0024): its accessible textarea proves the bundled editor mounted; Monaco renders only
+    // the visible lines (spaces as no-break spaces, which `toContainText` normalises), and these are near the top.
     const yaml = page.getByRole('tabpanel', { name: 'YAML' });
+    await expect(yaml.getByRole('textbox', { name: 'YAML editor' })).toBeAttached();
     await expect(yaml).toContainText('kind: Pod');
     await expect(yaml).toContainText(`name: ${FAKE_POD}`);
     await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);

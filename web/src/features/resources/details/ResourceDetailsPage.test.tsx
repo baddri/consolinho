@@ -188,9 +188,9 @@ describe('details tabs (URL segments)', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config/yaml'),
     );
-    const yaml = await screen.findByLabelText('YAML', { selector: 'div' });
-    expect(yaml).toHaveTextContent('kind: ConfigMap');
-    expect(yaml).not.toHaveTextContent('managedFields');
+    const yaml = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: 'YAML editor' });
+    expect(yaml.value).toContain('kind: ConfigMap');
+    expect(yaml.value).not.toContain('managedFields');
   });
 });
 

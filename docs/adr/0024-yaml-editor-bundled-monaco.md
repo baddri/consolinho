@@ -28,3 +28,11 @@ air-gapped) and with the planned CSP (`script-src 'self'`). Monaco is also sever
   (`style-src 'self' 'unsafe-inline'`); scripts stay `'self'`. Recorded as a contract point for the backend.
 - Editor behaviour inside Monaco (highlighting, keyboard) is covered by Playwright later, not by Vitest.
 - Upgrading `@patternfly/react-code-editor` requires checking that `@monaco-editor/react` still honours `loader.config`.
+
+## Amendment (2026-11-20, T-0077)
+- `monaco-editor` is pinned to **0.55.1**. 0.57 changed the ESM layout behind the §2 import paths, so any upgrade
+  re-checks those paths. `@monaco-editor/react` is imported directly (`loader`), so it is declared with an exact version.
+- `vite.config.ts` puts `vendor-monaco` **last** among the groups: a group captures its modules' dependencies, so
+  React, PatternFly and Vite's preload helper (`vite-preload` group) must be claimed first. The build plugin
+  `stripMonacoCdnDefault` removes the loader's jsdelivr default and fails if that default changes. It is a backstop to
+  §2 (`loader.config` stays the mechanism), so no CDN address ships in `dist/`.

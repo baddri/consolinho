@@ -23,12 +23,54 @@ const apiTarget =
  */
 const vendorChunks = [
   { name: 'vendor-react', test: /node_modules[\\/](?:react|react-dom|react-router|scheduler|cookie)[\\/]/ },
-  { name: 'vendor-patternfly', test: /node_modules[\\/]@patternfly[\\/]/ },
+  // PF's CodeEditor belongs to `vendor-monaco`, not here: it imports Monaco's React wrapper. `maxSize` (bytes before
+  // minification) keeps each part under the 500 kB warning as PatternFly usage grows.
+  {
+    name: 'vendor-patternfly',
+    test: /node_modules[\\/]@patternfly[\\/](?!react-code-editor[\\/])/,
+    maxSize: 900 * 1024,
+  },
   {
     name: 'vendor-data',
     test: /node_modules[\\/](?:@tanstack|react-hook-form|@hookform|zod|openapi-fetch)[\\/]/,
   },
+  // Vite's dynamic-import helper, used by the app's lazy routes and by Monaco's lazy YAML tokenizer: claimed here so
+  // `vendor-monaco` (which also captures its modules' dependencies) can't pull it in and make the main bundle import it.
+  { name: 'vite-preload', test: /vite[\\/]preload-helper/ },
+  // The YAML editor stack — Monaco, its React wrapper, PF's CodeEditor and its upload dependency — is imported only by
+  // the lazy YAML route (ADR-0024 §3). Last on purpose: a group also captures its modules' dependencies, so the groups
+  // above must claim React/PatternFly first, or the main bundle would import them from Monaco's chunks. Monaco is
+  // ~4 MB: `maxSize` (measured before minification) splits it into parts of at most ~420 kB minified.
+  {
+    name: 'vendor-monaco',
+    test: /node_modules[\\/](?:monaco-editor|@monaco-editor|@patternfly[\\/]react-code-editor|react-dropzone|file-selector|attr-accept)[\\/]/,
+    maxSize: 1200 * 1024,
+  },
 ];
+
+/** Module of `@monaco-editor/loader` that holds its default CDN location, and that location's pattern. */
+const MONACO_LOADER_CONFIG = /node_modules[\\/]@monaco-editor[\\/]loader[\\/]lib[\\/]es[\\/]config[\\/]index\.js$/;
+const MONACO_CDN_URL = /https:\/\/cdn\.jsdelivr\.net\/npm\/monaco-editor@[^'"`]*/;
+
+/**
+ * Removes `@monaco-editor/loader`'s default CDN URL from the bundle (ADR-0024 §2). `monacoSetup.ts` hands the loader
+ * the bundled Monaco, so the URL is never used — but a dormant CDN address is exactly what an air-gapped deployment
+ * and the CSP must not depend on, so the build drops it (a missed `loader.config` then fails loudly instead of
+ * silently fetching from the internet). Throws if the pattern disappears, so a loader upgrade gets re-checked.
+ */
+function stripMonacoCdnDefault(): Plugin {
+  return {
+    name: 'fleetconsole-strip-monaco-cdn',
+    apply: 'build',
+    transform(code, id) {
+      if (!MONACO_LOADER_CONFIG.test(id)) return null;
+      if (!MONACO_CDN_URL.test(code)) {
+        throw new Error(`@monaco-editor/loader no longer has the expected CDN default in ${id}; re-check ADR-0024.`);
+      }
+      return { code: code.replace(MONACO_CDN_URL, ''), map: null };
+    },
+  };
+}
 
 /** Vite mode of `npm run dev:mock`: the SPA runs against the MSW browser worker instead of the Api (T-0042). */
 const MOCK_MODE = 'mock';
@@ -66,7 +108,7 @@ function assertNotMockBuild(command: 'build' | 'serve', mode: string): void {
 export default defineConfig(({ command, mode }) => {
   assertNotMockBuild(command, mode);
   return {
-    plugins: mode === MOCK_MODE ? [react(), mockLoginRedirect()] : [react()],
+    plugins: mode === MOCK_MODE ? [react(), mockLoginRedirect()] : [react(), stripMonacoCdnDefault()],
     // The MSW worker script lives in `msw/` and is served only in mock mode, so it never lands in `dist/`. Mock mode
     // replaces `public/` rather than adding to it: if a `public/` directory is ever added, mock mode must serve both
     // (e.g. copy the worker in, or a small plugin serving `msw/`).

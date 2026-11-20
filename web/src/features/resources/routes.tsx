@@ -15,10 +15,10 @@ const detailsPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   HydrateFallback: ResourcePageSkeleton,
 };
 
-/** Lazy panel module per details tab; YAML stays its own module (T-0077 adds Monaco there). */
+/** Lazy panel module per details tab; YAML stays its own module so Monaco (ADR-0024) loads only there. */
 const detailsTabs: Record<'details' | DetailsTab, RouteObject['lazy']> = {
   details: () => import('./details/ResourceDetailsTab').then((m) => ({ Component: m.ResourceDetailsTab })),
-  yaml: () => import('./yaml/ResourceYamlView').then((m) => ({ Component: m.ResourceYamlView })),
+  yaml: () => import('./yaml/ResourceYamlTab').then((m) => ({ Component: m.ResourceYamlTab })),
   events: () => import('./events/ResourceEventsTab').then((m) => ({ Component: m.ResourceEventsTab })),
 };
 
