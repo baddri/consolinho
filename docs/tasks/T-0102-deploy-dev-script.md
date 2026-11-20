@@ -1,7 +1,7 @@
 ---
 id: T-0102
 title: scripts/deploy-dev.sh — one-command, idempotent dev deploy to the current oc cluster (+ --teardown)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3
 depends_on: [T-0100, T-0101]
@@ -67,16 +67,49 @@ runs H1–H6 later.
   shellchecks this script).
 
 ## Acceptance criteria
-- [ ] DEV-9: shellcheck clean (via `scripts/check-deploy.sh`), `bash -n` ok, `--help` works without `oc` logged in.
-- [ ] Local dry verification with a **stub `oc`** on `PATH` (scratch dir, not committed) that answers the reads and
+- [x] DEV-9: shellcheck clean (via `scripts/check-deploy.sh`), `bash -n` ok, `--help` works without `oc` logged in.
+- [x] Local dry verification with a **stub `oc`** on `PATH` (scratch dir, not committed) that answers the reads and
       logs mutations: first run creates secrets/CA/OAuthClient and applies the generated overlay; second run (stub
       reports secrets exist) creates no secret; no secret value appears in stdout/stderr or in the stub's argv log.
       Record the stub approach and results in the work log.
-- [ ] The generated overlay renders with `oc kustomize`/`kubectl kustomize`/`kustomize build` (Route host = derived host).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4) — `scripts/check-be.sh --no-test` at least.
+- [x] The generated overlay renders with `oc kustomize`/`kubectl kustomize`/`kustomize build` (Route host = derived host).
+- [x] Build, lint and tests green (CLAUDE.md rule 4) — `scripts/check-be.sh --no-test` at least.
 
 ## Work log
+- 2026-11-21 backend-engineer: wrote `scripts/deploy-dev.sh` per ADR-0030 flow 1–10 + `--teardown`. No cluster access used.
+- 2026-11-21 verified offline: `bash -n`, `--help` with no kubeconfig, `scripts/check-deploy.sh` (shellcheck) green,
+  `check-be.sh --no-test` green. Stub `oc` (scratch, not committed) logs argv, emulates secrets/project state, delegates
+  only `kustomize` to the real `oc`; all assertions pass: run 1 creates 4 secrets/CA/OAuthClient, run 2 creates nothing,
+  no mutation outside ns consolinho except OAuthClient, overlay renders (Route host = derived, digest pinned), no secret leak.
 
 ## Review
+- 2026-11-21 backend-architect: **APPROVE** (round 1). `scripts/check-deploy.sh` green (render, kubeconform, shellcheck).
+  Safety verified: `set -euo pipefail` + `umask 077`; every mutating call pinned (`-n consolinho`, or kustomizations
+  `build/` and `overlays/dev` carry `namespace: consolinho`, CA ConfigMap YAML carries `-n`); OAuthClient is the only
+  cluster-scoped write; `oc delete` only in `--teardown`, behind can-i + typed namespace, not skippable by `--yes`.
+  Secrets create-only (`exists` errors fall through to `oc create`, which fails rather than overwrites → DP cert safe);
+  values via files/stdin only. API URL/apps domain live; issuer left to Api discovery via `kubernetes.default.svc`
+  (ADR-0030 Q5, DEV-2 allows it). Redirect URI and Route host share `$PUBLIC_ORIGIN`. Smoke SA/RoleBinding come from
+  `overlays/dev` (SMK-1). Deviations accepted: `images:` on the transformed name (base `image: consolinho` is rewritten
+  by `overlays/dev` first, so this is correct and pins both `migrate` and `server`); SSA for the OAuthClient;
+  build log in the cache dir.
+  Optional:
+  - scripts/deploy-dev.sh:99 — teardown prompt accepts piped stdin, so an agent could script it — consider
+    `[[ -t 0 ]] || die "--teardown needs an interactive terminal"` to enforce "human-only".
+  - scripts/deploy-dev.sh:313 — a failing `oc get route` after a successful rollout exits non-zero without a ✗ line —
+    append `|| true` (fallback `$HOST` already exists).
+  - scripts/deploy-dev.sh:284 — `--force-conflicts` would silently take over a pre-existing unrelated OAuthClient
+    `consolinho`; consider warning if it exists without label `app.kubernetes.io/part-of=consolinho`.
 
 ## Handover notes
+- **Deviation (images):** generated overlay's `images:` entry matches `image-registry.openshift-image-registry.svc:5000/
+  consolinho/consolinho` (the dev overlay's `newName`), not `consolinho`: kustomize matches the already-transformed name;
+  with `name: consolinho` the render kept `:latest` (verified). `newName` + `digest` come from the istag reference.
+- OAuthClient uses `oc apply --server-side --force-conflicts` so the secret is not copied into the
+  last-applied-configuration annotation (still `apply`, idempotent).
+- Build log goes to `${XDG_CACHE_HOME:-~/.cache}/consolinho/build.log` (tail printed on failure) to keep checklist output.
+- Teardown also checks `can-i delete oauthclients`; `--yes` never skips the type-the-namespace prompt.
+- Secret files are written without trailing newline (Postgres env / connection string safe); pg and db secrets share
+  one password, rebuilt from whichever exists if only one is present.
+- Orchestrator H1: run `scripts/deploy-dev.sh --yes` after checking `oc whoami --show-server`; run twice for DEV-5.
+- orchestrator: applied optional nits L99 (`-t 0` for teardown) and L313 (`|| true`); L284 label check left as follow-up.
