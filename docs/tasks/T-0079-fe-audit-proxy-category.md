@@ -1,7 +1,7 @@
 ---
 id: T-0079
 title: Audit log — Proxy category, Kubernetes resource targets and outcome labels (+ T-0041 nits)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 2
 depends_on: [T-0060, T-0070, T-0055]
@@ -50,14 +50,34 @@ outcome (PAUD-4, US-10). The mock proxy records audit entries so the whole flow 
   `web/src/mocks/k8s` `onProxyMutation`.
 
 ## Acceptance criteria
-- [ ] PAUD-4: Category filter offers Proxy; `category=proxy&cluster=dev-1` shows only proxy entries on dev-1; a PUT
+- [x] PAUD-4: Category filter offers Proxy; `category=proxy&cluster=dev-1` shows only proxy entries on dev-1; a PUT
       row shows `shop/configmaps/web` + "200"; a denied row shows "Denied — read-only grant".
-- [ ] In `dev:mock`, deleting a pod as admin on dev-1 then opening the audit log shows the `proxy.delete` entry.
-- [ ] T-0041 nits done; existing audit tests green.
-- [ ] No hand-written duplicate of generated types (QG-5). Build, lint and tests green (CLAUDE.md rule 4)
+- [x] In `dev:mock`, deleting a pod as admin on dev-1 then opening the audit log shows the `proxy.delete` entry.
+- [x] T-0041 nits done; existing audit tests green.
+- [x] No hand-written duplicate of generated types (QG-5). Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 frontend-engineer: in_progress → in_review. `gen:api` run against this worktree's Api (only the two enum
+  additions changed). Proxy category + outcome labels (`proxyOutcome.ts`, zod), mock proxy audits mutations via shared
+  `mocks/k8s/proxyAudit.ts` (also builds the 3 proxy fixture templates), T-0041 nits, SSAR-without-spec nit (400).
 
 ## Review
+- 2026-11-20 frontend-architect: **APPROVE** (round 1). check-fe.sh green (52 files / 562 tests). Matches contract §5
+  (actions, kubectl-style targetName, details shape, reason texts, 401-as-upstream); zod parse, no `any`; T-0041 nits
+  done (To = 23:59 tested, test name now matches its assertions); audit points correct (path-400 and reads/watches/SSAR
+  not audited, denials before answering, forwarded after the store change). No overlap with shared-tree `web/src/mocks`.
+  Optional nits:
+  - `AuditLogPage.test.tsx:225` — rows are pre-filtered to `proxy.` so the test can't catch non-proxy rows leaking; assert every data row's action starts with `proxy.`.
+  - `proxyOutcome.ts:5` / `mocks/k8s/proxyAudit.ts:38` — reason texts duplicated (features can't import mocks; acceptable, keep in sync).
 
 ## Handover notes
+- `proxyOutcome(entry)` parses `details` with zod; unknown reason → plain "Denied"; status 0 → grey "0 — client disconnected".
+- Target cell: `kubernetesResource` rows render `<code>targetName</code>` + compact `Label`; other types unchanged.
+- Mock: `mocks/k8s/proxyAudit.ts#proxyAuditInput(actor, mutation)` builds action/targetName/summary/details per
+  contract §5 (pure). `handlers.ts` audits denials (noAccess on mutations, userReadOnly, readOnlyGrant, bodyTooLarge)
+  before answering, forwarded mutations after the API server answered, expired credential as allowed 401.
+  `ProxyMutation` moved there and gained `reason`; `proxyMutationListeners` kept as extra observers.
+- Fixtures: 3 proxy templates appended (dev-1 PUT `shop/configmaps/web` 200, dev-1 denied delete, patch round-robin);
+  `AUDIT_FIXTURE_COUNT` unchanged (132); index 0 entry unchanged.
+- Outside `paths` (test-only): `mocks/audit.test.ts` category set gains `proxy`; `mocks/k8s.test.ts` new audit test.
+- `DateTimeField` gained `defaultTime` (To uses 23:59).

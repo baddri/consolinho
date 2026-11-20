@@ -321,3 +321,36 @@ describe('mock k8s API server: watch', () => {
     expect((await reader.read()).done).toBe(true);
   });
 });
+
+describe('mock k8s proxy: audit (PAUD-4, CP2 contract §5)', () => {
+  it('audits forwarded and denied mutations, never reads or access reviews', async () => {
+    const before = mockDb.audit.length;
+    expect((await get('dev-1', `${SHOP}/pods`)).status).toBe(200);
+    const review = await send('dev-1', 'POST', '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews', {});
+    expect(review.status).toBe(400); // no `spec`: a 400, not a crash
+    expect(mockDb.audit).toHaveLength(before);
+
+    expect((await send('dev-1', 'DELETE', `${SHOP}/pods/${CRASHING_POD}`)).status).toBe(200);
+    expect(mockDb.audit[0]).toMatchObject({
+      actor: 'admin',
+      action: 'proxy.delete',
+      category: 'proxy',
+      targetType: 'kubernetesResource',
+      targetName: `shop/pods/${CRASHING_POD}`,
+      clusterName: 'dev-1',
+      summary: `admin deleted shop/pods/${CRASHING_POD} on dev-1 (200)`,
+      details: { method: 'DELETE', resource: 'pods', namespace: 'shop', statusCode: 200, outcome: 'allowed' },
+    });
+
+    setMockUser('alice');
+    expect((await send('prod-eu-1', 'PUT', `${SHOP}/configmaps/web-config`, {})).status).toBe(403);
+    expect(mockDb.audit[0]).toMatchObject({
+      actor: 'alice',
+      action: 'proxy.update',
+      targetName: 'shop/configmaps/web-config',
+      summary: 'Denied: alice tried to update shop/configmaps/web-config on prod-eu-1 (read-only grant)',
+      details: { statusCode: 403, outcome: 'denied', reason: 'readOnlyGrant' },
+    });
+    expect(mockDb.audit).toHaveLength(before + 2);
+  });
+});

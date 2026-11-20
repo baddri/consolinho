@@ -1,4 +1,5 @@
 import type { AuditCategory, AuditEntry, AuditTargetType } from '@/shared/api';
+import { proxyAuditInput, type ProxyMutation } from '../k8s/proxyAudit';
 import { mockGuid } from './ids';
 import { FIXTURE_NOW } from './time';
 
@@ -32,7 +33,13 @@ interface AuditTemplate {
 
 const pick = <T>(list: readonly T[], n: number): T => list[n % list.length] as T;
 
-/** One template per action of contract §10 (AUD-1). */
+/** A proxy entry built exactly like the mock proxy records it (contract §5). */
+function proxyEntry(actor: string, mutation: ProxyMutation): AuditTemplateResult {
+  const { targetId, targetName, clusterName, summary, details } = proxyAuditInput(actor, mutation);
+  return { actor, targetId, targetName, clusterName, summary, details };
+}
+
+/** One template per action of contract §10 (AUD-1), plus proxy actions of CP2 contract §5 (PAUD-4). */
 const TEMPLATES: readonly AuditTemplate[] = [
   {
     action: 'auth.login',
@@ -407,6 +414,46 @@ const TEMPLATES: readonly AuditTemplate[] = [
         details: { username: user, accessMode: 'readOnly', credential: 'fleet-view' },
       };
     },
+  },
+  // Proxy entries (CP2 contract §5): dev-1 always has an allowed PUT and a read-only-grant denial (PAUD-4).
+  {
+    action: 'proxy.update',
+    category: 'proxy',
+    targetType: 'kubernetesResource',
+    build: () =>
+      proxyEntry('alice', {
+        cluster: 'dev-1',
+        method: 'PUT',
+        path: '/api/v1/namespaces/shop/configmaps/web',
+        status: 200,
+        reason: null,
+      }),
+  },
+  {
+    action: 'proxy.delete',
+    category: 'proxy',
+    targetType: 'kubernetesResource',
+    build: (n) =>
+      proxyEntry('bob', {
+        cluster: 'dev-1',
+        method: 'DELETE',
+        path: `/api/v1/namespaces/shop/pods/web-${n + 1}`,
+        status: 403,
+        reason: 'readOnlyGrant',
+      }),
+  },
+  {
+    action: 'proxy.patch',
+    category: 'proxy',
+    targetType: 'kubernetesResource',
+    build: (n) =>
+      proxyEntry(pick(USERS, n), {
+        cluster: pick(CLUSTERS, n),
+        method: 'PATCH',
+        path: '/apis/apps/v1/namespaces/shop/deployments/web/scale',
+        status: n % 3 === 2 ? 409 : 200,
+        reason: null,
+      }),
   },
 ];
 

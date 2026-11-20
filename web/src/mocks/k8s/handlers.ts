@@ -1,14 +1,16 @@
 import { http } from '../handlers/http';
-import { currentMockUser, findCluster, findCredential, mockDb } from '../db';
+import { actorName, currentMockUser, findCluster, findCredential, mockDb, recordAudit } from '../db';
 import { problem } from '../problem';
 import { apiServer } from './apiServer';
+import { proxyAuditInput, type ProxyDenialReason, type ProxyMutation } from './proxyAudit';
 
 /**
  * The mock of FleetConsole's Kubernetes proxy, `ANY /api/clusters/{cluster}/k8s/{path}` (CP2 contract §1–4, T-0070).
  * Registered after `accessGuard` (which already answered CSRF → 401) and before `unhandledApiRoute`. It applies the
  * proxy's remaining checks in contract order — 400 path → 404 not available → 403 user read-only → 403 grant
  * read-only → 413 — then plays the cluster: 502 `Proxy.CredentialRejected` for an expired credential (the upstream
- * 401), otherwise the mock API server.
+ * 401), otherwise the mock API server. Every mutation that passed the path check is audited (PAUD-4): denials before
+ * the problem is answered, forwarded ones after the store changed; reads, watches and access reviews never are.
  */
 
 const PROXY_PATH = /^\/api\/clusters\/([^/]+)\/k8s(\/.*)?$/;
@@ -21,21 +23,12 @@ const ACCESS_REVIEWS =
   /^\/apis\/authorization\.k8s\.io\/v1\/(selfsubjectaccessreviews|selfsubjectrulesreviews)$/;
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
-/** A proxied mutation that reached the cluster; the input of proxy audit. */
-export interface ProxyMutation {
-  cluster: string;
-  method: string;
-  path: string;
-  status: number;
-}
-
-/**
- * Hook point for proxy audit entries: called once per mutation the cluster answered, whatever the outcome. Empty for
- * now; T-0079 records audit entries here once the generated audit enum has the `proxy` category.
- */
+/** Extra observers of audited proxy mutations (allowed and denied), notified after the audit entry is recorded. */
 export const proxyMutationListeners = new Set<(mutation: ProxyMutation) => void>();
 
+/** Records the proxy audit entry of `mutation` (as the signed-in user) and notifies the listeners. */
 function onProxyMutation(mutation: ProxyMutation): void {
+  recordAudit(proxyAuditInput(actorName(), mutation));
   for (const listener of proxyMutationListeners) listener(mutation);
 }
 
@@ -80,6 +73,14 @@ export const k8sProxyHandler = http.untyped.all('*/api/clusters/:cluster/k8s/*',
     });
   }
 
+  const path = rawPath.split('/').map(decodeURIComponent).join('/');
+  const mutation = isMutation(method, path);
+  /** Answers a refused request, auditing it first when it was a mutation. */
+  const deny = (reason: ProxyDenialReason, response: Response): Response => {
+    if (mutation) onProxyMutation({ cluster: clusterName, method, path, status: response.status, reason });
+    return response;
+  };
+
   const cluster = findCluster(clusterName);
   const grant = cluster?.isEnabled
     ? mockDb.grants.find(
@@ -88,33 +89,42 @@ export const k8sProxyHandler = http.untyped.all('*/api/clusters/:cluster/k8s/*',
     : undefined;
   const credential = grant && findCredential(grant.credentialId, clusterName);
   if (!grant || !credential) {
-    return problem(404, {
-      code: 'Proxy.NotAvailable',
-      detail: `Cluster ${clusterName} is not available — it does not exist or you don't have access.`,
-    });
+    return deny(
+      'noAccess',
+      problem(404, {
+        code: 'Proxy.NotAvailable',
+        detail: `Cluster ${clusterName} is not available — it does not exist or you don't have access.`,
+      }),
+    );
   }
 
-  const path = rawPath.split('/').map(decodeURIComponent).join('/');
-  const mutation = isMutation(method, path);
   if (mutation && user.isReadOnly) {
-    return problem(403, { code: 'Proxy.UserReadOnly', detail: 'Your account is read-only.' });
+    return deny(
+      'userReadOnly',
+      problem(403, { code: 'Proxy.UserReadOnly', detail: 'Your account is read-only.' }),
+    );
   }
   if (mutation && grant.accessMode === 'readOnly') {
-    return problem(403, {
-      code: 'Proxy.ReadOnlyGrant',
-      detail: `Your access to ${clusterName} is read-only.`,
-    });
+    return deny(
+      'readOnlyGrant',
+      problem(403, { code: 'Proxy.ReadOnlyGrant', detail: `Your access to ${clusterName} is read-only.` }),
+    );
   }
   if (Number(request.headers.get('Content-Length') ?? 0) > MAX_BODY_BYTES) {
-    return problem(413, {
-      code: 'Proxy.BodyTooLarge',
-      title: 'Content Too Large',
-      detail: 'The request body is larger than the 10 MiB limit.',
-    });
+    return deny(
+      'bodyTooLarge',
+      problem(413, {
+        code: 'Proxy.BodyTooLarge',
+        title: 'Content Too Large',
+        detail: 'The request body is larger than the 10 MiB limit.',
+      }),
+    );
   }
 
   // The cluster answers 401 to an expired token; the proxy turns that into 502 (never a logout, PRX-5).
   if (credential.expiresAt !== null && Date.parse(credential.expiresAt) < Date.now()) {
+    // Audited with the upstream 401, as the Api does (contract §5).
+    if (mutation) onProxyMutation({ cluster: clusterName, method, path, status: 401, reason: null });
     return problem(502, {
       code: 'Proxy.CredentialRejected',
       title: 'Bad Gateway',
@@ -131,6 +141,8 @@ export const k8sProxyHandler = http.untyped.all('*/api/clusters/:cluster/k8s/*',
     path,
     query: url.searchParams,
   });
-  if (mutation) onProxyMutation({ cluster: clusterName, method, path, status: response.status });
+  if (mutation) {
+    onProxyMutation({ cluster: clusterName, method, path, status: response.status, reason: null });
+  }
   return response;
 });

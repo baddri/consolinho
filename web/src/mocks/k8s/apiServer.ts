@@ -352,9 +352,11 @@ function remove(api: ApiServerRequest, target: ResourceTarget, name: string): Re
 
 /** `POST selfsubjectaccessreviews`: answers from the credential's RBAC profile. */
 async function accessReview(api: ApiServerRequest): Promise<Response> {
-  const body = (await readObject(api.request)) as SelfSubjectAccessReview | undefined;
-  const attributes = body?.spec.resourceAttributes;
-  if (!body || !attributes) return badRequest('spec.resourceAttributes is required');
+  // A client may omit `spec` entirely: that is a 400 like a missing `resourceAttributes`, not a crash (500).
+  const body = (await readObject(api.request)) as Partial<SelfSubjectAccessReview> | undefined;
+  const spec = body?.spec;
+  const attributes = spec?.resourceAttributes;
+  if (!spec || !attributes) return badRequest('spec.resourceAttributes is required');
   const verb = attributes.verb ?? '';
   const resource = attributes.resource ?? '';
   const allowed = isAllowed(profileOf(api.credential), verb, resource);
@@ -362,7 +364,7 @@ async function accessReview(api: ApiServerRequest): Promise<Response> {
     apiVersion: 'authorization.k8s.io/v1',
     kind: 'SelfSubjectAccessReview',
     metadata: {},
-    spec: body.spec,
+    spec,
     status: allowed
       ? { allowed: true, reason: 'RBAC: allowed by ClusterRoleBinding' }
       : { allowed: false, denied: false, reason: '' },

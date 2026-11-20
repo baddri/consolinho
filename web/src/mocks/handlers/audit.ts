@@ -3,7 +3,7 @@ import { mockDb } from '../db';
 import { validationProblem, type FieldErrors } from '../problem';
 import { http } from './http';
 
-const CATEGORIES: readonly AuditCategory[] = ['auth', 'users', 'clusters', 'credentials', 'grants'];
+const CATEGORIES: readonly AuditCategory[] = ['auth', 'users', 'clusters', 'credentials', 'grants', 'proxy'];
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 

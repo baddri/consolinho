@@ -207,6 +207,36 @@ describe('AuditLogPage', () => {
     await waitFor(() => expect(new URLSearchParams(router.state.location.search).get('from')).toBe(localMidnight));
     await waitFor(() => expect(lastRequest(requests).get('from')).toBe(localMidnight));
     expect(lastRequest(requests).has('to')).toBe(true);
+
+    // A new "To" date defaults to the end of that day (23:59 local), so the chosen day is included.
+    await user.clear(screen.getByRole('textbox', { name: 'To date' }));
+    await user.click(screen.getByRole('textbox', { name: 'To date' }));
+    await user.paste('2026-01-02');
+    const localEndOfDay = new Date(2026, 0, 2, 23, 59).toISOString();
+    await waitFor(() => expect(lastRequest(requests).get('to')).toBe(localEndOfDay));
+  });
+
+  it('PAUD-4: proxy entries show the resource and its outcome; Proxy is a category', async () => {
+    const requests = recordAuditRequests();
+    const { user } = renderApp('/admin/audit?category=proxy&cluster=dev-1');
+    const table = await findAuditTable();
+    expect(lastRequest(requests).get('category')).toBe('proxy');
+
+    const rows = within(table)
+      .getAllByRole('row')
+      .filter((row) => row.textContent.includes('proxy.'));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((row) => within(row).queryByRole('link', { name: 'dev-1' }) !== null)).toBe(true);
+    const update = rows.find((row) => row.textContent.includes('proxy.update'));
+    if (!update) throw new Error('no proxy.update row');
+    expect(within(update).getByText('shop/configmaps/web')).toBeInTheDocument();
+    expect(within(update).getByText('200')).toBeInTheDocument();
+    const denied = rows.find((row) => row.textContent.includes('proxy.delete'));
+    if (!denied) throw new Error('no proxy.delete row');
+    expect(within(denied).getByText('Denied — read-only grant')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Filter by Category' }));
+    expect(screen.getByRole('option', { name: 'Proxy' })).toBeInTheDocument();
   });
 
   it('400 on a hand-edited filter shows the problem and "Clear filters"', async () => {
@@ -228,7 +258,7 @@ describe('AuditLogPage', () => {
     await findAuditTable();
   });
 
-  it('shows skeleton rows while loading and an error with Retry', async () => {
+  it('renders the table frame while loading, then the error with Retry', async () => {
     server.use(
       http.get('/api/admin/audit', async () => {
         await delay(50);

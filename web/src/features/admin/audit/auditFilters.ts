@@ -5,7 +5,7 @@ import { useUrlFilters, type FilterDefs, type FilterOption, type FilterValues } 
 import type { AuditQueryFilters } from '../queryKeys';
 import { isTimeRange, resolveRange, TIME_RANGES, type TimeRange } from './timeRange';
 
-const CATEGORIES: readonly AuditCategory[] = ['auth', 'users', 'clusters', 'credentials', 'grants'];
+const CATEGORIES: readonly AuditCategory[] = ['auth', 'users', 'clusters', 'credentials', 'grants', 'proxy'];
 
 /** Page size of the audit log (contract default; the server allows 1–200). */
 export const AUDIT_PAGE_SIZE = 50;
@@ -40,6 +40,7 @@ export const CATEGORY_OPTIONS: FilterOption[] = [
   { value: 'clusters', label: 'Clusters' },
   { value: 'credentials', label: 'Credentials' },
   { value: 'grants', label: 'Grants' },
+  { value: 'proxy', label: 'Proxy' },
 ];
 
 const toCategory = (value: string | undefined): AuditCategory | undefined =>

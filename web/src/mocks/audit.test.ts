@@ -20,7 +20,7 @@ describe('mock audit API (contract §10)', () => {
   it('has ≥ 120 generated entries covering every category', () => {
     expect(AUDIT_FIXTURE_COUNT).toBeGreaterThanOrEqual(120);
     const categories = new Set(mockDb.audit.map((entry) => entry.category));
-    expect([...categories].sort()).toEqual(['auth', 'clusters', 'credentials', 'grants', 'users']);
+    expect([...categories].sort()).toEqual(['auth', 'clusters', 'credentials', 'grants', 'proxy', 'users']);
   });
 
   it('pages newest first with an opaque cursor: two pages, no duplicates, then the end', async () => {

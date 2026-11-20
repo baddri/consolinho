@@ -582,7 +582,7 @@ export interface components {
          *     AuditEntry AuditEntry.Record(AuditActor actor, string action, AuditTargetType targetType, string? targetId, string targetName, string? clusterName, string summary, string? correlationId, string detailsJson, DateTimeOffset occurredAt, string? relatedUsername = null), never chosen by callers, so category and action cannot disagree.
          * @enum {string}
          */
-        AuditCategory: "auth" | "users" | "clusters" | "credentials" | "grants";
+        AuditCategory: "auth" | "users" | "clusters" | "credentials" | "grants" | "proxy";
         /** @description One audit log entry: who did what to which object, when, and in which request. */
         AuditEntry: {
             /**
@@ -628,7 +628,7 @@ export interface components {
          * @description The kind of object an audit entry is about; tells the UI how to interpret string? AuditEntry.TargetId.
          * @enum {string}
          */
-        AuditTargetType: "session" | "user" | "cluster" | "credential" | "grant";
+        AuditTargetType: "session" | "user" | "cluster" | "credential" | "grant" | "kubernetesResource";
         /** @description One cluster of a bulk grant. */
         BulkGrantItem: {
             /** @description The cluster; unique within the request. */

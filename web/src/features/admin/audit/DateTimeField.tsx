@@ -6,6 +6,11 @@ export interface DateTimeFieldProps {
   label: string;
   /** ISO 8601 timestamp; `undefined` (or an unparseable value) shows empty inputs. */
   value?: string;
+  /**
+   * Time (`HH:mm`, local) a newly picked date gets while no time is set: midnight for a lower bound, `23:59` for an
+   * upper bound so "To <day>" includes that day.
+   */
+  defaultTime?: string;
   /** Receives the new ISO timestamp (UTC), or `undefined` when the date is cleared. */
   onChange: (value?: string) => void;
 }
@@ -35,11 +40,11 @@ function toIso(date: string, hour: number, minute: number): string | undefined {
 /**
  * One bound of the audit log's custom time range: a PF `DatePicker` plus a 24-hour `TimePicker`, edited in local time
  * and reported as an ISO (UTC) timestamp for the URL and the request. The time is disabled until a date is set; a
- * new date keeps the current time (midnight by default).
+ * new date keeps the current time (`defaultTime`, midnight unless given, when none is set yet).
  */
-export function DateTimeField({ label, value, onChange }: DateTimeFieldProps) {
+export function DateTimeField({ label, value, defaultTime = '00:00', onChange }: DateTimeFieldProps) {
   const parts = localParts(value);
-  const [hour, minute] = (parts?.time ?? '00:00').split(':').map(Number);
+  const [hour, minute] = (parts?.time ?? defaultTime).split(':').map(Number);
 
   return (
     <Split hasGutter>
