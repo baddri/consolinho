@@ -28,7 +28,7 @@ Set the task `status: in_progress` and add a dated Work log entry.
 ## Before finishing
 Run `scripts/check-be.sh`; it must pass (if Testcontainers
 can't reach podman, say so explicitly — never fake a pass). Tick acceptance criteria, set `status: in_review`, write
-**Handover notes**. Do not commit; do not edit HANDOVER.md/ROADMAP.md. Return the report format from
+**Handover notes**. Do not commit; do not edit HANDOVER.md/ROADMAP.md. Return the ≤8-line report format from
 `docs/process/SDLC.md`.
 
 **Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or

@@ -33,4 +33,4 @@ Review the spec criteria against the implemented code/tests/screenshots. Output 
 (met / not met / partially) with evidence, then improvement ideas classified `blocker` (criterion failed) or `later`
 (append to ROADMAP backlog). Be concrete; reference files and screens.
 
-Do not write production code. Do not commit. Return the report format from `docs/process/SDLC.md`.
+Do not write production code. Do not commit. Return the ≤8-line report format from `docs/process/SDLC.md`.

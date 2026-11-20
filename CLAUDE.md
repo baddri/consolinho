@@ -97,7 +97,7 @@ Everything you read stays in context and is re-sent on every later turn, so read
   (`docs/specs/CP*`) — your task file holds your contract; grep the spec for a specific AC or endpoint if needed.
 - **Code by symbol, not by file:** use the `LSP` tool (`documentSymbol`, `hover`, `goToDefinition`, `findReferences`,
   `workspaceSymbol`) or `grep -n`, then Read only the relevant range. Read whole files only when you will edit most of
-  them. Never `cat` several files/directories at once (a hook blocks large unfiltered `cat`s).
+  them. Never `cat` several files/directories at once (a hook blocks commands whose unfiltered `cat`/`sed -n`/`head`/`tail` reads exceed ~20 KB).
 - **One exemplar:** to learn a pattern, read one existing example of it (e.g. one use-case folder), not all of them.
 - **Library APIs:** `grep -n` the `.d.ts` / XML docs for the member you need; never dump `node_modules` files.
 - **Output:** use `scripts/check-*.sh`; pipe any other noisy command through `tail`/`grep`. Re-run only what you

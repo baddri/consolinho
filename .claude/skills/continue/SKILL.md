@@ -17,7 +17,8 @@ You are the **orchestrator**. Follow `docs/process/SDLC.md` exactly.
    - Parallelise only tasks with disjoint paths (max 3), otherwise run sequentially or with `isolation: worktree`.
    - Fix rounds: `SendMessage` the same engineer if it is still alive this session; otherwise a new agent with the
      findings + task file.
-   - Keep your own context lean too: read agent reports, not their diffs, unless committing needs it.
+   - Keep your own context lean too: read agent reports, not their diffs, unless committing needs it. Ask every agent
+     for the ≤8-line report (SDLC.md delegation contract §5); the details belong in the task file.
    - After each engineer task: architect review → fix rounds (max 2) → commit `<type>(<scope>): <summary> [T-nnnn]` →
      set task `status: done` → update HANDOVER.md.
 4. Keep going without asking the human until the checkpoint closes (merge to main, tag `cp-<n>`) or a "Needs human"

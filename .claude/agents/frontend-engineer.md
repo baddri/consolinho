@@ -25,7 +25,7 @@ pattern under `web/src` (navigate with LSP / `grep -n`). Set the task `status: i
 While iterating run only affected tests (`scripts/check-fe.sh <test path>`). Finish with `scripts/check-fe.sh`; all
 must pass. Tick acceptance
 criteria, set `status: in_review`, write **Handover notes**. Do not commit; do not edit HANDOVER.md/ROADMAP.md.
-Return the report format from `docs/process/SDLC.md`.
+Return the ≤8-line report format from `docs/process/SDLC.md`.
 
 **Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
 `git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;

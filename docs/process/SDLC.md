@@ -24,7 +24,8 @@ todo ──► in_progress ──► in_review ──► done
 
 Task file format: see `docs/tasks/_TEMPLATE.md`. Frontmatter `status`, `owner` (agent), `checkpoint`, `depends_on`.
 A task is **Ready** when it has: clear goal, acceptance criteria, affected paths, dependencies done, and (for API
-work) the contract (route, request/response shape, errors).
+work) the contract (route, request/response shape, errors), and a **Context pack** whose exemplars and touch points
+are `file:Symbol` / `file:Lx-Ly` — the architect already found them; engineers must not rediscover them.
 A task is **Done** when: criteria met, build + lint + tests green, docs/comments updated, architect review APPROVED,
 committed, task file work log updated.
 
@@ -60,17 +61,20 @@ In those cases: record in HANDOVER "Needs human", continue with other unblocked 
 ## Delegation contract (every subagent prompt includes)
 
 1. The task file path(s), and a **context pack** so the agent doesn't rediscover what the orchestrator knows:
-   the relevant architecture-doc sections (by heading), 1–3 exemplar files to copy patterns from, and known gotchas.
+   the relevant architecture-doc sections (by heading), 1–3 exemplars as `file:symbol` or `file:Lx-Ly` (not bare
+   files), and known gotchas.
    Don't tell agents to read `CLAUDE.md` — it is already loaded. Keep the prompt short; point to files, don't paste them.
 2. Scope boundary: which directories it may change.
 3. Required checks to run before finishing: `scripts/check-be.sh` / `scripts/check-fe.sh` (CLAUDE.md rule 4).
 4. Before returning: update the task file (status, **Work log**, **Handover notes**: what's done, what's not, gotchas).
-5. Final report format:
+5. Final report format — **at most 8 lines**. Details belong in the task file (Work log / Handover notes / Review),
+   which the orchestrator does not need to read to proceed. Every report line sits in the orchestrator's context for
+   the rest of its session, so no "what I checked" narratives, no file-by-file summaries:
    ```
-   STATUS: done | partial | blocked
-   CHANGED: <files/dirs>
-   CHECKS: <command → result>
-   NOTES: <decisions, deviations, follow-ups>
+   STATUS: done | partial | blocked          (reviewers: VERDICT: APPROVE | CHANGES_REQUESTED)
+   CHANGED: <dirs or ≤5 key files>
+   CHECKS: <command → pass/fail + counts>
+   NOTES: <≤3 one-line items: deviations, blockers, follow-up task ids; findings → "see task file §Review">
    ```
 
 Subagents do **not** commit, do not edit HANDOVER.md or ROADMAP.md, and do not spawn other agents.
@@ -102,6 +106,12 @@ is warm and cached); start a new agent only across sessions, with the findings l
 - At session end (`/handover` skill): make sure no task is left `in_progress` without handover notes, working tree
   is clean or the WIP is described, HANDOVER "Next actions" lists concrete first steps.
 - To resume (`/continue` skill): read HANDOVER → verify git state matches → continue the loop at the recorded step.
+- **Orchestrator session budget:** the orchestrator's context is re-sent on every turn (CP1 sessions reached 350–530k
+  without ever compacting). `.claude/settings.json` sets `CLAUDE_CODE_AUTO_COMPACT_WINDOW=250000`, so long sessions
+  auto-compact instead; that is safe only because HANDOVER and task files are always current — keep them so.
+- **LSP staleness:** csharp-ls only knows files that existed when it started, and `/clear` does not restart it. Files
+  created later by agents get false CS0246/CS0103 diagnostics. Treat diagnostics on files you didn't edit as possibly
+  stale (the check scripts are the truth); between sessions, restart `claude` instead of `/clear`.
 
 ## Review checklists
 

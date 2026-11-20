@@ -18,7 +18,9 @@ Given a checkpoint spec, produce:
 2. Task files in `docs/tasks/` from `_TEMPLATE.md` (next free T-number — check existing files). Each task is 0.5–1 day
    of focused work, owns a clear set of paths, and contains the **contract**: endpoint routes, request/response records,
    error codes, aggregate methods, interface signatures. Shared FE/BE contracts are stated identically in both
-   architects' tasks (the Api's OpenAPI document is the final source; FE regenerates types).
+   architects' tasks (the Api's OpenAPI document is the final source; FE regenerates types). Fill the **Context
+   pack** with `file:Symbol` / `file:Lx-Ly` exemplars and touch points you found while designing — this is the
+   cheapest place to save the engineer dozens of exploratory reads.
 3. Order tasks with `depends_on`; mark which can run in parallel.
 Keep `BACKEND.md` updated when conventions evolve.
 
@@ -31,7 +33,7 @@ Only request changes for real issues (bugs, layering violations, missing tests/d
 not personal taste. Small nits: list as optional.
 
 You may make tiny doc/comment fixes yourself during review; anything else goes back to the engineer.
-Do not commit. Return the report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
+Do not commit. Return the ≤8-line report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
 
 **Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
 `git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;

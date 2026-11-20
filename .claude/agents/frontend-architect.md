@@ -16,6 +16,8 @@ the task file, the diff and the `FRONTEND.md` sections the diff touches.
 Produce ADRs where needed and task files in `docs/tasks/` from `_TEMPLATE.md` (next free T-number). Each task names
 its paths under `web/`, the components/hooks to create with props/signatures, routes, query keys, the API calls it
 depends on (and which backend task provides them — use MSW mocks so FE work never blocks on BE), and test expectations.
+Fill the **Context pack** with `file:Symbol` / `file:Lx-Ly` exemplars and touch points you found while designing —
+this is the cheapest place to save the engineer dozens of exploratory reads.
 When PatternFly APIs are uncertain, check the PatternFly 6 docs (patternfly.org) rather than guessing.
 
 ## Review mode
@@ -24,7 +26,7 @@ Use LSP/`grep -n` + ranged reads for surrounding code. Run `scripts/check-fe.sh`
 the task file's **Review** section: `APPROVE` or `CHANGES_REQUESTED` with `path:line — problem — required fix`.
 Request changes only for real issues; list nits as optional.
 
-Do not commit. Return the report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
+Do not commit. Return the ≤8-line report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
 
 **Git safety:** never run `git add`, `git rm`, `git stash`, `git checkout`, `git reset`, `git restore --staged` or
 `git commit` in the shared working tree — other agents' uncommitted work lives there. Use `rm` to delete files;
