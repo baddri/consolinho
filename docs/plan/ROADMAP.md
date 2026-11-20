@@ -86,4 +86,10 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP1 ACCEPT) Masthead link-out to the cluster's own OCP web console (URL already stored per cluster) for features we don't cover yet.
 - (CP3 Q10) Trust `X-Forwarded-For` from the Route and record the client IP in audit entries (CP6).
 - (CP3 T-0103) DP certificate rotation supports one previous cert only: accept a list of previous certs, or add a re-encrypt-all-keys command, so repeated rotations never orphan old keys.
+- (CP3 spec) Instance banner / masthead text per deployment (e.g. "consolinho on test-cluster-17").
+- (CP3 spec) Argo CD Application + example `production` overlay repo layout.
+- (CP3 spec) Prometheus metrics endpoint + ServiceMonitor; alerts for login failures and proxy 5xx rate.
+- (CP3 spec) Self-registration of the host cluster as a managed cluster (one click, admin only).
+- (CP3 spec) DP certificate rotation helper (script or admin page showing key ring age/expiry).
+- (CP3 ACCEPT) `deploy-dev.sh --register-self`: automate the 4 smoke steps (SA token, register host cluster, credential, grant) after every test-cluster reinstall.
 - (CP1 ACCEPT, for CP2 spec) Extend the token-leak sweep and authz matrix to proxy routes (QA R4); proxy strips client `Authorization`.

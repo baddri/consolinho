@@ -145,3 +145,29 @@ Orchestrator run on 2026-11-21 (OCP 4.22 sandbox, ns `consolinho`). QA had no cl
 - With an unreachable DB the EF retry warnings log full Npgsql stack traces at Warning. They are noisy but carry no
   secret (0 fake-secret matches).
 - Kubeconform skips the Route (no schema). Route fields are checked only by review and H2.
+
+## Product owner acceptance
+
+**2026-11-21 · Verdict: ACCEPT-WITH-FOLLOWUPS.** 45/48 ACs PASS on QA evidence, PRB-2 included after T-0106. No AC
+fails. PRB-3, DEV-8 and SMK-2 are HUMAN. **Merge condition:** the human runs H2 (interactive login as bootstrap admin),
+H3, H4 (credential still tests OK after a re-run), H6 and H7. H4 is the one that matters most: it proves the DP key ring
+and the certificate survive a re-run (DEV-5, DB-3).
+**Day-2 review, runbook only:**
+- *Deploy*: §4.3–4.7 can be followed top to bottom. Secrets never go on argv, the OAuthClient uses server-side
+  apply, and there is an `openssl s_client` CA check before rollout. Good.
+- *Upgrade/rollback*: §6 is forward-only, tells you to back up first, and covers `Init:Error` triage. Re-applying
+  over `rollout undo` is the right call.
+- *DP rotation*: §8.2 is correct and honest about the one-previous-certificate limit (already in the backlog).
+- *Backup/restore*: §7 backs up the DB and certificate together and supports restoring into a new namespace.
+- *Troubleshooting*: §9 covers all 7 OPS-3 symptoms plus migrate and config-error rows, each with the log line to grep.
+- *Dev script on a frequently replaced cluster*: one command, and the confirmation names the API URL. Re-runs are
+  idempotent, the summary works as a checklist, and teardown requires typing the namespace. Pleasant to use. The
+  4 manual smoke steps after every reinstall are tedious but out of scope by design (see backlog proposal below).
+**Follow-ups (later, CP6):** T-0107: `--help` prints AC/ADR ids and agent rules, so it should lead with usage and
+examples. T-0108: runbook gaps (OAuth client-secret rotation, "which version is running", a §9 row for credentials
+that can no longer be decrypted after restore or key loss, post-restore verification, plus a human check of the dev
+`pg_dump` command).
+**Proposed ROADMAP backlog lines:** the five spec §8 items (instance banner, Argo CD app, metrics + ServiceMonitor,
+host-cluster self-registration, DP rotation helper) are not in ROADMAP yet. Add them, plus "(CP3 ACCEPT) `deploy-dev.sh
+--register-self`: after rollout, register the host cluster + smoke credential + ReadOnly grant through the admin API,
+so a reinstalled test cluster is usable in one command".
