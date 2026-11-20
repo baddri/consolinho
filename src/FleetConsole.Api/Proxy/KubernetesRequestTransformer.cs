@@ -17,7 +17,9 @@ namespace FleetConsole.Api.Proxy;
 /// <para><b>Request:</b> YARP's default copy (drops hop-by-hop headers and <c>Host</c>), then every header that could
 /// carry the browser's identity or make the apiserver trust another one is removed — <c>Authorization</c>,
 /// <c>Proxy-Authorization</c>, <c>Cookie</c>, <c>X-Console-Request</c>, <c>Forwarded</c>, <c>Impersonate-*</c>,
-/// <c>X-Remote-*</c>, <c>X-Forwarded-*</c> — and exactly one <c>Authorization: Bearer &lt;SA token&gt;</c> is set.
+/// <c>X-Remote-*</c>, <c>X-Forwarded-*</c> — as is every header the client nominated as hop-by-hop in its
+/// <c>Connection</c> header (RFC 9110 §7.6.1; <c>Upgrade</c> excepted, which YARP needs for WebSocket exec/attach),
+/// and exactly one <c>Authorization: Bearer &lt;SA token&gt;</c> is set.
 /// The destination is the cluster's API URL (path prefix kept) + the raw validated path + the query (watch
 /// <c>timeoutSeconds</c> capped), built without canonicalization so the cluster receives the bytes that were validated.</para>
 /// <para><b>Response:</b> an upstream 401 means the cluster rejected <em>our</em> credential; it is replaced by 502
@@ -67,10 +69,11 @@ internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequ
 
         await base.TransformRequestAsync(httpContext, proxyRequest, destinationPrefix, cancellationToken).ConfigureAwait(false);
 
-        Strip(proxyRequest.Headers);
+        var nominated = ConnectionNominated(httpContext);
+        Strip(proxyRequest.Headers, nominated);
         if (proxyRequest.Content is not null)
         {
-            Strip(proxyRequest.Content.Headers);
+            Strip(proxyRequest.Content.Headers, nominated);
         }
 
         proxyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", target.Token.Reveal());
@@ -112,12 +115,32 @@ internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequ
         return proceed;
     }
 
-    private static void Strip(HttpHeaders headers)
+    // The header names the client listed in Connection (RFC 9110 §7.6.1): they apply to the client's hop only, and
+    // YARP's default copy drops only its static hop-by-hop list. Upgrade stays: YARP forwards it for WebSocket
+    // handshakes (exec/attach), and it is already one of the hop-by-hop headers YARP handles itself.
+    private static HashSet<string> ConnectionNominated(HttpContext httpContext)
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var value in httpContext.Request.Headers.Connection)
+        {
+            foreach (var token in (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (!string.Equals(token, HeaderNames.Upgrade, StringComparison.OrdinalIgnoreCase))
+                {
+                    names.Add(token);
+                }
+            }
+        }
+
+        return names;
+    }
+
+    private static void Strip(HttpHeaders headers, HashSet<string> nominated)
     {
         List<string>? remove = null;
         foreach (var (name, _) in headers.NonValidated)
         {
-            if (IsStripped(name))
+            if (IsStripped(name) || nominated.Contains(name))
             {
                 (remove ??= []).Add(name);
             }

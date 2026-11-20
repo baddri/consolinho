@@ -131,8 +131,8 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
     }
 
     // QA (CP2 verify), SEC-1 over real sockets: a header the client nominates as hop-by-hop in Connection must not be
-    // forwarded (RFC 9110 §7.6.1), like the fixed hop-by-hop set. Fails today: YARP forwards it.
-    [Fact(Skip = "T-0093: headers nominated by the client's Connection header are forwarded upstream")]
+    // forwarded (RFC 9110 §7.6.1), like the fixed hop-by-hop set (T-0093).
+    [Fact]
     public async Task Connection_Nominated_Header_Is_Not_Forwarded_Over_Sockets()
     {
         await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
