@@ -76,15 +76,27 @@ it holds, so these rules are strict.
 - Decrypted tokens live only for the duration of a request (and, if caching is added, in a short-TTL in-memory cache only).
 
 ## Proxy hardening
-- Strip from client requests: `Authorization`, `Cookie`, `Impersonate-User`, `Impersonate-Group`, `Impersonate-Uid`,
-  `Impersonate-Extra-*`, `X-Remote-*`, hop-by-hop headers. Never forward the console cookie upstream.
-- Strip `Set-Cookie` and `WWW-Authenticate` from upstream responses.
-- Path is normalised and must start with `/api`, `/apis`, `/version`, `/openapi`, or `/.well-known`; no `..`, no absolute URLs.
-- TLS to clusters validates against the cluster's CA bundle; `SkipTlsVerify` is allowed but flagged loudly in the admin UI.
-- Request/response size and timeouts: normal requests time out; watch/log/exec streams are long-lived with idle timeouts.
+- Strip from client requests: `Authorization`, `Proxy-Authorization`, `Cookie`, `X-Console-Request`, `Forwarded`,
+  `Impersonate-*`, `X-Remote-*`, `X-Forwarded-*`, hop-by-hop headers; then add exactly one `Authorization: Bearer
+  <grant SA token>`. Never forward the console cookie upstream (ADR-0020).
+- Strip `Set-Cookie` and `WWW-Authenticate` from upstream responses. Upstream 401 becomes 502
+  `Proxy.CredentialRejected`, so a bad SA token never logs the user out.
+- Path: the raw request target is validated, never rewritten: must start with `/api`, `/apis`, `/version`,
+  `/openapi`, or `/.well-known`; `..`/`.` segments, `//`, `\`, `%2e`/`%2f`/`%5c` and absolute URLs → 400 (ADR-0019).
+- Mutations (any method but GET/HEAD/OPTIONS, plus `exec`/`attach`/`portforward`/`proxy` subresources; SSAR/SSRR POSTs
+  excepted) are refused for read-only users and ReadOnly grants before forwarding. WebSocket upgrades need a matching
+  `Origin`.
+- TLS to clusters validates against the cluster's CA bundle (only that cluster's pool uses it); `SkipTlsVerify` is
+  allowed but flagged loudly in the admin UI.
+- Limits: non-streaming requests idle-time out (30 s → 504); watches are capped at `timeoutSeconds` 300, which also
+  bounds how long a revoked user's open read stream lives; mutation bodies ≤ 10 MiB (413).
+- Access is resolved per request (no cache in CP2): revoking a grant, deactivating a user or disabling a cluster takes
+  effect on the next request.
 
 ## Audit
 - Admin commands and all proxy mutations (allowed and denied) write `AuditEntry` (user, cluster, verb, path, status, timestamp, correlation id).
+  Proxy entries are written after the response in their own unit of work; a failed audit write is logged at Error and
+  does not affect the response (ADR-0021). GETs/watches are not audited (traces only).
 - Admin-action audit entries are written **in the same database transaction** as the change (ADR-0008): no change
   without its entry, no entry without its change. Auth events (login, login denied with reason, logout) are audited too.
 - Append-only: no API updates or deletes entries. Entries never contain tokens, OAuth codes or cookie values (fingerprints

@@ -183,30 +183,40 @@ validator's property paths converted to the JSON naming policy (camelCase per se
 
 ## The proxy
 
+ADR-0019 (pipeline), ADR-0020 (forwarding), ADR-0021 (audit); FE-facing contract `docs/specs/CP2-api-contract.md`.
+
 ```
 Application/Proxy/
-  IProxyPolicy                 // Task<ProxyDecision> Evaluate(ProxyRequestContext ctx, CancellationToken ct)
-  IProxyResponseObserver       // post-response hook (audit)
-  ProxyRequestContext          // user, cluster, access mode, verb, k8s path, parsed RequestInfo (group/version/resource/subresource/ns/name)
-  KubernetesRequestInfo        // parser: "/apis/apps/v1/namespaces/x/deployments/y/scale" → structured
+  Requests/                    // pure: ProxyPath (raw-path allowlist, rejects never rewrites), KubernetesRequestInfo
+                               //   (group/version/resource/subresource/ns/name + kubectl DisplayName), ProxyRequest
+                               //   (verb, IsMutation, IsWatch, IsStreaming, watch timeoutSeconds cap)
+  IProxyPolicy                 // ValueTask<Result> EvaluateAsync(ProxyRequestContext, CancellationToken)
+  ProxyRequestContext          // user, cluster, environment, grant mode, effective read-only, ProxyRequest
+  ProxyErrors / ProxyOptions   // Proxy.* errors; Proxy:* settings (bound in the Api)
   Policies/
-    MutationGuardPolicy        // denies mutations when grant is ReadOnly or user is globally read-only
-  ResolveClusterAccess/        // query: (userId, clusterName) → ClusterAccess (endpoint, token, mode)
+    MutationGuardPolicy        // user read-only → Proxy.UserReadOnly, then ReadOnly grant → Proxy.ReadOnlyGrant
+    RequestBodyLimitPolicy     // Content-Length over Proxy:MaxMutationBodyBytes → Proxy.BodyTooLarge
+  AuthorizeProxyRequest/       // query: one SQL (grant ⋈ user ⋈ cluster ⋈ credential), decrypt token, run policies → ProxyTarget
+  RecordProxyAudit/            // command: one audit entry per mutation (allowed/denied), dispatched after the response
+Application/Abstractions/Kubernetes/
+  IClusterForwardingClients    // TryGetInvoker(clusterId, ClusterConnection) — the pool port
 Infrastructure/Kubernetes/
-  ClusterTlsHandlerFactory     // SocketsHttpHandler per ClusterConnection with CA-bundle trust + TLS error capture (CP1, ADR-0011)
-  ClusterHttpClientPool        // cached HttpMessageInvoker per cluster (built by the factory), invalidated on change
+  ClusterTlsHandlerFactory     // Create (probes, records TLS failures, ADR-0011) / CreateForwarding (pool, records nothing)
+  ClusterForwardingClientPool  // one invoker per cluster, rebuilt when the ClusterConnection value changes
 Api/Proxy/
-  KubernetesProxyEndpoint      // maps route, runs policies, calls IHttpForwarder
-  KubernetesRequestTransformer // header stripping + bearer injection + path rewrite
+  KubernetesProxyEndpoint      // raw path → authorize query → IHttpForwarder → audit; ProblemDetails via ProxyProblems
+  KubernetesRequestTransformer // header stripping + bearer injection + exact URI; upstream 401 → 502 CredentialRejected
 ```
 
-Policies are registered in order with `services.AddProxyPolicy<T>()`. **To stop users from mutating even when their
-token allows it, you add or configure a policy — the endpoint never changes.**
+Policies are registered in order with `services.AddProxyPolicy<T>()` (in `AddApplication`). **To stop users from
+mutating even when their token allows it, you add or configure a policy — the endpoint never changes.**
+No access cache in CP2 (one indexed query per request); TLS failures are classified from `HttpRequestError`, not
+`TlsValidationRecord` (probe-only). Never add response buffering/compression on the proxy route (watches stream).
 
 ## Recipes (keep these working; they are the maintainability contract)
 
 ### Adding a cache later
-1. Mark the query: `public sealed record ResolveClusterAccessQuery(...) : IQuery<ClusterAccess>, ICacheableQuery { string CacheKey => ...; TimeSpan Ttl => ...; }`.
+1. Extract the access lookup of `AuthorizeProxyRequestHandler` into its own query and mark it: `public sealed record ResolveClusterAccessQuery(...) : IQuery<ClusterAccess>, ICacheableQuery { string CacheKey => ...; TimeSpan Ttl => ...; }` (policies keep running per request, uncached).
 2. Register `CachingBehavior<,>` (uses `HybridCache`) in the pipeline before the handler.
 3. Invalidate from **post-commit** domain event handlers (`GrantRevoked` → remove key). That stage doesn't exist yet
    (ADR-0008 §6) — add it then; never invalidate from the pre-commit handlers, which run before the write. No use case
