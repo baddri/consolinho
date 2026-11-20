@@ -1,11 +1,11 @@
 ---
 id: T-0062
 title: Proxy security suites — authorization matrix, token-leak sweep, revocation, TLS isolation, streaming, audit failures
-status: todo
+status: done
 owner: qa-engineer
 checkpoint: 2
 depends_on: [T-0061]
-paths: [tests/FleetConsole.Api.Tests/Integration/Proxy/, tests/FleetConsole.Api.Tests/Integration/Admin/TokenLeakSweepTests.cs, tests/FleetConsole.Api.Tests/Integration/SessionRevalidationTests.cs, tests/FleetConsole.Api.Tests/Integration/AuthEndpointsTests.cs, tests/FleetConsole.Api.Tests/Integration/ApiTestExtensions.cs]
+paths: [tests/FleetConsole.Api.Tests/Integration/Proxy/, tests/FleetConsole.Api.Tests/Integration/Admin/TokenLeakSweepTests.cs, tests/FleetConsole.Api.Tests/Integration/SessionRevalidationTests.cs, tests/FleetConsole.Api.Tests/Integration/AuthEndpointsTests.cs, tests/FleetConsole.Api.Tests/Integration/ApiTestExtensions.cs, tests/FleetConsole.Api.Tests/Integration/ApiFactory.cs, tests/FleetConsole.Api.Tests/Fakes/FakeKubeApiServer.cs, tests/FleetConsole.Api.Tests/Integration/Admin/Users/LastAdminTests.cs, tests/FleetConsole.Api.Tests/Integration/TokenExchangeFailureTests.cs]
 review_rounds: 0
 ---
 
@@ -56,14 +56,33 @@ Expected outcomes: `docs/specs/CP2-api-contract.md` §4 (codes + check order). C
 - Fake: `tests/FleetConsole.Api.Tests/Fakes/FakeKubeApiServer.cs` (`MapWatch`, `Delay`, `RecordedRequest.Headers` from T-0057).
 
 ## Acceptance criteria
-- [ ] SEC-5 matrix + enumeration test green.
-- [ ] SEC-4 sweep green for all eight request kinds.
-- [ ] PRX-3, PRX-7, PRX-8, PAUD-3 tests green (or bug tasks filed and linked here).
-- [ ] `MeStatusAsync` exists once.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] SEC-5 matrix + enumeration test green.
+- [x] SEC-4 sweep green for all eight request kinds.
+- [x] PRX-3, PRX-7, PRX-8, PAUD-3 tests green (or bug tasks filed and linked here). Bug: T-0090 (watch headers held until first event; test skipped).
+- [x] `MeStatusAsync` exists once.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-20 qa-engineer: new `Integration/Proxy/Proxy{AuthorizationMatrix,TokenLeakSweep,Revocation,TlsIsolation,StreamingAndAudit,Kestrel}Tests`;
+  `MeStatusAsync` → `ApiTestExtensions` (call sites in 4 files). Harness: `CreateVariantAsync(configureServices:, kestrel:)`,
+  `CreateKestrelBrowserClient`, `ProxyTestClient.Anonymous`, fake `UseWebSockets()`. Filed T-0090.
+  check-be: 705 passed / 1 skipped (T-0090); proxy suites run 3× without flakes.
 
 ## Review
+- 2026-11-20 backend-architect: **APPROVE**. check-be: 705 passed / 1 skipped (first run hit a transient AppHost
+  build race from a concurrent agent; rerun green). SEC-4/5, PRX-3/7/8, PAUD-3 each asserted as specced; waits are
+  polled with deadlines (no fixed sleeps); token is obviously fake; harness changes small and XML-documented.
+  Reviewer added the out-of-path harness/call-site files to `paths` so the commit picks them up.
+  Optional nits:
+  - `Proxy/ProxyAuthorizationMatrixTests.cs:183` — `HttpRequestMessage` not disposed (content is) — `using var request`.
+  - `Integration/ApiFactory.cs:312` (pre-existing) — log capture is Debug+, SEC-4 says "any level" — consider `LogLevel.Trace` in a later harness touch.
+  Follow-ups: exec upgrade forwarded as HTTP/2 extended CONNECT → T-0091 (CP4). T-0090 triaged as CP2-blocking (see its Review).
 
 ## Handover notes
+- Kestrel variant: `factory.CreateVariantAsync(..., kestrel: true)` + `CreateKestrelBrowserClient(cookies)` +
+  `RunLoginAsync`; `Server`/`ProxyTestClient` are TestServer-only. Used for chunked 413, WebSocket exec, socket watch.
+- YARP forwards the exec upgrade to the fake as HTTP/2 extended CONNECT (audit `statusCode` 200, browser sees 101).
+  The HTTP/1.1 upgrade path (what kube-apiserver may need) is untested: CP4 should add an HTTP/1.1-only fake mode.
+- Exec audit entries are written when the session ends (after the forwarder returns), not at connect.
+- `ProxyStreamingAndAuditTests.ProxyAuditFails` shows how to decorate a service in a variant (`configureServices`).
+- T-0090: unskip `ProxyKestrelTests.Watch_Response_Headers_Arrive_Before_The_First_Event` when fixed.

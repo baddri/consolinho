@@ -46,15 +46,9 @@ internal sealed class ProxyTestClient : IDisposable
     /// <returns>The signed-in client.</returns>
     public static async Task<ProxyTestClient> LoginAsync(ApiFactory factory, string username)
     {
-        var cookies = new CookieContainerHandler
-        {
-            InnerHandler = new RawTargetHandler { InnerHandler = factory.Server.CreateHandler(EmulateKestrelRawTarget) },
-        };
-        var http = new HttpClient(cookies) { BaseAddress = new Uri("http://localhost") };
-        http.DefaultRequestHeaders.Add(CsrfHeaderMiddleware.HeaderName, CsrfHeaderMiddleware.HeaderValue);
-        var client = new ProxyTestClient(http, cookies);
+        var client = Anonymous(factory);
 
-        using var final = await factory.RunLoginAsync(http, username);
+        using var final = await factory.RunLoginAsync(client.Http, username);
         if (final.StatusCode != HttpStatusCode.Redirect || !client.CookieHeader.Contains(SessionDefaults.CookieName, StringComparison.Ordinal))
         {
             client.Dispose();
@@ -62,6 +56,20 @@ internal sealed class ProxyTestClient : IDisposable
         }
 
         return client;
+    }
+
+    /// <summary>A client without a session (same handlers as a signed-in one), for 401 cases.</summary>
+    /// <param name="factory">The Api host (default or a TestServer variant).</param>
+    /// <returns>The client.</returns>
+    public static ProxyTestClient Anonymous(ApiFactory factory)
+    {
+        var cookies = new CookieContainerHandler
+        {
+            InnerHandler = new RawTargetHandler { InnerHandler = factory.Server.CreateHandler(EmulateKestrelRawTarget) },
+        };
+        var http = new HttpClient(cookies) { BaseAddress = new Uri("http://localhost") };
+        http.DefaultRequestHeaders.Add(CsrfHeaderMiddleware.HeaderName, CsrfHeaderMiddleware.HeaderValue);
+        return new ProxyTestClient(http, cookies);
     }
 
     /// <summary>The absolute request URI for <paramref name="pathAndQuery"/>, not canonicalized.</summary>

@@ -242,7 +242,7 @@ public sealed class AuthEndpointsTests(ApiFactory factory)
         callback.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         callback.Headers.Location!.OriginalString.ShouldBe("/login?error=deactivated&returnUrl=%2Fclusters");
         SessionCookieHeader(callback).ShouldBeNull();
-        (await MeStatusAsync(client)).ShouldBe(HttpStatusCode.Unauthorized);
+        (await client.MeStatusAsync()).ShouldBe(HttpStatusCode.Unauthorized);
 
         var denied = (await factory.Data.AuditEntriesAsync(user.Username)).Single(e => e.Action == "auth.login_denied");
         System.Text.Json.JsonDocument.Parse(denied.DetailsJson).RootElement.GetProperty("reason").GetString().ShouldBe("deactivated");
@@ -314,7 +314,7 @@ public sealed class AuthEndpointsTests(ApiFactory factory)
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
         var cleared = SessionCookieHeader(response).ShouldNotBeNull();
         DateTimeOffset.Parse(Attributes(cleared)["expires"], CultureInfo.InvariantCulture).ShouldBeLessThan(DateTimeOffset.UtcNow);
-        (await MeStatusAsync(client)).ShouldBe(HttpStatusCode.Unauthorized);
+        (await client.MeStatusAsync()).ShouldBe(HttpStatusCode.Unauthorized);
         (await factory.Data.AuditEntriesAsync(username)).Count(e => e.Action == "auth.logout").ShouldBe(1);
     }
 
@@ -331,7 +331,7 @@ public sealed class AuthEndpointsTests(ApiFactory factory)
 
         response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
         (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("code").GetString().ShouldBe("Auth.CsrfHeaderMissing");
-        (await MeStatusAsync(client)).ShouldBe(HttpStatusCode.OK);
+        (await client.MeStatusAsync()).ShouldBe(HttpStatusCode.OK);
     }
 
     [Fact]
@@ -359,11 +359,5 @@ public sealed class AuthEndpointsTests(ApiFactory factory)
         using var response = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), Ct);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         return await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
-    }
-
-    internal static async Task<HttpStatusCode> MeStatusAsync(HttpClient client)
-    {
-        using var response = await client.GetAsync(new Uri("/api/auth/me", UriKind.Relative), Ct);
-        return response.StatusCode;
     }
 }

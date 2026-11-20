@@ -131,7 +131,7 @@ public sealed class TokenExchangeFailureTests(ApiFactory factory) : IDisposable
         callback.StatusCode.ShouldBe(HttpStatusCode.Redirect);
         callback.Headers.Location!.OriginalString.ShouldBe($"/login?error={expectedError}&returnUrl=%2Fclusters");
         SessionCookieHeader(callback).ShouldBeNull();
-        (await MeStatusAsync(client)).ShouldBe(HttpStatusCode.Unauthorized);
+        (await client.MeStatusAsync()).ShouldBe(HttpStatusCode.Unauthorized);
 
         factory.Logs.Entries.ShouldContain(e => e.EventId == 2200
             && e.Text.Contains($"outcome {expectedError}", StringComparison.Ordinal)

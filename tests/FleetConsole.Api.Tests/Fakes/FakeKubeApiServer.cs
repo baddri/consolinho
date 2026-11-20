@@ -135,6 +135,7 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
 
         var app = builder.Build();
         var server = new FakeKubeApiServer(app, authority, serverCertificate);
+        app.UseWebSockets(); // upgrades (exec/attach/port-forward) are answered by Map handlers via context.WebSockets
         app.Run(server.HandleAsync);
 
         await app.StartAsync(cancellationToken).ConfigureAwait(false);
