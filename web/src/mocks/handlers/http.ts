@@ -5,9 +5,8 @@ import { currentMockUser, isAdmin } from '../db';
 import { problem } from '../problem';
 
 /**
- * MSW `http` typed with the merged API paths (ADR-0016): handlers are keyed by **path** (never by operation name, so
- * they survive T-0043 deleting `schema.contract.ts`), and params, bodies and responses are checked against the
- * contract. The `*` base URL makes them origin-agnostic (jsdom, the dev server and the browser worker alike).
+ * MSW `http` typed with the generated API paths (ADR-0016): handlers are keyed by **path** (never by operation name,
+ * which the Api may rename), and params, bodies and responses are checked against the Api's OpenAPI document. The `*` base URL makes them origin-agnostic (jsdom, the dev server and the browser worker alike).
  */
 export const http = createOpenApiHttp<paths>({ baseUrl: '*' });
 

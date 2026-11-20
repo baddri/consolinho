@@ -1,5 +1,5 @@
 # 0016 — Contract-first API types and an MSW mock backend for frontend work
-**Status:** Accepted (2026-11-18) · **Builds on:** 0013 · **Temporary part ends with:** CP1 integration task T-0043
+**Status:** Accepted (2026-11-18) · **Builds on:** 0013 · **Temporary part:** closed by T-0043 (2026-11-20) — `schema.contract.ts` and `PreferGenerated` removed; `schema.ts` re-exports `schema.gen.ts` only
 
 ## Context
 CLAUDE.md requires admin API types to be generated from the Api's OpenAPI document (QG-4: no hand-written duplicates).

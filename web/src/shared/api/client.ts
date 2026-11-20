@@ -23,9 +23,9 @@ export const csrfMiddleware: Middleware = {
 };
 
 /**
- * Typed client for the FleetConsole Api. Its types are the merged {@link paths}: generated from the Api's OpenAPI
- * document (`npm run gen:api`) where an endpoint exists, the provisional CP1 contract otherwise (ADR-0016). Hooks call
- * it through `unwrap()` / `unwrapNoContent()` so failures are always an `ApiError` (ADR-0015).
+ * Typed client for the FleetConsole Api. Its types are the {@link paths} generated from the Api's OpenAPI document
+ * (`npm run gen:api`, ADR-0016). Hooks call it through `unwrap()` / `unwrapNoContent()` so failures are always an
+ * `ApiError` (ADR-0015).
  *
  * The base URL is the SPA's own origin rather than `/api`: the Api's OpenAPI document lists full routes
  * (`/api/system/info`), so paths passed to the client already start with `/api`. In development Vite proxies `/api`

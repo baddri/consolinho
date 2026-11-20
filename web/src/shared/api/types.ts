@@ -1,6 +1,6 @@
 import type { schemas } from './schema';
 
-// Named aliases for the merged API schemas (ADR-0016). Features import these, never `schemas[...]` directly.
+// Named aliases for the generated API schemas (ADR-0016). Features import these, never `schemas[...]` directly.
 
 // ---- Errors (contract §1)
 /** RFC 9457 error body (generated type; `code`/`traceId` are read by `ApiError`). */

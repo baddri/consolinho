@@ -20,7 +20,7 @@ web/src/
   shared/                 # no feature knowledge
     api/                  # openapi-fetch client for /api (generated schema in api/schema.gen.ts), error → ProblemDetails
                           #   baseUrl = page origin: OpenAPI paths already include the /api prefix (Api maps MapGroup("/api"))
-                          #   errors.ts (ApiError, unwrap), schema.ts (merged types, ADR-0016), types.ts (named aliases)
+                          #   errors.ts (ApiError, unwrap), schema.ts (re-exports generated types, ADR-0016), types.ts (named aliases)
     auth/                 # login-navigation contract rules (§4.1, ADR-0014 §4): sanitizeReturnUrl, buildLoginUrl, isLoginPath.
                           #   Pure, relative imports only — also used by app/session.ts, mocks/browser.ts, vite.config.ts
     forms/                # RHF ⇄ PatternFly field adapters, applyServerErrors, FormProblemAlert, ConflictAlert (ADR-0015)
@@ -34,7 +34,7 @@ web/src/
     ui/                   # reusable presentational pieces: ResourceLink, StatusLabel, RelativeTime, LabelList, ErrorState,
                           #   ConfirmModal, EnvironmentLabel, ActionButton (disabled-with-reason), ToastProvider/useToast
     hooks/  utils/
-  mocks/                  # MSW mock backend from the contract types: fixtures/, db.ts, session.ts, handlers/, browser.ts (ADR-0016)
+  mocks/                  # MSW mock backend typed by the generated schema: fixtures/, db.ts, session.ts, handlers/, browser.ts (ADR-0016)
   features/
     auth/                 # LoginPage, RequireSession, useCurrentUser, UserMenu, useLogout (ADR-0014)
     cluster-context/      # ClusterSwitcher, useAccessibleClusters, ClusterGate, LandingRedirect, NoClustersPage,

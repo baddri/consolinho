@@ -63,8 +63,6 @@ export default tseslint.config(
       'src/shared/api/schema.gen.ts',
       // Generated MSW worker script (`npx msw init msw`), served only in mock mode.
       'msw',
-      // Provisional transcription in openapi-typescript format (ADR-0016), deleted by T-0043.
-      'src/shared/api/schema.contract.ts',
     ],
   },
   js.configs.recommended,

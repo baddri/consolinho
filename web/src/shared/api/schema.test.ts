@@ -1,41 +1,30 @@
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/server';
 import { apiClient } from './client';
-import type * as Contract from './schema.contract';
 import type * as Gen from './schema.gen';
 import type { paths, schemas } from './schema';
-import type { AuditEntry, Credential, UserListItem } from './types';
+import type { AuditEntry, ConnectionTestSummary, Credential, ProblemDetails, UserListItem } from './types';
 
 const CREDENTIAL_ID = '3f6c1e1a-5b7d-4f43-9a51-2c0d8f1e7a90';
 const GRANT_ID = '9b2d4c7e-1a3f-4e5b-8c6d-0f1e2a3b4c5d';
 
-describe('merged API types (ADR-0016)', () => {
-  it('takes generated paths when they exist and contract paths otherwise', () => {
-    expectTypeOf<paths['/api/system/info']>().toEqualTypeOf<Gen.paths['/api/system/info']>();
-    expectTypeOf<paths['/api/auth/me']>().toEqualTypeOf<Gen.paths['/api/auth/me']>();
-    expectTypeOf<paths['/api/clusters']>().toEqualTypeOf<Gen.paths['/api/clusters']>();
-    // Every CP1 contract route is generated since T-0020; T-0043 retires the contract fallback (ADR-0016).
-    expectTypeOf<paths['/api/admin/clusters/{name}/test-token']>().toEqualTypeOf<
-      Gen.paths['/api/admin/clusters/{name}/test-token']
-    >();
+describe('generated API types (ADR-0016, QG-4)', () => {
+  it('uses the generated paths and schemas only', () => {
+    expectTypeOf<paths>().toEqualTypeOf<Gen.paths>();
+    expectTypeOf<schemas>().toEqualTypeOf<Gen.components['schemas']>();
   });
 
-  it('takes generated schemas when they exist and contract schemas otherwise', () => {
-    expectTypeOf<schemas['SystemInfo']>().toEqualTypeOf<Gen.components['schemas']['SystemInfo']>();
-    expectTypeOf<schemas['ProblemDetails']>().toEqualTypeOf<Gen.components['schemas']['ProblemDetails']>();
-    expectTypeOf<schemas['UserDetail']>().toEqualTypeOf<Contract.components['schemas']['UserDetail']>();
-  });
-
-  it('carries the orchestrator contract amendments', () => {
+  it('carries the contract amendments and the shapes the UI relies on', () => {
     expectTypeOf<UserListItem['version']>().toEqualTypeOf<number>();
     expectTypeOf<UserListItem['adminConfigurationSource']>().toEqualTypeOf<string | null>();
     expectTypeOf<UserListItem['isAdminByAssignment']>().toEqualTypeOf<boolean>();
     expectTypeOf<schemas['ClusterListItem']['version']>().toEqualTypeOf<number>();
     expectTypeOf<Credential['expiryWarningDays']>().toEqualTypeOf<number>();
-    expectTypeOf<Contract.components['schemas']['ProblemDetails']['code']>().toEqualTypeOf<
-      string | null | undefined
-    >();
+    expectTypeOf<ProblemDetails['code']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<ProblemDetails['traceId']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<AuditEntry['details']>().toBeUnknown();
+    expectTypeOf<ConnectionTestSummary['failedStep']>().toEqualTypeOf<schemas['ConnectionTestStep'] | null>();
+    expectTypeOf<ConnectionTestSummary['headline']>().toEqualTypeOf<schemas['CapabilityLevel'] | null>();
   });
 });
 
