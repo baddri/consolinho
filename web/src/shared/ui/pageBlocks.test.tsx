@@ -128,7 +128,7 @@ describe('PageBody / SectionHeading / DetailsGrid', () => {
               alice
             </DetailsItem>
           </DetailsColumn>
-          <DetailsColumn>
+          <DetailsColumn aria-label="Access">
             <DetailsItem label="Role">Admin</DetailsItem>
           </DetailsColumn>
         </DetailsGrid>
@@ -143,6 +143,7 @@ describe('PageBody / SectionHeading / DetailsGrid', () => {
     const lists = screen.getAllByRole('term').map((term) => term.closest('dl'));
     expect(new Set(lists).size).toBe(2);
     lists.forEach((list) => expect(list).not.toHaveClass('pf-m-horizontal'));
+    expect(screen.getByLabelText('Access')).toHaveTextContent('RoleAdmin');
   });
 });
 

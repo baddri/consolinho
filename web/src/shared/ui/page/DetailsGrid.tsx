@@ -16,11 +16,18 @@ export function DetailsGrid({ children }: { children: ReactNode }) {
   return <Grid hasGutter>{children}</Grid>;
 }
 
+/** Props for {@link DetailsColumn}. */
+export interface DetailsColumnProps {
+  children: ReactNode;
+  /** Accessible name of the list, e.g. "Metadata", so the two halves can be told apart. */
+  'aria-label'?: string;
+}
+
 /** One half of a {@link DetailsGrid}: a vertical `DescriptionList` (term above value, never horizontal). */
-export function DetailsColumn({ children }: { children: ReactNode }) {
+export function DetailsColumn({ children, 'aria-label': ariaLabel }: DetailsColumnProps) {
   return (
     <GridItem sm={6}>
-      <DescriptionList>{children}</DescriptionList>
+      <DescriptionList aria-label={ariaLabel}>{children}</DescriptionList>
     </GridItem>
   );
 }

@@ -15,7 +15,7 @@ function keyCount(configMap: ConfigMap): number {
 export const configMapDescriptor: ResourceDescriptor<ConfigMapResource> = {
   model: ConfigMapModel,
   nav: { section: 'workloads', order: 30 },
-  DetailsSection: ConfigMapDetails,
+  ExtraSections: ConfigMapDetails,
   columns: [
     nameColumn(ConfigMapModel),
     namespaceColumn(ConfigMapModel),

@@ -110,8 +110,11 @@ export const deploymentDescriptor: ResourceDescriptor<Deployment> = {
 Adding a kind = one descriptor file + register it + optional kind-specific components. The generic pages handle
 loading/error/empty states, filtering, sorting, pagination and watch updates.
 
-**CP2 shape (ADR-0023):** `{ model, nav?, columns, filters?, defaultSort?, status?, DetailsSection?, hasEventsTab?,
-deleteRequiresName? }` in `features/resources/registry/kinds/<plural>.tsx`; tabs are fixed (Details · YAML · Events)
+**CP2 shape (ADR-0023):** `{ model, nav?, columns, filters?, defaultSort?, status?, DetailsSection?, ExtraSections?,
+hasEventsTab?, deleteRequiresName? }` in `features/resources/registry/kinds/<plural>.tsx`. Details tab (T-0113, OCP
+`DeploymentDetails`): `SectionHeading` "<Kind> details" over a `DetailsGrid` — left column the shared metadata, right
+column `DetailsSection` (shared `DetailsItem`s only, no tables or headings) — then `ExtraSections` full width, each a
+`details/sections/DetailsSubsection` (h2 + region: Containers, Conditions, Ports, Data). Tabs are fixed (Details · YAML · Events)
 and actions generic (Edit YAML, Delete, gated by `useResourceAccess`). The `detailTabs`/`actions` fields above arrive
 with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (registry + discovery).
 

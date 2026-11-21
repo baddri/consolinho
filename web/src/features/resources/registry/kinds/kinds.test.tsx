@@ -101,7 +101,7 @@ describe('deployments (QG-3)', () => {
   it('shows replicas, strategy and conditions on the Details tab', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/deployments/web');
 
-    const summary = await screen.findByLabelText('Deployment status');
+    const summary = await screen.findByLabelText('Deployment details');
     expect(
       within(summary).getByText('RollingUpdate (max surge 25%, max unavailable 25%)'),
     ).toBeInTheDocument();

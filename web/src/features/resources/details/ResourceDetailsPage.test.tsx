@@ -12,7 +12,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } 
 import { mockDb, mockK8s, problem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
-import { NO_EVENTS_TEXT } from '../events/ResourceEventsTab';
+import { NO_EVENTS_BODY, NO_EVENTS_TITLE } from '../events/ResourceEventsTab';
 import { resourceRoutes } from '../routes';
 import { base64Size, formatBytes } from './sections/ConfigMapDetails';
 
@@ -77,18 +77,12 @@ describe('pod details (UI-4)', () => {
         ),
       ).toBeInTheDocument();
       const breadcrumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
-      expect(within(breadcrumb).getByRole('link', { name: 'Projects' })).toHaveAttribute(
-        'href',
-        '/c/dev-1/k8s/cluster/projects',
-      );
-      expect(within(breadcrumb).getByRole('link', { name: 'shop' })).toHaveAttribute(
-        'href',
-        '/c/dev-1/k8s/cluster/projects/shop',
-      );
       expect(within(breadcrumb).getByRole('link', { name: 'Pods' })).toHaveAttribute(
         'href',
         '/c/dev-1/k8s/ns/shop/pods',
       );
+      expect(within(breadcrumb).getByText('Pod details')).toHaveAttribute('aria-current', 'page');
+      expect(await screen.findByRole('heading', { name: 'Pod details', level: 2 })).toBeInTheDocument();
 
       const containers = await screen.findByRole('grid', { name: 'Containers' });
       const row = within(containers).getByRole('row', { name: /^web/ });
@@ -106,8 +100,10 @@ describe('pod details (UI-4)', () => {
       // Unregistered owner kind (ReplicaSet): badge + plain name, no link.
       expect(screen.getByTitle('ReplicaSet')).toBeInTheDocument();
       expect(screen.getByText('web-7d4b9c8f6d')).toBeInTheDocument();
-      // Namespace link in the metadata, next to the breadcrumb's.
-      expect(screen.getAllByRole('link', { name: 'shop' })).toHaveLength(2);
+      // Namespace link in the metadata column.
+      expect(
+        within(screen.getByLabelText('Metadata')).getByRole('link', { name: 'shop' }),
+      ).toHaveAttribute('href', '/c/dev-1/k8s/cluster/projects/shop');
 
       const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
       expect(tabs).toEqual(['Details', 'YAML', 'Events']);
@@ -151,6 +147,28 @@ describe('pod details (UI-4)', () => {
   });
 });
 
+describe('details project bar', () => {
+  it('shows on a pod and opens the picked project\'s list', async () => {
+    const { user, router } = renderApp(POD_PATH);
+
+    await user.click(await screen.findByRole('button', { name: 'Project: shop' }));
+    const list = await screen.findByRole('listbox', { name: 'Projects' });
+    await user.click(await within(list).findByRole('option', { name: /^payments/ }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/payments/pods'));
+  });
+
+  it('is absent on Project and Namespace details', async () => {
+    for (const path of ['/c/dev-1/k8s/cluster/projects/shop', '/c/dev-1/k8s/cluster/namespaces/default']) {
+      const { unmount } = renderApp(path);
+      // The Details tab's h2 means the object (and anything above it) has rendered.
+      expect(await screen.findByRole('heading', { level: 2, name: / details$/ })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^Project:/ })).not.toBeInTheDocument();
+      unmount();
+    }
+  });
+});
+
 describe('config map details (UI-4)', () => {
   it('shows each data key with its value', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config');
@@ -163,7 +181,7 @@ describe('config map details (UI-4)', () => {
   it('lists binary keys with their decoded size', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-assets');
 
-    const binary = await screen.findByLabelText('Binary data');
+    const binary = await screen.findByRole('grid', { name: 'Binary data' });
     expect(within(binary).getByText('favicon.png')).toBeInTheDocument();
     expect(within(binary).getByText('68 B')).toBeInTheDocument();
   });
@@ -242,10 +260,12 @@ describe('events tab (UI-5)', () => {
     await waitFor(() => expect(reasons()).toEqual(['Killing', 'BackOff', 'Started']));
   });
 
-  it('shows the exact empty text', async () => {
+  it('shows a small empty state without table headers', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config/events');
 
-    expect(await screen.findByRole('heading', { name: NO_EVENTS_TEXT })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: NO_EVENTS_TITLE })).toBeInTheDocument();
+    expect(screen.getByText(NO_EVENTS_BODY)).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
   });
 });
 

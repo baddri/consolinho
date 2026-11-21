@@ -14,7 +14,13 @@ export {
   type ConfirmModalProps,
   type InlineLabelTitleProps,
 } from './ConfirmModal';
-export { DetailsColumn, DetailsGrid, DetailsItem, type DetailsItemProps } from './page/DetailsGrid';
+export {
+  DetailsColumn,
+  DetailsGrid,
+  DetailsItem,
+  type DetailsColumnProps,
+  type DetailsItemProps,
+} from './page/DetailsGrid';
 export {
   EnvironmentLabel,
   environmentLabel,

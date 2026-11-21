@@ -1,9 +1,9 @@
-import { DescriptionList, Stack, StackItem, Title } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { ServiceModel, type K8sResource, type Service } from '@/shared/k8s';
+import { DetailsItem } from '@/shared/ui';
+import { DetailsSubsection } from '../../details/sections/DetailsSubsection';
 import { PodSelectorLink, labelSelectorString, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
-import { DetailItem } from './DetailItem';
 
 /** A listed service (`metadata` always present). */
 export type ServiceResource = Service & K8sResource;
@@ -61,29 +61,28 @@ function PortsTable({ service }: { service: Service }) {
   );
 }
 
-/** Service part of the Details tab (UI-4): type, cluster IPs, selector, session affinity and the ports table. */
+/** Service fields of the Details tab's right column (UI-4): type, cluster IPs, selector and session affinity. */
 function ServiceDetails({ obj }: { obj: ServiceResource }) {
   return (
-    <Stack hasGutter>
-      <StackItem>
-        <DescriptionList aria-label="Service details" isCompact isHorizontal>
-          <DetailItem term="Type">{serviceType(obj)}</DetailItem>
-          <DetailItem term={(obj.spec?.clusterIPs?.length ?? 0) > 1 ? 'Cluster IPs' : 'Cluster IP'}>
-            {clusterIPs(obj)}
-          </DetailItem>
-          <DetailItem term="Pod selector">
-            <PodSelectorLink namespace={obj.metadata.namespace} matchLabels={obj.spec?.selector} />
-          </DetailItem>
-          <DetailItem term="Session affinity">{obj.spec?.sessionAffinity ?? 'None'}</DetailItem>
-        </DescriptionList>
-      </StackItem>
-      <StackItem>
-        <Title headingLevel="h3">Ports</Title>
-      </StackItem>
-      <StackItem>
-        <PortsTable service={obj} />
-      </StackItem>
-    </Stack>
+    <>
+      <DetailsItem label="Type">{serviceType(obj)}</DetailsItem>
+      <DetailsItem label={(obj.spec?.clusterIPs?.length ?? 0) > 1 ? 'Cluster IPs' : 'Cluster IP'}>
+        {clusterIPs(obj)}
+      </DetailsItem>
+      <DetailsItem label="Pod selector">
+        <PodSelectorLink namespace={obj.metadata.namespace} matchLabels={obj.spec?.selector} />
+      </DetailsItem>
+      <DetailsItem label="Session affinity">{obj.spec?.sessionAffinity ?? 'None'}</DetailsItem>
+    </>
+  );
+}
+
+/** Ports section below the service's details grid (UI-4). */
+function ServicePorts({ obj }: { obj: ServiceResource }) {
+  return (
+    <DetailsSubsection title="Ports">
+      <PortsTable service={obj} />
+    </DetailsSubsection>
   );
 }
 
@@ -92,6 +91,7 @@ export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   model: ServiceModel,
   nav: { section: 'networking', order: 10 },
   DetailsSection: ServiceDetails,
+  ExtraSections: ServicePorts,
   columns: [
     nameColumn(ServiceModel),
     namespaceColumn(ServiceModel),

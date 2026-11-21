@@ -1,12 +1,12 @@
 ---
 id: T-0113
 title: Resource details pages — OCP heading, breadcrumb, two-column details, page tabs, YAML and events tabs
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110, T-0112]
 paths: [web/src/features/resources/details, web/src/features/resources/yaml, web/src/features/resources/events, web/src/features/resources/registry, web/src/features/resources/components]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -61,17 +61,62 @@ Findings:
   `public/components/utils/horizontal-nav.tsx`, `public/components/edit-yaml.tsx`, `public/components/pod.tsx` (PodDetails).
 
 ## Acceptance criteria
-- [ ] `/c/dev-1/k8s/ns/shop/deployments/web` at 1280 and 1920: project bar, breadcrumb "Deployments › Deployment details",
+- [x] `/c/dev-1/k8s/ns/shop/deployments/web` at 1280 and 1920: project bar, breadcrumb "Deployments › Deployment details",
       "D web" h1 with outlined status, Actions right; tabs aligned with the title.
-- [ ] Details tab: "Deployment details" h2, two columns at 1280; no term wraps over 2 lines.
-- [ ] Pod details: same layout; CrashLoopBackOff shows red icon + text in the title.
-- [ ] Events tab empty: small empty state, no orphan table header.
-- [ ] YAML tab: editor reaches the bottom of the content card; buttons below it.
-- [ ] Both themes checked.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Details tab: "Deployment details" h2, two columns at 1280; no term wraps over 2 lines.
+- [x] Pod details: same layout; CrashLoopBackOff shows red icon + text in the title.
+- [x] Events tab empty: small empty state, no orphan table header.
+- [x] YAML tab: editor reaches the bottom of the content card; buttons below it.
+- [x] Both themes checked.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-21 frontend-engineer: started; read UX.md §3/4/6/7, T-0110/T-0112 handover.
+- 2026-11-21 frontend-engineer: PageHeading/PageTabs/DetailsGrid adoption, descriptor `ExtraSections`, events EmptyState,
+  filled YAML tab; screenshots (Pod/Deployment/ConfigMap/Project, YAML, Events, 404; light+dark, 1280+1920) OK;
+  `scripts/check-fe.sh` green.
+- 2026-11-21 frontend-engineer: round 1 — `DetailsColumn aria-label`, `PageBody` (no wrapper when filled, role/aria-label)
+  for tab content, project-bar tests, Pod "Status" icon+text, absolute `Timestamp` for Created, ConfigMap data as DL;
+  re-screenshotted; check-fe green (719).
 
 ## Review
+### Visual review (ux-designer, 2026-11-21) — APPROVE
+Checked Pod (Running + CrashLoopBackOff), Deployment, ConfigMap (text + binary), Project, YAML, Events (empty + rows),
+404; light+dark, 1280+1920. No horizontal overflow; no dt wraps; tab text aligned with h1 text; crumbs "<Kinds> › <Kind> details".
+- All ACs met: project bar, KindBadge h1 + outlined status (CrashLoopBackOff red icon), Actions right, two columns, events `EmptyState sm`, YAML editor fills card with buttons below.
+- Follow-up (minor, out of scope): Pod details right column shows "Phase: Running" next to CrashLoopBackOff title — OCP `PodDetailsList` shows "Status" with the computed pod status icon — CP4 pod details.
+- Follow-up (minor): ConfigMap data keys render as headings close to the "Data" h2 size — OCP `ConfigMapDataView` uses a `DescriptionList` (key as bold term, value as code block) — CP4.
+- Follow-up (minor): YAML tab has Save/Reload but no Cancel; Save disabled until dirty — OCP `edit-yaml.tsx` shows Save/Reload/Cancel, Save always enabled — note for CP4 YAML work.
+- Follow-up (minor): "Created" is relative ("last month") — OCP `Timestamp` shows absolute date/time with globe icon for older items — shared timestamp task.
+- 2026-11-21 frontend-architect: **CHANGES_REQUESTED** (round 1). Contract split `DetailsSection`/`ExtraSections` +
+  `DetailItem.tsx` deletion approved; FRONTEND.md "The resource registry" updated by the architect. check-fe green (717).
+  - `web/src/shared/ui/page/DetailsGrid.tsx:20` — `DetailsColumn` has no accessible name, so the tab hand-rolls a copy
+    (`details/ResourceDetailsTab.tsx:10` `LabelledColumn`) — add optional `'aria-label'?: string` to `DetailsColumn`
+    (passed to `DescriptionList`), delete `LabelledColumn`, use `DetailsColumn` (+ one assertion in `pageBlocks.test.tsx`).
+  - `web/src/shared/ui/page/PageBody.tsx:15` — `isFilled` keeps PF's body wrapper, so the details page bypasses
+    `PageBody` (`details/ResourceDetailsPage.tsx:194` raw `PageSection` + `hasBodyWrapper`) — make `PageBody` pass
+    `hasBodyWrapper={!isFilled}` and accept `role?` + `'aria-label'?`; render the tab content as
+    `<PageBody isFilled={isYaml} role="tabpanel" aria-label={TAB_TITLES[tab]}>`; fix the TSDoc of `ResourceTabs`.
+  - `details/ResourceDetailsPage.test.tsx` — new behaviour "project bar on details pages of namespaced kinds,
+    selecting a project goes to that project's list" is untested — add one test (bar present on a pod, absent on a
+    Namespace/Project details page; selection navigates to `/c/dev-1/k8s/ns/<other>/pods`).
+  - Nits (optional): `DetailsSubsection` is kind-agnostic and imported by `registry/kinds/*` — could live in
+    `shared/ui/page` next to `SectionHeading`; `ResourceDetails` TSDoc line at `ResourceDetailsPage.tsx:106` exceeds width.
+- 2026-11-21 frontend-architect: **APPROVE** (round 2). All 3 required items done (`DetailsColumn aria-label`,
+  `PageBody isFilled`/`role`/`aria-label` used by every tab, project-bar tests). Extra changes also OK: Pod Status
+  column, `Timestamp`, ConfigMap data as a DL. check-fe green (719).
+  - Nits (optional, follow-up): `resources/components/Timestamp.tsx` is kind-agnostic; move it to `shared/ui` next to
+    `RelativeTime`, add a unit test (absolute text, relative tooltip, "—"/unparseable). `DetailsSubsection` could move too.
 
 ## Handover notes
+- Descriptor contract split (`registry/types.ts`): `DetailsSection` = right-column `DetailsItem`s only; new
+  `ExtraSections` = full-width sections below the grid, each a `details/sections/DetailsSubsection` (h2 + region).
+  `registry/kinds/DetailItem.tsx` deleted (shared `DetailsItem`). FRONTEND.md L113 descriptor shape needs `ExtraSections`.
+- Shared `DetailsColumn` takes `aria-label` ("Metadata" / "<Kind> details"); `PageBody isFilled` drops PF's body
+  wrapper (filled children can reach the bottom) and takes `role`/`aria-label`; tab content = `PageBody role="tabpanel"`.
+- Pod right column "Status" = `ResourceStatusLabel` via `PodDetailsSection` wrapper in `pods.tsx` (no import cycle).
+- Created uses `resources/components/Timestamp` (absolute text, relative tooltip); list cells keep `RelativeTime`.
+- Events empty: `EmptyState sm` "No events" + body "Events are kept for about an hour by default." (UI-5 text split;
+  `NO_EVENTS_TITLE/BODY` replace `NO_EVENTS_TEXT`).
+- ConfigMap data = vertical DL (key term, code block value); binary data a compact table; labels outlined grey.
+- ProjectBar shown on details pages of namespaced kinds (selection → that project's list). e2e unchanged (tabpanel name kept).

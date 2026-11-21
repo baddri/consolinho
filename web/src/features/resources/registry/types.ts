@@ -62,10 +62,17 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   defaultSort?: { columnId: string; direction: 'asc' | 'desc' };
   status?(obj: T): ResourceStatus | undefined;
   /**
-   * Kind-specific part of the Details tab (T-0075), a function component (`<DetailsSection obj={obj} />`). Declared as
-   * a method rather than `ComponentType<{ obj: T }>` so it stays bivariant like the other callbacks.
+   * Kind-specific fields of the Details tab (T-0075, T-0113): `DetailsItem`s only, rendered as the right column of the
+   * "<Kind> details" grid next to the common metadata (`UX.md` §6). A function component
+   * (`<DetailsSection obj={obj} />`), declared as a method rather than `ComponentType<{ obj: T }>` so it stays
+   * bivariant like the other callbacks.
    */
   DetailsSection?(props: { obj: T }): ReactNode;
+  /**
+   * Further full-width sections below the details grid (Containers, Conditions, Ports, Data), each a
+   * `DetailsSubsection` with its own heading. Same component shape as {@link DetailsSection}.
+   */
+  ExtraSections?(props: { obj: T }): ReactNode;
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /** Delete asks to type the name (Namespace, Project). */

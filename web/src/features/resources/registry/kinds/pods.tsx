@@ -1,7 +1,7 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
 import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
 import { ResourceStatusLabel, statusColor } from '../../components/ResourceStatusLabel';
-import { PodDetails } from '../../details/sections/PodDetails';
+import { PodContainers, PodDetails } from '../../details/sections/PodDetails';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
 
@@ -49,6 +49,11 @@ function status(pod: PodResource): ResourceStatus {
   return { title, color: statusColor(title) };
 }
 
+/** The Details tab's pod fields with the same status as the title. */
+function PodDetailsSection({ obj }: { obj: PodResource }) {
+  return <PodDetails obj={obj} status={status(obj)} />;
+}
+
 /**
  * Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg; ≥ 2xl in all projects), Created (≥ 2xl, as
  * OCP); status filter.
@@ -57,7 +62,8 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
   model: PodModel,
   nav: { section: 'workloads', order: 10 },
   status,
-  DetailsSection: PodDetails,
+  DetailsSection: PodDetailsSection,
+  ExtraSections: PodContainers,
   columns: [
     nameColumn(PodModel),
     namespaceColumn(PodModel),

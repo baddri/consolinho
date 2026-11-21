@@ -76,6 +76,7 @@ Findings:
   `packages/console-shared/src/components/heading/PageHeading.tsx`.
 
 ## Acceptance criteria
+- [ ] (from T-0114 visual review) User access tab has one create entry point, not both "Grant access to clusters" in the heading and "Add access" in the toolbar; wording consistent with the cluster tab ("Grant access").
 - [ ] `/admin/users/admin`, `/admin/users/alice`, `/admin/users/ines`: no text contains "CP", "proxy", "configuration (",
       "user list"; source shows as "Admin set in the deployment settings" / "Admin through group fleetconsole-admins".
 - [ ] User and cluster details: two columns at 1280, terms above values, tabs aligned with the title, OCP breadcrumbs.
