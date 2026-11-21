@@ -2,7 +2,7 @@ import { Content } from '@patternfly/react-core';
 import type { Grant } from '@/shared/api';
 import { ConfirmModal, EnvironmentLabel, useToast } from '@/shared/ui';
 import { isGrantGone, useRevokeGrant } from './api';
-import { alreadyRevokedText, ENVIRONMENT_TEXT, revokedText } from './grantText';
+import { alreadyRevokedText, revokedText } from './grantText';
 
 /** Props for {@link RevokeGrantModal}. */
 export interface RevokeGrantModalProps {
@@ -12,8 +12,7 @@ export interface RevokeGrantModalProps {
 
 /**
  * Danger confirmation of revoking one grant (GRANT-3) in OCP confirm wording: "Revoke access?" with the environment
- * label; the body names user, cluster and environment in bold ("…revoke **alice**'s access to **prod-eu-1**
- * (production)?"). On 204 the row leaves both grant lists, the
+ * label; the body names user and cluster in bold ("…revoke **alice**'s access to **prod-eu-1**?"). On 204 the row leaves both grant lists, the
  * switcher refreshes and a toast confirms; a 404 (revoked meanwhile) closes with a
  * warning toast, other failures show inline.
  */
@@ -47,7 +46,7 @@ export function RevokeGrantModal({ grant, onClose }: RevokeGrantModalProps) {
     >
       <Content component="p">
         Are you sure you want to revoke <strong>{grant.username}</strong>&apos;s access to{' '}
-        <strong>{grant.clusterName}</strong> ({ENVIRONMENT_TEXT[grant.clusterEnvironment]})?{' '}
+        <strong>{grant.clusterName}</strong>?{' '}
         {`${grant.username} will no longer see it in the cluster switcher, and requests through it stop immediately.`}
       </Content>
     </ConfirmModal>

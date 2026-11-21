@@ -1,9 +1,7 @@
 import { Modal, ModalHeader } from '@patternfly/react-core';
 import { useId, type ReactNode } from 'react';
 import type { ClusterDetail } from '@/shared/api';
-import { EnvironmentLabel } from '@/shared/ui';
-// Not re-exported from the barrel yet (`shared/ui/index.ts` is outside T-0116's paths).
-import { InlineLabelTitle } from '@/shared/ui/ConfirmModal';
+import { EnvironmentLabel, InlineLabelTitle } from '@/shared/ui';
 
 /**
  * The cluster a credential dialog acts on: its name for titles, the environment label (prod safety signal) and

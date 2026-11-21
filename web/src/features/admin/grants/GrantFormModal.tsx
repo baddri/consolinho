@@ -9,9 +9,7 @@ import {
   RadioGroupField,
   useFormProblem,
 } from '@/shared/forms';
-import { EnvironmentLabel, useToast } from '@/shared/ui';
-// Not re-exported from the barrel yet (`shared/ui/index.ts` is outside T-0116's paths).
-import { InlineLabelTitle } from '@/shared/ui/ConfirmModal';
+import { EnvironmentLabel, InlineLabelTitle, useToast } from '@/shared/ui';
 import { useClusters } from '../clusters/api';
 import { isGrantGone, useCreateGrant, useUpdateGrant } from './api';
 import { ClusterTypeahead } from './ClusterTypeahead';

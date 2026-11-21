@@ -74,16 +74,36 @@ Findings:
   warning); credential/grant frames use it; wizard Modal drops `onClose` (+`onEscapePress`), header X named "Close";
   OCP delete/revoke wording with bold names; sizes; 404 = PageHeading + EmptyState. Tests updated; screenshots of all
   changed modals light+dark at 1280 (wizard also 1920): one X each, label after title, no surface beside the wizard.
+- 2026-11-21 frontend-engineer: review polish — `InlineLabelTitle` re-exported from `shared/ui`; "Disable/Enable cluster?"
+  titles with bold name; env text dropped where the label shows it; "in namespace" in delete resource; TSDoc rewrapped.
 
 ## Review
+- 2026-11-21 frontend-architect: **APPROVE** (round 1, code only; visuals by ux-designer). check-fe green (705).
+  Wizard: Modal without `onClose` + `onEscapePress`, header X named, test covers count + Escape. ConfirmModal props
+  stay backward-compatible; danger defaults to warning icon; ids on title spans keep "Warning alert:" out of dialog names.
+  Test connection footer "Close" link is OK: it is the modal's secondary/cancel action (same role as "Cancel" in the
+  delete confirm footer, UX.md §9 L85); "one close control" means one X, which holds.
+- Nits (optional, follow-up task is fine): re-export `InlineLabelTitle`/`InlineLabelTitleProps` from
+  `shared/ui/index.ts` and drop the deep imports + comments in `CredentialModalFrame.tsx:6` and `GrantFormModal.tsx:14`;
+  `DeleteClusterModal.tsx:15-16`, `DeleteCredentialModal.tsx:40`, `DeleteResourceModal.tsx:24-26` TSDoc lines are
+  re-wrapped unevenly (>120 / short lines).
+
+### Visual review
+- 2026-11-21 ux-designer: **APPROVE**. Mock UI, admin, light+dark, 1280 (wizard, delete cluster, test connection, 404 also 1920).
+- Grant wizard (3 steps): one X (named "Close"), `lg`, wizard fills the box, no surface beside it; Escape closes; last step "Grant access" — OK.
+- Delete cluster / credential / Deployment, Revoke: warning icon, "Delete <kind>?", bold names, `sm`, danger + link Cancel — OK.
+- Env label inline after title in all modals (test connection, add/rotate credential, grant, enable/disable, deletes) — OK.
+- Sizes: confirms `sm`; Add user, Add/Rotate credential, Grant, Test connection `md` — OK. 404: h1 top-left + EmptyState — OK.
+- Test connection footer "Close" link + X: acceptable — OCP modals routinely pair the X with a footer dismiss link; §9 "one close control" = one X.
+- Nit (follow-up): Delete resource says "in project shop"; OCP admin `delete-modal.tsx` says "in namespace" — keep if deliberate (matches Project selector).
+- Nit (follow-up): Disable/Enable titles "Disable dev-1" lack OCP "<Verb> cluster?" form; Revoke/Disable bodies repeat env as "(development)" next to the label.
 
 ## Handover notes
-- `InlineLabelTitle` is exported from `shared/ui/ConfirmModal.tsx` and imported deep (`@/shared/ui/ConfirmModal`) by
-  `CredentialModalFrame`/`GrantFormModal`, because `shared/ui/index.ts` was outside paths — follow-up: re-export it.
+- `InlineLabelTitle` (in `shared/ui/ConfirmModal.tsx`, exported from `shared/ui`) puts a context label after a modal title.
 - Ids for `aria-labelledby` sit on the title text spans, so PF's "Warning alert:" SR text stays out of dialog names;
   the h1 name does include it (tests match `/^Warning alert: ?…/`).
-- Titles: "Delete cluster?", "Delete credential?", "Delete <Kind>?", "Revoke access?"; body names object/namespace/cluster
-  in bold. Disable/Enable titles unchanged (only label placement). Test connection keeps its footer "Close" link.
+- Titles: "Delete cluster?", "Delete credential?", "Delete <Kind>?", "Revoke access?", "Disable/Enable cluster?"; body names
+  object/namespace/cluster in bold. Test connection keeps its footer "Close" link.
 - Wizard X had no accessible name before (PF default) — now `closeButtonAriaLabel="Close"`.
 - Sizes: CreateUser, AddCredential, RotateCredential now `medium`; confirms `small`; wizard `large`.
 - Long titles: label is inside PF's single-line ellipsis span, so a very long title can clip the label (accepted by UX §9).

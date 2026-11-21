@@ -6,7 +6,7 @@ import type { ClusterModalProps } from './DisableClusterModal';
 import { useClusterGoneHandler } from './useClusterGone';
 
 /**
- * CLU-5 enable confirmation: the cluster reappears in the switcher of its granted users (`grantCount`). Sends the
+ * CLU-5 enable confirmation ("Enable cluster?", bold name): the cluster reappears in the switcher of its granted users (`grantCount`). Sends the
  * given representation's `version`; failures stay inline, except a 404 (deleted meanwhile,
  * `useClusterGoneHandler`).
  */
@@ -29,7 +29,7 @@ export function EnableClusterModal({ cluster, onClose, onGone }: ClusterModalPro
   return (
     <ConfirmModal
       isOpen
-      title={`Enable ${name}`}
+      title="Enable cluster?"
       titleLabel={<EnvironmentLabel environment={environment} isCompact />}
       confirmLabel="Enable"
       isPending={mutation.isPending}
@@ -38,7 +38,8 @@ export function EnableClusterModal({ cluster, onClose, onGone }: ClusterModalPro
       onClose={onClose}
     >
       <Content component="p">
-        {`Enable ${name} (${environment})? ${plural(grantCount, 'user')} will see it in the cluster switcher again.`}
+        Are you sure you want to enable <strong>{name}</strong>?{' '}
+        {`${plural(grantCount, 'user')} will see it in the cluster switcher again.`}
       </Content>
     </ConfirmModal>
   );

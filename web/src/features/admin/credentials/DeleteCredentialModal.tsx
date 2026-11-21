@@ -37,8 +37,9 @@ export interface DeleteCredentialModalProps {
 /**
  * Delete flow of one credential (CRED-6). While grants use it (`grantCount > 0`) there is no delete button: the dialog
  * lists the affected users and their access mode and asks to re-assign or revoke those grants first. An unused one
- * gets a danger "Delete credential?" `ConfirmModal` naming credential and cluster in bold; a 409 `Credentials.InUse` (granted meanwhile) switches
- * to the in-use view with the server's detail, a 404 (deleted meanwhile) closes with a warning toast.
+ * gets a danger "Delete credential?" `ConfirmModal` naming credential and cluster in bold; a 409
+ * `Credentials.InUse` (granted meanwhile) switches to the in-use view with the server's detail, a 404 (deleted
+ * meanwhile) closes with a warning toast.
  */
 export function DeleteCredentialModal({ cluster, credential, onClose }: DeleteCredentialModalProps) {
   const mutation = useDeleteCredential(cluster.name);

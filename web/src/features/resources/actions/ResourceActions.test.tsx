@@ -157,7 +157,7 @@ describe('resource actions (UI-8)', () => {
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     const dialog = await screen.findByRole('dialog', { name: 'Delete Pod? dev' });
-    expect(dialog).toHaveTextContent(`Are you sure you want to delete ${POD} in project shop on cluster dev-1?`);
+    expect(dialog).toHaveTextContent(`Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`);
     expect(within(dialog).getByText(POD, { selector: 'strong' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 

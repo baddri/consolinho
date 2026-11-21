@@ -13,9 +13,9 @@ export interface ClusterModalProps {
 }
 
 /**
- * CLU-5 disable confirmation: names the cluster, its environment and how many users lose it from their switcher
- * (`grantCount`). Danger variant for production. Sends the given representation's `version`; failures stay inline, except a 404
- * (deleted meanwhile, `useClusterGoneHandler`).
+ * CLU-5 disable confirmation in OCP wording ("Disable cluster?" with the environment label, bold name): states how
+ * many users lose it from their switcher (`grantCount`). Danger variant for production. Sends the given
+ * representation's `version`; failures stay inline, except a 404 (deleted meanwhile, `useClusterGoneHandler`).
  */
 export function DisableClusterModal({ cluster, onClose, onGone }: ClusterModalProps) {
   const mutation = useDisableCluster();
@@ -36,7 +36,7 @@ export function DisableClusterModal({ cluster, onClose, onGone }: ClusterModalPr
   return (
     <ConfirmModal
       isOpen
-      title={`Disable ${name}`}
+      title="Disable cluster?"
       titleLabel={<EnvironmentLabel environment={environment} isCompact />}
       confirmLabel="Disable"
       variant={environment === 'production' ? 'danger' : 'primary'}
@@ -46,8 +46,8 @@ export function DisableClusterModal({ cluster, onClose, onGone }: ClusterModalPr
       onClose={onClose}
     >
       <Content component="p">
-        {`Disable ${name} (${environment})? ${plural(grantCount, 'user')} will no longer see it in the cluster ` +
-          'switcher. Grants and credentials are kept.'}
+        Are you sure you want to disable <strong>{name}</strong>?{' '}
+        {`${plural(grantCount, 'user')} will no longer see it in the cluster switcher. Grants and credentials are kept.`}
       </Content>
     </ConfirmModal>
   );

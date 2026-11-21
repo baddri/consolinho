@@ -1,7 +1,6 @@
 import { Content } from '@patternfly/react-core';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import { ConfirmModal, EnvironmentLabel } from '@/shared/ui';
-import { useNamespaceModel } from '../details/useNamespaceModel';
 import type { ResourceDescriptor } from '../registry/types';
 import { useDeleteResource } from './useDeleteResource';
 
@@ -22,10 +21,9 @@ export interface DeleteResourceModalProps {
 
 /**
  * UI-8 delete confirmation (ADR-0015 §7, OCP `delete-modal.tsx`): a danger dialog titled "Delete <Kind>?" with the
- * cluster's environment label, a body naming object, project/namespace and cluster in bold, and type-to-confirm when
- * the descriptor sets
- * `deleteRequiresName`. A failure (e.g. the proxy's 403 read-only detail or the cluster's RBAC `Status`) stays inline;
- * success toasts "<name> deleted from <cluster>".
+ * cluster's environment label, a body naming object, namespace and cluster in bold ("in namespace", as OCP says even
+ * for projects), and type-to-confirm when the descriptor sets `deleteRequiresName`. A failure (e.g. the proxy's 403
+ * read-only detail or the cluster's RBAC `Status`) stays inline; success toasts "<name> deleted from <cluster>".
  */
 export function DeleteResourceModal({
   cluster,
@@ -42,7 +40,6 @@ export function DeleteResourceModal({
       onClose();
     },
   });
-  const namespaceModel = useNamespaceModel(cluster);
   const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
   const scope = model.namespaced ? namespace : undefined;
   const confirm = () => mutation.mutate({ namespace: scope, name });
@@ -64,7 +61,7 @@ export function DeleteResourceModal({
         Are you sure you want to delete <strong>{name}</strong>
         {scope !== undefined && (
           <>
-            {` in ${namespaceModel.label.toLowerCase()} `}
+            {' in namespace '}
             <strong>{scope}</strong>
           </>
         )}{' '}

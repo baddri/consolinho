@@ -199,7 +199,7 @@ describe('ClusterDetailPage (T-0035)', () => {
     expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Enable', 'Delete']);
     expect(screen.getByRole('menuitem', { name: 'Delete' })).not.toHaveAttribute('aria-disabled', 'true');
     await user.click(screen.getByRole('menuitem', { name: 'Enable' }));
-    const dialog = await screen.findByRole('dialog', { name: /Enable dev-2/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Enable cluster\?/ });
     await user.click(within(dialog).getByRole('button', { name: 'Enable' }));
 
     await waitFor(() => expect(within(labels).queryByText('Disabled')).not.toBeInTheDocument());
@@ -239,7 +239,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     await openActions(user);
     await user.click(screen.getByRole('menuitem', { name: 'Disable' }));
-    const dialog = await screen.findByRole('dialog', { name: /Disable dev-1/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Disable cluster\?/ });
     deleteBehindOurBack('dev-1');
     await user.click(within(dialog).getByRole('button', { name: 'Disable' }));
 

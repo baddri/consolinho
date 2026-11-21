@@ -299,7 +299,7 @@ describe('Grants tabs (T-0039)', () => {
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
     const dialog = await screen.findByRole('dialog', { name: 'Revoke access? prod' });
-    expect(dialog).toHaveTextContent("Are you sure you want to revoke carol's access to prod-eu-1 (production)?");
+    expect(dialog).toHaveTextContent("Are you sure you want to revoke carol's access to prod-eu-1?");
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 
     expect(await screen.findByText("Revoked carol's access to prod-eu-1")).toBeInTheDocument();

@@ -13,8 +13,9 @@ export interface DeleteClusterModalProps extends ClusterModalProps {
 
 /**
  * CLU-6 delete confirmation in OCP wording ("Delete cluster?", warning icon, bold name): danger, the user must type
- * the cluster name, and the body states how many credentials and grants go with it. A 409 `Clusters.NotDisabled` (enabled meanwhile) is shown inline with the server's detail; a 404
- * (deleted meanwhile) closes the dialog via `useClusterGoneHandler`.
+ * the cluster name, and the body states how many credentials and grants go with it. A 409 `Clusters.NotDisabled`
+ * (enabled meanwhile) is shown inline with the server's detail; a 404 (deleted meanwhile) closes the dialog via
+ * `useClusterGoneHandler`.
  */
 export function DeleteClusterModal({ cluster, onClose, onDeleted, onGone }: DeleteClusterModalProps) {
   const mutation = useDeleteCluster();

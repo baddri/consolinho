@@ -8,7 +8,12 @@ export {
   type ActionButtonProps,
   type DisabledActionProps,
 } from './ActionButton';
-export { ConfirmModal, type ConfirmModalProps } from './ConfirmModal';
+export {
+  ConfirmModal,
+  InlineLabelTitle,
+  type ConfirmModalProps,
+  type InlineLabelTitleProps,
+} from './ConfirmModal';
 export { DetailsColumn, DetailsGrid, DetailsItem, type DetailsItemProps } from './page/DetailsGrid';
 export {
   EnvironmentLabel,
