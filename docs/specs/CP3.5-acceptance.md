@@ -23,3 +23,23 @@ Frontend only; backend unchanged. ACs live in T-0110…T-0116 and `docs/architec
 
 ## Bugs filed
 None. Follow-up: T-0117 marks the spec lines these tasks supersede (docs only, product owner).
+
+## Product owner verdict (2026-11-22): **ACCEPT WITH FOLLOW-UPS**
+Own review in the mock UI (port 5303, 1280×900, light + dark): pods/deployment as admin, prod-eu-1 as alice, bob, ines,
+all admin lists, user admin/alice/ines details + Cluster access, cluster prod-eu-1, register cluster, grant wizard.
+Human asks:
+1. **OCP look — met.** Project bar + divider, plain h1, icon+text status, kind badges, `<Kinds> › <Kind> details`
+   breadcrumb, outlined status next to the name, Actions right, Details/YAML/Events tabs, two-column details: it reads as
+   the OCP console. The prod banner and the switcher's env/Read only labels are justified fleet additions.
+2. **Switcher at the top of the sidebar — met.** Full-width toggle in OCP's perspective-switcher slot; masthead holds
+   only hamburger, logo, theme, user menu; search focused on open; bob gets a disabled "No clusters".
+3. **Admin area production quality — met.** Wizard: one X, no surface behind it, Escape closes (checked live, dark).
+   No internal copy on admin/alice/ines ("Admin through group fleetconsole-admins" in Role details). Tabs styled and
+   aligned like OCP. Register cluster form is width-limited with FormSections.
+Tab-text offset (QA open point): **confirmed, not a defect.** Tab bar and active underline start at the h1 x (314);
+the text sits 16 px in because of PF tab padding, which is exactly how OCP's horizontal nav renders. The T-0110 AC
+wording "text" is read as "tab bar".
+Follow-ups (later, none block): T-0118 (10 small polish items from the reviews + this pass: one grant flow on user
+details, NS badge, pagination on single-page lists, "Disabled" status icon, switcher search button); ROADMAP backlog
+"(CP3.5 ACCEPT)" (audit proxy action labels — raw `proxy.update` ids are the last internal-looking copy in the admin
+area; structured admin source; YAML Cancel; absolute timestamps). T-0117 done (8 superseded spec lines marked).

@@ -1,7 +1,7 @@
 ---
 id: T-0117
 title: Mark spec lines superseded by CP3.5 (look & feel) in CP0/CP1/CP2 specs
-status: todo
+status: done
 owner: ocp-product-owner
 checkpoint: CP3.5
 depends_on: [T-0111, T-0112, T-0113, T-0115]
@@ -30,4 +30,7 @@ later agents don't implement or test the old behaviour. Note only; keep the orig
 | CP2-acceptance L83 (DATA-3) | paused-indicator evidence | indicator removed; paging/watch/relist evidence still valid | T-0112 |
 
 ## Acceptance criteria
-- [ ] Each line above carries a one-line superseded note pointing to its task; no other spec text changed.
+- [x] Each line above carries a one-line superseded note pointing to its task; no other spec text changed.
+
+## Work log
+- 2026-11-22 ocp-product-owner: inline "*(superseded by CP3.5, T-xxxx: …)*" note added to all 8 lines (table rows: note inside the cell, so tables keep their columns); original text kept. Done.

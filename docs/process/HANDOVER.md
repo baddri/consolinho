@@ -2,24 +2,23 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-21 (CP3 closed) · **Current checkpoint:** CP3.5 — OCP look & feel (not started) ·
+**Last updated:** 2026-11-22 (CP3.5 closed) · **Current checkpoint:** CP4 — Workloads day-2 operations (not started) ·
 **Branch:** `main`
 
 ## Where we are
-- CP0–CP3 DONE (tags cp-0..cp-3). CP3 merged from `cp/3-deploy`; human ran cluster checks H2–H7, all PASS
-  (`docs/specs/CP3-acceptance.md`). Test deployment was torn down (H7); redeploy with `scripts/deploy-dev.sh --yes`.
+- CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
+  `scripts/deploy-dev.sh --yes`.
 - Human (2026-11-21): name `consolinho`; deploy to the current `oc` login, ns `consolinho`; orchestrator/QA may run
   `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
+- CP3.5 (OCP look & feel): T-0110…T-0117 done; QA pass (check-fe 729, e2e 9/9 incl. `web/e2e/layout.e2e.ts`); PO
+  ACCEPT WITH FOLLOW-UPS (`docs/specs/CP3.5-acceptance.md`). New agent `ux-designer`, rules `docs/architecture/UX.md`,
+  ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
-## CP3.5 progress
-- UX audit done (ux-designer): `docs/architecture/UX.md`, tasks T-0110…T-0116 (T-0110 shared page blocks first).
-- Product calls made by the orchestrator under the human's "as close to OCP as possible": statuses icon+text, "Live"
-  label hidden while live, theme icon menu Light/Dark/System, sidebar switcher shows preferred cluster on admin pages,
-  OCP-style breadcrumbs. ADR-0031: page blocks from react-core (no component-groups).
-- BUILD done: T-0110…T-0116 all done (check-fe 729 pass). Now VERIFY (qa-engineer: e2e via Aspire, AC spot
-  checks → docs/specs/CP3.5-acceptance.md), then ACCEPT (ocp-product-owner + ux-designer full pass), CLOSE (merge, tag cp-3.5). Each FE task: architect + ux-designer review.
-- CP4 follow-ups from reviews: YAML tab Cancel + Save always enabled; move `Timestamp`/`DetailsSubsection` to
-  shared/ui + Timestamp unit test; backend `Users.AdminViaConfiguration` → structured admin source (FE parses strings in `users/adminSource.ts`); `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
+## Next actions (resume here)
+1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0118 (CP3.5 UX
+   follow-ups) and the CP3.5 backlog items in ROADMAP (YAML Cancel/Save, audit labels, structured admin source —
+   FE parses strings in `users/adminSource.ts`), plus: `Timestamp`/`DetailsSubsection` → shared/ui + unit test;
+   `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
 2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
