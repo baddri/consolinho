@@ -1,9 +1,12 @@
 import { useMatches } from 'react-router';
+import type { PageTab } from '@/shared/ui';
 
 /** Tabs of the user detail page, in display order; each is a URL segment (`/admin/users/:username[/access]`). */
 export const USER_DETAIL_TABS = ['details', 'access'] as const;
 /** A tab of the user detail page. */
 export type UserDetailTab = (typeof USER_DETAIL_TABS)[number];
+/** Tab titles of the user detail page, also the accessible names of their panels. */
+export const USER_DETAIL_TAB_TITLES: Record<UserDetailTab, string> = { details: 'Details', access: 'Cluster access' };
 
 /**
  * Tabs of the cluster detail page, in display order; each is a URL segment
@@ -12,6 +15,28 @@ export type UserDetailTab = (typeof USER_DETAIL_TABS)[number];
 export const CLUSTER_DETAIL_TABS = ['details', 'credentials', 'access'] as const;
 /** A tab of the cluster detail page. */
 export type ClusterDetailTab = (typeof CLUSTER_DETAIL_TABS)[number];
+/** Tab titles of the cluster detail page, also the accessible names of their panels. */
+export const CLUSTER_DETAIL_TAB_TITLES: Record<ClusterDetailTab, string> = {
+  details: 'Details',
+  credentials: 'Credentials',
+  access: 'Access',
+};
+
+/**
+ * `PageTabs` entries of a detail page at `basePath` (e.g. `/admin/users/alice`, already encoded): the first tab is
+ * the index route (`basePath` itself), every other one the URL segment named like its key (FRONTEND.md "Routing").
+ */
+export function detailPageTabs<T extends string>(
+  tabs: readonly [T, ...T[]],
+  titles: Record<T, string>,
+  basePath: string,
+): PageTab[] {
+  return tabs.map((key, index) => ({
+    key,
+    title: titles[key],
+    to: index === 0 ? basePath : `${basePath}/${key}`,
+  }));
+}
 
 /** `handle` of an admin route that renders a non-index tab of a detail page. Set only in `routes.tsx`. */
 export interface AdminTabHandle {

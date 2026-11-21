@@ -35,7 +35,7 @@ function ClusterFacts({ cluster, hasAccess }: { cluster: ClusterListItem; hasAcc
 }
 
 /**
- * Cluster picker of "Add access" on the user page (GRANT-2): every admin cluster with its environment label, the
+ * Cluster picker of "Grant access" on the user page (GRANT-2): every admin cluster with its environment label, the
  * ones the user can already reach disabled with "already has access". Disabled clusters may be granted (the grant
  * applies once the cluster is enabled again).
  */

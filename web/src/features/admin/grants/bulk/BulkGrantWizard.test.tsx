@@ -10,11 +10,10 @@ import { adminRoute } from '../../routes';
 
 type User = ReturnType<typeof renderApp>['user'];
 
-/** Opens the wizard from the user page header and waits for the cluster table. */
+/** Opens the wizard from the user page's Actions menu and waits for the cluster table. */
 async function openWizard(user: User, username: string, timeout?: number) {
-  const [open] = await screen.findAllByRole('button', { name: 'Grant access to clusters' }, { timeout });
-  if (!open) throw new Error('no entry point');
-  await user.click(open);
+  await user.click(await screen.findByRole('button', { name: 'Actions' }, { timeout }));
+  await user.click(await screen.findByRole('menuitem', { name: 'Grant access to clusters' }));
   const dialog = await screen.findByRole('dialog', { name: `Grant ${username} access to clusters` });
   await within(dialog).findByRole('grid', { name: 'Clusters to grant' });
   return dialog;
@@ -209,12 +208,14 @@ describe('Bulk grant wizard (T-0040)', () => {
     setMockUser('ines');
     const { user } = renderApp('/admin/users/bob/access');
     await screen.findByText('No cluster access yet', {}, { timeout: COLD_START_TIMEOUT_MS });
-    const buttons = screen.getAllByRole('button', { name: 'Grant access to clusters' });
-    expect(buttons).toHaveLength(2);
-    for (const button of buttons) {
-      expect(button).toHaveAttribute('aria-disabled', 'true');
-      await user.click(button);
-    }
+    // The empty state's button and the Actions menu item (T-0115: the heading has no separate button).
+    const button = screen.getByRole('button', { name: 'Grant access to clusters' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    await user.click(button);
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    const item = await screen.findByRole('menuitem', { name: 'Grant access to clusters' });
+    expect(item).toHaveAttribute('aria-disabled', 'true');
+    await user.click(item);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

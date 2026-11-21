@@ -92,13 +92,15 @@ export function ClusterForm({ cluster, onReload }: ClusterFormProps) {
 
   return (
     <>
-      <Form noValidate onSubmit={(event) => void submit(event)}>
-        <ConflictAlert problem={problem} onReload={() => void reload()} isReloading={isReloading} />
-        <FormProblemAlert problem={problem} />
+      {/* OCP forms are never full width (`UX.md` §8): PF caps a width-limited form at 55rem. */}
+      <Form isWidthLimited noValidate onSubmit={(event) => void submit(event)}>
         <IdentitySection control={form.control} isEdit={isEdit} />
         <ConnectionSection control={form.control} isEdit={isEdit} />
         <LinksSection control={form.control} />
         {!isEdit && <StatusSection control={form.control} />}
+        {/* Server errors sit right above the buttons that caused them (`UX.md` §8). */}
+        <ConflictAlert problem={problem} onReload={() => void reload()} isReloading={isReloading} />
+        <FormProblemAlert problem={problem} />
         <ActionGroup>
           <ActionButton
             type="submit"

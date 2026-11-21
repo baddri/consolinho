@@ -3,6 +3,7 @@ import type { UseMutationResult } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { ApiError, UserDetail, UserListItem } from '@/shared/api';
 import { ConfirmModal, useToast } from '@/shared/ui';
+import { adminSourceReason } from './adminSource';
 import {
   useChangeUserRole,
   useDeactivateUser,
@@ -18,8 +19,7 @@ export type UserActionKind = 'promote' | 'demote' | 'setReadOnly' | 'removeReadO
 
 /** USR-5 explanation shown when setting or removing the read-only flag. */
 export const READ_ONLY_EXPLANATION =
-  'Read-only applies on every cluster regardless of grant mode (enforced by the proxy from CP2) and blocks admin ' +
-  'changes for admins.';
+  "Read-only users can't change anything on any cluster or in Fleet administration.";
 
 /** Props for {@link UserActionDialog}. */
 export interface UserActionDialogProps {
@@ -105,10 +105,9 @@ function RoleDialog({ user, role, onClose }: { user: UserActionTarget; role: 'ad
   if (!isPromote) {
     body = `${username} will lose access to Fleet administration. Their cluster grants are kept.`;
   } else if (user.isAdminViaConfiguration) {
-    const source = user.adminConfigurationSource ? ` (${user.adminConfigurationSource})` : '';
     body =
-      `${username} is admin via configuration${source}. Promoting records the role so it is kept if they leave ` +
-      'that group.';
+      `${username} is already an administrator ${adminSourceReason(user.adminConfigurationSource)}. Promoting ` +
+      'records the role, so it is kept if the deployment settings change.';
   } else {
     body = `${username} will be able to manage users, clusters, credentials and grants in Fleet administration.`;
   }

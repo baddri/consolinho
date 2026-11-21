@@ -68,6 +68,9 @@ describe('Register cluster (CLU-1..3)', () => {
         { name: 'Register cluster', level: 1 },
         { timeout: COLD_START_TIMEOUT_MS },
       );
+      const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+      expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute('href', '/admin/clusters');
+      expect(within(crumbs).getByText('Register cluster')).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('switch', { name: 'Enabled' })).toBeChecked();
 
       await fillRequired(user);
@@ -250,6 +253,8 @@ describe('Edit cluster (CLU-4, ADM-4)', () => {
     const { user, router, queryClient } = renderApp('/admin/clusters/dev-1/edit');
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await screen.findByRole('heading', { name: 'Edit dev-1', level: 1 });
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(crumbs).getByText('Edit cluster')).toHaveAttribute('aria-current', 'page');
     const displayName = await screen.findByRole('textbox', { name: 'Display name' });
 
     expect(screen.queryByRole('textbox', { name: 'Name' })).not.toBeInTheDocument();

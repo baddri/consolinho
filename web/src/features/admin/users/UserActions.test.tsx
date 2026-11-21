@@ -125,7 +125,7 @@ describe('User actions (T-0031)', () => {
     expect(demote).toHaveAttribute('aria-disabled', 'true');
     await user.hover(demote);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'Admin granted by configuration (group fleetconsole-admins). Change the configuration to remove.',
+      'Admin through group fleetconsole-admins. Remove it in the deployment settings.',
     );
     await user.keyboard('{Escape}');
 
@@ -151,8 +151,8 @@ describe('User actions (T-0031)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Promote to administrator' }));
     const dialog = await screen.findByRole('dialog', { name: 'Promote admin to administrator?' });
     expect(dialog).toHaveTextContent(
-      'admin is admin via configuration (group fleetconsole-admins). Promoting records the role so it is kept if ' +
-        'they leave that group.',
+      'admin is already an administrator through group fleetconsole-admins. Promoting records the role, so it is kept ' +
+        'if the deployment settings change.',
     );
     await user.click(within(dialog).getByRole('button', { name: 'Promote' }));
     expect(await screen.findByText('admin is now an administrator')).toBeInTheDocument();
@@ -189,8 +189,7 @@ describe('User actions (T-0031)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Set read-only' }));
     const dialog = await screen.findByRole('dialog', { name: 'Make bob read-only?' });
     expect(dialog).toHaveTextContent(
-      'Read-only applies on every cluster regardless of grant mode (enforced by the proxy from CP2) and blocks ' +
-        'admin changes for admins.',
+      "Read-only users can't change anything on any cluster or in Fleet administration.",
     );
     await user.click(within(dialog).getByRole('button', { name: 'Set read-only' }));
     expect(await screen.findByText('bob is now read-only')).toBeInTheDocument();

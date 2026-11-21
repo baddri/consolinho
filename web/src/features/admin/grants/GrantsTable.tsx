@@ -20,7 +20,7 @@ const GRANT_FILTERS = { q: { kind: 'text' } } as const satisfies FilterDefs;
 export interface GrantsEmptyState {
   title: string;
   body: string;
-  /** The primary action, e.g. "Add access". */
+  /** The primary action, e.g. "Grant access". */
   action: ReactNode;
 }
 

@@ -1,46 +1,21 @@
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  Content,
-  Flex,
-  FlexItem,
-  Label,
-  LabelGroup,
-  PageSection,
-  Skeleton,
-  Title,
-} from '@patternfly/react-core';
-import { Link } from 'react-router';
+import { Label, LabelGroup, Skeleton } from '@patternfly/react-core';
 import type { ClusterDetail } from '@/shared/api';
-import { EnvironmentLabel } from '@/shared/ui';
+import { EnvironmentLabel, PageHeading } from '@/shared/ui';
 import { ClusterActionsDropdown } from './ClusterActionsDropdown';
+import { ClusterStatusLabel } from './ClusterStatusLabel';
 import type { ClusterActionsOptions } from './useClusterActions';
 import { TLS_MODE_TEXT } from './TlsModeLabel';
 
-/** Breadcrumb "Clusters › name"; the first crumb is a client-side router link. */
-function ClusterBreadcrumb({ name }: { name: string }) {
-  return (
-    <Breadcrumb>
-      <BreadcrumbItem
-        render={({ className }) => (
-          <Link className={className} to="/admin/clusters">
-            Clusters
-          </Link>
-        )}
-      />
-      <BreadcrumbItem isActive>{name}</BreadcrumbItem>
-    </Breadcrumb>
-  );
-}
+/** Breadcrumb of every state of the page (`UX.md` §3): `Clusters › Cluster details`. */
+const BREADCRUMBS = [{ label: 'Clusters', to: '/admin/clusters' }, { label: 'Cluster details' }];
 
-/** Environment, "Disabled" and "TLS not verified" labels; they follow the cached detail, so enable/disable updates them. */
+/** Compact environment and "TLS not verified" labels; they follow the cached detail. */
 function ClusterHeaderLabels({ cluster }: { cluster: ClusterDetail }) {
   return (
-    <LabelGroup aria-label="Cluster labels" numLabels={3}>
-      <EnvironmentLabel environment={cluster.environment} />
-      {!cluster.isEnabled && <Label color="grey">Disabled</Label>}
+    <LabelGroup aria-label="Cluster labels">
+      <EnvironmentLabel environment={cluster.environment} isCompact />
       {cluster.tlsMode === 'skipVerify' && (
-        <Label status="warning">
+        <Label status="warning" isCompact>
           {TLS_MODE_TEXT.skipVerify}
         </Label>
       )}
@@ -50,44 +25,36 @@ function ClusterHeaderLabels({ cluster }: { cluster: ClusterDetail }) {
 
 /** Props for {@link ClusterDetailHeader}. */
 export interface ClusterDetailHeaderProps extends ClusterActionsOptions {
-  /** Cluster name from the route; shown in breadcrumb and title even while loading or not found. */
+  /** Cluster name from the route; the title even while loading or not found. */
   name: string;
-  /** The loaded cluster; without one there are no labels and no actions. */
+  /** The loaded cluster; without one there are no status, labels or actions. */
   cluster?: ClusterDetail;
-  /** The cluster is still loading: show a skeleton in place of display name and labels. */
+  /** The cluster is still loading: show a skeleton in place of status and labels. */
   isLoading: boolean;
 }
 
 /**
- * Header of the cluster detail page (CLU-8): breadcrumb Clusters › name, the name as `h1` with the environment,
- * "Disabled" and "TLS not verified" labels, the display name below (when it differs from the name) and the Actions
- * menu ({@link ClusterActionsDropdown}). While loading it shows a skeleton; after a failure only breadcrumb and title.
+ * Heading of the cluster detail page (CLU-8, `UX.md` §3) via {@link PageHeading}: breadcrumb `Clusters › Cluster
+ * details`, the name as `h1` with the Enabled / Disabled status as an outlined label, the compact environment and
+ * "TLS not verified" labels, the display name as subtitle (when it differs from the name) and the Actions menu
+ * ({@link ClusterActionsDropdown}) on the right. Status and labels follow the cached detail, so enable/disable updates
+ * them.
  */
 export function ClusterDetailHeader({ name, cluster, isLoading, onDeleted, onGone }: ClusterDetailHeaderProps) {
   return (
-    <PageSection>
-      <ClusterBreadcrumb name={name} />
-      <Flex justifyContent={{ default: 'justifyContentSpaceBetween' }} alignItems={{ default: 'alignItemsFlexStart' }}>
-        <FlexItem>
-          <Flex spaceItems={{ default: 'spaceItemsMd' }} alignItems={{ default: 'alignItemsCenter' }}>
-            <FlexItem>
-              <Title headingLevel="h1">{name}</Title>
-            </FlexItem>
-            {cluster && (
-              <FlexItem>
-                <ClusterHeaderLabels cluster={cluster} />
-              </FlexItem>
-            )}
-          </Flex>
-          {cluster && cluster.displayName !== cluster.name && <Content component="p">{cluster.displayName}</Content>}
-          {isLoading && <Skeleton width="15rem" screenreaderText="Loading cluster details" />}
-        </FlexItem>
-        {cluster && (
-          <FlexItem>
-            <ClusterActionsDropdown cluster={cluster} onDeleted={onDeleted} onGone={onGone} />
-          </FlexItem>
-        )}
-      </Flex>
-    </PageSection>
+    <PageHeading
+      breadcrumbs={BREADCRUMBS}
+      title={name}
+      status={
+        isLoading ? (
+          <Skeleton width="10rem" screenreaderText="Loading cluster details" />
+        ) : (
+          cluster && <ClusterStatusLabel isEnabled={cluster.isEnabled} asLabel />
+        )
+      }
+      labels={cluster && <ClusterHeaderLabels cluster={cluster} />}
+      subtitle={cluster && cluster.displayName !== cluster.name ? cluster.displayName : undefined}
+      actions={cluster && <ClusterActionsDropdown cluster={cluster} onDeleted={onDeleted} onGone={onGone} />}
+    />
   );
 }

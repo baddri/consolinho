@@ -66,7 +66,7 @@ function titleOf(props: GrantFormModalProps): { title: string; environment?: Clu
     };
   }
   return props.target.perspective === 'user'
-    ? { title: `Add cluster access for ${props.target.username}` }
+    ? { title: `Grant ${props.target.username} access to a cluster` }
     : { title: `Grant access to ${props.target.cluster.name}`, environment: props.target.cluster.environment };
 }
 

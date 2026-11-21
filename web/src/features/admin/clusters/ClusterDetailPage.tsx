@@ -4,18 +4,19 @@ import {
   EmptyStateActions,
   EmptyStateBody,
   EmptyStateFooter,
-  PageSection,
   Skeleton,
-  Tab,
-  TabContent,
-  Tabs,
-  TabTitleText,
 } from '@patternfly/react-core';
 import { useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams, type LinkProps } from 'react-router';
 import type { ClusterDetail } from '@/shared/api';
-import { ErrorState, useToast } from '@/shared/ui';
-import { CLUSTER_DETAIL_TABS, useAdminTab, type ClusterDetailTab } from '../adminTabs';
+import { ErrorState, PageBody, PageTabs, useToast } from '@/shared/ui';
+import {
+  CLUSTER_DETAIL_TAB_TITLES,
+  CLUSTER_DETAIL_TABS,
+  detailPageTabs,
+  useAdminTab,
+  type ClusterDetailTab,
+} from '../adminTabs';
 import { ClusterCredentialsTab } from '../credentials/ClusterCredentialsTab';
 import { ClusterGrantsTab } from '../grants/GrantsTab';
 import { useCluster } from './api';
@@ -26,20 +27,6 @@ import { CLUSTER_GONE_BODY, clusterGoneTitle, isClusterGone } from './useCluster
 
 /** Path of the clusters list, the way back from a missing or deleted cluster. */
 const CLUSTERS_PATH = '/admin/clusters';
-
-/** URL of each tab; tabs are URL segments (FRONTEND.md "Routing"), so switching tabs navigates. */
-const tabPath = (name: string, tab: ClusterDetailTab) =>
-  tab === 'details' ? clusterDetailPath(name) : `${clusterDetailPath(name)}/${tab}`;
-
-/** Tab titles, also the accessible names of their panels. */
-const TAB_TITLES: Record<ClusterDetailTab, string> = {
-  details: 'Details',
-  credentials: 'Credentials',
-  access: 'Access',
-};
-
-/** DOM id of a tab's panel, referenced by the tab's `aria-controls`. */
-const panelId = (tab: ClusterDetailTab) => `cluster-detail-${tab}-panel`;
 
 /** Router link to the clusters list that PatternFly's `Button` can render as. */
 function ClustersLink(props: Omit<LinkProps, 'to'>) {
@@ -74,37 +61,17 @@ function ClusterTabPanel({ cluster, tab }: { cluster: ClusterDetail; tab: Cluste
 }
 
 /**
- * URL-driven Details / Credentials / Access tabs of a loaded cluster: the tab bar sits in a `PageSection
- * type="tabs"` (PF6 page-tabs idiom), the active panel in its own `PageSection` below; selecting a tab navigates.
+ * URL-driven Details / Credentials / Access tabs of a loaded cluster as `PageTabs` aligned with the heading
+ * (`UX.md` §4), then the active tab's content in a `PageBody` labelled by the tab; selecting a tab navigates.
  */
 function ClusterTabs({ cluster, tab }: { cluster: ClusterDetail; tab: ClusterDetailTab }) {
-  const navigate = useNavigate();
+  const tabs = detailPageTabs(CLUSTER_DETAIL_TABS, CLUSTER_DETAIL_TAB_TITLES, clusterDetailPath(cluster.name));
   return (
     <>
-      <PageSection type="tabs">
-        <Tabs
-          activeKey={tab}
-          onSelect={(_event, key) => {
-            const next = CLUSTER_DETAIL_TABS.find((candidate) => candidate === key);
-            if (next && next !== tab) void navigate(tabPath(cluster.name, next));
-          }}
-          aria-label="Cluster detail tabs"
-        >
-          {CLUSTER_DETAIL_TABS.map((key) => (
-            <Tab
-              key={key}
-              eventKey={key}
-              title={<TabTitleText>{TAB_TITLES[key]}</TabTitleText>}
-              tabContentId={panelId(key)}
-            />
-          ))}
-        </Tabs>
-      </PageSection>
-      <PageSection>
-        <TabContent id={panelId(tab)} eventKey={tab} activeKey={tab} aria-label={TAB_TITLES[tab]}>
-          <ClusterTabPanel cluster={cluster} tab={tab} />
-        </TabContent>
-      </PageSection>
+      <PageTabs tabs={tabs} activeKey={tab} aria-label="Cluster detail tabs" />
+      <PageBody role="tabpanel" aria-label={CLUSTER_DETAIL_TAB_TITLES[tab]}>
+        <ClusterTabPanel cluster={cluster} tab={tab} />
+      </PageBody>
     </>
   );
 }
@@ -135,8 +102,8 @@ function useLeaveDeletedCluster(name: string) {
 }
 
 /**
- * `/admin/clusters/:name[/credentials|/access]` — the cluster's home in the admin area (CLU-8): header with labels
- * and the shared Actions menu, then Details, Credentials and Access tabs whose selection comes from the URL
+ * `/admin/clusters/:name[/credentials|/access]` — the cluster's home in the admin area (CLU-8): `PageHeading` with
+ * status, labels and the shared Actions menu, then Details, Credentials and Access tabs whose selection comes from the URL
  * (`useAdminTab`). Loading shows skeletons, an unknown name (`Clusters.NotFound`) an empty state with a way back,
  * other errors `ErrorState` with Retry. A cluster that disappears while shown (404 on refetch or action) sends the
  * admin back to the list with a toast. A failed background refetch keeps showing the loaded data. Lazy-loaded by
@@ -164,18 +131,18 @@ export function ClusterDetailPage() {
         onGone={onGone}
       />
       {isPending && (
-        <PageSection>
+        <PageBody>
           <Skeleton height="10rem" screenreaderText="Loading cluster" />
-        </PageSection>
+        </PageBody>
       )}
       {error && !cluster && (
-        <PageSection>
+        <PageBody>
           {isClusterGone(error) ? (
             <ClusterNotFound name={name} />
           ) : (
             <ErrorState error={error} title="Could not load cluster" onRetry={() => void refetch()} />
           )}
-        </PageSection>
+        </PageBody>
       )}
       {cluster && <ClusterTabs cluster={cluster} tab={tab} />}
     </>

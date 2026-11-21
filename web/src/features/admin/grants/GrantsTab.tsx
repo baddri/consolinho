@@ -96,8 +96,9 @@ function GrantsTabContent({
 
 /**
  * "Cluster access" tab of the user detail page (USR-7): the clusters `user` can reach, through which credential and
- * in which mode, with "Add access" and per-row Change / Revoke. Admins appear only with grants (GRANT-6). The empty
- * state also offers "Grant access to clusters" (`onBulkGrant`, GRANT-4).
+ * in which mode, with "Grant access" (the page's one create button, worded like the cluster tab's) and per-row
+ * Change / Revoke. Admins appear only with grants (GRANT-6). The empty state also offers "Grant access to clusters"
+ * (`onBulkGrant`, GRANT-4); otherwise the bulk wizard is in the heading's Actions menu.
  */
 export function UserGrantsTab({ user, onBulkGrant }: { user: Pick<UserDetail, 'username'>; onBulkGrant?: () => void }) {
   const query = useUserGrants(user.username);
@@ -107,7 +108,7 @@ export function UserGrantsTab({ user, onBulkGrant }: { user: Pick<UserDetail, 'u
       query={query}
       target={{ perspective: 'user', username: user.username }}
       ariaLabel={`Cluster access of ${user.username}`}
-      createLabel="Add access"
+      createLabel="Grant access"
       emptyTitle="No cluster access yet"
       emptyBody={`${user.username} can't reach any cluster until you grant access.`}
       emptyActions={
