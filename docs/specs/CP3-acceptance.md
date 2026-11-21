@@ -9,7 +9,9 @@ with `oc kustomize`, kubeconform 11 + 7 valid, 1 skipped each = Route CRD; shell
 (steps 1–8, 306 MiB, random UID 182614:0, read-only) · e2e `npm run e2e` against `aspire start --launch-profile http`:
 7/7 (incl. HOST-3 `csp.e2e.ts` on the production build).
 
-**Verdict: 48 criteria, 44 PASS (2 of them also wait on H4), 1 FAIL (medium, non-blocking), 3 HUMAN (PRB-3, DEV-8,
+**Final (2026-11-21, human cluster checks):** all 48 criteria PASS (PRB-2 fixed by T-0106); H1–H7 PASS. CP3 closed.
+
+**QA verdict (before human checks): 48 criteria, 44 PASS (2 of them also wait on H4), 1 FAIL (medium, non-blocking), 3 HUMAN (PRB-3, DEV-8,
 SMK-2).** Cluster checks: H1 and H5 PASS, H2 partial, H3/H4/H6/H7 HUMAN. The failure is PRB-2 → T-0106. If Postgres is
 down when the pod starts, the host does not listen for about 61 s, which is longer than the 60 s startup-probe budget.
 HUMAN rows still need H2 (interactive login), H3, H4, H6 and H7 on a cluster. Live evidence from the orchestrator run
@@ -46,7 +48,7 @@ evidence added in this verify step.
 |---|---|---|
 | PRB-1 Prod probes, status only, anonymous, no CSRF | BE `Hosting/ProductionProbeTests.Probes_AreHealthy_Anonymous_WithoutCsrfHeader_StatusWordOnly` (GET/POST), `AnonymousSurfaceTests.OutsideApi_ProductionMapsOnlyTheAdr0028AnonymousEndpoints`; IMG 6 `Healthy`; H2 live | PASS |
 | PRB-2 Liveness DB-independent, readiness includes DB, startup probe | BE `ProductionProbeTests.DatabaseUnreachable_AliveIs200_HealthIs503` (host already running); `K:base/deployment.yaml` startup `/alive` 2 s × 30, liveness `/alive`, readiness `/health`. **Fails (QA manual):** with the DB unreachable **at start**, the key-ring read plus EF retries block Kestrel for 61 s. That is longer than the 60 s startup budget, so the pod restarts in a loop during a DB outage | **PASS after T-0106** (acd81ed: `ProductionProbeTests` refused/dropped DB at start → `/alive` 200 in ~2 s, `/health` 503; recovers without restart. Init container retry during outage accepted, ADR-0027 amendment) |
-| PRB-3 DB scaled to 0 → NotReady, no restart, recovers | Running-pod path covered by `DatabaseUnreachable_AliveIs200_HealthIs503`; needs H6 | HUMAN (H6) |
+| PRB-3 DB scaled to 0 → NotReady, no restart, recovers | Running-pod path covered by `DatabaseUnreachable_AliveIs200_HealthIs503`; H6 human 2026-11-21 | PASS |
 
 ## Configuration & secrets (CFG)
 
@@ -90,7 +92,7 @@ evidence added in this verify step.
 | DEV-5 Idempotent | `DD:` create-if-missing secrets (l.141/158/168/180 "reused"); H1 2nd run: "Secret … reused" ×4, new digest only. "Existing credentials still work" → H4 | PASS (H4 pending) |
 | DEV-6 Fresh cluster → Ready, non-zero on failure | `DD:` l.305 `rollout status --timeout=300s` → hints + exit 1; H1 exit 0 ×2 | PASS |
 | DEV-7 Summary, no secrets printed | `DD:` l.313–330 (Route URL, admin, SMK-1 steps); T-0102 stub run; H1 output | PASS |
-| DEV-8 Teardown with confirmation naming the cluster | `DD:` l.92–103 (can-i delete, prints API URL, typed namespace, TTY required, `--yes` ignored) | HUMAN (H7) |
+| DEV-8 Teardown with confirmation naming the cluster | `DD:` l.92–103 (can-i delete, prints API URL, typed namespace, TTY required, `--yes` ignored) | PASS (H7, human 2026-11-21) |
 | DEV-9 shellcheck, strict mode, deps in header | DEP SHELLCHECK; `set -euo pipefail`; header l.20 lists `oc, openssl, coreutils, git, tar`. git/tar are a documented deviation (ADR-0030, archive of the working tree) | PASS |
 
 ## Smoke setup (SMK)
@@ -98,7 +100,7 @@ evidence added in this verify step.
 | AC | Evidence | Verdict |
 |---|---|---|
 | SMK-1 Smoke SA + namespaced view RoleBinding, printed steps | `K:overlays/dev/smoke-serviceaccount.yaml`, `smoke-rolebinding.yaml` (RoleBinding → ClusterRole `view`, ns-scoped); `DD:` l.318–330 steps 1–4 (token not echoed) | PASS |
-| SMK-2 Pods in `consolinho` live, YAML under CSP | Local equivalent: e2e `browse.e2e.ts`, `csp.e2e.ts`; on cluster needs H3 | HUMAN (H3) |
+| SMK-2 Pods in `consolinho` live, YAML under CSP | Local: e2e `browse.e2e.ts`, `csp.e2e.ts`; cluster: H3 (human 2026-11-21) | PASS |
 | SMK-3 Runbook widening by hand | RUNBOOK §3.2 (`cluster-reader`, cluster-scoped warning, undo before teardown) | PASS |
 
 ## Runbook (OPS)
@@ -125,12 +127,12 @@ Orchestrator run on 2026-11-21 (OCP 4.22 sandbox, ns `consolinho`). QA had no cl
 | Check | Evidence | Verdict |
 |---|---|---|
 | H1 Deploy + re-run | `deploy-dev.sh --yes` ×2, exit 0; 2nd run "Secret … reused" ×4, rollout ok, new image digest | PASS |
-| H2 HTTPS, HSTS, OAuth login, cookie | HTTP→302 HTTPS; HSTS max-age=31536000; CSP/XFO DENY/nosniff/no-referrer; `/alive`,`/health` Healthy; `/api/auth/login` → 302 to cluster OAuth authorize (client_id=consolinho, scope user:info, PKCE S256), the OAuth server accepts the client (302 → /login); `/api/auth/me` 401; correlation cookie `secure; httponly; samesite=lax`. Interactive login and landing as the bootstrap admin were not done | PARTIAL → HUMAN |
-| H3 Smoke SMK-1/2 | not run | HUMAN |
-| H4 Credential survives re-run | not run | HUMAN |
+| H2 HTTPS, HSTS, OAuth login, cookie | HTTP→302 HTTPS; HSTS max-age=31536000; CSP/XFO DENY/nosniff/no-referrer; `/alive`,`/health` Healthy; `/api/auth/login` → 302 to cluster OAuth authorize (client_id=consolinho, scope user:info, PKCE S256), the OAuth server accepts the client (302 → /login); `/api/auth/me` 401; correlation cookie `secure; httponly; samesite=lax`. Human 2026-11-21: interactive OAuth login, landed as bootstrap admin, cookie Secure; HttpOnly | PASS |
+| H3 Smoke SMK-1/2 | Human 2026-11-21: registered host cluster, credential Test OK, grant, Pods in `consolinho` live (Postgres pod recreated), YAML under CSP | PASS |
+| H4 Credential survives re-run | Human 2026-11-21: credential Test OK after re-run | PASS |
 | H5 SCC / UID / RO root / clean logs | scc=restricted-v2, uid 1000730000, gid 0, readOnlyRootFilesystem=true, runAsNonRoot=true; 0 matches for `code=|bearer|password|secret` in the server log; migrate applied 2 migrations | PASS |
-| H6 DB scaled to 0 | not run (see T-0106 for the pod-start variant) | HUMAN |
-| H7 Teardown | not run (human-only) | HUMAN |
+| H6 DB scaled to 0 | Human 2026-11-21: NotReady with no restarts, recovered on scale-up | PASS |
+| H7 Teardown | Human 2026-11-21: namespace and OAuthClient removed | PASS |
 
 ## Defects
 

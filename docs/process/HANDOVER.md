@@ -2,21 +2,18 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-20 (CP2 closed) · **Current checkpoint:** CP3 — Deploy to OpenShift (not started) ·
+**Last updated:** 2026-11-21 (CP3 closed) · **Current checkpoint:** CP4 — Workloads day-2 operations (not started) ·
 **Branch:** `main`
 
 ## Where we are
-- CP0–CP2 DONE (tags cp-0..cp-2). **CP3 Deploy to OpenShift: IN PROGRESS** on `cp/3-deploy` — step BUILD.
-- Spec `docs/specs/CP3-deploy-to-openshift.md` (52 ACs); design ADR-0026..0030; tasks T-0092, T-0094, T-0098..T-0104.
+- CP0–CP3 DONE (tags cp-0..cp-3). CP3 merged from `cp/3-deploy`; human ran cluster checks H2–H7, all PASS
+  (`docs/specs/CP3-acceptance.md`). Test deployment was torn down (H7); redeploy with `scripts/deploy-dev.sh --yes`.
 - Human (2026-11-21): name `consolinho`; deploy to the current `oc` login, ns `consolinho`; orchestrator/QA may run
   `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
 
 ## Next actions (resume here)
-1. CP3 BUILD/VERIFY/ACCEPT done: all tasks committed incl. T-0106 (QA-found PRB-2 fix); PO ACCEPT-WITH-FOLLOWUPS
-   (T-0107, T-0108 → CP6). Live: https://consolinho.apps.acm-bri-poc.sandbox2014.opentlc.com (redeployed after T-0106).
-2. T-0109 (human-found: proxy forwarded browser Host → wrong SNI → UpstreamTls on real clusters) fixed 740c529, redeployed.
-   **Blocked on human** before CLOSE: interactive OAuth login + smoke H2/H3/H4, H6, H7 (`docs/specs/CP3-acceptance.md`).
-   When confirmed: record results there → CLOSE (ROADMAP CP3 done, merge `--no-ff` to main, tag cp-3).
+1. Start CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`.
+2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
 ## How the human can test (current state)
