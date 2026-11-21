@@ -200,6 +200,28 @@ public sealed class KubernetesProxyForwardingTests(ApiFactory factory)
         seen.Headers.SelectMany(h => h.Value).ShouldNotContain(v => v.Contains("sec1", StringComparison.Ordinal));
     }
 
+    // T-0109: the browser's Host (the console route) must not reach the cluster. SocketsHttpHandler takes the TLS SNI and
+    // the certificate name to validate from the Host header, so a forwarded browser Host made kube-apiserver serve its
+    // default cert and the name check fail. The fake's cert covers only localhost/127.0.0.1, so a regression fails here
+    // as 502 UpstreamTls, and the recorded SNI/Host pin the cause.
+    [Fact]
+    public async Task Browser_Host_Is_Not_Forwarded_Tls_Name_And_Host_Come_From_The_Api_Url()
+    {
+        const string browserHost = "console.apps.example.test";
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.Respond("GET", Pods, 200, new { kind = "PodList" });
+        var (client, cluster, _) = await SetUpAsync(server, AccessMode.ReadOnly);
+        using var __ = client;
+
+        using var response = await client.SendAsync(HttpMethod.Get, cluster, Pods, configure: request => request.Headers.Host = browserHost);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var seen = server.Requests.ShouldHaveSingleItem();
+        seen.Headers["Host"].ShouldBe([server.BaseAddress.Authority]);
+        server.ServerNames.ShouldNotBeEmpty();
+        server.ServerNames.ShouldNotContain(browserHost);
+    }
+
     [Fact]
     public async Task Stopped_Server_Gives_502_UpstreamUnavailable()
     {
