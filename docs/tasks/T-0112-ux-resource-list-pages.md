@@ -1,7 +1,7 @@
 ---
 id: T-0112
 title: Resource list pages look like OCP list pages (project bar, heading, compact table, status icons)
-status: in_review
+status: done
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]

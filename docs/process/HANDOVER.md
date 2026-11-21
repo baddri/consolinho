@@ -15,7 +15,9 @@
 - UX audit done (ux-designer): `docs/architecture/UX.md`, tasks T-0110…T-0116 (T-0110 shared page blocks first).
 - Product calls made by the orchestrator under the human's "as close to OCP as possible": statuses icon+text, "Live"
   label hidden while live, theme icon menu Light/Dark/System, sidebar switcher shows preferred cluster on admin pages,
-  OCP-style breadcrumbs. frontend-architect vetting tasks + ADR on `@patternfly/react-component-groups`.
+  OCP-style breadcrumbs. ADR-0031: page blocks from react-core (no component-groups).
+- T-0110 done (2e0f6b8). In progress: T-0111 (shared tree), T-0112 + T-0116 (agent worktrees → cherry-pick onto
+  cp branch). Then T-0114; T-0113 after T-0112; T-0115 after T-0114+T-0116. Each FE task: architect + ux-designer review.
 
 ## Next actions (resume here)
 1. CP3.5 (ROADMAP §CP3.5), branch `cp/3.5-look-and-feel`: `ux-designer` audit → UX.md + tasks → frontend-engineer
