@@ -31,12 +31,14 @@ const STEP = { clusters: 'bulk-grant-clusters', mode: 'bulk-grant-mode', review:
  * "Grant `<user>` access to clusters" (US-8, GRANT-4, USR-2): a PF6 `Wizard` in a large `Modal` that grants one user
  * many clusters in one all-or-nothing request — select clusters, choose the access mode (and an optional preferred
  * credential name), then review one row per cluster with its credential. The form mounts only while open, so every
- * opening starts empty.
+ * opening starts empty. The wizard header owns the only close control (`UX.md` §9).
  */
 export function BulkGrantWizard({ username, isOpen, onClose }: BulkGrantWizardProps) {
   const titleId = useId();
   return (
-    <Modal variant="large" isOpen={isOpen} onClose={onClose} aria-labelledby={titleId}>
+    // PF "Wizard in modal" (`UX.md` §9): no `onClose` on the Modal, so the WizardHeader's X is the only close control;
+    // Escape still closes through `onEscapePress`.
+    <Modal variant="large" isOpen={isOpen} onEscapePress={onClose} aria-labelledby={titleId}>
       {isOpen && <BulkGrantForm username={username} titleId={titleId} onClose={onClose} />}
     </Modal>
   );
@@ -120,7 +122,15 @@ function BulkGrantForm({ username, titleId, onClose }: { username: string; title
 
   return (
     <Wizard
-      header={<WizardHeader title={`Grant ${username} access to clusters`} titleId={titleId} onClose={onClose} />}
+      header={
+        <WizardHeader
+          title={`Grant ${username} access to clusters`}
+          titleId={titleId}
+          // PF leaves the X unnamed by default.
+          closeButtonAriaLabel="Close"
+          onClose={onClose}
+        />
+      }
       onClose={onClose}
       onSave={() => void submit()}
       isVisitRequired

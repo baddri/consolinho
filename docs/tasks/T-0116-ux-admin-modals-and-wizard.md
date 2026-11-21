@@ -1,7 +1,7 @@
 ---
 id: T-0116
 title: Modals and the grant wizard — one close control, OCP sizes, delete copy, label placement
-status: todo
+status: in_review
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
@@ -62,15 +62,28 @@ Findings:
 - OCP: `public/components/modals/delete-modal.tsx` (L90-120), `public/components/error.tsx`.
 
 ## Acceptance criteria
-- [ ] Grant wizard: exactly one close button (`getAllByRole('button', { name: /close/i })` length 1), no modal surface
+- [x] Grant wizard: exactly one close button (`getAllByRole('button', { name: /close/i })` length 1), no modal surface
       visible beside the wizard at 1280 and 1920, Escape closes it, both themes.
-- [ ] No modal shows a label in the header's top-right; environment label follows the title text.
-- [ ] Delete confirms read "Delete <kind>?" with warning icon and bold names; button danger.
-- [ ] 404 page has an h1 heading at the top-left and an empty state below.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] No modal shows a label in the header's top-right; environment label follows the title text.
+- [x] Delete confirms read "Delete <kind>?" with warning icon and bold names; button danger.
+- [x] 404 page has an h1 heading at the top-left and an empty state below.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-21 frontend-engineer: started. ConfirmModal: label inline via new `InlineLabelTitle`, `titleIconVariant` (danger →
+  warning); credential/grant frames use it; wizard Modal drops `onClose` (+`onEscapePress`), header X named "Close";
+  OCP delete/revoke wording with bold names; sizes; 404 = PageHeading + EmptyState. Tests updated; screenshots of all
+  changed modals light+dark at 1280 (wizard also 1920): one X each, label after title, no surface beside the wizard.
 
 ## Review
 
 ## Handover notes
+- `InlineLabelTitle` is exported from `shared/ui/ConfirmModal.tsx` and imported deep (`@/shared/ui/ConfirmModal`) by
+  `CredentialModalFrame`/`GrantFormModal`, because `shared/ui/index.ts` was outside paths — follow-up: re-export it.
+- Ids for `aria-labelledby` sit on the title text spans, so PF's "Warning alert:" SR text stays out of dialog names;
+  the h1 name does include it (tests match `/^Warning alert: ?…/`).
+- Titles: "Delete cluster?", "Delete credential?", "Delete <Kind>?", "Revoke access?"; body names object/namespace/cluster
+  in bold. Disable/Enable titles unchanged (only label placement). Test connection keeps its footer "Close" link.
+- Wizard X had no accessible name before (PF default) — now `closeButtonAriaLabel="Close"`.
+- Sizes: CreateUser, AddCredential, RotateCredential now `medium`; confirms `small`; wizard `large`.
+- Long titles: label is inside PF's single-line ellipsis span, so a very long title can clip the label (accepted by UX §9).

@@ -122,8 +122,13 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
     await openKebab(user, table, 'dev-2');
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /Delete dev-2/ });
-    expect(dialog).toHaveTextContent('1 credential and 1 grant will be removed.');
+    const dialog = await screen.findByRole('dialog', { name: /^Delete cluster\?/ });
+    // OCP delete wording: warning icon in the title, the name in bold in the body.
+    expect(within(dialog).getByRole('heading', { name: /^Warning alert: ?Delete cluster\?/ })).toBeInTheDocument();
+    expect(within(dialog).getByText('dev-2', { selector: 'strong' })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(
+      'Are you sure you want to delete dev-2? 1 credential and 1 grant will be removed. This cannot be undone.',
+    );
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
     expect(confirm).toBeDisabled();
 
@@ -149,13 +154,13 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
     await openKebab(user, table, 'dev-2');
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /Delete dev-2/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Delete cluster\?/ });
     await user.click(within(dialog).getByRole('textbox'));
     await user.paste('dev-2');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     expect(await within(dialog).findByText('Disable dev-2 before deleting it.')).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: /Delete dev-2/ })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /^Delete cluster\?/ })).toBeInTheDocument();
   });
 
   it('T-0033 review: an action on a cluster deleted meanwhile closes the dialog with a toast', async () => {

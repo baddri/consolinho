@@ -42,7 +42,7 @@ export interface CreateUserModalProps {
 export function CreateUserModal({ isOpen, onClose }: CreateUserModalProps) {
   const titleId = useId();
   return (
-    <Modal variant="small" isOpen={isOpen} onClose={onClose} aria-labelledby={titleId}>
+    <Modal variant="medium" isOpen={isOpen} onClose={onClose} aria-labelledby={titleId}>
       {isOpen && <CreateUserForm titleId={titleId} onClose={onClose} />}
     </Modal>
   );

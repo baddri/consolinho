@@ -11,8 +11,9 @@ export interface RevokeGrantModalProps {
 }
 
 /**
- * Danger confirmation of revoking one grant (GRANT-3): the title names user, cluster and environment ("Revoke
- * alice's access to prod-eu-1 (production)?") with the environment label. On 204 the row leaves both grant lists, the
+ * Danger confirmation of revoking one grant (GRANT-3) in OCP confirm wording: "Revoke access?" with the environment
+ * label; the body names user, cluster and environment in bold ("…revoke **alice**'s access to **prod-eu-1**
+ * (production)?"). On 204 the row leaves both grant lists, the
  * switcher refreshes and a toast confirms; a 404 (revoked meanwhile) closes with a
  * warning toast, other failures show inline.
  */
@@ -23,7 +24,7 @@ export function RevokeGrantModal({ grant, onClose }: RevokeGrantModalProps) {
     <ConfirmModal
       isOpen
       variant="danger"
-      title={`Revoke ${grant.username}'s access to ${grant.clusterName} (${ENVIRONMENT_TEXT[grant.clusterEnvironment]})?`}
+      title="Revoke access?"
       titleLabel={<EnvironmentLabel environment={grant.clusterEnvironment} isCompact />}
       confirmLabel="Revoke"
       isPending={revoke.isPending}
@@ -45,7 +46,9 @@ export function RevokeGrantModal({ grant, onClose }: RevokeGrantModalProps) {
       onClose={onClose}
     >
       <Content component="p">
-        {`${grant.username} will no longer see ${grant.clusterName} in the cluster switcher, and requests through it stop immediately.`}
+        Are you sure you want to revoke <strong>{grant.username}</strong>&apos;s access to{' '}
+        <strong>{grant.clusterName}</strong> ({ENVIRONMENT_TEXT[grant.clusterEnvironment]})?{' '}
+        {`${grant.username} will no longer see it in the cluster switcher, and requests through it stop immediately.`}
       </Content>
     </ConfirmModal>
   );

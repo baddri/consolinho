@@ -10,6 +10,8 @@ import {
   useFormProblem,
 } from '@/shared/forms';
 import { EnvironmentLabel, useToast } from '@/shared/ui';
+// Not re-exported from the barrel yet (`shared/ui/index.ts` is outside T-0116's paths).
+import { InlineLabelTitle } from '@/shared/ui/ConfirmModal';
 import { useClusters } from '../clusters/api';
 import { isGrantGone, useCreateGrant, useUpdateGrant } from './api';
 import { ClusterTypeahead } from './ClusterTypeahead';
@@ -90,14 +92,13 @@ export function GrantFormModal(props: GrantFormModalProps) {
       aria-labelledby={environment === undefined ? titleId : `${titleId} ${labelId}`}
     >
       <ModalHeader
-        title={title}
-        labelId={titleId}
-        help={
-          environment !== undefined ? (
-            <span id={labelId}>
-              <EnvironmentLabel environment={environment} isCompact />
-            </span>
-          ) : undefined
+        title={
+          <InlineLabelTitle
+            title={title}
+            titleId={titleId}
+            label={environment !== undefined ? <EnvironmentLabel environment={environment} isCompact /> : undefined}
+            labelId={labelId}
+          />
         }
       />
       <GrantForm {...props} />

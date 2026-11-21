@@ -298,7 +298,8 @@ describe('Grants tabs (T-0039)', () => {
     const { user } = renderApp('/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
-    const dialog = await screen.findByRole('dialog', { name: /Revoke carol's access to prod-eu-1 \(production\)\?/ });
+    const dialog = await screen.findByRole('dialog', { name: 'Revoke access? prod' });
+    expect(dialog).toHaveTextContent("Are you sure you want to revoke carol's access to prod-eu-1 (production)?");
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 
     expect(await screen.findByText("Revoked carol's access to prod-eu-1")).toBeInTheDocument();
@@ -310,7 +311,7 @@ describe('Grants tabs (T-0039)', () => {
     const { user } = renderApp('/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
-    const dialog = await screen.findByRole('dialog', { name: /Revoke carol's access/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Revoke access\?/ });
     mockDb.grants = mockDb.grants.filter((grant) => grant.id !== grantIds.carolProdEu);
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 

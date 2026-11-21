@@ -2,6 +2,8 @@ import { Modal, ModalHeader } from '@patternfly/react-core';
 import { useId, type ReactNode } from 'react';
 import type { ClusterDetail } from '@/shared/api';
 import { EnvironmentLabel } from '@/shared/ui';
+// Not re-exported from the barrel yet (`shared/ui/index.ts` is outside T-0116's paths).
+import { InlineLabelTitle } from '@/shared/ui/ConfirmModal';
 
 /**
  * The cluster a credential dialog acts on: its name for titles, the environment label (prod safety signal) and
@@ -21,9 +23,9 @@ export interface CredentialModalFrameProps {
 }
 
 /**
- * Small modal shell of the credential dialogs: header with the title and the cluster's environment label in PF's
- * `help` slot (as in `ConfirmModal`, so a long title truncates without hiding the label), both part of the
- * accessible name. Children mount only while open (CRED-2: closing discards the token).
+ * Modal shell of the credential dialogs (small by default): header with the title and the cluster's environment label
+ * inline after it (`UX.md` §9), both part of the accessible name. Children mount only while open (CRED-2: closing
+ * discards the token).
  */
 export function CredentialModalFrame({
   isOpen,
@@ -40,12 +42,13 @@ export function CredentialModalFrame({
       {isOpen && (
         <>
           <ModalHeader
-            title={title}
-            labelId={titleId}
-            help={
-              <span id={labelId}>
-                <EnvironmentLabel environment={cluster.environment} isCompact />
-              </span>
+            title={
+              <InlineLabelTitle
+                title={title}
+                titleId={titleId}
+                label={<EnvironmentLabel environment={cluster.environment} isCompact />}
+                labelId={labelId}
+              />
             }
           />
           {children}

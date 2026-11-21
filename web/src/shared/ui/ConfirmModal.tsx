@@ -16,10 +16,15 @@ import { ErrorState } from './ErrorState';
 /** Props for {@link ConfirmModal}. */
 export interface ConfirmModalProps {
   isOpen: boolean;
-  /** Names the object **and** the cluster, e.g. "Disable cluster prod-eu-1?" (spec §5). */
+  /**
+   * Names the action; deletes use OCP's "Delete <kind>?" and name the object and cluster in bold in the body
+   * (`UX.md` §9), other confirms may name them in the title, e.g. "Disable prod-eu-1".
+   */
   title: string;
-  /** Shown next to the title, normally `<EnvironmentLabel environment={…} />`. */
+  /** Shown inline after the title text and part of the accessible name, normally `<EnvironmentLabel isCompact />`. */
   titleLabel?: ReactNode;
+  /** Icon before the title; defaults to `'warning'` for `variant="danger"` (OCP delete modal), none otherwise. */
+  titleIconVariant?: 'warning' | 'danger';
   /** Explains the consequences. */
   children: ReactNode;
   /** Verb of the confirm button, e.g. "Disable". */
@@ -45,6 +50,7 @@ export function ConfirmModal({
   isOpen,
   title,
   titleLabel,
+  titleIconVariant,
   children,
   confirmLabel,
   variant = 'primary',
@@ -62,7 +68,8 @@ export function ConfirmModal({
       variant="small"
       isOpen={isOpen}
       onClose={onClose}
-      // The label is part of the name so screen readers hear "prod" too: it is the production safety signal.
+      // The label is part of the name so screen readers hear "prod" too: it is the production safety signal. The ids
+      // sit on the title's text spans, not the h1, so the icon's "Warning alert:" text stays out of the name.
       aria-labelledby={titleLabel === undefined ? titleId : `${titleId} ${labelId}`}
       aria-describedby={bodyId}
     >
@@ -74,6 +81,7 @@ export function ConfirmModal({
           bodyId={bodyId}
           title={title}
           titleLabel={titleLabel}
+          titleIconVariant={titleIconVariant ?? (variant === 'danger' ? 'warning' : undefined)}
           confirmLabel={confirmLabel}
           variant={variant}
           typeToConfirm={typeToConfirm}
@@ -104,6 +112,7 @@ function ConfirmModalContent({
   bodyId,
   title,
   titleLabel,
+  titleIconVariant,
   children,
   confirmLabel,
   variant,
@@ -132,15 +141,9 @@ function ConfirmModalContent({
 
   return (
     <>
-      {/*
-        The label goes in PF's `help` slot, not inside the title: the title is single-line with clipped overflow, so a
-        long cluster name could hide a label placed after it. The help slot sits beside the title, never shrinks, and
-        leaves the title a plain string, so PF truncates it with an ellipsis and shows the full title in a tooltip.
-      */}
       <ModalHeader
-        title={title}
-        labelId={titleId}
-        help={titleLabel !== undefined ? <span id={labelId}>{titleLabel}</span> : undefined}
+        titleIconVariant={titleIconVariant}
+        title={<InlineLabelTitle title={title} titleId={titleId} label={titleLabel} labelId={labelId} />}
       />
       <ModalBody>
         <Stack hasGutter>
@@ -183,6 +186,36 @@ function ConfirmModalContent({
           Cancel
         </Button>
       </ModalFooter>
+    </>
+  );
+}
+
+/** Props for {@link InlineLabelTitle}. */
+export interface InlineLabelTitleProps {
+  title: string;
+  /** Id of the title text, for the modal's `aria-labelledby`. */
+  titleId: string;
+  /** Context label (environment) after the title text; omitted when `undefined`. */
+  label?: ReactNode;
+  /** Id of the label wrapper, for the modal's `aria-labelledby`. */
+  labelId: string;
+}
+
+/**
+ * Modal title with its context label inline after the text (`UX.md` §9: never in the header's `help` slot). Pass it
+ * as `ModalHeader title` and point the `Modal`'s `aria-labelledby` at `titleId` (+ `labelId`), so the label is
+ * announced with the title.
+ */
+export function InlineLabelTitle({ title, titleId, label, labelId }: InlineLabelTitleProps) {
+  return (
+    <>
+      <span id={titleId}>{title}</span>
+      {label !== undefined && (
+        <>
+          {' '}
+          <span id={labelId}>{label}</span>
+        </>
+      )}
     </>
   );
 }

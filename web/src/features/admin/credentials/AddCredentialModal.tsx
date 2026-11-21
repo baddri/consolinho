@@ -29,7 +29,13 @@ export interface AddCredentialModalProps {
  */
 export function AddCredentialModal({ isOpen, cluster, onClose }: AddCredentialModalProps) {
   return (
-    <CredentialModalFrame isOpen={isOpen} title={`Add credential to ${cluster.name}`} cluster={cluster} onClose={onClose}>
+    <CredentialModalFrame
+      isOpen={isOpen}
+      variant="medium"
+      title={`Add credential to ${cluster.name}`}
+      cluster={cluster}
+      onClose={onClose}
+    >
       <AddCredentialForm cluster={cluster} onClose={onClose} />
     </CredentialModalFrame>
   );

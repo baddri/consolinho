@@ -57,6 +57,7 @@ export function RotateCredentialModal({ cluster, credential, onClose }: RotateCr
   return (
     <CredentialModalFrame
       isOpen
+      variant="medium"
       title={`Rotate token of ${credential.name} on ${cluster.name}`}
       cluster={cluster}
       onClose={onClose}

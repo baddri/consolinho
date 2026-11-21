@@ -123,6 +123,15 @@ describe('Bulk grant wizard (T-0040)', () => {
     },
   );
 
+  it('has exactly one close control (the wizard header X) and closes on Escape', async () => {
+    const { user } = renderApp('/admin/users/bob');
+    const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);
+
+    expect(within(dialog).getAllByRole('button', { name: /close/i })).toHaveLength(1);
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
   it('GRANT-4: highlights production rows and warns about read write on them', async () => {
     const { user } = renderApp('/admin/users/bob');
     const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);

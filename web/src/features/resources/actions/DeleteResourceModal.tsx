@@ -21,8 +21,9 @@ export interface DeleteResourceModalProps {
 }
 
 /**
- * UI-8 delete confirmation (ADR-0015 §7): a danger dialog titled "Delete <Kind> <name>?" with the cluster's
- * environment label, a body naming the project/namespace and the cluster, and type-to-confirm when the descriptor sets
+ * UI-8 delete confirmation (ADR-0015 §7, OCP `delete-modal.tsx`): a danger dialog titled "Delete <Kind>?" with the
+ * cluster's environment label, a body naming object, project/namespace and cluster in bold, and type-to-confirm when
+ * the descriptor sets
  * `deleteRequiresName`. A failure (e.g. the proxy's 403 read-only detail or the cluster's RBAC `Status`) stays inline;
  * success toasts "<name> deleted from <cluster>".
  */
@@ -46,12 +47,10 @@ export function DeleteResourceModal({
   const scope = model.namespaced ? namespace : undefined;
   const confirm = () => mutation.mutate({ namespace: scope, name });
 
-  const where =
-    scope === undefined ? `on ${cluster}` : `in ${namespaceModel.label.toLowerCase()} ${scope} on ${cluster}`;
   return (
     <ConfirmModal
       isOpen
-      title={`Delete ${model.label} ${name}?`}
+      title={`Delete ${model.label}?`}
       titleLabel={environment ? <EnvironmentLabel environment={environment} isCompact /> : undefined}
       confirmLabel="Delete"
       variant="danger"
@@ -61,7 +60,16 @@ export function DeleteResourceModal({
       onConfirm={confirm}
       onClose={onClose}
     >
-      <Content component="p">{`${model.label} ${name} ${where} will be deleted.`}</Content>
+      <Content component="p">
+        Are you sure you want to delete <strong>{name}</strong>
+        {scope !== undefined && (
+          <>
+            {` in ${namespaceModel.label.toLowerCase()} `}
+            <strong>{scope}</strong>
+          </>
+        )}{' '}
+        on cluster <strong>{cluster}</strong>?
+      </Content>
     </ConfirmModal>
   );
 }

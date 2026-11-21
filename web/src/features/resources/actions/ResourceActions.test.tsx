@@ -156,8 +156,9 @@ describe('resource actions (UI-8)', () => {
     const del = await openKebab(user, POD);
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
-    const dialog = await screen.findByRole('dialog', { name: `Delete Pod ${POD}? dev` });
-    expect(dialog).toHaveTextContent(`Pod ${POD} in project shop on dev-1 will be deleted.`);
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Pod? dev' });
+    expect(dialog).toHaveTextContent(`Are you sure you want to delete ${POD} in project shop on cluster dev-1?`);
+    expect(within(dialog).getByText(POD, { selector: 'strong' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
@@ -252,8 +253,8 @@ describe('DeleteResourceModal', () => {
       />,
     );
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete Project shop? dev' });
-    expect(dialog).toHaveTextContent('Project shop on dev-1 will be deleted.');
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Project? dev' });
+    expect(dialog).toHaveTextContent('Are you sure you want to delete shop on cluster dev-1?');
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
     expect(confirm).toBeDisabled();
     await user.click(within(dialog).getByRole('textbox'));

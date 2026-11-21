@@ -213,7 +213,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     await openActions(user);
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /Delete dev-2/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Delete cluster\?/ });
     await user.click(within(dialog).getByRole('textbox'));
     await user.paste('dev-2');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
