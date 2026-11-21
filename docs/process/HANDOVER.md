@@ -16,10 +16,10 @@
 - Product calls made by the orchestrator under the human's "as close to OCP as possible": statuses icon+text, "Live"
   label hidden while live, theme icon menu Light/Dark/System, sidebar switcher shows preferred cluster on admin pages,
   OCP-style breadcrumbs. ADR-0031: page blocks from react-core (no component-groups).
-- Done: T-0110…T-0114, T-0116 (check-fe 726 pass). In progress: T-0115 (shared tree) — last task; then VERIFY
-  (qa-engineer), ACCEPT (ocp-product-owner + ux-designer full pass), CLOSE (merge, tag cp-3.5). Each FE task: architect + ux-designer review.
+- BUILD done: T-0110…T-0116 all done (check-fe 729 pass). Now VERIFY (qa-engineer: e2e via Aspire, AC spot
+  checks → docs/specs/CP3.5-acceptance.md), then ACCEPT (ocp-product-owner + ux-designer full pass), CLOSE (merge, tag cp-3.5). Each FE task: architect + ux-designer review.
 - CP4 follow-ups from reviews: YAML tab Cancel + Save always enabled; move `Timestamp`/`DetailsSubsection` to
-  shared/ui + Timestamp unit test; `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
+  shared/ui + Timestamp unit test; backend `Users.AdminViaConfiguration` → structured admin source (FE parses strings in `users/adminSource.ts`); `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
 2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
