@@ -16,13 +16,10 @@
 - Product calls made by the orchestrator under the human's "as close to OCP as possible": statuses icon+text, "Live"
   label hidden while live, theme icon menu Light/Dark/System, sidebar switcher shows preferred cluster on admin pages,
   OCP-style breadcrumbs. ADR-0031: page blocks from react-core (no component-groups).
-- T-0110 done (2e0f6b8). In progress: T-0111 (shared tree), T-0112 + T-0116 (agent worktrees → cherry-pick onto
-  cp branch). Then T-0114; T-0113 after T-0112; T-0115 after T-0114+T-0116. Each FE task: architect + ux-designer review.
-
-## Next actions (resume here)
-1. CP3.5 (ROADMAP §CP3.5), branch `cp/3.5-look-and-feel`: `ux-designer` audit → UX.md + tasks → frontend-engineer
-   builds → frontend-architect (code) + ux-designer (visual) review. The PO reviews the cluster switcher move.
-   Then CP4: SPEC step with `ocp-product-owner`, branch `cp/4-workloads`.
+- Done: T-0110, T-0111, T-0112, T-0113, T-0116. T-0114 in fix round 1 (worktree agent-a5ae7437…), then
+  cherry-pick. Then T-0115 (has extra AC from T-0114 visual review). Each FE task: architect + ux-designer review.
+- CP4 follow-ups from reviews: YAML tab Cancel + Save always enabled; move `Timestamp`/`DetailsSubsection` to
+  shared/ui + Timestamp unit test; `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
 2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
