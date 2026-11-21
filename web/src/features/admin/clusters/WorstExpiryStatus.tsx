@@ -24,7 +24,7 @@ export const WORST_EXPIRY: Record<CredentialExpiryStatus, ExpiryPresentation> = 
  * soon", with the full meaning in a tooltip (focusable trigger for keyboard users). Renders nothing for `null` (the
  * cluster has no credentials).
  */
-export function WorstExpiryIcon({ status }: { status: CredentialExpiryStatus | null }) {
+export function WorstExpiryStatus({ status }: { status: CredentialExpiryStatus | null }) {
   if (status === null) return null;
   const { status: kind, text, description } = WORST_EXPIRY[status];
   return (

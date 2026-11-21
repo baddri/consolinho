@@ -1,4 +1,4 @@
-import { Flex, FlexItem, Truncate } from '@patternfly/react-core';
+import { Flex, FlexItem } from '@patternfly/react-core';
 import { ActionsColumn, Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { ClusterListItem } from '@/shared/api';
@@ -9,23 +9,27 @@ import { clusterDetailPath } from './clusterTarget';
 import { LastTestCell } from './LastTestCell';
 import { TlsModeLabel } from './TlsModeLabel';
 import { useClusterActions } from './useClusterActions';
-import { WorstExpiryIcon } from './WorstExpiryIcon';
+import { WorstExpiryStatus } from './WorstExpiryStatus';
 
 /** Number of columns of the clusters table, including the trailing actions column. */
 export const CLUSTER_COLUMN_COUNT = 9;
 
-/** Responsive columns by index (TLS, Users), for the loading skeleton. */
-export const CLUSTER_COLUMN_VISIBILITY = { 4: LOW_PRIORITY_COLUMN, 6: LOW_PRIORITY_COLUMN } as const;
+/** Responsive columns by index (API URL, TLS, Users), for the loading skeleton. */
+export const CLUSTER_COLUMN_VISIBILITY = {
+  2: LOW_PRIORITY_COLUMN,
+  4: LOW_PRIORITY_COLUMN,
+  6: LOW_PRIORITY_COLUMN,
+} as const;
 
 /** PatternFly utility class for secondary text (display names, disabled rows). */
 const SUBTLE = 'pf-v6-u-text-color-subtle';
 
 /**
- * One row of the clusters list (CLU-7); TLS and Users share the header's `LOW_PRIORITY_COLUMN`. The name cell never
- * wraps (display name as a one-line subtitle, OCP name column); the API URL truncates instead. Disabled clusters
- * render in subtle text next to their "Disabled" status. The trailing kebab offers `useClusterActions` (Edit,
- * Enable/Disable, Delete); their dialog renders in the row (it is a portalled modal) and confirms with the row's
- * `version`.
+ * One row of the clusters list (CLU-7); API URL, TLS and Users share the header's `LOW_PRIORITY_COLUMN` (hidden below
+ * 2xl rather than truncated). The name cell never wraps (display name as a one-line subtitle, OCP name column).
+ * Disabled clusters render in subtle text next to their "Disabled" status. The trailing kebab offers
+ * `useClusterActions` (Edit, Enable/Disable, Delete); their dialog renders in the row (it is a portalled modal) and
+ * confirms with the row's `version`.
  */
 export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
   const { items, dialog } = useClusterActions(cluster);
@@ -38,8 +42,8 @@ export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
       <Td dataLabel="Environment">
         <EnvironmentLabel environment={cluster.environment} isCompact />
       </Td>
-      <Td dataLabel="API URL">
-        <Truncate content={cluster.apiUrl} position="middle" />
+      <Td dataLabel="API URL" visibility={LOW_PRIORITY_COLUMN}>
+        {cluster.apiUrl}
       </Td>
       <Td dataLabel="Status">
         <ClusterStatusLabel isEnabled={cluster.isEnabled} />
@@ -55,7 +59,7 @@ export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
         >
           <FlexItem>{cluster.credentialCount}</FlexItem>
           <FlexItem>
-            <WorstExpiryIcon status={cluster.worstCredentialExpiryStatus} />
+            <WorstExpiryStatus status={cluster.worstCredentialExpiryStatus} />
           </FlexItem>
         </Flex>
       </Td>

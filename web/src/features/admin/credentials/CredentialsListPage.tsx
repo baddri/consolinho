@@ -55,7 +55,10 @@ export function CredentialsListPage() {
     <>
       <PageHeading
         title="Credentials"
-        subtitle="ServiceAccount tokens of every cluster, soonest expiry first. Rotate or delete them on the cluster's Credentials tab."
+        subtitle={
+          "ServiceAccount tokens of every cluster, soonest expiry first. Rotate or delete them on the cluster's " +
+          'Credentials tab.'
+        }
       />
       <PageBody>
         <CredentialExpiryAlert />

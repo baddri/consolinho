@@ -143,7 +143,9 @@ describe('CredentialsListPage (CRED-7)', () => {
     const { user } = renderApp('/admin/credentials?q=nothing-like-this');
     const table = await screen.findByRole('grid', { name: 'Credentials' });
 
-    expect(await within(table).findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    expect(
+      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
+    ).toBeInTheDocument();
     await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await waitFor(() => expect(visibleRows(table)).toEqual(SERVER_ORDER));
   });

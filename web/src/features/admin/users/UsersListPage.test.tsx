@@ -170,7 +170,9 @@ describe('UsersListPage (USR-1)', () => {
     const { user, router } = renderApp('/admin/users?q=nobody-like-this');
     const table = await screen.findByRole('grid', { name: 'Users' });
 
-    expect(await within(table).findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    expect(
+      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
+    ).toBeInTheDocument();
     await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await waitFor(() => expect(visibleUsernames(table)).toEqual(ALL_USERS));
     expect(router.state.location.search).toBe('');

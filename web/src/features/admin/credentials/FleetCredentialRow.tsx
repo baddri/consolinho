@@ -1,4 +1,4 @@
-import { Flex, FlexItem } from '@patternfly/react-core';
+import { Flex, FlexItem, Truncate } from '@patternfly/react-core';
 import { Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { Credential } from '@/shared/api';
@@ -52,7 +52,11 @@ export function FleetCredentialRow({ credential }: { credential: Credential }) {
       </Td>
       <Td dataLabel="Name">
         {credential.name}
-        {credential.description !== null && <div className={SUBTLE}>{credential.description}</div>}
+        {credential.description !== null && (
+          <div className={SUBTLE}>
+            <Truncate content={credential.description} />
+          </div>
+        )}
       </Td>
       <Td dataLabel="Service account" modifier="nowrap">
         <ServiceAccountCell {...credential} />

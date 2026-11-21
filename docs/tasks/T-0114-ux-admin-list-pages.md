@@ -5,7 +5,7 @@ status: in_review
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
-paths: [web/src/features/admin/users/UsersListPage.tsx, web/src/features/admin/users/UsersListPage.test.tsx, web/src/features/admin/users/UserRow.tsx, web/src/features/admin/users/UserRoleLabels.tsx, web/src/features/admin/users/UserStatusLabel.tsx, web/src/features/admin/clusters/ClustersListPage.tsx, web/src/features/admin/clusters/ClustersListPage.test.tsx, web/src/features/admin/clusters/ClusterRow.tsx, web/src/features/admin/clusters/ClusterStatusLabel.tsx, web/src/features/admin/clusters/LastTestCell.tsx, web/src/features/admin/credentials/CredentialsListPage.tsx, web/src/features/admin/credentials/CredentialsListPage.test.tsx, web/src/features/admin/credentials/FleetCredentialRow.tsx, web/src/features/admin/credentials/CredentialExpiryLabel.tsx, web/src/features/admin/credentials/LastTestLabel.tsx, web/src/features/admin/credentials/CredentialExpiryAlert.tsx, web/src/features/admin/audit, web/src/shared/table]
+paths: [web/src/features/admin/users/UsersListPage.tsx, web/src/features/admin/users/UsersListPage.test.tsx, web/src/features/admin/users/UserRow.tsx, web/src/features/admin/users/UserRoleLabels.tsx, web/src/features/admin/users/UserStatusLabel.tsx, web/src/features/admin/clusters/ClustersListPage.tsx, web/src/features/admin/clusters/ClustersListPage.test.tsx, web/src/features/admin/clusters/ClusterRow.tsx, web/src/features/admin/clusters/ClusterStatusLabel.tsx, web/src/features/admin/clusters/LastTestCell.tsx, web/src/features/admin/clusters/WorstExpiryStatus.tsx, web/src/features/admin/clusters/TlsModeLabel.tsx, web/src/features/admin/credentials/CredentialsListPage.tsx, web/src/features/admin/credentials/CredentialsListPage.test.tsx, web/src/features/admin/credentials/FleetCredentialRow.tsx, web/src/features/admin/credentials/CredentialExpiryLabel.tsx, web/src/features/admin/credentials/LastTestLabel.tsx, web/src/features/admin/credentials/CredentialExpiryAlert.tsx, web/src/features/admin/credentials/ServiceAccountCell.tsx, web/src/features/admin/audit, web/src/shared/table]
 review_rounds: 1
 ---
 
@@ -80,6 +80,8 @@ Findings:
 - 2026-11-22 frontend-engineer: review round 1 fixes 1–6 (skeleton visibility + test, UX §5 empty copy, docs 2xl,
   nowrap cluster name/credential cells, audit expanded Target/Cluster, icon+text warnings, audit header widths).
   Screenshots clusters/credentials/audit(+filtered-empty) light+dark 1280/1920: no overflow/truncated headers. check-fe green.
+- 2026-11-22 frontend-engineer: post-approval nits: Clusters API URL hidden below 2xl, credential description
+  `Truncate` (tooltip), audit 400 state "Clear all filters", `WorstExpiryStatus` rename, paths, >120-col rewraps.
 
 ## Review
 
@@ -111,6 +113,20 @@ Required:
   implementation — change to `LOW_PRIORITY_COLUMN` (`['hidden','visibleOn2Xl']`, hidden below 1450px).
 Nits (optional): `UserRow.tsx:21` and `FleetCredentialRow.tsx:25` doc lines exceed 120 cols, `ClusterRow.tsx:21-22` odd
 wrap ("The" alone) — reflow; `LOW_PRIORITY_COLUMN` import sits out of alphabetical order in the three list pages.
+
+**Round 2 — frontend-architect (cd27aaa): APPROVE** (check-fe green in worktree: 721 tests)
+All three required items are done: `columnVisibility` maps match the header indices on all four lists and have a test;
+the `TableNoMatchRow` helper keeps the no-match copy in one place; FRONTEND.md and UX.md now say `2xl`. Converting
+`WorstExpiryIcon`/`TlsModeLabel`/`ServiceAccountCell` outside the original paths is accepted (status = icon + text).
+Nits (optional): `AuditLogPage.tsx:86-88` the invalid-filters state still says "Clear filters" (change to "Clear all
+filters"); add the 3 extra files to front-matter `paths`; `WorstExpiryIcon` now renders text, so its name is stale
+(rename later); `ClustersListPage.tsx:126`, `UsersListPage.tsx:129`, `CredentialsListPage.test.tsx:145`,
+`LastTestCell.tsx:17` go past 120 columns.
+
+### Visual review round 2 (ui-ux-designer, 2026-11-22) — APPROVE
+cd27aaa, Clusters/Credentials/Audit, light+dark, 1280: no overflow. Must-fix items resolved (name nowrap, audit Target/Cluster in expanded row, "No results match the filter criteria" + "Clear all filters"); nits resolved.
+- Clusters 1280 — API URL middle-truncates to "https://api.… om:6443", which says nothing useful — follow-up nit: hide API URL below 2xl (`LOW_PRIORITY_COLUMN`) instead of truncating it.
+- Credentials 1280 — narrower Name column wraps the legacy-token description to 6 lines — follow-up nit: let the description wrap wider or clamp it to 2 lines.
 
 ## Handover notes
 - `shared/table` `LOW_PRIORITY_COLUMN` = `['hidden','visibleOn2Xl']` — PF `xl` is 1200px (already on at 1280), so "hide below

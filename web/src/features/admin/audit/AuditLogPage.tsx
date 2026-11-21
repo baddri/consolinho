@@ -85,7 +85,7 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
   const entries = useMemo(() => flattenPages(data?.pages), [data]);
   const clearFiltersButton = (
     <Button variant="link" onClick={onClearFilters}>
-      Clear filters
+      Clear all filters
     </Button>
   );
 
@@ -182,7 +182,10 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
   );
 }
 
-/** A 400 for the current filters (e.g. a hand-edited `from`): the server's detail, its field errors, Clear filters. */
+/**
+ * A 400 for the current filters (e.g. a hand-edited `from`): the server's detail, its field errors and
+ * "Clear all filters".
+ */
 function InvalidFiltersState({ error, actions }: { error: ApiError; actions: ReactNode }) {
   const fieldErrors = Object.entries(error.fieldErrors);
   return (

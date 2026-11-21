@@ -109,7 +109,9 @@ export function ClustersListPage() {
                 Name
               </Th>
               <Th modifier="nowrap">Environment</Th>
-              <Th modifier="nowrap">API URL</Th>
+              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                API URL
+              </Th>
               <Th modifier="nowrap">Status</Th>
               <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
                 TLS
@@ -123,7 +125,9 @@ export function ClustersListPage() {
             </Tr>
           </Thead>
           <Tbody>
-            {isPending && <TableSkeletonRows columns={CLUSTER_COLUMN_COUNT} columnVisibility={CLUSTER_COLUMN_VISIBILITY} />}
+            {isPending && (
+              <TableSkeletonRows columns={CLUSTER_COLUMN_COUNT} columnVisibility={CLUSTER_COLUMN_VISIBILITY} />
+            )}
             {data?.length === 0 && (
               <TableEmptyRow
                 colSpan={CLUSTER_COLUMN_COUNT}

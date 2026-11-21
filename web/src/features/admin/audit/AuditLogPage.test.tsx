@@ -246,13 +246,16 @@ describe('AuditLogPage', () => {
     expect(screen.getByRole('option', { name: 'Proxy' })).toBeInTheDocument();
   });
 
-  it('400 on a hand-edited filter shows the problem and "Clear filters"', async () => {
+  it('400 on a hand-edited filter shows the problem and "Clear all filters"', async () => {
     const { user, router } = renderApp('/admin/audit?from=yesterday');
 
     expect(await screen.findByText('These filters are not valid')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Filter errors' })).toHaveTextContent('from: Enter an ISO 8601 timestamp.');
 
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    // The toolbar's chip group has its own "Clear all filters"; the state's button renders after it.
+    const stateClearButton = screen.getAllByRole('button', { name: 'Clear all filters' }).at(-1);
+    expect(stateClearButton).toBeDefined();
+    await user.click(stateClearButton as HTMLElement);
     await waitFor(() => expect(router.state.location.search).toBe(''));
     await findAuditTable();
   });

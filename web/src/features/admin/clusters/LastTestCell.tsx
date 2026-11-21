@@ -14,8 +14,8 @@ export interface LastTestCellProps {
 
 /**
  * Newest connection test of a cluster (CLU-4, CLU-7) as icon + text (`UX.md` §5): "Passed" / "Failed" with the
- * relative time, the credential used below it, plus a "Settings changed since last test" warning when the connection settings changed
- * after it (`isStale`). "Never tested" when no credential was ever tested.
+ * relative time, the credential used below it, plus a "Settings changed since last test" warning when the connection
+ * settings changed after it (`isStale`). "Never tested" when no credential was ever tested.
  */
 export function LastTestCell({ lastTest, credentialName, asLabel }: LastTestCellProps) {
   if (lastTest === null) return <span className="pf-v6-u-text-color-subtle">Never tested</span>;
