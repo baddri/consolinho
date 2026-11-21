@@ -1,7 +1,7 @@
 ---
 id: T-0116
 title: Modals and the grant wizard — one close control, OCP sizes, delete copy, label placement
-status: in_review
+status: done
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
