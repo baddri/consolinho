@@ -54,6 +54,11 @@ describe('UsersListPage (USR-1)', () => {
     const table = await findUsersTable(COLD_START_TIMEOUT_MS);
     expect(visibleUsernames(table)).toEqual(ALL_USERS);
     expect(screen.getByRole('heading', { name: 'Users', level: 1 })).toBeInTheDocument();
+    // The create action sits in the page heading (UX.md §3), not in the toolbar.
+    expect(screen.getByRole('button', { name: 'Add user' })).toBeInTheDocument();
+    const toolbar = screen.getByRole('group', { name: 'Users toolbar' });
+    expect(within(toolbar).queryByRole('button', { name: 'Add user' })).not.toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: 'Cluster grants' })).toBeInTheDocument();
     expect(within(table).getByRole('link', { name: 'pending-paul' })).toHaveAttribute(
       'href',
       '/admin/users/pending-paul',
@@ -62,12 +67,12 @@ describe('UsersListPage (USR-1)', () => {
     const admin = within(rowOf(table, 'admin'));
     expect(admin.getByText('Fleet Admin')).toBeInTheDocument();
     expect(admin.getByText('Admin')).toBeInTheDocument();
-    expect(admin.getByText('via config')).toBeInTheDocument();
+    // One "Admin" label; where a configuration admin's role comes from is on the details page (T-0114).
+    expect(admin.queryByText('via config')).not.toBeInTheDocument();
     expect(admin.getByText('Active')).toBeInTheDocument();
 
     const carol = within(rowOf(table, 'carol'));
     expect(carol.getByText('Admin')).toBeInTheDocument();
-    expect(carol.queryByText('via config')).not.toBeInTheDocument();
 
     const paul = within(rowOf(table, 'pending-paul'));
     expect(paul.getByText('Pending')).toBeInTheDocument();
@@ -88,14 +93,9 @@ describe('UsersListPage (USR-1)', () => {
     expect(aliceRow.getByText('42 minutes ago')).toBeInTheDocument();
   });
 
-  it('explains config-sourced admins and pending users in tooltips', async () => {
+  it('explains pending users in a tooltip', async () => {
     const { user } = renderApp('/admin/users');
     const table = await findUsersTable();
-
-    await user.hover(within(rowOf(table, 'admin')).getByText('via config'));
-    expect(
-      await screen.findByText('Admin granted by configuration (group fleetconsole-admins)'),
-    ).toBeInTheDocument();
 
     await user.hover(within(rowOf(table, 'pending-paul')).getByText('Pending'));
     expect(await screen.findByText('Pending — never logged in')).toBeInTheDocument();

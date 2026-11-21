@@ -1,17 +1,21 @@
-import { Label } from '@patternfly/react-core';
+import { StatusIconText } from '@/shared/ui';
+
+/** Props for {@link ClusterStatusLabel}. */
+export interface ClusterStatusLabelProps {
+  isEnabled: boolean;
+  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  asLabel?: boolean;
+}
 
 /**
- * Enabled / Disabled state of a cluster (CLU-5). Disabled clusters are hidden from every user's switcher, so the
- * label is the visible marker next to the row's subtle text.
+ * Enabled / Disabled state of a cluster (CLU-5) as icon + text (`UX.md` §5): Enabled with a green check, Disabled as
+ * plain text. Disabled clusters are hidden from every user's switcher, so this is the visible marker next to the
+ * row's subtle text.
  */
-export function ClusterStatusLabel({ isEnabled }: { isEnabled: boolean }) {
+export function ClusterStatusLabel({ isEnabled, asLabel }: ClusterStatusLabelProps) {
   return isEnabled ? (
-    <Label isCompact color="green">
-      Enabled
-    </Label>
+    <StatusIconText status="success" text="Enabled" asLabel={asLabel} />
   ) : (
-    <Label isCompact color="grey">
-      Disabled
-    </Label>
+    <StatusIconText status="neutral" text="Disabled" asLabel={asLabel} />
   );
 }

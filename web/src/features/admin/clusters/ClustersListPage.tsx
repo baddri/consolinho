@@ -1,4 +1,4 @@
-import { Button, Content, PageSection, Title } from '@patternfly/react-core';
+import { Button } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo } from 'react';
@@ -10,9 +10,10 @@ import {
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
+  LOW_PRIORITY_COLUMN,
   type SortValue,
 } from '@/shared/table';
-import { ActionButton, ErrorState } from '@/shared/ui';
+import { ActionButton, ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { CredentialExpiryAlert } from '../credentials/CredentialExpiryAlert';
 import { useAdminAccess } from '../useAdminAccess';
 import { useClusters } from './api';
@@ -39,8 +40,9 @@ const NO_CLUSTERS: ClusterListItem[] = [];
  * credentials with worst token expiry, user count and newest connection test. Filters live in the URL
  * (`?q=&env=&status=`); sorting by name is client-side (≈40–100 rows, no pagination or virtualization needed).
  *
- * The toolbar's "Register cluster" opens the form (T-0034); each row's kebab offers Edit, Enable/Disable (CLU-5)
+ * The heading's "Register cluster" opens the form (T-0034); each row's kebab offers Edit, Enable/Disable (CLU-5)
  * and Delete (CLU-6). For read-only admins they stay visible but aria-disabled with the reason (ADM-2).
+ * TLS and Users hide below `2xl` so the compact table fits 1280 (`UX.md` §5).
  * `CredentialExpiryAlert` above the toolbar warns about expired or soon-expiring tokens (CRED-8).
  * Lazy-loaded by `routes.tsx`.
  */
@@ -65,13 +67,12 @@ export function ClustersListPage() {
 
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">Clusters</Title>
-        <Content component="p">
-          OpenShift clusters {PRODUCT_NAME} can connect to, with their credentials and users.
-        </Content>
-      </PageSection>
-      <PageSection>
+      <PageHeading
+        title="Clusters"
+        subtitle={`OpenShift clusters ${PRODUCT_NAME} can connect to, with their credentials and users.`}
+        actions={registerButton}
+      />
+      <PageBody>
         <CredentialExpiryAlert />
         {error && <ErrorState error={error} title="Could not load clusters" onRetry={() => void refetch()} />}
         <FilterToolbar
@@ -101,19 +102,24 @@ export function ClustersListPage() {
             },
           ]}
           onClearAll={clearAll}
-          actions={registerButton}
         />
         <Table aria-label="Clusters" variant="compact">
           <Thead>
             <Tr>
-              <Th sort={sortProps('name', 0)}>Name</Th>
-              <Th>Environment</Th>
-              <Th>API URL</Th>
-              <Th>Status</Th>
-              <Th>TLS</Th>
-              <Th>Credentials</Th>
-              <Th>Users</Th>
-              <Th>Last test</Th>
+              <Th modifier="nowrap" sort={sortProps('name', 0)}>
+                Name
+              </Th>
+              <Th modifier="nowrap">Environment</Th>
+              <Th modifier="nowrap">API URL</Th>
+              <Th modifier="nowrap">Status</Th>
+              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                TLS
+              </Th>
+              <Th modifier="nowrap">Credentials</Th>
+              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                Users
+              </Th>
+              <Th modifier="nowrap">Last test</Th>
               <Th screenReaderText="Actions" />
             </Tr>
           </Thead>
@@ -145,7 +151,7 @@ export function ClustersListPage() {
             ))}
           </Tbody>
         </Table>
-      </PageSection>
+      </PageBody>
     </>
   );
 }

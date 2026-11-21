@@ -1,21 +1,10 @@
-import {
-  Button,
-  Content,
-  Flex,
-  FlexItem,
-  List,
-  ListItem,
-  PageSection,
-  Stack,
-  StackItem,
-  Title,
-} from '@patternfly/react-core';
+import { Button, Content, Flex, FlexItem, List, ListItem, Stack, StackItem } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo, useState, type ReactNode } from 'react';
 import { isApiError, type ApiError, type AuditEntry, type AuditPage } from '@/shared/api';
-import { TableEmptyRow, TableSkeletonRows } from '@/shared/table';
-import { ErrorState } from '@/shared/ui';
+import { LOW_PRIORITY_COLUMN, TableEmptyRow, TableSkeletonRows } from '@/shared/table';
+import { ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { useAuditLog } from './api';
 import { AuditFilters } from './AuditFilters';
 import { AUDIT_COLUMN_COUNT, AuditEntryRow } from './AuditEntryRow';
@@ -60,13 +49,11 @@ export function AuditLogPage() {
 
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">Audit log</Title>
-        <Content component="p">
-          Who changed users, clusters, credentials and grants, and who logged in — newest first.
-        </Content>
-      </PageSection>
-      <PageSection>
+      <PageHeading
+        title="Audit log"
+        subtitle="Who changed users, clusters, credentials and grants, and who logged in — newest first."
+      />
+      <PageBody>
         <AuditFilters filters={filters} />
         <AuditResults
           key={auditFiltersKey(filters.values)}
@@ -74,7 +61,7 @@ export function AuditLogPage() {
           isFiltered={filters.activeCount > 0}
           onClearFilters={filters.clearAll}
         />
-      </PageSection>
+      </PageBody>
     </>
   );
 }
@@ -117,12 +104,16 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
         <Thead>
           <Tr>
             <Th screenReaderText="Row expansion" />
-            <Th>Time</Th>
-            <Th>Actor</Th>
-            <Th>Action</Th>
-            <Th>Target</Th>
-            <Th>Cluster</Th>
-            <Th>Summary</Th>
+            <Th modifier="nowrap">Time</Th>
+            <Th modifier="nowrap">Actor</Th>
+            <Th modifier="nowrap">Action</Th>
+            <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+              Target
+            </Th>
+            <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+              Cluster
+            </Th>
+            <Th modifier="nowrap">Summary</Th>
           </Tr>
         </Thead>
         {isPending && (

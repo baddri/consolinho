@@ -1,7 +1,7 @@
 ---
 id: T-0114
 title: Fleet administration list pages — heading actions, columns that fit 1280, status icons
-status: todo
+status: in_review
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
@@ -64,15 +64,33 @@ Findings:
 - OCP: `public/components/factory/ListPage/ListPageHeader.tsx`, `packages/console-dynamic-plugin-sdk/src/app/components/status/StatusIconAndText.tsx`.
 
 ## Acceptance criteria
-- [ ] At 1280 none of the four lists scrolls horizontally or truncates a header; at 1920 all columns show.
-- [ ] Primary create action is in the heading row, right-aligned (Users, Clusters).
-- [ ] Status columns are icon + text in both themes; categories stay labels.
-- [ ] Audit: human action labels, time on one line, expand row still shows details.
-- [ ] Credentials expiry alert has a visible gap to the toolbar.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] At 1280 none of the four lists scrolls horizontally or truncates a header; at 1920 all columns show.
+- [x] Primary create action is in the heading row, right-aligned (Users, Clusters).
+- [x] Status columns are icon + text in both themes; categories stay labels.
+- [x] Audit: human action labels, time on one line, expand row still shows details.
+- [x] Credentials expiry alert has a visible gap to the toolbar.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-21 frontend-engineer: started; merged cp/3.5-look-and-feel.
+- 2026-11-21 frontend-engineer: PageHeading/PageBody on 4 lists, create actions in heading, status adapters → StatusIconText
+  (+`asLabel`), `auditActionLabel`, low-priority columns hidden below 2xl. Mock-UI screenshots users/clusters/credentials/
+  grants/audit, light+dark, 1280+1920: no page/table overflow, no truncated header. check-fe green.
 
 ## Review
 
 ## Handover notes
+- `shared/table` `LOW_PRIORITY_COLUMN` = `['hidden','visibleOn2Xl']` — PF `xl` is 1200px (already on at 1280), so "hide below
+  xl" in the contract is implemented as below 2xl (1450). Hidden at 1280: Users Last login/Groups, Clusters TLS/Users,
+  Credentials Fingerprint/Grants, Audit Target/Cluster. All Th `modifier="nowrap"`.
+- Status adapters keep names/props, add `asLabel?`: `UserStatusLabel` (pending = hourglass, tooltip trigger is a
+  focusable span), `ClusterStatusLabel`, `CredentialExpiryLabel`, `LastTestLabel` (status and time now on separate
+  lines), `LastTestCell` ("Passed"/"Failed" text replaces the aria-labelled icon). Consumers (GrantRow, CredentialRow,
+  details headers) follow automatically.
+- `UserRoleLabels` is one "Admin" label; the "via config" source must appear on the user details page (T-0115);
+  `adminViaConfigurationText` kept for `useUserActions`.
+- `audit/auditActionLabels.ts`: Map of backend ids → labels, unknown (proxy.*) fall back to the id; expanded row shows
+  "Action ID". `CredentialExpiryAlert` has `pf-v6-u-mb-md`.
+- Follow-up candidate: admin empty-state copy still "No users match"/"Clear filters" (UX §5 says "No results match the
+  filter criteria"/"Clear all filters"); skeleton rows render cells for hidden columns while loading.
+- Repo is not prettier-clean — don't run `prettier --write` over folders.

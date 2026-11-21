@@ -1,4 +1,4 @@
-import { Button, Content, PageSection, Title } from '@patternfly/react-core';
+import { Button } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo, useState } from 'react';
@@ -10,9 +10,10 @@ import {
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
+  LOW_PRIORITY_COLUMN,
   type SortValue,
 } from '@/shared/table';
-import { ActionButton, ErrorState } from '@/shared/ui';
+import { ActionButton, ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { useAdminAccess } from '../useAdminAccess';
 import { useUsers } from './api';
 import { CreateUserModal } from './CreateUserModal';
@@ -41,8 +42,9 @@ const NO_USERS: UserListItem[] = [];
  * (USR-1). Filters live in the URL (`?q=&role=&status=&readOnly=`) so filtered views are linkable; sorting is by
  * username (default) or last login, client-side. Read-only admins see the same page (ADM-2).
  *
- * The toolbar's "Add user" opens `CreateUserModal`; each row's kebab offers `useUserActions` (USR-2..6). For
- * read-only admins both stay visible but aria-disabled with the reason. Lazy-loaded by `routes.tsx`.
+ * The heading's "Add user" opens `CreateUserModal`; each row's kebab offers `useUserActions` (USR-2..6). For
+ * read-only admins both stay visible but aria-disabled with the reason. Groups and Last login hide below `2xl` so the
+ * compact table fits 1280 (`UX.md` §5). Lazy-loaded by `routes.tsx`.
  */
 export function UsersListPage() {
   const { data, error, isPending, refetch } = useUsers();
@@ -56,13 +58,16 @@ export function UsersListPage() {
 
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">Users</Title>
-        <Content component="p">
-          Everyone who has logged in to {PRODUCT_NAME} or was added by an administrator.
-        </Content>
-      </PageSection>
-      <PageSection>
+      <PageHeading
+        title="Users"
+        subtitle={`Everyone who has logged in to ${PRODUCT_NAME} or was added by an administrator.`}
+        actions={
+          <ActionButton disabledReason={readOnlyReason} onClick={() => setCreateOpen(true)}>
+            Add user
+          </ActionButton>
+        }
+      />
+      <PageBody>
         {error && <ErrorState error={error} title="Could not load users" onRetry={() => void refetch()} />}
         <FilterToolbar
           ariaLabel="Users toolbar"
@@ -99,24 +104,25 @@ export function UsersListPage() {
             />
           }
           onClearAll={clearAll}
-          actions={
-            <ActionButton disabledReason={readOnlyReason} onClick={() => setCreateOpen(true)}>
-              Add user
-            </ActionButton>
-          }
         />
         <CreateUserModal isOpen={isCreateOpen} onClose={() => setCreateOpen(false)} />
         <Table aria-label="Users" variant="compact">
           <Thead>
             <Tr>
-              <Th sort={sortProps('username', 0)}>Username</Th>
-              <Th>Display name</Th>
-              <Th>Role</Th>
-              <Th>Status</Th>
-              <Th>Read only</Th>
-              <Th>Clusters</Th>
-              <Th sort={sortProps('lastLogin', 6)}>Last login</Th>
-              <Th>Groups</Th>
+              <Th modifier="nowrap" sort={sortProps('username', 0)}>
+                Username
+              </Th>
+              <Th modifier="nowrap">Display name</Th>
+              <Th modifier="nowrap">Role</Th>
+              <Th modifier="nowrap">Status</Th>
+              <Th modifier="nowrap">Read only</Th>
+              <Th modifier="nowrap">Cluster grants</Th>
+              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN} sort={sortProps('lastLogin', 6)}>
+                Last login
+              </Th>
+              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                Groups
+              </Th>
               <Th screenReaderText="Actions" />
             </Tr>
           </Thead>
@@ -141,7 +147,7 @@ export function UsersListPage() {
             ))}
           </Tbody>
         </Table>
-      </PageSection>
+      </PageBody>
     </>
   );
 }

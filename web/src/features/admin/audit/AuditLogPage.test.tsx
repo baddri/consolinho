@@ -6,6 +6,7 @@ import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { adminRoute } from '../routes';
+import { auditActionLabel } from './auditActionLabels';
 import { formatDetails } from './AuditEntryRow';
 
 const HOUR_MS = 3_600_000;
@@ -58,7 +59,9 @@ describe('AuditLogPage', () => {
     const firstRow = within(table).getByText(first.summary).closest('tr');
     if (!firstRow) throw new Error('row not found');
     const cells = within(firstRow);
-    expect(cells.getByText(first.action)).toBeInTheDocument();
+    // The row shows the human label; the raw id is only in the expanded details (T-0114).
+    expect(cells.getByText(auditActionLabel(first.action))).toBeInTheDocument();
+    expect(cells.queryByText(first.action)).not.toBeInTheDocument();
     expect(firstRow).toHaveTextContent(`${first.targetType} ${first.targetName}`);
     expect(firstRow.querySelector('time')).toHaveAttribute('dateTime', first.occurredAt);
 
@@ -73,6 +76,7 @@ describe('AuditLogPage', () => {
 
     await user.click(cells.getByRole('button', { name: 'Details' }));
     expect(await within(table).findByText(/"groups": \[/)).toBeInTheDocument();
+    expect(within(table).getByText(first.action, { selector: 'code' })).toBeInTheDocument();
     expect(within(table).getByText(first.correlationId ?? '')).toBeInTheDocument();
     expect(within(table).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
   });

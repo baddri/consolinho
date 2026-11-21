@@ -1,32 +1,34 @@
-import { Flex, FlexItem, Label, type LabelProps } from '@patternfly/react-core';
+import { Flex, FlexItem } from '@patternfly/react-core';
 import type { Credential, CredentialExpiryStatus } from '@/shared/api';
-import { RelativeTime } from '@/shared/ui';
+import { RelativeTime, StatusIconText, type StatusKind } from '@/shared/ui';
 
-/** Label text and PatternFly status/colour of each expiry status (CRED-4). */
-const EXPIRY_LABELS: Record<CredentialExpiryStatus, { text: string } & Pick<LabelProps, 'status' | 'color'>> = {
+/** Text and status icon of each expiry status (CRED-4). */
+const EXPIRY_LABELS: Record<CredentialExpiryStatus, { text: string; status: StatusKind }> = {
   ok: { text: 'Valid', status: 'success' },
   expiringSoon: { text: 'Expires soon', status: 'warning' },
   expired: { text: 'Expired', status: 'danger' },
-  noExpiry: { text: 'No expiry', color: 'grey' },
-  unknown: { text: 'Unknown', color: 'grey' },
+  noExpiry: { text: 'No expiry', status: 'neutral' },
+  unknown: { text: 'Unknown', status: 'neutral' },
 };
 
 /** Props for {@link CredentialExpiryLabel}. */
-export type CredentialExpiryLabelProps = Pick<Credential, 'expiryStatus' | 'expiresAt'>;
+export type CredentialExpiryLabelProps = Pick<Credential, 'expiryStatus' | 'expiresAt'> & {
+  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  asLabel?: boolean;
+};
 
 /**
- * Token expiry of a credential (CRED-4): a compact label — Valid (green), Expires soon (warning), Expired (danger),
- * No expiry / Unknown (grey) — followed by the expiry date as `RelativeTime` ("in 5 days", absolute in a tooltip)
- * whenever the token has one. The server computes the status with its warning window (`expiryWarningDays`).
+ * Token expiry of a credential (CRED-4) as icon + text (`UX.md` §5) — Valid (green check), Expires soon (warning),
+ * Expired (danger), No expiry / Unknown (plain text) — followed by the expiry date as `RelativeTime` ("in 5 days",
+ * absolute in a tooltip) whenever the token has one. The server computes the status with its warning window
+ * (`expiryWarningDays`).
  */
-export function CredentialExpiryLabel({ expiryStatus, expiresAt }: CredentialExpiryLabelProps) {
-  const { text, status, color } = EXPIRY_LABELS[expiryStatus];
+export function CredentialExpiryLabel({ expiryStatus, expiresAt, asLabel }: CredentialExpiryLabelProps) {
+  const { text, status } = EXPIRY_LABELS[expiryStatus];
   return (
     <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
       <FlexItem>
-        <Label isCompact status={status} color={color}>
-          {text}
-        </Label>
+        <StatusIconText status={status} text={text} asLabel={asLabel} />
       </FlexItem>
       {expiresAt !== null && (
         <FlexItem>

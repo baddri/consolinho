@@ -1,7 +1,6 @@
-import { Flex, FlexItem, Icon, Label } from '@patternfly/react-core';
-import { CheckCircleIcon, ExclamationCircleIcon } from '@patternfly/react-icons';
+import { Flex, FlexItem } from '@patternfly/react-core';
 import type { ConnectionTestSummary } from '@/shared/api';
-import { RelativeTime } from '@/shared/ui';
+import { RelativeTime, StatusIconText } from '@/shared/ui';
 
 /** Props for {@link LastTestCell}. */
 export interface LastTestCellProps {
@@ -9,35 +8,32 @@ export interface LastTestCellProps {
   lastTest: ConnectionTestSummary | null;
   /** The credential that test ran with. */
   credentialName: string | null;
+  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  asLabel?: boolean;
 }
 
 /**
- * Newest connection test of a cluster (CLU-4, CLU-7): success/failure icon, relative time and the credential used,
- * plus a "Settings changed since last test" warning when the connection settings changed after it (`isStale`).
- * "Never tested" when no credential was ever tested.
+ * Newest connection test of a cluster (CLU-4, CLU-7) as icon + text (`UX.md` §5): "Passed" / "Failed", relative time
+ * and the credential used, plus a "Settings changed since last test" warning when the connection settings changed
+ * after it (`isStale`). "Never tested" when no credential was ever tested.
  */
-export function LastTestCell({ lastTest, credentialName }: LastTestCellProps) {
+export function LastTestCell({ lastTest, credentialName, asLabel }: LastTestCellProps) {
   if (lastTest === null) return <span className="pf-v6-u-text-color-subtle">Never tested</span>;
   const { succeeded, testedAt, isStale } = lastTest;
   return (
     <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
       <FlexItem>
-        <Icon
-          isInline
+        <StatusIconText
           status={succeeded ? 'success' : 'danger'}
-          role="img"
-          aria-label={succeeded ? 'Succeeded' : 'Failed'}
-        >
-          {succeeded ? <CheckCircleIcon /> : <ExclamationCircleIcon />}
-        </Icon>{' '}
+          text={succeeded ? 'Passed' : 'Failed'}
+          asLabel={asLabel}
+        />{' '}
         <RelativeTime value={testedAt} />
         {credentialName !== null && <span className="pf-v6-u-text-color-subtle"> · {credentialName}</span>}
       </FlexItem>
       {isStale && (
         <FlexItem>
-          <Label isCompact status="warning">
-            Settings changed since last test
-          </Label>
+          <StatusIconText status="warning" text="Settings changed since last test" />
         </FlexItem>
       )}
     </Flex>

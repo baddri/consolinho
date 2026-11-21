@@ -1,4 +1,4 @@
-import { Label, LabelGroup, Tooltip } from '@patternfly/react-core';
+import { Label } from '@patternfly/react-core';
 import type { UserListItem } from '@/shared/api';
 
 /** Props for {@link UserRoleLabels}; a `UserListItem` or `UserDetail` can be passed as is. */
@@ -16,31 +16,17 @@ export function adminViaConfigurationText(source: string | null): string {
 }
 
 /**
- * A user's role (USR-1/USR-6): an "Admin" label for admins, plus a compact outlined "via config" label when the role
- * comes from `Auth:BootstrapAdminUsers`/`Auth:AdminGroups`, whose tooltip names the configuration source. Plain
- * users show the text "User". Shared by the users list and the user detail page.
+ * A user's role (USR-1): one compact "Admin" category label for admins, the text "User" otherwise (`UX.md` §5).
+ * Where a configuration admin's role comes from (USR-6) is shown on the user's details page, not in this label; the
+ * props still accept a whole `UserListItem`/`UserDetail`.
  */
-export function UserRoleLabels({
-  role,
-  isAdminViaConfiguration,
-  adminConfigurationSource,
-}: UserRoleLabelsProps) {
+export function UserRoleLabels({ role }: UserRoleLabelsProps) {
   if (role !== 'admin') {
     return <>User</>;
   }
   return (
-    <LabelGroup aria-label="Role">
-      <Label isCompact color="blue">
-        Admin
-      </Label>
-      {isAdminViaConfiguration && (
-        <Tooltip content={adminViaConfigurationText(adminConfigurationSource)}>
-          {/* Focusable so keyboard users can open the tooltip (same pattern as RelativeTime). */}
-          <Label isCompact variant="outline" tabIndex={0}>
-            via config
-          </Label>
-        </Tooltip>
-      )}
-    </LabelGroup>
+    <Label isCompact color="blue">
+      Admin
+    </Label>
   );
 }

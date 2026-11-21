@@ -2,6 +2,7 @@ import { Flex, FlexItem, Truncate } from '@patternfly/react-core';
 import { ActionsColumn, Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { ClusterListItem } from '@/shared/api';
+import { LOW_PRIORITY_COLUMN } from '@/shared/table';
 import { EnvironmentLabel } from '@/shared/ui';
 import { ClusterStatusLabel } from './ClusterStatusLabel';
 import { clusterDetailPath } from './clusterTarget';
@@ -17,7 +18,8 @@ export const CLUSTER_COLUMN_COUNT = 9;
 const SUBTLE = 'pf-v6-u-text-color-subtle';
 
 /**
- * One row of the clusters list (CLU-7). Disabled clusters render in subtle text next to their "Disabled" label. The
+ * One row of the clusters list (CLU-7); TLS and Users share the header's `LOW_PRIORITY_COLUMN`. Disabled clusters
+ * render in subtle text next to their "Disabled" status. The
  * trailing kebab offers `useClusterActions` (Edit, Enable/Disable, Delete); their dialog renders in the row (it is a
  * portalled modal) and confirms with the row's `version`.
  */
@@ -38,7 +40,7 @@ export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
       <Td dataLabel="Status">
         <ClusterStatusLabel isEnabled={cluster.isEnabled} />
       </Td>
-      <Td dataLabel="TLS">
+      <Td dataLabel="TLS" visibility={LOW_PRIORITY_COLUMN}>
         <TlsModeLabel tlsMode={cluster.tlsMode} />
       </Td>
       <Td dataLabel="Credentials">
@@ -49,7 +51,9 @@ export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
           </FlexItem>
         </Flex>
       </Td>
-      <Td dataLabel="Users">{cluster.grantCount}</Td>
+      <Td dataLabel="Users" visibility={LOW_PRIORITY_COLUMN}>
+        {cluster.grantCount}
+      </Td>
       <Td dataLabel="Last test">
         <LastTestCell lastTest={cluster.lastTest} credentialName={cluster.lastTestCredentialName} />
       </Td>

@@ -1,5 +1,6 @@
-import { Label, Tooltip, type LabelProps } from '@patternfly/react-core';
+import { Tooltip } from '@patternfly/react-core';
 import type { UserStatus } from '@/shared/api';
+import { StatusIconText, type StatusKind } from '@/shared/ui';
 
 /** Display text per status, shared by the status label and the users list's status filter. */
 export const USER_STATUS_TEXT: Record<UserStatus, string> = {
@@ -8,38 +9,34 @@ export const USER_STATUS_TEXT: Record<UserStatus, string> = {
   deactivated: 'Deactivated',
 };
 
-const STATUS_COLORS: Record<UserStatus, NonNullable<LabelProps['color']>> = {
-  active: 'green',
-  pending: 'blue',
-  deactivated: 'grey',
+const STATUS_KINDS: Record<UserStatus, StatusKind> = {
+  active: 'success',
+  pending: 'pending',
+  deactivated: 'neutral',
 };
 
 /** Props for {@link UserStatusLabel}. */
 export interface UserStatusLabelProps {
   status: UserStatus;
+  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  asLabel?: boolean;
 }
 
 /**
- * A user's lifecycle status as a coloured compact label (USR-1): Active green, Pending blue, Deactivated grey.
- * Pending (pre-created, USR-2) carries a "Pending — never logged in" tooltip; the label is focusable then so
- * keyboard users can open it. Used by the users list and the user detail page.
+ * A user's lifecycle status as icon + text (USR-1, `UX.md` §5): Active (green check), Pending (hourglass),
+ * Deactivated (plain text). Pending (pre-created, USR-2) carries a "Pending — never logged in" tooltip; its trigger
+ * is focusable then so keyboard users can open it. Used by the users list, grants and the user detail page.
  */
-export function UserStatusLabel({ status }: UserStatusLabelProps) {
-  const text = USER_STATUS_TEXT[status];
-  const color = STATUS_COLORS[status];
-  if (status !== 'pending') {
-    return (
-      <Label isCompact color={color}>
-        {text}
-      </Label>
-    );
-  }
+export function UserStatusLabel({ status, asLabel }: UserStatusLabelProps) {
+  const content = (
+    <StatusIconText status={STATUS_KINDS[status]} text={USER_STATUS_TEXT[status]} asLabel={asLabel} />
+  );
+  if (status !== 'pending') return content;
   return (
     <Tooltip content="Pending — never logged in">
-      {/* PatternFly's tooltip trigger must be focusable for keyboard users; a static label is not by itself. */}
-      <Label isCompact color={color} tabIndex={0}>
-        {text}
-      </Label>
+      {/* PatternFly's tooltip trigger must be focusable for keyboard users; the status text is not by itself. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+      <span tabIndex={0}>{content}</span>
     </Tooltip>
   );
 }

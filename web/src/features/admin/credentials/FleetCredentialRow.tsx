@@ -2,6 +2,7 @@ import { Flex, FlexItem } from '@patternfly/react-core';
 import { Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { Credential } from '@/shared/api';
+import { LOW_PRIORITY_COLUMN } from '@/shared/table';
 import { EnvironmentLabel } from '@/shared/ui';
 import { ClusterStatusLabel } from '../clusters/ClusterStatusLabel';
 import { clusterDetailPath } from '../clusters/clusterTarget';
@@ -21,7 +22,7 @@ const credentialsTabPath = (cluster: string) => `${clusterDetailPath(cluster)}/c
 /**
  * One row of the fleet credentials list (CRED-7): the cluster (environment label, name linking to its Credentials
  * tab, "Disabled" label when the cluster is disabled), then the same identity, fingerprint, expiry, grant and
- * last-test cells as the cluster's own tab. Read-only: rotate/delete stay on the cluster tab.
+ * last-test cells as the cluster's own tab (Fingerprint and Grants share the header's `LOW_PRIORITY_COLUMN`). Read-only: rotate/delete stay on the cluster tab.
  */
 export function FleetCredentialRow({ credential }: { credential: Credential }) {
   return (
@@ -48,13 +49,15 @@ export function FleetCredentialRow({ credential }: { credential: Credential }) {
       <Td dataLabel="Service account">
         <ServiceAccountCell {...credential} />
       </Td>
-      <Td dataLabel="Fingerprint" className="pf-v6-u-font-family-monospace">
+      <Td dataLabel="Fingerprint" visibility={LOW_PRIORITY_COLUMN} className="pf-v6-u-font-family-monospace">
         {credential.fingerprint}
       </Td>
-      <Td dataLabel="Expiry">
+      <Td dataLabel="Expiry" modifier="nowrap">
         <CredentialExpiryLabel expiryStatus={credential.expiryStatus} expiresAt={credential.expiresAt} />
       </Td>
-      <Td dataLabel="Grants">{credential.grantCount}</Td>
+      <Td dataLabel="Grants" visibility={LOW_PRIORITY_COLUMN}>
+        {credential.grantCount}
+      </Td>
       <Td dataLabel="Last test">
         <LastTestLabel lastTest={credential.lastTest} />
       </Td>

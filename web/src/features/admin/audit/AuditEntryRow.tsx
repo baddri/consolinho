@@ -11,7 +11,9 @@ import {
 import { ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { AuditEntry } from '@/shared/api';
+import { LOW_PRIORITY_COLUMN } from '@/shared/table';
 import { RelativeTime } from '@/shared/ui';
+import { auditActionLabel } from './auditActionLabels';
 import { proxyOutcome } from './proxyOutcome';
 
 /** Columns of the audit table incl. the expand toggle (for skeleton/empty rows). */
@@ -56,9 +58,10 @@ export interface AuditEntryRowProps {
 
 /**
  * One audit entry (AUD-2) as an expandable composable-table row in its own `Tbody`: time (relative, absolute in a
- * tooltip), actor (a "system" label for configuration changes), monospace action, target type and name, cluster
- * (linked to its admin page — a deleted cluster's link shows the not-found page) and summary. Expanded: the
- * `details` JSON and the copyable correlation id for log lookups.
+ * tooltip, one line), actor (a "system" label for configuration changes), human action label (`auditActionLabel`),
+ * target type and name, cluster (linked to its admin page — a deleted cluster's link shows the not-found page) and
+ * the wrapping summary. Target and Cluster share the header's `LOW_PRIORITY_COLUMN`, so 1280 fits. Expanded: the raw
+ * action id, the `details` JSON and the copyable correlation id for log lookups.
  */
 export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEntryRowProps) {
   const details = formatDetails(entry.details);
@@ -67,7 +70,7 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
     <Tbody isExpanded={isExpanded}>
       <Tr>
         <Td expand={{ rowIndex, isExpanded, onToggle, expandId: 'audit-entry' }} />
-        <Td dataLabel="Time">
+        <Td dataLabel="Time" modifier="nowrap">
           <RelativeTime value={entry.occurredAt} />
         </Td>
         <Td dataLabel="Actor">
@@ -79,10 +82,8 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
             entry.actor
           )}
         </Td>
-        <Td dataLabel="Action">
-          <code>{entry.action}</code>
-        </Td>
-        <Td dataLabel="Target">
+        <Td dataLabel="Action">{auditActionLabel(entry.action)}</Td>
+        <Td dataLabel="Target" visibility={LOW_PRIORITY_COLUMN}>
           {entry.targetType === 'kubernetesResource' ? (
             <KubernetesTarget entry={entry} />
           ) : (
@@ -91,7 +92,7 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
             </>
           )}
         </Td>
-        <Td dataLabel="Cluster">
+        <Td dataLabel="Cluster" visibility={LOW_PRIORITY_COLUMN}>
           {entry.clusterName ? (
             <Link to={`/admin/clusters/${encodeURIComponent(entry.clusterName)}`}>{entry.clusterName}</Link>
           ) : (
@@ -105,6 +106,12 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
           {isExpanded && (
             <ExpandableRowContent>
               <DescriptionList isCompact>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Action ID</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <code>{entry.action}</code>
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
                 {details !== undefined && (
                   <DescriptionListGroup>
                     <DescriptionListTerm>Details</DescriptionListTerm>

@@ -2,6 +2,7 @@ import { Label } from '@patternfly/react-core';
 import { ActionsColumn, Td, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { UserListItem } from '@/shared/api';
+import { LOW_PRIORITY_COLUMN } from '@/shared/table';
 import { LabelList, RelativeTime } from '@/shared/ui';
 import { UserRoleLabels } from './UserRoleLabels';
 import { UserStatusLabel } from './UserStatusLabel';
@@ -17,7 +18,7 @@ export const userDetailPath = (username: string) => `/admin/users/${encodeURICom
 const EMPTY = '—';
 
 /**
- * One row of the users list (USR-1). `dataLabel`s repeat the column names for PatternFly's stacked mobile layout.
+ * One row of the users list (USR-1); Last login and Groups share the header's `LOW_PRIORITY_COLUMN`. `dataLabel`s repeat the column names for PatternFly's stacked mobile layout.
  * The trailing kebab (`ActionsColumn`) offers the user's actions from `useUserActions`; their dialog renders in the
  * row (it is a portalled modal) and confirms with the row's `version`.
  */
@@ -30,11 +31,7 @@ export function UserRow({ user }: { user: UserListItem }) {
       </Td>
       <Td dataLabel="Display name">{user.displayName ?? EMPTY}</Td>
       <Td dataLabel="Role">
-        <UserRoleLabels
-          role={user.role}
-          isAdminViaConfiguration={user.isAdminViaConfiguration}
-          adminConfigurationSource={user.adminConfigurationSource}
-        />
+        <UserRoleLabels {...user} />
       </Td>
       <Td dataLabel="Status">
         <UserStatusLabel status={user.status} />
@@ -48,11 +45,11 @@ export function UserRow({ user }: { user: UserListItem }) {
           EMPTY
         )}
       </Td>
-      <Td dataLabel="Clusters">{user.grantCount}</Td>
-      <Td dataLabel="Last login">
+      <Td dataLabel="Cluster grants">{user.grantCount}</Td>
+      <Td dataLabel="Last login" visibility={LOW_PRIORITY_COLUMN} modifier="nowrap">
         <RelativeTime value={user.lastLoginAt} emptyText="Never" />
       </Td>
-      <Td dataLabel="Groups">
+      <Td dataLabel="Groups" visibility={LOW_PRIORITY_COLUMN}>
         {user.groups.length > 0 ? (
           <LabelList labels={user.groups} max={3} aria-label={`Groups of ${user.username}`} />
         ) : (

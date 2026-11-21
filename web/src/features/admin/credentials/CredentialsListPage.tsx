@@ -1,4 +1,4 @@
-import { Button, Content, PageSection, Title } from '@patternfly/react-core';
+import { Button } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo } from 'react';
@@ -10,9 +10,10 @@ import {
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
+  LOW_PRIORITY_COLUMN,
   type SortValue,
 } from '@/shared/table';
-import { ErrorState } from '@/shared/ui';
+import { ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { ENVIRONMENT_OPTIONS } from '../clusters/clusterFilters';
 import { useFleetCredentials } from './api';
 import { CREDENTIAL_FILTERS, EXPIRY_OPTIONS, matchesCredentialFilters } from './credentialFilters';
@@ -34,7 +35,7 @@ const NO_CREDENTIALS: Credential[] = [];
  * `/admin/credentials` — every credential of the fleet in one list, soonest expiry first (CRED-7), under the expiry
  * alert (CRED-8). Filters live in the URL (`?q=&expiry=&env=`) so the alert can link to a pre-filtered view; sorting
  * by expiry or cluster is client-side. Rows link to the cluster's Credentials tab, where rotate/delete live.
- * Lazy-loaded by `routes.tsx`.
+ * Fingerprint and Grants hide below `2xl` so the compact table fits 1280. Lazy-loaded by `routes.tsx`.
  */
 export function CredentialsListPage() {
   const { data, error, isPending, refetch } = useFleetCredentials();
@@ -49,14 +50,11 @@ export function CredentialsListPage() {
 
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">Credentials</Title>
-        <Content component="p">
-          ServiceAccount tokens of every cluster, soonest expiry first. Rotate or delete them on the cluster&apos;s
-          Credentials tab.
-        </Content>
-      </PageSection>
-      <PageSection>
+      <PageHeading
+        title="Credentials"
+        subtitle="ServiceAccount tokens of every cluster, soonest expiry first. Rotate or delete them on the cluster's Credentials tab."
+      />
+      <PageBody>
         <CredentialExpiryAlert />
         {error && <ErrorState error={error} title="Could not load credentials" onRetry={() => void refetch()} />}
         <FilterToolbar
@@ -91,13 +89,21 @@ export function CredentialsListPage() {
           <Table aria-label="Credentials" variant="compact">
             <Thead>
               <Tr>
-                <Th sort={sortProps('cluster', 0)}>Cluster</Th>
-                <Th>Name</Th>
-                <Th>Service account</Th>
-                <Th>Fingerprint</Th>
-                <Th sort={sortProps('expiry', 4)}>Expiry</Th>
-                <Th>Grants</Th>
-                <Th>Last test</Th>
+                <Th modifier="nowrap" sort={sortProps('cluster', 0)}>
+                  Cluster
+                </Th>
+                <Th modifier="nowrap">Name</Th>
+                <Th modifier="nowrap">Service account</Th>
+                <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                  Fingerprint
+                </Th>
+                <Th modifier="nowrap" sort={sortProps('expiry', 4)}>
+                  Expiry
+                </Th>
+                <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                  Grants
+                </Th>
+                <Th modifier="nowrap">Last test</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -129,7 +135,7 @@ export function CredentialsListPage() {
             </Tbody>
           </Table>
         )}
-      </PageSection>
+      </PageBody>
     </>
   );
 }

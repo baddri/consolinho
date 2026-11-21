@@ -61,7 +61,7 @@ describe('ClustersListPage (CLU-7)', () => {
     expect(prodEuCells.getByText('Enabled')).toBeInTheDocument();
     expect(prodEuCells.getByText('CA bundle')).toBeInTheDocument();
     expect(prodEuCells.getByRole('img', { name: 'A credential token expires soon' })).toBeInTheDocument();
-    expect(prodEuCells.getByRole('img', { name: 'Succeeded' })).toBeInTheDocument();
+    expect(prodEuCells.getByText('Passed')).toBeInTheDocument();
     expect(prodEuCells.getByText('2 days ago')).toBeInTheDocument();
     expect(prodEu).toHaveTextContent('fleet-view');
     expect(prodEuCells.getByRole('cell', { name: '3' })).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('ClustersListPage (CLU-7)', () => {
     const prodUs = within(rowOf(table, 'prod-us-1'));
     expect(prodUs.getByText('System trust')).toBeInTheDocument();
     expect(prodUs.getByRole('img', { name: 'A credential token has expired' })).toBeInTheDocument();
-    expect(prodUs.getByRole('img', { name: 'Failed' })).toBeInTheDocument();
+    expect(prodUs.getByText('Failed')).toBeInTheDocument();
 
     const staging = within(rowOf(table, 'staging-eu-1'));
     expect(staging.getByText('TLS not verified')).toBeInTheDocument();
@@ -208,6 +208,9 @@ describe('ClustersListPage (CLU-7)', () => {
     expect(visibleClusters(table)).toEqual(ALL_CLUSTERS);
     const register = screen.getByRole('button', { name: 'Register cluster' });
     expect(register).toHaveAttribute('aria-disabled', 'true');
+    // The create action sits in the page heading (UX.md §3), not in the toolbar.
+    const toolbar = screen.getByRole('group', { name: 'Clusters toolbar' });
+    expect(within(toolbar).queryByRole('button', { name: 'Register cluster' })).not.toBeInTheDocument();
     await user.hover(register);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/read-only/i);
   });

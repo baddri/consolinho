@@ -2,6 +2,7 @@
  * Admin list kit (FRONTEND.md "Admin list pages"): URL-backed filters, filter toolbar, client-side sort and the
  * loading/empty rows shared by the users, clusters, credentials, grants and audit lists. API-agnostic.
  */
+export { LOW_PRIORITY_COLUMN } from './columnVisibility';
 export {
   FilterToolbar,
   type FilterOption,
