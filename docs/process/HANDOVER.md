@@ -14,7 +14,8 @@
 ## Next actions (resume here)
 1. CP3 BUILD/VERIFY/ACCEPT done: all tasks committed incl. T-0106 (QA-found PRB-2 fix); PO ACCEPT-WITH-FOLLOWUPS
    (T-0107, T-0108 → CP6). Live: https://consolinho.apps.acm-bri-poc.sandbox2014.opentlc.com (redeployed after T-0106).
-2. **Blocked on human** before CLOSE: interactive OAuth login + smoke H2/H3/H4, H6, H7 (`docs/specs/CP3-acceptance.md`).
+2. T-0109 (human-found: proxy forwarded browser Host → wrong SNI → UpstreamTls on real clusters) fixed 740c529, redeployed.
+   **Blocked on human** before CLOSE: interactive OAuth login + smoke H2/H3/H4, H6, H7 (`docs/specs/CP3-acceptance.md`).
    When confirmed: record results there → CLOSE (ROADMAP CP3 done, merge `--no-ff` to main, tag cp-3).
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
