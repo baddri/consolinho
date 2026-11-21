@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-21 (CP3 closed) · **Current checkpoint:** CP4 — Workloads day-2 operations (not started) ·
+**Last updated:** 2026-11-21 (CP3 closed) · **Current checkpoint:** CP3.5 — OCP look & feel (not started) ·
 **Branch:** `main`
 
 ## Where we are
@@ -12,7 +12,9 @@
   `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
 
 ## Next actions (resume here)
-1. Start CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`.
+1. CP3.5 (ROADMAP §CP3.5), branch `cp/3.5-look-and-feel`: `ux-designer` audit → UX.md + tasks → frontend-engineer
+   builds → frontend-architect (code) + ux-designer (visual) review. The PO reviews the cluster switcher move.
+   Then CP4: SPEC step with `ocp-product-owner`, branch `cp/4-workloads`.
 2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 

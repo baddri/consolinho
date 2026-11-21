@@ -117,6 +117,7 @@ project subagents in `.claude/agents/`:
 | `frontend-architect` | Frontend design, task breakdown, ADRs, code review of frontend diffs |
 | `backend-engineer` | Implementing backend tasks |
 | `frontend-engineer` | Implementing frontend tasks |
+| `ux-designer` | UI/UX audits against the OCP console, `docs/architecture/UX.md`, visual review of frontend diffs |
 | `qa-engineer` | Test strategy, writing/running tests, verifying acceptance criteria, filing bug tasks |
 
 The orchestrator runs autonomously until the **current checkpoint** is complete (or a blocker needs the human), committing
