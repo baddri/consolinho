@@ -253,9 +253,10 @@ describe('AuditLogPage', () => {
     expect(screen.getByRole('list', { name: 'Filter errors' })).toHaveTextContent('from: Enter an ISO 8601 timestamp.');
 
     // The toolbar's chip group has its own "Clear all filters"; the state's button renders after it.
-    const stateClearButton = screen.getAllByRole('button', { name: 'Clear all filters' }).at(-1);
-    expect(stateClearButton).toBeDefined();
-    await user.click(stateClearButton as HTMLElement);
+    const clearButtons = screen.getAllByRole('button', { name: 'Clear all filters' });
+    const stateClearButton = clearButtons.at(-1);
+    if (stateClearButton === undefined) throw new Error('no "Clear all filters" button');
+    await user.click(stateClearButton);
     await waitFor(() => expect(router.state.location.search).toBe(''));
     await findAuditTable();
   });
