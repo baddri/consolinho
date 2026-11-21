@@ -1,0 +1,21 @@
+# K8S-6: only the consolinho server pods reach Postgres (the migrate init container runs in those pods).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  labels:
+    app.kubernetes.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: database
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: server
+      ports:
+        - protocol: TCP
+          port: 5432

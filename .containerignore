@@ -1,0 +1,22 @@
+# Build-context filter for deploy/Containerfile (ADR-0026 §3). Keeps build output, dependencies, VCS data, local
+# secrets and editor state out of the context: smaller uploads and no secret can reach an image layer.
+# Secret patterns need the `**/` prefix: a bare pattern matches only at the context root.
+**/bin
+**/obj
+**/node_modules
+.git
+web/dist
+web/coverage
+web/e2e/.results
+**/TestResults
+**/.env*
+**/*.kubeconfig
+**/kubeconfig
+**/appsettings.*.local.json
+.claude
+.vscode
+.idea
+# Beyond the ADR list: stale tsc incremental state (would make `tsc -b` skip work) and the overlay deploy-dev.sh
+# generates from the current oc login.
+**/*.tsbuildinfo
+deploy/kustomize/overlays/.dev-generated

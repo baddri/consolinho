@@ -1,0 +1,26 @@
+# Binary Docker build of the repository working tree (`oc start-build consolinho --from-archive=...`), ADR-0026 §4.
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: consolinho
+spec:
+  # One build at a time; a second start-build queues.
+  runPolicy: Serial
+  source:
+    type: Binary
+    binary: {}
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: deploy/Containerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: consolinho:latest
+  # Restores + publishes .NET and builds the SPA; no CPU limit.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      memory: 4Gi

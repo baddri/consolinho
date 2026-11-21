@@ -14,7 +14,8 @@ namespace FleetConsole.Api.Proxy;
 /// for the audit entry.
 /// </summary>
 /// <remarks>
-/// <para><b>Request:</b> YARP's default copy (drops hop-by-hop headers and <c>Host</c>), then every header that could
+/// <para><b>Request:</b> YARP's default copy (drops hop-by-hop headers but <em>keeps</em> the browser's <c>Host</c>, which
+/// is therefore cleared so the API URL's authority is used — T-0109), then every header that could
 /// carry the browser's identity or make the apiserver trust another one is removed — <c>Authorization</c>,
 /// <c>Proxy-Authorization</c>, <c>Cookie</c>, <c>X-Console-Request</c>, <c>Forwarded</c>, <c>Impersonate-*</c>,
 /// <c>X-Remote-*</c>, <c>X-Forwarded-*</c> — as is every header the client nominated as hop-by-hop in its
@@ -68,6 +69,11 @@ internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequ
         ArgumentNullException.ThrowIfNull(proxyRequest);
 
         await base.TransformRequestAsync(httpContext, proxyRequest, destinationPrefix, cancellationToken).ConfigureAwait(false);
+
+        // The default copy keeps the browser's Host (the console route). SocketsHttpHandler takes the TLS SNI and the
+        // certificate name it validates from an explicit Host header, so kube-apiserver would see an unknown SNI, serve
+        // its default (service-network) cert and fail our name check. Null = Host derived from RequestUri (T-0109).
+        proxyRequest.Headers.Host = null;
 
         var nominated = ConnectionNominated(httpContext);
         Strip(proxyRequest.Headers, nominated);

@@ -2,22 +2,19 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-20 (CP2 closed) · **Current checkpoint:** CP3 — Deploy to OpenShift (not started) ·
+**Last updated:** 2026-11-21 (CP3 closed) · **Current checkpoint:** CP4 — Workloads day-2 operations (not started) ·
 **Branch:** `main`
 
 ## Where we are
-- **CP0: DONE** (`cp-0`). **CP1: DONE** (`cp-1`). **CP2 Proxy, cluster switcher & generic resource browser: DONE**
-  (tag `cp-2`, merged `--no-ff` to `main`). Not pushed (no remote push without the human).
-- CP2 evidence: `docs/specs/CP2-acceptance.md` — 55/55 ACs after T-0093 (SEC-1) fix; PO ACCEPT-WITH-FOLLOWUPS.
-  Human checks H1–H6 against real clusters are listed there and still open.
-- Gates at close: check-be 325/684/711 (0 skipped), check-fe 693 tests, e2e 6/6.
-- Working tree clean, no worktrees.
+- CP0–CP3 DONE (tags cp-0..cp-3). CP3 merged from `cp/3-deploy`; human ran cluster checks H2–H7, all PASS
+  (`docs/specs/CP3-acceptance.md`). Test deployment was torn down (H7); redeploy with `scripts/deploy-dev.sh --yes`.
+- Human (2026-11-21): name `consolinho`; deploy to the current `oc` login, ns `consolinho`; orchestrator/QA may run
+  `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
 
 ## Next actions (resume here)
-1. Human: run CP2 H1–H6 (`docs/specs/CP2-acceptance.md`) on real clusters; report failures as bug tasks.
-2. Start CP3 (ROADMAP): branch `cp/3-deploy`, ROADMAP CP3 → `in_progress`, SPEC (ocp-product-owner) → DESIGN.
-   Fold in T-0092 (SPA security headers/CSP) and T-0094 (flaky DevOAuth config test).
-3. Later-checkpoint tasks already filed: T-0091 (CP4 exec over HTTP/1.1), T-0095/T-0096 (CP4 UI), T-0097 (CP6).
+1. Start CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`.
+2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
+3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
 ## How the human can test (current state)
 - `aspire start --launch-profile http && aspire wait web` → login via DevOAuth (admin/alice/bob/ines; e2e-user/e2e-admin

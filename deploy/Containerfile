@@ -1,0 +1,62 @@
+# consolinho (FleetConsole) production image — ADR-0026. One container serves the API and the built SPA (ADR-0006).
+#
+# Build (context = repository root; podman locally, a binary Docker-strategy BuildConfig in the cluster):
+#   podman build -f deploy/Containerfile --build-arg REVISION="$(git rev-parse HEAD)" -t localhost/consolinho .
+# Modes (arguments after the entrypoint):
+#   (none)    web host on port 8080: /api, /alive, /health and the SPA from wwwroot (ADR-0028)
+#   migrate   apply pending EF Core migrations and exit 0/1 — the Deployment's init container (ADR-0027)
+# Runtime model (OpenShift restricted-v2): arbitrary UID in group 0, read-only root filesystem. The only writable path
+# is /tmp (emptyDir in the manifests, `--tmpfs /tmp` locally); Data Protection keys live in Postgres (ADR-0004).
+# Verified end to end by scripts/check-image.sh (QG-3).
+#
+# Base images: anonymous registry.access.redhat.com, pinned to the RHEL-minor stream tag (these repos publish no
+# `10.0`/`22` stream tag; never `latest`). Bump all three together when a new UBI minor ships.
+
+# --- web: build the SPA (web/dist) ------------------------------------------------------------------------------
+FROM registry.access.redhat.com/ubi9/nodejs-22:9.9 AS web
+WORKDIR /opt/app-root/src/web
+# Manifests first so the `npm ci` layer is cached until the lockfile changes. The base image runs as 1001.
+COPY --chown=1001:0 web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY --chown=1001:0 web/ ./
+RUN npm run build
+
+# --- build: restore + publish the Api only ------------------------------------------------------------------------
+FROM registry.access.redhat.com/ubi9/dotnet-100:9.9 AS build
+WORKDIR /opt/app-root/src
+# Restore layer: only what affects restore (SDK pin, shared MSBuild props, central versions, the Api and its project
+# references), so source edits don't invalidate the NuGet cache. Keep the csproj list in sync with the Api's
+# ProjectReferences (transitively).
+COPY --chown=1001:0 global.json Directory.Build.props Directory.Packages.props .editorconfig ./
+COPY --chown=1001:0 src/FleetConsole.Api/FleetConsole.Api.csproj src/FleetConsole.Api/
+COPY --chown=1001:0 src/FleetConsole.Application/FleetConsole.Application.csproj src/FleetConsole.Application/
+COPY --chown=1001:0 src/FleetConsole.Domain/FleetConsole.Domain.csproj src/FleetConsole.Domain/
+COPY --chown=1001:0 src/FleetConsole.Infrastructure/FleetConsole.Infrastructure.csproj src/FleetConsole.Infrastructure/
+COPY --chown=1001:0 src/FleetConsole.ServiceDefaults/FleetConsole.ServiceDefaults.csproj src/FleetConsole.ServiceDefaults/
+RUN dotnet restore src/FleetConsole.Api
+COPY --chown=1001:0 src/ src/
+# Framework-dependent, no apphost: the aspnet runtime image provides ASP.NET Core; AppHost, DevOAuth and tests never ship.
+RUN dotnet publish src/FleetConsole.Api -c Release --no-restore -p:UseAppHost=false -o /opt/app-root/app
+
+# --- runtime --------------------------------------------------------------------------------------------------------
+# `dotnet-100-aspnet`, not `dotnet-100-runtime`: for .NET 10 the latter ships Microsoft.NETCore.App only (no ASP.NET Core).
+FROM registry.access.redhat.com/ubi9/dotnet-100-aspnet:9.9 AS runtime
+ARG REVISION=unknown
+LABEL org.opencontainers.image.title="consolinho" \
+      org.opencontainers.image.description="FleetConsole: OpenShift fleet console (API + SPA)" \
+      org.opencontainers.image.source="https://github.com/baddri/consolinho" \
+      org.opencontainers.image.revision="${REVISION}"
+WORKDIR /opt/app-root/app
+COPY --from=build /opt/app-root/app/ ./
+COPY --from=web /opt/app-root/src/web/dist/ ./wwwroot/
+# OpenShift group-0 model: the arbitrary UID is always in group 0, so group permissions must equal the owner's.
+USER 0
+RUN chgrp -R 0 /opt/app-root/app && chmod -R g=u /opt/app-root/app
+USER 1001
+# The base image sets ASPNETCORE_URLS=http://*:8080, which would override (and warn about) HTTP_PORTS; clear it.
+ENV ASPNETCORE_URLS="" \
+    ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "FleetConsole.Api.dll"]
+# The base image's CMD (/bin/bash) would be passed as an argument; no arguments = web host.
+CMD []

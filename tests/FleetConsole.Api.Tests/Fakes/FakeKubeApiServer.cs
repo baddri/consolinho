@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -90,6 +91,7 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<(string Verb, string Group, string Resource, string Subresource, string Namespace), (bool Allowed, string? Reason)> _accessReviews = new();
     private readonly ConcurrentQueue<RecordedRequest> _requests = new();
+    private readonly ConcurrentQueue<string> _serverNames = new();
 
     private FakeKubeApiServer(WebApplication app, TestCertificateAuthority authority, X509Certificate2 serverCertificate)
     {
@@ -108,6 +110,13 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     /// <summary>Every request received so far, in arrival order.</summary>
     public IReadOnlyList<RecordedRequest> Requests => [.. _requests];
 
+    /// <summary>
+    /// The TLS SNI name of every handshake so far, in order; empty string when the client sent none (clients send none
+    /// for an IP literal such as <see cref="BaseAddress"/>). Lets proxy tests prove the TLS name comes from the API URL,
+    /// never from the browser's <c>Host</c> (T-0109).
+    /// </summary>
+    public IReadOnlyList<string> ServerNames => [.. _serverNames];
+
     /// <summary>Starts a server presenting <paramref name="certificate"/>.</summary>
     /// <param name="certificate">Which server certificate to present.</param>
     /// <param name="cancellationToken">Cancels startup.</param>
@@ -124,17 +133,26 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
             _ => authority.IssueServerCertificate(),
         };
 
+        FakeKubeApiServer? server = null; // assigned before StartAsync, so before the first handshake reads it
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.ConfigureKestrel(kestrel =>
             kestrel.Listen(IPAddress.Loopback, 0, listen =>
             {
                 listen.Protocols = HttpProtocols.Http1AndHttp2;
-                listen.UseHttps(serverCertificate);
+                // A selector instead of a fixed certificate, only to record the SNI name of every handshake (T-0109).
+                listen.UseHttps(new HttpsConnectionAdapterOptions
+                {
+                    ServerCertificateSelector = (_, serverName) =>
+                    {
+                        server!._serverNames.Enqueue(serverName ?? string.Empty);
+                        return serverCertificate;
+                    },
+                });
             }));
 
         var app = builder.Build();
-        var server = new FakeKubeApiServer(app, authority, serverCertificate);
+        server = new FakeKubeApiServer(app, authority, serverCertificate);
         app.UseWebSockets(); // upgrades (exec/attach/port-forward) are answered by Map handlers via context.WebSockets
         app.Run(server.HandleAsync);
 

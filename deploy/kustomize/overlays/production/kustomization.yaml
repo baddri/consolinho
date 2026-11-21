@@ -1,0 +1,73 @@
+# Production overlay (ADR-0030, K8S-7). Copy this directory, replace every REPLACE_ME / example.com placeholder,
+# then create the Secrets consolinho-db, consolinho-oauth, consolinho-dp-cert, the ConfigMap consolinho-ca-bundle
+# (see secrets.example.yaml) and the OAuthClient `consolinho` as described in the runbook. Nothing here is derived
+# from `oc`. Postgres is external (DB-4); there are no build objects.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: consolinho
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: consolinho
+      app.kubernetes.io/part-of: consolinho
+    includeSelectors: true
+  # Release label for humans/tools; never in selectors (they are immutable). REPLACE_ME with your release.
+  - pairs:
+      app.kubernetes.io/version: REPLACE_ME
+    includeSelectors: false
+    includeTemplates: true
+
+resources:
+  - ../../base
+  - pdb.yaml
+
+# Image by tag or digest (use `digest: sha256:...` instead of newTag to pin a digest).
+images:
+  - name: consolinho
+    newName: registry.example.com/consolinho/consolinho
+    newTag: REPLACE_ME
+
+patches:
+  - target:
+      kind: Deployment
+      name: consolinho
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+
+configMapGenerator:
+  - name: consolinho-config
+    behavior: merge
+    literals:
+      # Public https origin of the console (no trailing slash); also the OAuthClient redirect URI base and Route host.
+      - Console__PublicOrigin=https://consolinho.apps.cluster.example.com
+      # OpenShift user name that becomes admin on first login (bootstrap only; manage admins in the UI afterwards).
+      - Auth__BootstrapAdminUsers__0=REPLACE_ME
+      # Optional: OpenShift groups whose members are admins (index 0..N).
+      # - Auth__AdminGroups__0=consolinho-admins
+      # Optional during a DP certificate rotation (ADR-0028 §6), mounted next to the current one:
+      # - DataProtection__PreviousKeyEncryptionCertificatePath=/etc/consolinho/dp/previous-certificate.pfx
+      # - DataProtection__PreviousKeyEncryptionCertificatePasswordPath=/etc/consolinho/dp/previous-password
+
+# Route host := host part of Console__PublicOrigin ("https:" / "" / "<host>" -> index 2).
+# This stanza must sit in the OUTERMOST kustomization of every render (dev, here, and the script's generated
+# overlay): replacements only see generator output of their own kustomization, so in base or a component they would
+# read the base value instead of the merged one.
+replacements:
+  - source:
+      kind: ConfigMap
+      name: consolinho-config
+      fieldPath: data.Console__PublicOrigin
+      options:
+        delimiter: "/"
+        index: 2
+    targets:
+      - select:
+          kind: Route
+          name: consolinho
+        fieldPaths:
+          - spec.host
+        options:
+          create: true

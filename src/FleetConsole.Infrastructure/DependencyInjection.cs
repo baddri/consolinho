@@ -12,6 +12,7 @@ using FleetConsole.Infrastructure.Time;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -26,18 +27,27 @@ namespace FleetConsole.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
+    /// <summary>Name of the database readiness check added by <c>EnrichNpgsqlDbContext</c> (the context type name).</summary>
+    public const string DatabaseHealthCheckName = nameof(ConsoleDbContext);
+
+    /// <summary>
+    /// Budget of the database readiness check; below the readiness probe's 3 s timeout so <c>/health</c> answers 503
+    /// rather than timing out.
+    /// </summary>
+    public static readonly TimeSpan DatabaseHealthCheckTimeout = TimeSpan.FromSeconds(2);
+
     /// <summary>Adds persistence and the other Infrastructure services.</summary>
     /// <remarks>
     /// <para><b>Database:</b> the connection string comes from <c>ConnectionStrings:consoledb</c> (injected by the
     /// Aspire AppHost; set by the integration tests). It is read when the first context is created, not here, so tests
-    /// can supply it late through configuration.</para>
+    /// can supply it late through configuration; its presence is validated on start.</para>
     /// <para><b>Why not Aspire's <c>AddNpgsqlDbContext</c>:</b> it registers a <em>pooled</em> context, and a pooled
     /// context can't take scoped constructor dependencies such as <see cref="IDomainEventDispatcher"/>. We register a
     /// regular scoped context and call <c>EnrichNpgsqlDbContext</c>, which adds the same Aspire extras (retries, health
     /// check, logging, OpenTelemetry).</para>
     /// <para><b>Development:</b> pending migrations are applied on startup (<see cref="DevelopmentDatabaseMigrator"/>).</para>
     /// <para><b>Data Protection</b> (ADR-0004): key ring in the database, shared by the session cookie and SA token
-    /// encryption; optionally encrypted with <c>DataProtection:KeyEncryptionCertificatePath</c>.</para>
+    /// encryption; encrypted with <c>DataProtection:KeyEncryptionCertificatePath</c> (required outside Development).</para>
     /// </remarks>
     /// <param name="builder">The host builder (configuration, environment and services).</param>
     /// <returns>The same builder, for chaining.</returns>
@@ -55,8 +65,26 @@ public static class DependencyInjection
         });
         builder.EnrichNpgsqlDbContext<ConsoleDbContext>();
 
-        // Hosted services start in registration order. The migrator must run before Data Protection's own hosted
-        // service loads the key ring, or a fresh development database has no data_protection_keys table yet.
+        // Readiness must answer within the probe timeout (3 s, deploy/kustomize/base) even when the database drops
+        // packets or EF retries: past this budget the database check reports Unhealthy instead of hanging (T-0106).
+        builder.Services.PostConfigure<HealthCheckServiceOptions>(options =>
+        {
+            foreach (var registration in options.Registrations.Where(r => r.Name == DatabaseHealthCheckName))
+            {
+                registration.Timeout = DatabaseHealthCheckTimeout;
+            }
+        });
+
+        // Fail fast without a connection string, in every environment (ADR-0028 §6); the context above still reads it lazily.
+        builder.Services.AddOptions<ConsoleDatabaseOptions>()
+            .Configure<IConfiguration>((options, configuration) =>
+                options.ConnectionString = configuration.GetConnectionString(ConsoleDbContext.ConnectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.ConnectionString), ConsoleDatabaseOptions.MissingMessage)
+            .ValidateOnStart();
+
+        // Hosted services start in registration order. The migrator must run before the key-ring warm-up
+        // (KeyRingWarmupService, registered last by LoadDataProtectionKeyRingInBackground), or a fresh development
+        // database has no data_protection_keys table yet.
         if (builder.Environment.IsDevelopment())
         {
             builder.Services.AddHostedService<DevelopmentDatabaseMigrator>();
@@ -104,6 +132,23 @@ public static class DependencyInjection
                 "Auth:AdminGroups must not contain virtual system:* groups (every OpenShift user is in them).")
             .ValidateOnStart();
 
+        return builder;
+    }
+
+    /// <summary>
+    /// Makes Data Protection load its key ring in the background instead of before the server listens, so a database
+    /// outage at container start delays readiness only, never liveness (T-0106, ADR-0028 §2).
+    /// </summary>
+    /// <remarks>
+    /// Call it last, right before <c>Build()</c>: every <c>AddDataProtection</c> call (also the one inside
+    /// <c>AddAuthentication</c>) re-registers the framework's blocking start-time load that this removes.
+    /// </remarks>
+    /// <param name="builder">The host builder, with all services registered.</param>
+    /// <returns>The same builder, for chaining.</returns>
+    public static IHostApplicationBuilder LoadDataProtectionKeyRingInBackground(this IHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        DataProtectionSetup.LoadKeyRingInBackground(builder.Services);
         return builder;
     }
 }
