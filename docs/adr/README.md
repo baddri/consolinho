@@ -36,3 +36,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0028 | Production hosting behind an edge Route: SPA fallback, probes, no forwarded headers, safe logs, fail-fast config | Accepted |
 | 0029 | HTTP security headers and the Content-Security-Policy | Accepted |
 | 0030 | OpenShift manifests (kustomize), configuration contract and the dev deploy script | Accepted |
+| 0031 | OCP page building blocks composed from react-core, not `@patternfly/react-component-groups` | Accepted |

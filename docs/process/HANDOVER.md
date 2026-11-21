@@ -11,6 +11,12 @@
 - Human (2026-11-21): name `consolinho`; deploy to the current `oc` login, ns `consolinho`; orchestrator/QA may run
   `scripts/deploy-dev.sh --yes` there (spec DEV-1 exception); `--teardown` human-only. Test cluster changes often.
 
+## CP3.5 progress
+- UX audit done (ux-designer): `docs/architecture/UX.md`, tasks T-0110…T-0116 (T-0110 shared page blocks first).
+- Product calls made by the orchestrator under the human's "as close to OCP as possible": statuses icon+text, "Live"
+  label hidden while live, theme icon menu Light/Dark/System, sidebar switcher shows preferred cluster on admin pages,
+  OCP-style breadcrumbs. frontend-architect vetting tasks + ADR on `@patternfly/react-component-groups`.
+
 ## Next actions (resume here)
 1. CP3.5 (ROADMAP §CP3.5), branch `cp/3.5-look-and-feel`: `ux-designer` audit → UX.md + tasks → frontend-engineer
    builds → frontend-architect (code) + ux-designer (visual) review. The PO reviews the cluster switcher move.
