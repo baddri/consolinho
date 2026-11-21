@@ -1,4 +1,4 @@
-// Public API of the cluster-context feature (SW-1..10): the user's clusters, the masthead switcher, the environment
+// Public API of the cluster-context feature (SW-1..10): the user's clusters, the sidebar switcher, the environment
 // band, the `/` landing redirect and the `/c/:cluster` gate, the URL-derived active cluster, and the project selector
 // with the remembered project per cluster (NS-1..4).
 export { ClusterGate } from './ClusterGate';

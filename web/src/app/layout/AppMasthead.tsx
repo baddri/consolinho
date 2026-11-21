@@ -14,16 +14,19 @@ import {
 } from '@patternfly/react-core';
 import { Link, type LinkProps } from 'react-router';
 import { UserMenu } from '@/features/auth';
-import { ClusterSwitcher } from '@/features/cluster-context';
 import { PRODUCT_NAME, useLogoSrc } from '@/shared/branding';
-import { ThemeToggle } from './ThemeToggle';
+import { ThemeMenu } from './ThemeMenu';
 
 /** Brand link rendered by `MastheadLogo`; keeps navigation client-side. */
 function HomeLink(props: Omit<LinkProps, 'to'>) {
   return <Link {...props} to="/" />;
 }
 
-/** Top bar: sidebar toggle, brand (theme-matched logo linking home), cluster switcher, theme toggle and user menu. */
+/**
+ * Top bar like OCP's (UX.md §2): sidebar toggle and brand (theme-matched logo linking home) on the left, a
+ * right-aligned toolbar with the theme icon menu and the user menu. No context selectors here — the cluster switcher
+ * sits at the top of the sidebar.
+ */
 export function AppMasthead() {
   const logoSrc = useLogoSrc();
   return (
@@ -41,12 +44,9 @@ export function AppMasthead() {
       <MastheadContent>
         <Toolbar isFullHeight isStatic>
           <ToolbarContent>
-            <ToolbarItem>
-              <ClusterSwitcher />
-            </ToolbarItem>
             <ToolbarGroup align={{ default: 'alignEnd' }}>
               <ToolbarItem>
-                <ThemeToggle />
+                <ThemeMenu />
               </ToolbarItem>
               <ToolbarItem>
                 <UserMenu />

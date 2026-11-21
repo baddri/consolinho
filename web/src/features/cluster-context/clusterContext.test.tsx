@@ -6,6 +6,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldSt
 import { credentialIds, mockDb, mockGuid, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
+import { openSidebar } from '@/test/sidebar';
 import { accessibleClustersQueryKey, useAccessibleClusters } from './index';
 
 const LAST_CLUSTER_KEY = 'fleetconsole.lastCluster';
@@ -23,9 +24,15 @@ function grantAllClusters() {
   server.use(http.get('*/api/clusters', () => HttpResponse.json(all)));
 }
 
-/** Opens the masthead cluster switcher and returns its options. */
+/** The cluster switcher toggle at the top of the sidebar (UX.md §2), opening the sidebar first. */
+async function findSwitcher(user: UserEvent, toggleName: string | RegExp, timeout?: number) {
+  const nav = await openSidebar(user, timeout);
+  return within(nav).findByRole('button', { name: toggleName }, { timeout });
+}
+
+/** Opens the sidebar cluster switcher and returns its options. */
 async function openSwitcher(user: UserEvent, toggleName: string | RegExp, timeout?: number) {
-  await user.click(await screen.findByRole('button', { name: toggleName }, { timeout }));
+  await user.click(await findSwitcher(user, toggleName, timeout));
   const list = await screen.findByRole('listbox', { name: 'All clusters' });
   return within(list).getAllByRole('option');
 }
@@ -35,12 +42,6 @@ function optionOf(options: HTMLElement[], name: string): HTMLElement {
   const option = options.find((candidate) => within(candidate).queryByText(name));
   if (!option) throw new Error(`No option for cluster ${name}`);
   return option;
-}
-
-/** jsdom has no layout, so PatternFly starts with the sidebar closed; open it like a user would. */
-async function openSidebar(user: UserEvent) {
-  await user.click(await screen.findByRole('button', { name: 'Global navigation' }));
-  return screen.findByRole('navigation', { name: 'Global' });
 }
 
 /** Cluster name of each option (names contain a hyphen; environment labels such as "prod" do not). */
@@ -56,10 +57,10 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
       setMockUser('alice');
       const { user } = renderApp('/c/prod-eu-1/overview');
 
-      const toggle = await screen.findByRole(
-        'button',
-        { name: 'Cluster prod-eu-1 (prod, read only), switch cluster' },
-        { timeout: COLD_START_TIMEOUT_MS },
+      const toggle = await findSwitcher(
+        user,
+        'Cluster prod-eu-1 (prod, read only), switch cluster',
+        COLD_START_TIMEOUT_MS,
       );
       expect(within(toggle).getByText('prod')).toBeInTheDocument();
       expect(within(toggle).getByText('Read only')).toBeInTheDocument();
@@ -106,9 +107,9 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         return HttpResponse.json([]);
       }),
     );
-    renderApp('/admin/users');
+    const { user } = renderApp('/admin/users');
 
-    expect(await screen.findByRole('button', { name: 'Loading clusters' })).toBeDisabled();
+    expect(await findSwitcher(user, 'Loading clusters')).toBeDisabled();
   });
 
   it('offers a retry when the list cannot be loaded', async () => {
@@ -119,17 +120,21 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
     );
     const { user } = renderApp('/admin/users');
 
-    await user.click(await screen.findByRole('button', { name: 'Clusters unavailable — retry' }));
+    await user.click(await findSwitcher(user, 'Clusters unavailable — retry'));
 
-    const options = await openSwitcher(user, 'Select a cluster');
+    // Outside a cluster the toggle names the preferred cluster (the one the sidebar links target), never a blank.
+    const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     expect(optionNames(options)).toEqual(['dev-1']);
   });
 
   it('shows a disabled "No clusters" toggle to a user without grants', async () => {
     setMockUser('bob');
-    renderApp('/');
+    const { user } = renderApp('/');
 
-    expect(await screen.findByRole('button', { name: 'No clusters' })).toBeDisabled();
+    expect(await findSwitcher(user, 'No clusters')).toBeDisabled();
+    // Nothing follows the switcher, so there is no divider under it.
+    expect(within(await openSidebar(user)).queryByRole('separator')).not.toBeInTheDocument();
+    expect(within(screen.getByRole('banner')).queryByRole('button', { name: 'No clusters' })).not.toBeInTheDocument();
   });
 });
 
@@ -146,6 +151,8 @@ describe('ClusterSwitcher search (SW-7)', () => {
     const list = screen.getByRole('listbox', { name: 'All clusters' });
     expect(optionNames(within(list).getAllByRole('option'))).toEqual(['prod-us-1']);
 
+    // Like OCP's menu search: no submit button (Enter opens the first match instead).
+    expect(screen.queryByRole('button', { name: 'Search' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reset' }));
     expect(search).toHaveValue('');
     expect(search).toHaveFocus();
@@ -185,6 +192,31 @@ describe('ClusterSwitcher search (SW-7)', () => {
     const options = await openSwitcher(user, 'Cluster staging-eu-1 (staging), switch cluster');
     const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
     expect(optionNames(selected)).toEqual(['staging-eu-1']);
+  });
+
+  it('shows and selects the preferred cluster on a non-cluster page', async () => {
+    grantAllClusters();
+    localStorage.setItem(LAST_CLUSTER_KEY, 'staging-eu-1');
+    const { user } = renderApp('/admin/users');
+
+    const options = await openSwitcher(user, 'Cluster staging-eu-1 (staging), switch cluster');
+    const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
+    expect(optionNames(selected)).toEqual(['staging-eu-1']);
+  });
+
+  it('works by keyboard: Enter opens with the search focused, Escape closes back onto the toggle', async () => {
+    const { user } = renderApp('/c/dev-1/overview');
+
+    const toggle = await findSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    toggle.focus();
+    await user.keyboard('{Enter}');
+    const search = await screen.findByRole('textbox', { name: 'Search clusters' });
+    await waitFor(() => expect(search).toHaveFocus());
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(toggle).toHaveFocus());
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 });
 
@@ -230,16 +262,25 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1', 'staging-eu-1']));
     const { user } = renderApp('/admin/users');
 
-    await openSwitcher(user, 'Select a cluster');
+    await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
     const recent = screen.getByRole('listbox', { name: 'Recent clusters' });
     expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['staging-eu-1']);
+  });
+
+  it('has no Recent group when it would repeat All clusters', async () => {
+    localStorage.setItem(recentKey('admin'), JSON.stringify(['dev-1']));
+    const { user } = renderApp('/c/dev-1/overview');
+
+    const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    expect(optionNames(options)).toEqual(['dev-1']);
+    expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
   });
 
   it('has no Recent group for a fresh user', async () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1']));
     const { user } = renderApp('/admin/users');
 
-    await openSwitcher(user, 'Select a cluster');
+    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Recent' })).not.toBeInTheDocument();
   });
@@ -264,7 +305,7 @@ describe('ClusterSwitcher keeps context (SW-9)', () => {
     grantAllClusters();
     const { user, router } = renderApp('/admin/users');
 
-    const options = await openSwitcher(user, 'Select a cluster');
+    const options = await openSwitcher(user, /switch cluster$/);
     await user.click(optionOf(options, 'dev-2'));
 
     // `/c/dev-2` — the cluster's index route then picks its landing page (Projects, or Namespaces when discovery
