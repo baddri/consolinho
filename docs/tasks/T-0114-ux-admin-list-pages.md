@@ -1,7 +1,7 @@
 ---
 id: T-0114
 title: Fleet administration list pages — heading actions, columns that fit 1280, status icons
-status: in_review
+status: done
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
