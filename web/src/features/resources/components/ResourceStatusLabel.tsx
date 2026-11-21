@@ -1,4 +1,4 @@
-import { Label } from '@patternfly/react-core';
+import { StatusIconText, type StatusKind } from '@/shared/ui';
 import type { ResourceStatus } from '../registry/types';
 
 const RED = new Set(['Failed', 'CrashLoopBackOff', 'Error', 'ImagePullBackOff', 'ErrImagePull']);
@@ -17,17 +17,35 @@ export function statusColor(title: string): ResourceStatus['color'] {
   return 'grey';
 }
 
+/**
+ * The `StatusIconText` kind of a descriptor status colour: red → danger, orange → pending, green → success, anything
+ * else (grey, …) → neutral. Descriptors keep speaking in colours; only this adapter knows the icon vocabulary.
+ */
+export function toStatusKind(color: ResourceStatus['color']): StatusKind {
+  switch (color) {
+    case 'red':
+      return 'danger';
+    case 'orange':
+      return 'pending';
+    case 'green':
+      return 'success';
+    default:
+      return 'neutral';
+  }
+}
+
 /** Props for {@link ResourceStatusLabel}. */
 export interface ResourceStatusLabelProps {
   status: ResourceStatus | undefined;
+  /** Outlined compact label with the icon, for a details-page title (`UX.md` §3); icon + text otherwise. */
+  asLabel?: boolean;
 }
 
-/** A descriptor's `status` as a compact coloured label; "—" when the object has none. */
-export function ResourceStatusLabel({ status }: ResourceStatusLabelProps) {
+/**
+ * A descriptor's `status` as OCP status icon + text (`UX.md` §5) — the one adapter from `ResourceStatus` to
+ * `StatusIconText`, used by list cells and the details heading; "—" when the object has none.
+ */
+export function ResourceStatusLabel({ status, asLabel }: ResourceStatusLabelProps) {
   if (!status) return <>—</>;
-  return (
-    <Label isCompact color={status.color}>
-      {status.title}
-    </Label>
-  );
+  return <StatusIconText status={toStatusKind(status.color)} text={status.title} asLabel={asLabel} />;
 }

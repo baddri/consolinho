@@ -1,7 +1,7 @@
 ---
 id: T-0112
 title: Resource list pages look like OCP list pages (project bar, heading, compact table, status icons)
-status: todo
+status: in_review
 owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
@@ -62,15 +62,29 @@ Findings (screen — problem — OCP — fix):
   `public/components/pod-list.tsx` (column set/visibility), `packages/console-shared/src/components/empty-state/EmptyBox.tsx`.
 
 ## Acceptance criteria
-- [ ] `/c/dev-1/k8s/ns/shop/pods` at 1280: project bar row with divider, then "Pods" h1 without badge, no "Live" label.
-- [ ] No truncated column header on Pods, Deployments, Projects, ConfigMaps at 1280; no horizontal scroll.
-- [ ] Status cells: icon + text (green check Running/Active, red exclamation CrashLoopBackOff), both themes.
-- [ ] Compact rows; kebab aligned right; name cell = kind badge + link on one line where it fits.
-- [ ] Empty and filtered-empty states use OCP copy.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `/c/dev-1/k8s/ns/shop/pods` at 1280: project bar row with divider, then "Pods" h1 without badge, no "Live" label.
+- [x] No truncated column header on Pods, Deployments, Projects, ConfigMaps at 1280; no horizontal scroll.
+- [x] Status cells: icon + text (green check Running/Active, red exclamation CrashLoopBackOff), both themes.
+- [x] Compact rows; kebab aligned right; name cell = kind badge + link on one line where it fits.
+- [x] Empty and filtered-empty states use OCP copy.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-21 frontend-engineer: PageHeading/PageBody + ProjectBar row (plain-text toggle, divider), no badge/Live label,
+  status icon+text via ResourceStatusLabel/toStatusKind, nowrap headers + column visibility, OCP empty copy. Live label
+  removal supersedes CP2 spec §5 "Live indicator" (L247) and DATA-3 evidence in CP2-acceptance L83 (specs not edited).
+  Screenshots light+dark 1280: no truncated headers, no horizontal scroll on Pods/Deployments/Projects/ConfigMaps.
 
 ## Review
 
 ## Handover notes
+- `ProjectBar` now in `resources/components/ProjectBar.tsx` (props unchanged) for T-0113; `NamespaceSelector` toggle is `variant="plainText"`.
+- `ColumnDef.visibility` (PF `ThProps['visibility']`) applies to Th and Td; all Th are `modifier="nowrap"` (headers never truncate).
+- Pods follow OCP `pod-list.tsx`: Owner hidden below lg, Created hidden below 2xl (absent at 1280); Ready/Restarts width 10.
+  Without hiding Created, all-namespaces Pods overflowed by ~105px at 1280.
+- `nameColumn` width 25; `ResourceLink` is a nowrap Flex with gapSm (badge `flexNone`), name wraps only when narrow
+  (all-namespaces Pods at 1280 still wraps generated names).
+- `ResourceStatusLabel({ status, asLabel? })` → `StatusIconText`; `toStatusKind(color)` red/orange/green → danger/pending/success, else neutral.
+  `ResourceHeader` (details) now shows icon+text until T-0113 passes `asLabel`.
+- Empty copy: "No <Plural> found" (namespace suffix dropped), filtered "No results match the filter criteria" + "Clear all filters".
+- Tests: "watch is up" signal is now the first row (mock watch replays from the list resourceVersion).

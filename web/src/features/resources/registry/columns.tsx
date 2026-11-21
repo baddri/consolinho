@@ -13,11 +13,15 @@ export function timestampValue(value: string | undefined): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-/** Name column: kind badge + link to the object's details page. Sort key `name`. */
+/**
+ * Name column: kind badge + link to the object's details page. Sort key `name`. A quarter of the table, so generated
+ * pod names (`web-7d4b9c8f6d-2xkqp`) stay on one line next to badge at 1280 instead of breaking at every hyphen.
+ */
 export function nameColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T> {
   return {
     id: 'name',
     title: 'Name',
+    width: 25,
     cell: (obj) => (
       <ResourceLink model={model} name={obj.metadata.name ?? ''} namespace={obj.metadata.namespace} />
     ),

@@ -49,7 +49,7 @@ function status(pod: PodResource): ResourceStatus {
   return { title, color: statusColor(title) };
 }
 
-/** Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner, Created; status filter. */
+/** Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg), Created (≥ 2xl, as OCP); status filter. */
 export const podDescriptor: ResourceDescriptor<PodResource> = {
   model: PodModel,
   nav: { section: 'workloads', order: 10 },
@@ -67,16 +67,18 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
     {
       id: 'ready',
       title: 'Ready',
+      width: 10,
       cell: (pod) => {
         const { ready, total } = readyCount(pod);
         return `${ready}/${total}`;
       },
       sortValue: (pod) => readyCount(pod).ready,
     },
-    { id: 'restarts', title: 'Restarts', cell: restarts, sortValue: restarts },
+    { id: 'restarts', title: 'Restarts', width: 10, cell: restarts, sortValue: restarts },
     {
       id: 'owner',
       title: 'Owner',
+      visibility: ['hidden', 'visibleOnLg'],
       cell: (pod) => {
         const owner = pod.metadata.ownerReferences?.[0];
         return (
@@ -90,7 +92,8 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
       },
       sortValue: (pod) => pod.metadata.ownerReferences?.[0]?.name ?? null,
     },
-    ageColumn(),
+    // OCP `pod-list.tsx`: Created is the first column to go, so all headers fit untruncated next to the sidebar at 1280.
+    { ...ageColumn<PodResource>(), visibility: ['hidden', 'visibleOn2Xl'] },
   ],
   filters: [
     {

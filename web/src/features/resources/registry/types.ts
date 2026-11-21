@@ -1,4 +1,5 @@
 import type { LabelProps } from '@patternfly/react-core';
+import type { ThProps } from '@patternfly/react-table';
 import type { ReactNode } from 'react';
 import type { K8sModel, K8sResource } from '@/shared/k8s';
 import type { FilterOption, SortValue } from '@/shared/table';
@@ -14,7 +15,10 @@ import type { FilterOption, SortValue } from '@/shared/table';
 /** Sidebar section a kind is listed in (spec UI-2). */
 export type NavSectionId = 'home' | 'workloads' | 'networking' | 'administration';
 
-/** Status shown as a coloured `Label` in the list's Status cell and (T-0075) the details header. */
+/**
+ * Status of an object; `ResourceStatusLabel` maps `color` to a status icon + text (red danger, orange pending, green
+ * success, else neutral) in the list's Status cell and the details header.
+ */
 export interface ResourceStatus {
   title: string;
   color: NonNullable<LabelProps['color']>;
@@ -30,6 +34,11 @@ export interface ColumnDef<T> {
   /** Shown only in all-namespaces mode (the Namespace column). */
   allNamespacesOnly?: boolean;
   width?: 10 | 15 | 20 | 25 | 30 | 40;
+  /**
+   * PF responsive visibility of the header and cells (OCP's column `className`): low-priority columns use
+   * `['hidden', 'visibleOnXl']` (or `…OnLg`) so narrow screens drop them instead of truncating headers.
+   */
+  visibility?: ThProps['visibility'];
 }
 
 /** A checkbox filter of the list toolbar; `id` is its URL search param (`?status=`, `?type=`). */

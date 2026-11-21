@@ -1,24 +1,12 @@
-import { Label } from '@patternfly/react-core';
 import type { LiveStatus } from '@/shared/k8s';
+import { StatusIconText } from '@/shared/ui';
 
 /**
- * Small "Live" / "Paused — retrying" label next to a list title (DATA-3, spec §5 "Live indicator"); nothing while
- * the first watch connects, so a healthy page doesn't flicker a warning.
+ * Watch state next to a list title, in the `PageHeading` status slot: nothing while live or while the first watch
+ * connects (OCP shows no live badge, `UX.md` §3), and "Paused — retrying" with a warning icon while the watch is down
+ * (DATA-3).
  */
 export function LiveIndicator({ status }: { status: LiveStatus }) {
-  if (status === 'live') {
-    return (
-      <Label isCompact color="green">
-        Live
-      </Label>
-    );
-  }
-  if (status === 'paused') {
-    return (
-      <Label isCompact color="orange" status="warning">
-        Paused — retrying
-      </Label>
-    );
-  }
+  if (status === 'paused') return <StatusIconText status="warning" text="Paused — retrying" />;
   return null;
 }

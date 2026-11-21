@@ -26,8 +26,8 @@ function rowKey(obj: K8sResource): string {
 }
 
 /**
- * Compact composable PF table of descriptor columns: sortable headers for columns with `sortValue`, an optional
- * trailing actions column, skeleton rows while pending, or the given empty row. Rendering only one page keeps 2,000-object lists responsive (DATA-4).
+ * Compact composable PF table of descriptor columns (`UX.md` §5): sortable headers for columns with `sortValue` that never
+ * truncate (`nowrap`; low-priority columns hide via their `visibility` instead), an optional trailing actions column, skeleton rows while pending, or the given empty row. Rendering only one page keeps 2,000-object lists responsive (DATA-4).
  */
 export function ResourceTable({
   ariaLabel,
@@ -46,6 +46,8 @@ export function ResourceTable({
             <Th
               key={column.id}
               width={column.width}
+              visibility={column.visibility}
+              modifier="nowrap"
               sort={column.sortValue ? sortProps(column.id, index) : undefined}
             >
               {column.title}
@@ -62,7 +64,7 @@ export function ResourceTable({
           rows.map((obj) => (
             <Tr key={rowKey(obj)}>
               {columns.map((column) => (
-                <Td key={column.id} dataLabel={column.title}>
+                <Td key={column.id} dataLabel={column.title} visibility={column.visibility}>
                   {column.cell(obj)}
                 </Td>
               ))}
