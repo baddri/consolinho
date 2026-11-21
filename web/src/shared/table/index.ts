@@ -14,8 +14,10 @@ export { matchesText } from './matchesText';
 export { SingleSelectFilter, type SingleSelectFilterProps } from './SingleSelectFilter';
 export {
   TableEmptyRow,
+  TableNoMatchRow,
   TableSkeletonRows,
   type TableEmptyRowProps,
+  type TableNoMatchRowProps,
   type TableSkeletonRowsProps,
 } from './TableStateRows';
 export {

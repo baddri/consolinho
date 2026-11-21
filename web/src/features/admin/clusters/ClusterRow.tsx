@@ -14,20 +14,24 @@ import { WorstExpiryIcon } from './WorstExpiryIcon';
 /** Number of columns of the clusters table, including the trailing actions column. */
 export const CLUSTER_COLUMN_COUNT = 9;
 
+/** Responsive columns by index (TLS, Users), for the loading skeleton. */
+export const CLUSTER_COLUMN_VISIBILITY = { 4: LOW_PRIORITY_COLUMN, 6: LOW_PRIORITY_COLUMN } as const;
+
 /** PatternFly utility class for secondary text (display names, disabled rows). */
 const SUBTLE = 'pf-v6-u-text-color-subtle';
 
 /**
- * One row of the clusters list (CLU-7); TLS and Users share the header's `LOW_PRIORITY_COLUMN`. Disabled clusters
- * render in subtle text next to their "Disabled" status. The
- * trailing kebab offers `useClusterActions` (Edit, Enable/Disable, Delete); their dialog renders in the row (it is a
- * portalled modal) and confirms with the row's `version`.
+ * One row of the clusters list (CLU-7); TLS and Users share the header's `LOW_PRIORITY_COLUMN`. The name cell never
+ * wraps (display name as a one-line subtitle, OCP name column); the API URL truncates instead. Disabled clusters
+ * render in subtle text next to their "Disabled" status. The trailing kebab offers `useClusterActions` (Edit,
+ * Enable/Disable, Delete); their dialog renders in the row (it is a portalled modal) and confirms with the row's
+ * `version`.
  */
 export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
   const { items, dialog } = useClusterActions(cluster);
   return (
     <Tr className={cluster.isEnabled ? undefined : SUBTLE}>
-      <Td dataLabel="Name">
+      <Td dataLabel="Name" modifier="nowrap">
         <Link to={clusterDetailPath(cluster.name)}>{cluster.name}</Link>
         {cluster.displayName !== cluster.name && <div className={SUBTLE}>{cluster.displayName}</div>}
       </Td>
@@ -43,8 +47,12 @@ export function ClusterRow({ cluster }: { cluster: ClusterListItem }) {
       <Td dataLabel="TLS" visibility={LOW_PRIORITY_COLUMN}>
         <TlsModeLabel tlsMode={cluster.tlsMode} />
       </Td>
-      <Td dataLabel="Credentials">
-        <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
+      <Td dataLabel="Credentials" modifier="nowrap">
+        <Flex
+          spaceItems={{ default: 'spaceItemsSm' }}
+          flexWrap={{ default: 'nowrap' }}
+          alignItems={{ default: 'alignItemsCenter' }}
+        >
           <FlexItem>{cluster.credentialCount}</FlexItem>
           <FlexItem>
             <WorstExpiryIcon status={cluster.worstCredentialExpiryStatus} />

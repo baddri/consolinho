@@ -11,6 +11,9 @@ import { useUserActions } from './useUserActions';
 /** Number of columns of the users table, including the trailing actions column. */
 export const USER_COLUMN_COUNT = 9;
 
+/** Responsive columns by index (Last login, Groups), for the loading skeleton. */
+export const USER_COLUMN_VISIBILITY = { 6: LOW_PRIORITY_COLUMN, 7: LOW_PRIORITY_COLUMN } as const;
+
 /** Path of a user's detail page; usernames may contain characters that need encoding (`:`, `@`, …). */
 export const userDetailPath = (username: string) => `/admin/users/${encodeURIComponent(username)}`;
 
@@ -18,7 +21,8 @@ export const userDetailPath = (username: string) => `/admin/users/${encodeURICom
 const EMPTY = '—';
 
 /**
- * One row of the users list (USR-1); Last login and Groups share the header's `LOW_PRIORITY_COLUMN`. `dataLabel`s repeat the column names for PatternFly's stacked mobile layout.
+ * One row of the users list (USR-1); Last login and Groups share the header's `LOW_PRIORITY_COLUMN`. `dataLabel`s
+ * repeat the column names for PatternFly's stacked mobile layout.
  * The trailing kebab (`ActionsColumn`) offers the user's actions from `useUserActions`; their dialog renders in the
  * row (it is a portalled modal) and confirms with the row's `version`.
  */

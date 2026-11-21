@@ -1,16 +1,15 @@
-import { Button } from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo, useState } from 'react';
 import type { UserListItem } from '@/shared/api';
 import {
   FilterToolbar,
+  LOW_PRIORITY_COLUMN,
   SingleSelectFilter,
   TableEmptyRow,
+  TableNoMatchRow,
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
-  LOW_PRIORITY_COLUMN,
   type SortValue,
 } from '@/shared/table';
 import { ActionButton, ErrorState, PageBody, PageHeading } from '@/shared/ui';
@@ -24,7 +23,7 @@ import {
   STATUS_OPTIONS,
   USER_FILTERS,
 } from './userFilters';
-import { USER_COLUMN_COUNT, UserRow } from './UserRow';
+import { USER_COLUMN_COUNT, USER_COLUMN_VISIBILITY, UserRow } from './UserRow';
 import { PRODUCT_NAME } from '@/shared/branding';
 
 type SortColumn = 'username' | 'lastLogin';
@@ -127,20 +126,10 @@ export function UsersListPage() {
             </Tr>
           </Thead>
           <Tbody>
-            {isPending && <TableSkeletonRows columns={USER_COLUMN_COUNT} />}
-            {data?.length === 0 && <TableEmptyRow colSpan={USER_COLUMN_COUNT} title="No users yet" />}
+            {isPending && <TableSkeletonRows columns={USER_COLUMN_COUNT} columnVisibility={USER_COLUMN_VISIBILITY} />}
+            {data?.length === 0 && <TableEmptyRow colSpan={USER_COLUMN_COUNT} title="No users found" />}
             {users.length > 0 && sorted.length === 0 && (
-              <TableEmptyRow
-                colSpan={USER_COLUMN_COUNT}
-                title="No users match"
-                body="No users match the current filters."
-                icon={SearchIcon}
-                actions={
-                  <Button variant="link" onClick={clearAll}>
-                    Clear filters
-                  </Button>
-                }
-              />
+              <TableNoMatchRow colSpan={USER_COLUMN_COUNT} onClearAll={clearAll} />
             )}
             {sorted.map((user) => (
               <UserRow key={user.username} user={user} />

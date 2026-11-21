@@ -1,13 +1,12 @@
 import { Button, Content, Flex, FlexItem, List, ListItem, Stack, StackItem } from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo, useState, type ReactNode } from 'react';
 import { isApiError, type ApiError, type AuditEntry, type AuditPage } from '@/shared/api';
-import { LOW_PRIORITY_COLUMN, TableEmptyRow, TableSkeletonRows } from '@/shared/table';
+import { LOW_PRIORITY_COLUMN, TableEmptyRow, TableNoMatchRow, TableSkeletonRows } from '@/shared/table';
 import { ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { useAuditLog } from './api';
 import { AuditFilters } from './AuditFilters';
-import { AUDIT_COLUMN_COUNT, AuditEntryRow } from './AuditEntryRow';
+import { AUDIT_COLUMN_COUNT, AUDIT_COLUMN_VISIBILITY, AuditEntryRow } from './AuditEntryRow';
 import { auditFiltersKey, useAuditFilters, useAuditRequest, type AuditFilterValues } from './auditFilters';
 
 /** Entries of all loaded pages in order, dropping any id already seen (keyset paging shouldn't repeat; be safe). */
@@ -103,10 +102,17 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
       <Table aria-label="Audit log" variant="compact">
         <Thead>
           <Tr>
-            <Th screenReaderText="Row expansion" />
-            <Th modifier="nowrap">Time</Th>
-            <Th modifier="nowrap">Actor</Th>
-            <Th modifier="nowrap">Action</Th>
+            {/* Fixed widths: the header keeps its layout when the body is only an empty-state row. */}
+            <Th screenReaderText="Row expansion" width={10} />
+            <Th modifier="nowrap" width={15}>
+              Time
+            </Th>
+            <Th modifier="nowrap" width={15}>
+              Actor
+            </Th>
+            <Th modifier="nowrap" width={20}>
+              Action
+            </Th>
             <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
               Target
             </Th>
@@ -118,17 +124,16 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
         </Thead>
         {isPending && (
           <Tbody>
-            <TableSkeletonRows columns={AUDIT_COLUMN_COUNT} />
+            <TableSkeletonRows columns={AUDIT_COLUMN_COUNT} columnVisibility={AUDIT_COLUMN_VISIBILITY} />
           </Tbody>
         )}
         {data && entries.length === 0 && (
           <Tbody>
-            <TableEmptyRow
-              colSpan={AUDIT_COLUMN_COUNT}
-              title={isFiltered ? 'No audit entries match these filters' : 'No audit entries yet'}
-              icon={isFiltered ? SearchIcon : undefined}
-              actions={isFiltered ? clearFiltersButton : undefined}
-            />
+            {isFiltered ? (
+              <TableNoMatchRow colSpan={AUDIT_COLUMN_COUNT} onClearAll={onClearFilters} />
+            ) : (
+              <TableEmptyRow colSpan={AUDIT_COLUMN_COUNT} title="No audit entries found" />
+            )}
           </Tbody>
         )}
         {entries.map((entry, rowIndex) => (

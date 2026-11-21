@@ -1,16 +1,15 @@
-import { Button } from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import type { ClusterListItem } from '@/shared/api';
 import {
   FilterToolbar,
+  LOW_PRIORITY_COLUMN,
   TableEmptyRow,
+  TableNoMatchRow,
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
-  LOW_PRIORITY_COLUMN,
   type SortValue,
 } from '@/shared/table';
 import { ActionButton, ErrorState, PageBody, PageHeading } from '@/shared/ui';
@@ -23,7 +22,7 @@ import {
   ENVIRONMENT_OPTIONS,
   matchesClusterFilters,
 } from './clusterFilters';
-import { CLUSTER_COLUMN_COUNT, ClusterRow } from './ClusterRow';
+import { CLUSTER_COLUMN_COUNT, CLUSTER_COLUMN_VISIBILITY, ClusterRow } from './ClusterRow';
 import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Path of the register form (T-0034). */
@@ -124,27 +123,17 @@ export function ClustersListPage() {
             </Tr>
           </Thead>
           <Tbody>
-            {isPending && <TableSkeletonRows columns={CLUSTER_COLUMN_COUNT} />}
+            {isPending && <TableSkeletonRows columns={CLUSTER_COLUMN_COUNT} columnVisibility={CLUSTER_COLUMN_VISIBILITY} />}
             {data?.length === 0 && (
               <TableEmptyRow
                 colSpan={CLUSTER_COLUMN_COUNT}
-                title="No clusters registered"
+                title="No clusters found"
                 body="You need the cluster's API URL, its CA bundle (or system trust) and a ServiceAccount token."
                 actions={registerButton}
               />
             )}
             {clusters.length > 0 && sorted.length === 0 && (
-              <TableEmptyRow
-                colSpan={CLUSTER_COLUMN_COUNT}
-                title="No clusters match"
-                body="No clusters match the current filters."
-                icon={SearchIcon}
-                actions={
-                  <Button variant="link" onClick={clearAll}>
-                    Clear filters
-                  </Button>
-                }
-              />
+              <TableNoMatchRow colSpan={CLUSTER_COLUMN_COUNT} onClearAll={clearAll} />
             )}
             {sorted.map((cluster) => (
               <ClusterRow key={cluster.name} cluster={cluster} />

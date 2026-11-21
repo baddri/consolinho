@@ -13,24 +13,25 @@ export interface LastTestCellProps {
 }
 
 /**
- * Newest connection test of a cluster (CLU-4, CLU-7) as icon + text (`UX.md` §5): "Passed" / "Failed", relative time
- * and the credential used, plus a "Settings changed since last test" warning when the connection settings changed
+ * Newest connection test of a cluster (CLU-4, CLU-7) as icon + text (`UX.md` §5): "Passed" / "Failed" with the
+ * relative time, the credential used below it, plus a "Settings changed since last test" warning when the connection settings changed
  * after it (`isStale`). "Never tested" when no credential was ever tested.
  */
 export function LastTestCell({ lastTest, credentialName, asLabel }: LastTestCellProps) {
   if (lastTest === null) return <span className="pf-v6-u-text-color-subtle">Never tested</span>;
   const { succeeded, testedAt, isStale } = lastTest;
   return (
+    // Status + time stay on one line; the credential and the stale warning go below.
     <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
-      <FlexItem>
+      <FlexItem className="pf-v6-u-text-nowrap">
         <StatusIconText
           status={succeeded ? 'success' : 'danger'}
           text={succeeded ? 'Passed' : 'Failed'}
           asLabel={asLabel}
         />{' '}
         <RelativeTime value={testedAt} />
-        {credentialName !== null && <span className="pf-v6-u-text-color-subtle"> · {credentialName}</span>}
       </FlexItem>
+      {credentialName !== null && <FlexItem className="pf-v6-u-text-color-subtle">{credentialName}</FlexItem>}
       {isStale && (
         <FlexItem>
           <StatusIconText status="warning" text="Settings changed since last test" />

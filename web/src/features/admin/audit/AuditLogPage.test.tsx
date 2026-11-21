@@ -77,6 +77,9 @@ describe('AuditLogPage', () => {
     await user.click(cells.getByRole('button', { name: 'Details' }));
     expect(await within(table).findByText(/"groups": \[/)).toBeInTheDocument();
     expect(within(table).getByText(first.action, { selector: 'code' })).toBeInTheDocument();
+    // Target and Cluster are repeated in the expanded row: their columns are hidden below 2xl (T-0114).
+    expect(within(table).getByText('Target', { selector: 'dt *' })).toBeInTheDocument();
+    expect(within(table).getByText('Cluster', { selector: 'dt *' })).toBeInTheDocument();
     expect(within(table).getByText(first.correlationId ?? '')).toBeInTheDocument();
     expect(within(table).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
   });
@@ -254,11 +257,12 @@ describe('AuditLogPage', () => {
     await findAuditTable();
   });
 
-  it('shows the no-match state with "Clear filters"', async () => {
+  it('shows the no-match state with "Clear all filters"', async () => {
     const { user } = renderApp('/admin/audit?actor=nobody');
 
-    expect(await screen.findByText('No audit entries match these filters')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(await screen.findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    const table = screen.getByRole('grid', { name: 'Audit log' });
+    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await findAuditTable();
   });
 

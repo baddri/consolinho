@@ -190,7 +190,8 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 - **Status = icon + text** via `StatusIconText` (`asLabel` only in a details title); each feature maps its enum to
   `StatusKind` in one adapter component. `Label` is for categories only (environment, role, Read only, groups, k8s labels).
 - Tables: composable PF `Table variant="compact"`; headers never truncate; low-priority columns use
-  `visibility={['hidden', 'visibleOnXl']}` instead of squeezing.
+  `visibility={LOW_PRIORITY_COLUMN}` (`shared/table`: `['hidden', 'visibleOn2Xl']`, hidden below 1450px; PF `xl` is already on
+  at 1280) on `Th` and every `Td` (and `TableSkeletonRows columnVisibility`) instead of squeezing.
 - Modals: exactly one close control; wizard-in-modal has no `Modal onClose` (`WizardHeader` closes, `onEscapePress`).
   Context labels go inline after the title, never in the header `help` slot.
 - No DOM access: the global `document` and `window.document` / `globalThis.document` / `self.document` are

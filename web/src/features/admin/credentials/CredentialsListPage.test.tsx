@@ -139,12 +139,12 @@ describe('CredentialsListPage (CRED-7)', () => {
     expect(chips.getByText('Unknown')).toBeInTheDocument();
   });
 
-  it('shows "No credentials match" with Clear filters', async () => {
+  it('shows the no-match state with "Clear all filters"', async () => {
     const { user } = renderApp('/admin/credentials?q=nothing-like-this');
     const table = await screen.findByRole('grid', { name: 'Credentials' });
 
-    expect(await within(table).findByRole('heading', { name: 'No credentials match' })).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear filters' }));
+    expect(await within(table).findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await waitFor(() => expect(visibleRows(table)).toEqual(SERVER_ORDER));
   });
 
@@ -153,7 +153,7 @@ describe('CredentialsListPage (CRED-7)', () => {
     renderApp('/admin/credentials');
     const table = await screen.findByRole('grid', { name: 'Credentials' });
 
-    expect(await within(table).findByRole('heading', { name: 'No credentials yet' })).toBeInTheDocument();
+    expect(await within(table).findByRole('heading', { name: 'No credentials found' })).toBeInTheDocument();
     expect(within(table).getByRole('link', { name: 'Go to Clusters' })).toHaveAttribute('href', '/admin/clusters');
   });
 

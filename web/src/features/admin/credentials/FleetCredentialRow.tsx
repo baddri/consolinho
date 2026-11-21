@@ -13,6 +13,9 @@ import { ServiceAccountCell } from './ServiceAccountCell';
 /** Number of columns of the fleet credentials table. */
 export const FLEET_CREDENTIAL_COLUMN_COUNT = 7;
 
+/** Responsive columns by index (Fingerprint, Grants), for the loading skeleton. */
+export const FLEET_CREDENTIAL_COLUMN_VISIBILITY = { 3: LOW_PRIORITY_COLUMN, 5: LOW_PRIORITY_COLUMN } as const;
+
 /** PatternFly utility class for secondary text. */
 const SUBTLE = 'pf-v6-u-text-color-subtle';
 
@@ -20,15 +23,20 @@ const SUBTLE = 'pf-v6-u-text-color-subtle';
 const credentialsTabPath = (cluster: string) => `${clusterDetailPath(cluster)}/credentials`;
 
 /**
- * One row of the fleet credentials list (CRED-7): the cluster (environment label, name linking to its Credentials
- * tab, "Disabled" label when the cluster is disabled), then the same identity, fingerprint, expiry, grant and
- * last-test cells as the cluster's own tab (Fingerprint and Grants share the header's `LOW_PRIORITY_COLUMN`). Read-only: rotate/delete stay on the cluster tab.
+ * One row of the fleet credentials list (CRED-7): the cluster on one line (environment label, name linking to its
+ * Credentials tab, "Disabled" when the cluster is disabled), then the same identity, fingerprint, expiry, grant and
+ * last-test cells as the cluster's own tab (Fingerprint and Grants share the header's `LOW_PRIORITY_COLUMN`).
+ * Read-only: rotate/delete stay on the cluster tab.
  */
 export function FleetCredentialRow({ credential }: { credential: Credential }) {
   return (
     <Tr>
-      <Td dataLabel="Cluster">
-        <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
+      <Td dataLabel="Cluster" modifier="nowrap">
+        <Flex
+          spaceItems={{ default: 'spaceItemsSm' }}
+          alignItems={{ default: 'alignItemsCenter' }}
+          flexWrap={{ default: 'nowrap' }}
+        >
           <FlexItem>
             <EnvironmentLabel environment={credential.clusterEnvironment} isCompact />
           </FlexItem>
@@ -46,7 +54,7 @@ export function FleetCredentialRow({ credential }: { credential: Credential }) {
         {credential.name}
         {credential.description !== null && <div className={SUBTLE}>{credential.description}</div>}
       </Td>
-      <Td dataLabel="Service account">
+      <Td dataLabel="Service account" modifier="nowrap">
         <ServiceAccountCell {...credential} />
       </Td>
       <Td dataLabel="Fingerprint" visibility={LOW_PRIORITY_COLUMN} className="pf-v6-u-font-family-monospace">

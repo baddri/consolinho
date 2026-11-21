@@ -60,7 +60,7 @@ describe('ClustersListPage (CLU-7)', () => {
     expect(prodEu).toHaveTextContent('https://api.prod-eu-1.example.com:6443');
     expect(prodEuCells.getByText('Enabled')).toBeInTheDocument();
     expect(prodEuCells.getByText('CA bundle')).toBeInTheDocument();
-    expect(prodEuCells.getByRole('img', { name: 'A credential token expires soon' })).toBeInTheDocument();
+    expect(prodEuCells.getByText('Expires soon')).toBeInTheDocument();
     expect(prodEuCells.getByText('Passed')).toBeInTheDocument();
     expect(prodEuCells.getByText('2 days ago')).toBeInTheDocument();
     expect(prodEu).toHaveTextContent('fleet-view');
@@ -68,13 +68,13 @@ describe('ClustersListPage (CLU-7)', () => {
 
     const prodUs = within(rowOf(table, 'prod-us-1'));
     expect(prodUs.getByText('System trust')).toBeInTheDocument();
-    expect(prodUs.getByRole('img', { name: 'A credential token has expired' })).toBeInTheDocument();
+    expect(prodUs.getByText('Expired')).toBeInTheDocument();
     expect(prodUs.getByText('Failed')).toBeInTheDocument();
 
     const staging = within(rowOf(table, 'staging-eu-1'));
     expect(staging.getByText('TLS not verified')).toBeInTheDocument();
     expect(staging.getByText('Settings changed since last test')).toBeInTheDocument();
-    expect(staging.getByRole('img', { name: 'Credential tokens never expire' })).toBeInTheDocument();
+    expect(staging.getByText('No expiry')).toBeInTheDocument();
 
     const dev2 = rowOf(table, 'dev-2');
     expect(dev2).toHaveClass('pf-v6-u-text-color-subtle');
@@ -90,9 +90,7 @@ describe('ClustersListPage (CLU-7)', () => {
     const { user } = renderApp('/admin/clusters');
     const table = await findClustersTable();
 
-    await user.hover(
-      within(rowOf(table, 'prod-eu-1')).getByRole('img', { name: 'A credential token expires soon' }),
-    );
+    await user.hover(within(rowOf(table, 'prod-eu-1')).getByText('Expires soon'));
     expect(await screen.findByRole('tooltip')).toHaveTextContent('A credential token expires soon');
   });
 
@@ -130,12 +128,12 @@ describe('ClustersListPage (CLU-7)', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows "No clusters match" with Clear filters when nothing matches', async () => {
+  it('shows the no-match state with "Clear all filters" when nothing matches', async () => {
     const { user } = renderApp('/admin/clusters?q=nothing-like-this');
     const table = await screen.findByRole('grid', { name: 'Clusters' });
 
-    expect(await within(table).findByRole('heading', { name: 'No clusters match' })).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear filters' }));
+    expect(await within(table).findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await waitFor(() => expect(visibleClusters(table)).toEqual(ALL_CLUSTERS));
   });
 
@@ -144,7 +142,7 @@ describe('ClustersListPage (CLU-7)', () => {
     const { user, router } = renderApp('/admin/clusters');
     const table = await screen.findByRole('grid', { name: 'Clusters' });
 
-    expect(await within(table).findByRole('heading', { name: 'No clusters registered' })).toBeInTheDocument();
+    expect(await within(table).findByRole('heading', { name: 'No clusters found' })).toBeInTheDocument();
     expect(
       within(table).getByText(
         "You need the cluster's API URL, its CA bundle (or system trust) and a ServiceAccount token.",

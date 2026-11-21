@@ -1,16 +1,15 @@
-import { Button } from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import type { Credential } from '@/shared/api';
 import {
   FilterToolbar,
+  LOW_PRIORITY_COLUMN,
   TableEmptyRow,
+  TableNoMatchRow,
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
-  LOW_PRIORITY_COLUMN,
   type SortValue,
 } from '@/shared/table';
 import { ErrorState, PageBody, PageHeading } from '@/shared/ui';
@@ -18,7 +17,11 @@ import { ENVIRONMENT_OPTIONS } from '../clusters/clusterFilters';
 import { useFleetCredentials } from './api';
 import { CREDENTIAL_FILTERS, EXPIRY_OPTIONS, matchesCredentialFilters } from './credentialFilters';
 import { CredentialExpiryAlert } from './CredentialExpiryAlert';
-import { FLEET_CREDENTIAL_COLUMN_COUNT, FleetCredentialRow } from './FleetCredentialRow';
+import {
+  FLEET_CREDENTIAL_COLUMN_COUNT,
+  FLEET_CREDENTIAL_COLUMN_VISIBILITY,
+  FleetCredentialRow,
+} from './FleetCredentialRow';
 
 /**
  * Sort keys. `expiry` ascending with nulls last is exactly the server's primary order and the sort is stable, so the
@@ -107,27 +110,22 @@ export function CredentialsListPage() {
               </Tr>
             </Thead>
             <Tbody>
-              {isPending && <TableSkeletonRows columns={FLEET_CREDENTIAL_COLUMN_COUNT} />}
+              {isPending && (
+                <TableSkeletonRows
+                  columns={FLEET_CREDENTIAL_COLUMN_COUNT}
+                  columnVisibility={FLEET_CREDENTIAL_COLUMN_VISIBILITY}
+                />
+              )}
               {data?.length === 0 && (
                 <TableEmptyRow
                   colSpan={FLEET_CREDENTIAL_COLUMN_COUNT}
-                  title="No credentials yet"
+                  title="No credentials found"
                   body="Credentials are added per cluster, on the cluster's Credentials tab."
                   actions={<Link to="/admin/clusters">Go to Clusters</Link>}
                 />
               )}
               {credentials.length > 0 && sorted.length === 0 && (
-                <TableEmptyRow
-                  colSpan={FLEET_CREDENTIAL_COLUMN_COUNT}
-                  title="No credentials match"
-                  body="No credentials match the current filters."
-                  icon={SearchIcon}
-                  actions={
-                    <Button variant="link" onClick={clearAll}>
-                      Clear filters
-                    </Button>
-                  }
-                />
+                <TableNoMatchRow colSpan={FLEET_CREDENTIAL_COLUMN_COUNT} onClearAll={clearAll} />
               )}
               {sorted.map((credential) => (
                 <FleetCredentialRow key={credential.id} credential={credential} />

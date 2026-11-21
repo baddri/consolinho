@@ -48,8 +48,8 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - Toolbar: name filter (`SearchInput`), attribute filters (checkbox `Select`), chips, "Clear all filters". Primary
   create action lives in the heading (§3). Pagination only when the list is paged.
 - Table: composable PF `Table` `variant="compact"` (OCP lists are compact), sortable `Th`, kebab `ActionsColumn`.
-  Column headers are **never truncated** at 1280; low-priority columns hide below `xl` with `visibility`
-  (OCP column `props.className`/`visibility` pattern) instead of squeezing or overflowing.
+  Column headers are **never truncated** at 1280; low-priority columns hide below `2xl` (1450px) with `visibility`
+  (`LOW_PRIORITY_COLUMN`; OCP column `props.className`/`visibility` pattern) instead of squeezing or overflowing.
 - Names: `ResourceLink` = kind badge + link (OCP `ResourceLink`). Times: relative, absolute in a tooltip.
 - Status cells: **icon + text**, not a filled label (`packages/console-dynamic-plugin-sdk/src/app/components/status/
   StatusIconAndText.tsx`): green check (Running, Active, Valid, Passed), red exclamation (Failed, CrashLoopBackOff,

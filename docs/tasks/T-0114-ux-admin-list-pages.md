@@ -6,7 +6,7 @@ owner: frontend-engineer
 checkpoint: CP3.5
 depends_on: [T-0110]
 paths: [web/src/features/admin/users/UsersListPage.tsx, web/src/features/admin/users/UsersListPage.test.tsx, web/src/features/admin/users/UserRow.tsx, web/src/features/admin/users/UserRoleLabels.tsx, web/src/features/admin/users/UserStatusLabel.tsx, web/src/features/admin/clusters/ClustersListPage.tsx, web/src/features/admin/clusters/ClustersListPage.test.tsx, web/src/features/admin/clusters/ClusterRow.tsx, web/src/features/admin/clusters/ClusterStatusLabel.tsx, web/src/features/admin/clusters/LastTestCell.tsx, web/src/features/admin/credentials/CredentialsListPage.tsx, web/src/features/admin/credentials/CredentialsListPage.test.tsx, web/src/features/admin/credentials/FleetCredentialRow.tsx, web/src/features/admin/credentials/CredentialExpiryLabel.tsx, web/src/features/admin/credentials/LastTestLabel.tsx, web/src/features/admin/credentials/CredentialExpiryAlert.tsx, web/src/features/admin/audit, web/src/shared/table]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -77,7 +77,40 @@ Findings:
   (+`asLabel`), `auditActionLabel`, low-priority columns hidden below 2xl. Mock-UI screenshots users/clusters/credentials/
   grants/audit, light+dark, 1280+1920: no page/table overflow, no truncated header. check-fe green.
 
+- 2026-11-22 frontend-engineer: review round 1 fixes 1–6 (skeleton visibility + test, UX §5 empty copy, docs 2xl,
+  nowrap cluster name/credential cells, audit expanded Target/Cluster, icon+text warnings, audit header widths).
+  Screenshots clusters/credentials/audit(+filtered-empty) light+dark 1280/1920: no overflow/truncated headers. check-fe green.
+
 ## Review
+
+### Visual review (ui-ux-designer, 2026-11-21) — CHANGES_REQUESTED
+Mock UI, admin, light+dark, 1280+1920: Users, Clusters, Credentials, Audit log, user/cluster access tabs. No page/table overflow, no truncated header, create actions in heading, status icon+text, audit labels/expand OK. Loading state not reachable in mock (blank boot screen).
+- Clusters 1280 — Name cell wraps the display name to 3 lines ("Development / 1") while API URL keeps width — OCP name column never squeezes — `modifier="nowrap"` on the name/display-name cell, let API URL take `modifier="truncate"` with a width.
+- Audit log <1450 — Target and Cluster columns hidden but the expanded row shows only Action ID/Details/Correlation ID, so target and cluster link are unreachable — OCP hides only redundant info — add Target and Cluster to the expanded `DescriptionList`.
+- Users/Clusters/Credentials/Audit/grants filtered to nothing — "No users match" / "No audit entries match these filters" + "Clear filters" — UX.md §5, OCP (and our `ResourceListPage`) "No results match the filter criteria" + "Clear all filters" — use the same copy everywhere.
+- User Cluster access tab — two primaries: heading "Grant access to clusters" + toolbar "Add access"; cluster tab says "Grant access" — one create action in one place, one wording — follow-up for T-0115 if heading is out of scope here.
+- Credentials 1280 — Cluster cell stacks env label over name for long names, inline for short ones — inconsistent row shape — nowrap the cell (label + link inline).
+- Clusters Credentials column — count + bare status icon (purple info on staging-eu-1) with no text — UX.md §5 icon + text — add text or a tooltip/aria-label naming the state (nit).
+- Clusters "TLS not verified", Credentials "Not a ServiceAccount token" — filled yellow labels for warnings — UX.md §5 warnings = yellow triangle + text — `StatusIconText` warning (nit).
+- Audit filtered-empty — headers re-centre when the expand column has no rows (nit).
+**Round 1 — frontend-architect: CHANGES_REQUESTED** (check-fe green in worktree: 720 tests; no churn outside task paths)
+Accepted decisions: `LOW_PRIORITY_COLUMN` = `visibleOn2Xl` is correct (PF breakpoints are viewport media queries; `xl`
+is already on at 1280 with the sidebar) and matches T-0112's `pods.tsx` usage. A `shared/table` constant is the right
+shape for hand-written admin tables; `features/resources` keeps `ColumnDef.visibility` (data-driven) — no forced merge.
+Status adapters, `asLabel?`, `auditActionLabels.ts` (Map, prototype-safe, fallback) are good. USR-6 source still on
+`UserDetailHeader`, so dropping "via config" from the row is no regression.
+Required:
+- `web/src/shared/table/TableStateRows.tsx:24` — skeleton renders cells for hidden columns, misaligning the loading table
+  at 1280 — add `columnVisibility?: Readonly<Partial<Record<number, ThProps['visibility']>>>` (by column index) applied
+  to each skeleton `Td`; pass it from Users/Clusters/Credentials/Audit; one test in `tableKit.test.tsx`.
+- `UsersListPage.tsx:131-140`, `ClustersListPage.tsx:131-144`, `CredentialsListPage.tsx:114-127`, `AuditLogPage.tsx:89,128`
+  — copy deviates from UX.md §5 — filtered: title "No results match the filter criteria", button "Clear all filters";
+  empty: "No users found" / "No clusters found" / "No credentials found" / "No audit entries found" (existing guidance
+  bodies may stay); update the affected tests. (Grants/`SelectClustersStep` out of scope.)
+- `docs/architecture/FRONTEND.md:190` and `docs/architecture/UX.md` §5 ("hide below `xl`") — docs contradict the
+  implementation — change to `LOW_PRIORITY_COLUMN` (`['hidden','visibleOn2Xl']`, hidden below 1450px).
+Nits (optional): `UserRow.tsx:21` and `FleetCredentialRow.tsx:25` doc lines exceed 120 cols, `ClusterRow.tsx:21-22` odd
+wrap ("The" alone) — reflow; `LOW_PRIORITY_COLUMN` import sits out of alphabetical order in the three list pages.
 
 ## Handover notes
 - `shared/table` `LOW_PRIORITY_COLUMN` = `['hidden','visibleOn2Xl']` — PF `xl` is 1200px (already on at 1280), so "hide below
@@ -91,6 +124,8 @@ Findings:
   `adminViaConfigurationText` kept for `useUserActions`.
 - `audit/auditActionLabels.ts`: Map of backend ids → labels, unknown (proxy.*) fall back to the id; expanded row shows
   "Action ID". `CredentialExpiryAlert` has `pf-v6-u-mb-md`.
-- Follow-up candidate: admin empty-state copy still "No users match"/"Clear filters" (UX §5 says "No results match the
-  filter criteria"/"Clear all filters"); skeleton rows render cells for hidden columns while loading.
+- Round 1: `TableNoMatchRow` (UX §5 copy) + `TableSkeletonRows columnVisibility` in `shared/table`; each row file exports
+  `*_COLUMN_VISIBILITY`. Audit expanded row repeats Target/Cluster; Th widths fix the empty-state header shift.
+  `WorstExpiryIcon`, `TlsModeLabel`, `ServiceAccountCell` are icon + text now (files outside the original paths, per review).
+  Clusters at 1280 truncate the API URL hard (full on hover/1920) so Name and Last test stay unwrapped.
 - Repo is not prettier-clean — don't run `prettier --write` over folders.
