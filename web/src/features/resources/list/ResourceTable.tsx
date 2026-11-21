@@ -26,8 +26,10 @@ function rowKey(obj: K8sResource): string {
 }
 
 /**
- * Compact composable PF table of descriptor columns (`UX.md` §5): sortable headers for columns with `sortValue` that never
- * truncate (`nowrap`; low-priority columns hide via their `visibility` instead), an optional trailing actions column, skeleton rows while pending, or the given empty row. Rendering only one page keeps 2,000-object lists responsive (DATA-4).
+ * Compact composable PF table of descriptor columns (`UX.md` §5): sortable headers for columns with `sortValue`;
+ * headers never truncate (`nowrap`; low-priority columns hide via their `visibility` instead). An optional trailing
+ * actions column, skeleton rows while pending, or the given empty row. Rendering only one page keeps 2,000-object
+ * lists responsive (DATA-4).
  */
 export function ResourceTable({
   ariaLabel,

@@ -13,14 +13,21 @@ describe('ResourceStatusLabel (UX.md §5)', () => {
   });
 
   it('renders icon + text, not a filled label', () => {
-    const { container } = render(<ResourceStatusLabel status={{ title: 'Running', color: 'green' }} />);
-    expect(screen.getByText('Running')).toBeInTheDocument();
-    expect(container.querySelector('.pf-v6-c-label')).toBeNull();
-    expect(container.querySelector('.pf-v6-c-icon')).not.toBeNull();
+    render(<ResourceStatusLabel status={{ title: 'Running', color: 'green' }} />);
+    const text = screen.getByText('Running');
+    // The icon is decorative (hidden from AT) and sits beside the text, not inside a label.
+    const icon = text.parentElement?.querySelector('svg');
+    expect(icon).toHaveAttribute('aria-hidden', 'true');
+    expect(text.closest('[class*="label"]')).toBeNull();
   });
 
-  it('renders an outlined label for a details title with asLabel', () => {
-    const { container } = render(<ResourceStatusLabel status={{ title: 'Active', color: 'green' }} asLabel />);
-    expect(container.querySelector('.pf-v6-c-label.pf-m-outline')).not.toBeNull();
+  it('renders no icon for a neutral status', () => {
+    render(<ResourceStatusLabel status={{ title: 'Terminating', color: 'grey' }} />);
+    expect(screen.getByText('Terminating').parentElement?.querySelector('svg')).toBeNull();
+  });
+
+  it('renders "—" without a status', () => {
+    render(<ResourceStatusLabel status={undefined} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
   });
 });

@@ -114,7 +114,10 @@ interface ResourceListProps {
   namespace: string | undefined;
 }
 
-/** Header, toolbar, table and pagination of one live list; data from `useK8sList`, filters from the URL. */
+/**
+ * Project bar, heading, toolbar, table and pagination of one live list (or the `EmptyBox`-style empty state); data
+ * from `useK8sList`, filters from the URL.
+ */
 function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListProps) {
   const { model } = descriptor;
   const filters = useResourceFilters(descriptor);
@@ -145,9 +148,17 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
   );
 
   const columns = useMemo(
-    () => descriptor.columns.filter((column) => !column.allNamespacesOnly || scope === 'all'),
+    () =>
+      scope === 'all'
+        ? descriptor.columns.map((column) =>
+            column.allNamespacesVisibility ? { ...column, visibility: column.allNamespacesVisibility } : column,
+          )
+        : descriptor.columns.filter((column) => !column.allNamespacesOnly),
     [descriptor, scope],
   );
+
+  // Nothing in the list and no filter: OCP's `EmptyBox` alone — no headers, no "0 - 0 of 0" pagination.
+  const isEmpty = !list.isPending && !list.error && sorted.length === 0 && !filters.isFiltered;
 
   const pagination = (variant: 'top' | 'bottom') => (
     <Pagination
@@ -174,7 +185,11 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
         status={list.liveStatus === 'paused' ? <LiveIndicator status={list.liveStatus} /> : undefined}
       />
       <PageBody>
-        <ResourceListToolbar descriptor={descriptor} filters={filters} actions={pagination('top')} />
+        <ResourceListToolbar
+          descriptor={descriptor}
+          filters={filters}
+          actions={isEmpty ? undefined : pagination('top')}
+        />
         {list.error ? (
           <ResourceErrorState
             error={list.error}
@@ -183,6 +198,8 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
             namespace={namespace}
             onRetry={() => list.refetch()}
           />
+        ) : isEmpty ? (
+          <EmptyState variant="sm" titleText={`No ${model.labelPlural} found`} headingLevel="h2" />
         ) : (
           <>
             <ResourceTable
@@ -194,12 +211,7 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
               rowActions={(obj) => <ResourceRowActions cluster={cluster} descriptor={descriptor} obj={obj} />}
               emptyRow={
                 sorted.length === 0 && (
-                  <ListEmptyRow
-                    descriptor={descriptor}
-                    colSpan={columns.length + 1}
-                    isFiltered={filters.isFiltered}
-                    onClearFilters={filters.clearAll}
-                  />
+                  <FilteredEmptyRow colSpan={columns.length + 1} onClearFilters={filters.clearAll} />
                 )
               }
             />
@@ -211,31 +223,18 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
   );
 }
 
-/** OCP `EmptyBox` copy: "No Pods found", or with filters applied "No results match the filter criteria" + Clear all filters. */
-function ListEmptyRow({
-  descriptor,
-  colSpan,
-  isFiltered,
-  onClearFilters,
-}: {
-  descriptor: ResourceDescriptor;
-  colSpan: number;
-  isFiltered: boolean;
-  onClearFilters: () => void;
-}) {
-  if (isFiltered) {
-    return (
-      <TableEmptyRow
-        colSpan={colSpan}
-        title="No results match the filter criteria"
-        icon={SearchIcon}
-        actions={
-          <Button variant="link" onClick={onClearFilters}>
-            Clear all filters
-          </Button>
-        }
-      />
-    );
-  }
-  return <TableEmptyRow colSpan={colSpan} title={`No ${descriptor.model.labelPlural} found`} />;
+/** Filters matched nothing (OCP copy): "No results match the filter criteria" + Clear all filters, under the headers. */
+function FilteredEmptyRow({ colSpan, onClearFilters }: { colSpan: number; onClearFilters: () => void }) {
+  return (
+    <TableEmptyRow
+      colSpan={colSpan}
+      title="No results match the filter criteria"
+      icon={SearchIcon}
+      actions={
+        <Button variant="link" onClick={onClearFilters}>
+          Clear all filters
+        </Button>
+      }
+    />
+  );
 }

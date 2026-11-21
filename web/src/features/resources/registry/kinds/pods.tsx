@@ -49,7 +49,10 @@ function status(pod: PodResource): ResourceStatus {
   return { title, color: statusColor(title) };
 }
 
-/** Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg), Created (≥ 2xl, as OCP); status filter. */
+/**
+ * Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg; ≥ 2xl in all projects), Created (≥ 2xl, as
+ * OCP); status filter.
+ */
 export const podDescriptor: ResourceDescriptor<PodResource> = {
   model: PodModel,
   nav: { section: 'workloads', order: 10 },
@@ -67,18 +70,19 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
     {
       id: 'ready',
       title: 'Ready',
-      width: 10,
       cell: (pod) => {
         const { ready, total } = readyCount(pod);
         return `${ready}/${total}`;
       },
       sortValue: (pod) => readyCount(pod).ready,
     },
-    { id: 'restarts', title: 'Restarts', width: 10, cell: restarts, sortValue: restarts },
+    { id: 'restarts', title: 'Restarts', cell: restarts, sortValue: restarts },
     {
       id: 'owner',
       title: 'Owner',
       visibility: ['hidden', 'visibleOnLg'],
+      // With the Namespace column, Owner would push the table into horizontal scroll at 1280.
+      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
       cell: (pod) => {
         const owner = pod.metadata.ownerReferences?.[0];
         return (

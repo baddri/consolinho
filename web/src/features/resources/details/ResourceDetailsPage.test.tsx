@@ -103,8 +103,9 @@ describe('pod details (UI-4)', () => {
       expect(screen.getByText('10.128.3.7')).toBeInTheDocument();
       // Header status label from the descriptor.
       expect(screen.getAllByText('CrashLoopBackOff').length).toBeGreaterThan(0);
-      // Unregistered owner kind (ReplicaSet) is text.
-      expect(screen.getByText(/^ReplicaSet web-/)).toBeInTheDocument();
+      // Unregistered owner kind (ReplicaSet): badge + plain name, no link.
+      expect(screen.getByTitle('ReplicaSet')).toBeInTheDocument();
+      expect(screen.getByText('web-7d4b9c8f6d')).toBeInTheDocument();
       // Namespace link in the metadata, next to the breadcrumb's.
       expect(screen.getAllByRole('link', { name: 'shop' })).toHaveLength(2);
 

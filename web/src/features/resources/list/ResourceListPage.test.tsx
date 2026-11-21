@@ -148,13 +148,15 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['events', 'Events'],
     ['deployments', 'Deployments'],
     ['services', 'Services'],
-  ])('shows the empty state for %s in an empty namespace', async (plural, title) => {
+  ])('shows only the empty state for %s in an empty namespace (OCP EmptyBox)', async (plural, title) => {
     renderApp(`/c/dev-1/k8s/ns/empty/${plural}`);
 
-    const table = await findTable(title);
     expect(
-      await within(table).findByRole('heading', { name: `No ${title} found` }),
+      await screen.findByRole('heading', { name: `No ${title} found` }, { timeout: COLD_START_TIMEOUT_MS }),
     ).toBeInTheDocument();
+    // No table headers and no "0 - 0 of 0" pagination.
+    expect(screen.queryByRole('grid', { name: title })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -372,8 +374,9 @@ describe('resource list filters and sorting (UI-3)', () => {
       'href',
       `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`,
     );
-    // Owner kind (ReplicaSet) isn't registered: plain text.
-    expect(within(table).getAllByText(/^ReplicaSet web-/)).toHaveLength(3);
+    // Owner kind (ReplicaSet) isn't registered: "RS" badge (kind as hover title) + plain name.
+    expect(within(table).getAllByText(/^web-7d4b9c8f6d$/)).toHaveLength(3);
+    expect(within(table).getAllByTitle('ReplicaSet')).toHaveLength(3);
     expect(within(table).getAllByText('CrashLoopBackOff')).toHaveLength(1);
   });
 });

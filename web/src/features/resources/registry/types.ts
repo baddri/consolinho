@@ -39,6 +39,8 @@ export interface ColumnDef<T> {
    * `['hidden', 'visibleOnXl']` (or `…OnLg`) so narrow screens drop them instead of truncating headers.
    */
   visibility?: ThProps['visibility'];
+  /** `visibility` in all-namespaces mode, where the Namespace column takes the room (Pods' Owner goes first). */
+  allNamespacesVisibility?: ThProps['visibility'];
 }
 
 /** A checkbox filter of the list toolbar; `id` is its URL search param (`?status=`, `?type=`). */

@@ -74,8 +74,27 @@ Findings (screen — problem — OCP — fix):
   status icon+text via ResourceStatusLabel/toStatusKind, nowrap headers + column visibility, OCP empty copy. Live label
   removal supersedes CP2 spec §5 "Live indicator" (L247) and DATA-3 evidence in CP2-acceptance L83 (specs not edited).
   Screenshots light+dark 1280: no truncated headers, no horizontal scroll on Pods/Deployments/Projects/ConfigMaps.
+- 2026-11-21 frontend-engineer: review polish — Ready/Restarts widths dropped; Namespace (NS) and Owner (RS for
+  unregistered kinds, `BadgedName` + `kindAbbr`) cells badged; empty list = EmptyState only (no headers/pagination);
+  Pods Owner hidden below 2xl in all projects (`ColumnDef.allNamespacesVisibility`) to avoid 9px scroll; TSDoc rewraps.
+  Touched `details/ResourceDetailsPage.test.tsx` (owner assertion). Screenshots 1280 light+dark: no wrap/scroll.
 
 ## Review
+- 2026-11-21 frontend-architect: **APPROVE** (code; visuals by ux-designer). check-fe: lint/typecheck/build ok; 705/708
+  under load avg 21 — the 3 failures (ResourceDetailsPage YAML tab, projectSelector NS-2 timeout, ClusterForm edit)
+  are files this diff doesn't touch, and they pass in isolation (33/33), so it's load flakiness.
+  Optional nits: `ResourceStatusLabel.test.tsx:19-25` asserts PF class names (`.pf-v6-c-label`/`.pf-v6-c-icon`), which
+  is brittle across PF upgrades — prefer `pageBlocks.test.tsx`-style `svg` checks or leave it to the StatusIconText
+  tests; `NamespaceSelector.tsx:54` TSDoc line >120 chars, rewrap; `ResourceTable.tsx:29-30` same.
+
+### Visual review (ux-designer, 2026-11-21) — APPROVE
+Mock UI, Pods (shop + all projects), Deployments, Projects, ConfigMaps, empty (payments Pods), filter no-match; light+dark, 1280+1920.
+All ACs met: project bar row + divider above a plain "Pods" h1, no badge/Live; no truncated headers or horizontal scroll at 1280;
+icon+text status readable in both themes; compact rows, kebab right; "No Pods found" / "No results match the filter criteria" + "Clear all filters".
+Non-blocking follow-ups (new task, not this one):
+- Pods all projects 1280 — names wrap to 3 lines at hyphens while Ready/Restarts take 10% each for "1/1" — OCP `pod-list.tsx` gives Ready/Restarts no width — drop `width: 10` (or `modifier="fitContent"`) so names wrap at most once.
+- Pods Owner / all-projects Namespace — plain text "ReplicaSet web-…" and plain link — OCP renders both as `ResourceLink` (RS / NS badge + link) — use `ResourceLink`/`ObjectReferenceLink` in those cells.
+- Empty list — column headers + "0 - 0 of 0" pagination shown around "No Pods found" — OCP `EmptyBox` replaces the table, no pagination (UX §5: pagination only when paged) — hide pagination when total ≤ page size / empty.
 
 ## Handover notes
 - `ProjectBar` now in `resources/components/ProjectBar.tsx` (props unchanged) for T-0113; `NamespaceSelector` toggle is `variant="plainText"`.
