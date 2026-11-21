@@ -1,38 +1,64 @@
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { LOGO_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
+import { openSidebar } from '@/test/sidebar';
 import { renderApp } from '@/test/render';
 
 /**
- * jsdom has no layout (width 0), so PatternFly treats the page as mobile and starts with the sidebar closed.
- * Open it the way a user would before querying the navigation.
+ * Fakes `matchMedia('(prefers-color-scheme: dark)')` (jsdom has none). Call before rendering; `setDark` flips the
+ * OS setting and fires `change` like a browser does.
  */
-async function openSidebar(user: UserEvent) {
-  await user.click(await screen.findByRole('button', { name: 'Global navigation' }));
-  return screen.findByRole('navigation', { name: 'Global' });
+function mockOsDarkMode(initiallyDark: boolean) {
+  let matches = initiallyDark;
+  const listeners = new Set<() => void>();
+  const query = {
+    get matches() {
+      return matches;
+    },
+    addEventListener: (_type: 'change', listener: () => void) => listeners.add(listener),
+    removeEventListener: (_type: 'change', listener: () => void) => listeners.delete(listener),
+  } as unknown as MediaQueryList;
+  vi.stubGlobal('matchMedia', vi.fn(() => query));
+  return {
+    setDark(dark: boolean) {
+      matches = dark;
+      act(() => listeners.forEach((listener) => listener()));
+    },
+  };
+}
+
+/** Opens the masthead theme menu and returns its options. */
+async function openThemeMenu(user: UserEvent) {
+  await user.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Theme' }));
+  return within(await screen.findByRole('listbox', { name: 'Theme' })).getAllByRole('option');
 }
 
 describe('AppShell', () => {
   // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
   it(
-    'renders the masthead with brand, cluster switcher, theme toggle and user menu',
+    'renders a masthead with only brand, theme menu and user menu, and the cluster switcher atop the sidebar',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
-      renderApp('/c/dev-1/overview');
+      const { user } = renderApp('/c/dev-1/overview');
 
       expect(
         await screen.findByRole('link', { name: 'Consolinho' }, { timeout: COLD_START_TIMEOUT_MS }),
       ).toHaveAttribute('href', '/');
-      expect(
-        await screen.findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' }),
-      ).toHaveTextContent('dev');
-      expect(screen.getByRole('button', { name: 'Light theme' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Dark theme' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Fleet Admin Admin' })).toBeInTheDocument();
+      const masthead = screen.getByRole('banner');
+      const mastheadButtons = within(masthead)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent);
+      expect(mastheadButtons).toEqual(['Global navigation', 'Theme', expect.stringMatching(/Fleet Admin/)]);
+
+      const nav = await openSidebar(user);
+      const toggle = await within(nav).findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' });
+      expect(toggle).toHaveTextContent('dev');
+      // First child of the nav, before the sections (UX.md §2).
+      expect(within(nav).getAllByRole('button')[0]).toBe(toggle);
     },
   );
 
@@ -43,6 +69,7 @@ describe('AppShell', () => {
     const nav = await openSidebar(user);
     const sections = within(nav)
       .getAllByRole('button')
+      .filter((button) => !button.getAttribute('aria-label')?.endsWith('switch cluster'))
       .map((button) => button.textContent);
     expect(sections).toEqual(['Home', 'Workloads', 'Networking', 'Administration', 'Fleet administration']);
     const events = within(nav).getByRole('link', { name: 'Events' });
@@ -63,8 +90,9 @@ describe('AppShell', () => {
     setMockUser('alice');
     const { user, router } = renderApp('/c/prod-eu-1/k8s/ns/default/pods');
 
+    const nav = await openSidebar(user);
     await user.click(
-      await screen.findByRole('button', { name: 'Cluster prod-eu-1 (prod, read only), switch cluster' }),
+      await within(nav).findByRole('button', { name: 'Cluster prod-eu-1 (prod, read only), switch cluster' }),
     );
     await user.click(await screen.findByRole('option', { name: /staging-eu-1/ }));
 
@@ -92,16 +120,45 @@ describe('AppShell', () => {
     expect(await screen.findByText('Version information unavailable')).toBeInTheDocument();
   });
 
-  it('toggles the dark theme and switches to the light-on-dark logo', async () => {
-    const { user } = renderApp('/c/dev-1/overview');
-    expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
+  describe('theme menu', () => {
+    afterEach(() => vi.unstubAllGlobals());
 
-    await user.click(await screen.findByRole('button', { name: 'Dark theme' }));
+    it('switches to dark, marks the choice and switches to the light-on-dark logo', async () => {
+      const { user } = renderApp('/c/dev-1/overview');
+      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
 
-    expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      const options = await openThemeMenu(user);
+      expect(options.map((option) => option.textContent)).toEqual(['Light', 'Dark', 'System']);
+      // No stored choice: System.
+      expect(screen.getByRole('option', { name: 'System' })).toHaveAttribute('aria-selected', 'true');
+      await user.click(screen.getByRole('option', { name: 'Dark' }));
 
-    expect(screen.getByRole('button', { name: 'Dark theme' })).toHaveAttribute('aria-pressed', 'true');
-    expect(localStorage.getItem('fleetconsole.theme')).toBe('dark');
+      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(document.documentElement).toHaveClass('pf-v6-theme-dark');
+      expect(localStorage.getItem('fleetconsole.theme')).toBe('dark');
+      await openThemeMenu(user);
+      expect(screen.getByRole('option', { name: 'Dark' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('keeps a stored choice across reloads', async () => {
+      localStorage.setItem('fleetconsole.theme', 'dark');
+      renderApp('/c/dev-1/overview');
+
+      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+    });
+
+    it('follows the OS setting live on System', async () => {
+      const os = mockOsDarkMode(false);
+      localStorage.setItem('fleetconsole.theme', 'system');
+      renderApp('/c/dev-1/overview');
+      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
+
+      os.setDark(true);
+
+      await waitFor(() => expect(document.documentElement).toHaveClass('pf-v6-theme-dark'));
+      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(localStorage.getItem('fleetconsole.theme')).toBe('system');
+    });
   });
 
   describe('environment band (SW-10)', () => {
@@ -124,9 +181,10 @@ describe('AppShell', () => {
       ['an admin page', 'alice', '/admin/users'],
     ])('is absent on %s', async (_case, username, path) => {
       setMockUser(username);
-      renderApp(path);
+      const { user } = renderApp(path);
 
-      await screen.findByRole('button', { name: /switch cluster|Select a cluster/ });
+      const nav = await openSidebar(user);
+      await within(nav).findByRole('button', { name: /switch cluster$/ });
       expect(screen.queryByText(/^(Production|Staging) cluster /)).not.toBeInTheDocument();
     });
   });

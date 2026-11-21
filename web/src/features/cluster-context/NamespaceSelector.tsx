@@ -51,12 +51,12 @@ function fallbackText(error: ApiError, cluster: string, noun: string): string {
 }
 
 /**
- * OCP-style project selector for namespaced list pages (NS-1..4). Controlled and navigation-free: the caller passes
- * the selected project and maps `onSelect` to a URL. Same structure as {@link ClusterSwitcher}: PF `MenuContainer` +
- * `Menu` (role `listbox`) with a search box focused on open (Enter picks the first match), an "All projects" item,
- * the live list from {@link useProjectOptions} (fetched while open), and a "Show default projects" switch
- * ({@link useShowDefaultProjects}) in the footer. Default projects are hidden unless switched on; the selected one
- * always shows.
+ * OCP-style project selector (namespace bar, plain-text toggle) for namespaced list and details pages (NS-1..4).
+ * Controlled and navigation-free: the caller passes the selected project and maps `onSelect` to a URL. Same
+ * structure as {@link ClusterSwitcher}: PF `MenuContainer` + `Menu` (role `listbox`) with a search box focused on open
+ * (Enter picks the first match), an "All projects" item, the live list from {@link useProjectOptions} (fetched while
+ * open), and a "Show default projects" switch ({@link useShowDefaultProjects}) in the footer. Default projects are
+ * hidden unless switched on; the selected one always shows.
  *
  * When the list fails (typically 403: the service account can't list projects) the menu says so and Enter selects
  * the typed name after a DNS-label check (NS-3).
@@ -188,7 +188,7 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
       menuRef={menuRef}
       toggleRef={toggleRef}
       toggle={
-        <MenuToggle ref={toggleRef} onClick={() => changeOpen(!isOpen)} isExpanded={isOpen}>
+        <MenuToggle ref={toggleRef} variant="plainText" onClick={() => changeOpen(!isOpen)} isExpanded={isOpen}>
           {`${noun}: ${namespace ?? allLabel}`}
         </MenuToggle>
       }

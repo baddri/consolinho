@@ -8,7 +8,19 @@ export {
   type ActionButtonProps,
   type DisabledActionProps,
 } from './ActionButton';
-export { ConfirmModal, type ConfirmModalProps } from './ConfirmModal';
+export {
+  ConfirmModal,
+  InlineLabelTitle,
+  type ConfirmModalProps,
+  type InlineLabelTitleProps,
+} from './ConfirmModal';
+export {
+  DetailsColumn,
+  DetailsGrid,
+  DetailsItem,
+  type DetailsColumnProps,
+  type DetailsItemProps,
+} from './page/DetailsGrid';
 export {
   EnvironmentLabel,
   environmentLabel,
@@ -19,8 +31,13 @@ export { ErrorState, type ErrorStateProps } from './ErrorState';
 export { formatAbsoluteTime, formatRelativeTime } from './formatRelativeTime';
 export { LabelList, type LabelListProps } from './LabelList';
 export { NotFoundPage } from './NotFoundPage';
+export { PageBody, type PageBodyProps } from './page/PageBody';
+export { PageHeading, type BreadcrumbCrumb, type PageHeadingProps } from './page/PageHeading';
+export { PageTabs, type PageTab, type PageTabsProps } from './page/PageTabs';
 export { PlaceholderPage, type PlaceholderPageProps } from './PlaceholderPage';
 export { RelativeTime, type RelativeTimeProps } from './RelativeTime';
+export { SectionHeading, type SectionHeadingProps } from './page/SectionHeading';
+export { StatusIconText, type StatusIconTextProps, type StatusKind } from './StatusIconText';
 export { TOAST_TIMEOUT_MS, ToastProvider } from './ToastProvider';
 export { TypeaheadSelect, type TypeaheadItem, type TypeaheadSelectProps } from './TypeaheadSelect';
 export type { ShowToast, ToastApi } from './toastContext';

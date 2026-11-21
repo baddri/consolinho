@@ -1,7 +1,7 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
 import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
 import { ResourceStatusLabel, statusColor } from '../../components/ResourceStatusLabel';
-import { PodDetails } from '../../details/sections/PodDetails';
+import { PodContainers, PodDetails } from '../../details/sections/PodDetails';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
 
@@ -49,12 +49,21 @@ function status(pod: PodResource): ResourceStatus {
   return { title, color: statusColor(title) };
 }
 
-/** Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner, Created; status filter. */
+/** The Details tab's pod fields with the same status as the title. */
+function PodDetailsSection({ obj }: { obj: PodResource }) {
+  return <PodDetails obj={obj} status={status(obj)} />;
+}
+
+/**
+ * Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg; ≥ 2xl in all projects), Created (≥ 2xl, as
+ * OCP); status filter.
+ */
 export const podDescriptor: ResourceDescriptor<PodResource> = {
   model: PodModel,
   nav: { section: 'workloads', order: 10 },
   status,
-  DetailsSection: PodDetails,
+  DetailsSection: PodDetailsSection,
+  ExtraSections: PodContainers,
   columns: [
     nameColumn(PodModel),
     namespaceColumn(PodModel),
@@ -77,6 +86,9 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
     {
       id: 'owner',
       title: 'Owner',
+      visibility: ['hidden', 'visibleOnLg'],
+      // With the Namespace column, Owner would push the table into horizontal scroll at 1280.
+      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
       cell: (pod) => {
         const owner = pod.metadata.ownerReferences?.[0];
         return (
@@ -90,7 +102,8 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
       },
       sortValue: (pod) => pod.metadata.ownerReferences?.[0]?.name ?? null,
     },
-    ageColumn(),
+    // OCP `pod-list.tsx`: Created is the first column to go, so all headers fit untruncated next to the sidebar at 1280.
+    { ...ageColumn<PodResource>(), visibility: ['hidden', 'visibleOn2Xl'] },
   ],
   filters: [
     {

@@ -63,10 +63,10 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
       expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Disable', 'Delete']);
       await user.click(screen.getByRole('menuitem', { name: 'Disable' }));
 
-      const dialog = await screen.findByRole('dialog', { name: /Disable prod-eu-1/ });
+      const dialog = await screen.findByRole('dialog', { name: 'Disable cluster? prod' });
       expect(within(dialog).getByText('prod')).toBeInTheDocument();
       expect(dialog).toHaveTextContent(
-        'Disable prod-eu-1 (production)? 3 users will no longer see it in the cluster switcher.',
+        'Are you sure you want to disable prod-eu-1? 3 users will no longer see it in the cluster switcher.',
       );
       await user.click(within(dialog).getByRole('button', { name: 'Disable' }));
 
@@ -89,8 +89,11 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
     await openKebab(user, table, 'dev-2');
     await user.click(screen.getByRole('menuitem', { name: 'Enable' }));
-    const dialog = await screen.findByRole('dialog', { name: /Enable dev-2/ });
-    expect(dialog).toHaveTextContent('1 user will see it in the cluster switcher again.');
+    const dialog = await screen.findByRole('dialog', { name: /^Enable cluster\?/ });
+    expect(within(dialog).getByText('dev-2', { selector: 'strong' })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(
+      'Are you sure you want to enable dev-2? 1 user will see it in the cluster switcher again.',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Enable' }));
 
     expect(await screen.findByText('Cluster dev-2 enabled')).toBeInTheDocument();
@@ -122,8 +125,13 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
     await openKebab(user, table, 'dev-2');
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /Delete dev-2/ });
-    expect(dialog).toHaveTextContent('1 credential and 1 grant will be removed.');
+    const dialog = await screen.findByRole('dialog', { name: /^Delete cluster\?/ });
+    // OCP delete wording: warning icon in the title, the name in bold in the body.
+    expect(within(dialog).getByRole('heading', { name: /^Warning alert: ?Delete cluster\?/ })).toBeInTheDocument();
+    expect(within(dialog).getByText('dev-2', { selector: 'strong' })).toBeInTheDocument();
+    expect(dialog).toHaveTextContent(
+      'Are you sure you want to delete dev-2? 1 credential and 1 grant will be removed. This cannot be undone.',
+    );
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
     expect(confirm).toBeDisabled();
 
@@ -149,13 +157,13 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
     await openKebab(user, table, 'dev-2');
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /Delete dev-2/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Delete cluster\?/ });
     await user.click(within(dialog).getByRole('textbox'));
     await user.paste('dev-2');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     expect(await within(dialog).findByText('Disable dev-2 before deleting it.')).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: /Delete dev-2/ })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /^Delete cluster\?/ })).toBeInTheDocument();
   });
 
   it('T-0033 review: an action on a cluster deleted meanwhile closes the dialog with a toast', async () => {
@@ -164,7 +172,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
     await openKebab(user, table, 'dev-1');
     await user.click(screen.getByRole('menuitem', { name: 'Disable' }));
-    const dialog = await screen.findByRole('dialog', { name: /Disable dev-1/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Disable cluster\?/ });
     mockDb.clusters.splice(
       mockDb.clusters.findIndex((c) => c.name === 'dev-1'),
       1,

@@ -2,6 +2,7 @@ import { Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/re
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router';
 import { ApiError } from '@/shared/api';
 import {
   ActionButton,
@@ -11,6 +12,7 @@ import {
   environmentLabel,
   ErrorState,
   LabelList,
+  NotFoundPage,
   RelativeTime,
   TOAST_TIMEOUT_MS,
   ToastProvider,
@@ -126,14 +128,16 @@ describe('ConfirmModal', () => {
     return { ...view, user, onConfirm, onClose };
   }
 
-  it('names the object and cluster, shows the environment label and confirms', async () => {
+  it('names the object and cluster, shows the environment label inline after the title and confirms', async () => {
     const { user, onConfirm, onClose } = renderModal();
 
     // The environment label is part of the name, so screen readers hear "prod" as sighted users see it.
     const dialog = screen.getByRole('dialog', { name: 'Delete cluster prod-eu-1? prod' });
     expect(dialog).toHaveAccessibleDescription('Users lose access to prod-eu-1.');
-    expect(within(dialog).getByRole('heading', { name: 'Delete cluster prod-eu-1?' })).toBeInTheDocument();
-    expect(within(dialog).getByText('prod')).toBeInTheDocument();
+    // Danger confirms get OCP's warning icon; the label sits inside the title, not in the header's help slot.
+    const heading = within(dialog).getByRole('heading', { name: /^Warning alert: ?Delete cluster prod-eu-1\? prod$/ });
+    expect(within(heading).getByText('prod')).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('button', { name: /close/i })).toHaveLength(1);
 
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(onConfirm).toHaveBeenCalledTimes(1);
@@ -146,6 +150,25 @@ describe('ConfirmModal', () => {
     renderModal({ titleLabel: undefined });
 
     expect(screen.getByRole('dialog', { name: 'Delete cluster prod-eu-1?' })).toBeInTheDocument();
+  });
+
+  it('shows no title icon for primary confirms unless asked, and the requested one otherwise', () => {
+    const { rerender } = renderModal({ variant: 'primary', titleLabel: undefined });
+    expect(screen.getByRole('heading', { name: 'Delete cluster prod-eu-1?' })).toBeInTheDocument();
+
+    rerender(
+      <ConfirmModal
+        isOpen
+        title="Delete cluster prod-eu-1?"
+        confirmLabel="Delete"
+        titleIconVariant="danger"
+        onConfirm={vi.fn()}
+        onClose={vi.fn()}
+      >
+        Users lose access to prod-eu-1.
+      </ConfirmModal>,
+    );
+    expect(screen.getByRole('heading', { name: /^Danger alert: ?Delete cluster prod-eu-1\?$/ })).toBeInTheDocument();
   });
 
   it('keeps confirm disabled until the exact text is typed; Enter then confirms', async () => {
@@ -224,6 +247,20 @@ describe('ConfirmModal', () => {
   it('renders nothing when closed', () => {
     renderModal({ isOpen: false });
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('NotFoundPage', () => {
+  it('shows the 404 page heading as h1 above an empty state that links home', () => {
+    render(
+      <MemoryRouter>
+        <NotFoundPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('heading', { level: 1, name: '404: Page not found' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'This page does not exist' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
   });
 });
 

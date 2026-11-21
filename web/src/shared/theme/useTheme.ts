@@ -1,7 +1,7 @@
 import { useContext } from 'react';
 import { ThemeContext, type ThemeContextValue } from './themeContext';
 
-/** Current theme and its setter. Must be used below {@link ThemeProvider}. */
+/** Theme preference, resolved theme and the preference setter. Must be used below {@link ThemeProvider}. */
 export function useTheme(): ThemeContextValue {
   const value = useContext(ThemeContext);
   if (value === null) {

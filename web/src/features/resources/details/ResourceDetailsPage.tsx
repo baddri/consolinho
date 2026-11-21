@@ -6,15 +6,13 @@ import {
   Skeleton,
   Stack,
   StackItem,
-  Tab,
-  TabContent,
-  Tabs,
-  TabTitleText,
 } from '@patternfly/react-core';
 import type { ReactNode } from 'react';
-import { Navigate, Outlet, useNavigate } from 'react-router';
+import { Navigate, Outlet } from 'react-router';
 import { apiVersionOf, useK8sDiscovery, useK8sGet, type K8sResource } from '@/shared/k8s';
+import { PageBody, PageTabs } from '@/shared/ui';
 import { ResourceActionsMenu } from '../actions/ResourceActionsMenu';
+import { ProjectBar } from '../components/ProjectBar';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { ResourcePageSkeleton } from '../components/ResourcePageSkeleton';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
@@ -27,9 +25,6 @@ import { RESOURCE_TABS, useResourceTab, type ResourceTab } from './useResourceTa
 
 /** Tab titles, also the accessible names of their panels. No Logs/Terminal before CP4 (spec §5). */
 const TAB_TITLES: Record<ResourceTab, string> = { details: 'Details', yaml: 'YAML', events: 'Events' };
-
-/** DOM id of a tab's panel, referenced by the tab's `aria-controls`. */
-const panelId = (tab: ResourceTab) => `resource-${tab}-panel`;
 
 /** Full-page empty state (unsupported or unserved kind). */
 function PageEmptyState({ title, body }: { title: string; body: string }) {
@@ -108,8 +103,9 @@ interface ResourceDetailsProps {
 }
 
 /**
- * Header and tabs of one live object (`useK8sGet`). `error` is checked before `data`: after a DELETED event TanStack
- * keeps the stale object next to the 404 (ADR-0022 §6), which must show the not-found state.
+ * Project bar (namespaced kinds), heading and tabs of one live object (`useK8sGet`). `error` is checked before
+ * `data`: after a DELETED event TanStack keeps the stale object next to the 404 (ADR-0022 §6), which must show the
+ * not-found state.
  */
 function ResourceDetails({ cluster, descriptor, namespace, name, tab }: ResourceDetailsProps) {
   const { model } = descriptor;
@@ -155,6 +151,7 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 
   return (
     <>
+      {model.namespaced && <ProjectBar descriptor={descriptor} cluster={cluster} namespace={namespace} />}
       <ResourceHeader
         cluster={cluster}
         model={model}
@@ -172,7 +169,11 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
   );
 }
 
-/** URL-driven Details · YAML · Events tabs (Events hidden when `hasEventsTab === false`); selecting one navigates. */
+/**
+ * URL-driven Details · YAML · Events tabs (Events hidden when `hasEventsTab === false`) as `PageTabs` aligned with the
+ * heading, then the active tab's content in a `PageBody` labelled by the tab. The YAML body is filled, so the editor
+ * reaches the bottom of the content card.
+ */
 function ResourceTabs({
   descriptor,
   cluster,
@@ -181,39 +182,18 @@ function ResourceTabs({
   tab,
   children,
 }: ResourceDetailsProps & { children: ReactNode }) {
-  const navigate = useNavigate();
   const { model } = descriptor;
-  const tabs = RESOURCE_TABS.filter((key) => key !== 'events' || descriptor.hasEventsTab !== false);
+  const tabs = RESOURCE_TABS.filter((key) => key !== 'events' || descriptor.hasEventsTab !== false).map((key) => ({
+    key,
+    title: TAB_TITLES[key],
+    to: resourcePath(cluster, model, { namespace, name, tab: key === 'details' ? undefined : key }),
+  }));
   return (
     <>
-      <PageSection type="tabs">
-        <Tabs
-          activeKey={tab}
-          onSelect={(_event, key) => {
-            const next = tabs.find((candidate) => candidate === key);
-            if (next && next !== tab) {
-              void navigate(
-                resourcePath(cluster, model, { namespace, name, tab: next === 'details' ? undefined : next }),
-              );
-            }
-          }}
-          aria-label={`${model.label} tabs`}
-        >
-          {tabs.map((key) => (
-            <Tab
-              key={key}
-              eventKey={key}
-              title={<TabTitleText>{TAB_TITLES[key]}</TabTitleText>}
-              tabContentId={panelId(key)}
-            />
-          ))}
-        </Tabs>
-      </PageSection>
-      <PageSection>
-        <TabContent id={panelId(tab)} eventKey={tab} activeKey={tab} aria-label={TAB_TITLES[tab]}>
-          {children}
-        </TabContent>
-      </PageSection>
+      <PageTabs tabs={tabs} activeKey={tab} aria-label={`${model.label} tabs`} />
+      <PageBody isFilled={tab === 'yaml'} role="tabpanel" aria-label={TAB_TITLES[tab]}>
+        {children}
+      </PageBody>
     </>
   );
 }

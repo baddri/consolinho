@@ -12,9 +12,10 @@ export interface DeleteClusterModalProps extends ClusterModalProps {
 }
 
 /**
- * CLU-6 delete confirmation: danger, the user must type the cluster name, and the body states how many credentials
- * and grants go with it. A 409 `Clusters.NotDisabled` (enabled meanwhile) is shown inline with the server's detail; a 404
- * (deleted meanwhile) closes the dialog via `useClusterGoneHandler`.
+ * CLU-6 delete confirmation in OCP wording ("Delete cluster?", warning icon, bold name): danger, the user must type
+ * the cluster name, and the body states how many credentials and grants go with it. A 409 `Clusters.NotDisabled`
+ * (enabled meanwhile) is shown inline with the server's detail; a 404 (deleted meanwhile) closes the dialog via
+ * `useClusterGoneHandler`.
  */
 export function DeleteClusterModal({ cluster, onClose, onDeleted, onGone }: DeleteClusterModalProps) {
   const mutation = useDeleteCluster();
@@ -33,7 +34,8 @@ export function DeleteClusterModal({ cluster, onClose, onDeleted, onGone }: Dele
   return (
     <ConfirmModal
       isOpen
-      title={`Delete ${name}`}
+      title="Delete cluster?"
+      titleIconVariant="warning"
       titleLabel={<EnvironmentLabel environment={environment} isCompact />}
       confirmLabel="Delete"
       variant="danger"
@@ -44,6 +46,7 @@ export function DeleteClusterModal({ cluster, onClose, onDeleted, onGone }: Dele
       onClose={onClose}
     >
       <Content component="p">
+        Are you sure you want to delete <strong>{name}</strong>?{' '}
         {`${plural(credentialCount, 'credential')} and ${plural(grantCount, 'grant')} will be removed. ` +
           'This cannot be undone.'}
       </Content>

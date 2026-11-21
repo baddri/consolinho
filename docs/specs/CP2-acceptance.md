@@ -80,7 +80,7 @@ Test paths are abbreviated. `BE:` = `tests/FleetConsole.Api.Tests/Integration/Pr
 |---|---|---|
 | DATA-1 Registry, six kinds | FE `features/resources/registry/registry.test.ts`; `registry/kinds/kinds.test.tsx` "navigation (UI-2): lists every CP2 kind on OpenShift" | PASS |
 | DATA-2 Discovery hides unserved kinds, once per cluster | `shared/k8s/hooks.test.tsx` "useK8sDiscovery…hides projects on vanilla lab-1"; `kinds.test.tsx` "hides Projects where project.openshift.io is not served"; `ResourceListPage.test.tsx` "says a registered kind is not available…"; `staleTime: Infinity` in `shared/k8s/discovery.ts` | PASS |
-| DATA-3 Paging, watch, 410 relist, backoff, paused indicator | `hooks.test.tsx` "applies watched add / modify / delete…", "relists after compaction (410)…", "pauses on a watch error … backoff reconnect", "watch backoff floor"; `ResourceListPage.test.tsx` "live updates (DATA-3)" ×2 ("Paused — retrying" = spec §5 wording) | PASS |
+| DATA-3 Paging, watch, 410 relist, backoff, paused indicator | `hooks.test.tsx` "applies watched add / modify / delete…", "relists after compaction (410)…", "pauses on a watch error … backoff reconnect", "watch backoff floor"; `ResourceListPage.test.tsx` "live updates (DATA-3)" ×2 ("Paused — retrying" = spec §5 wording) *(superseded by CP3.5, T-0112: indicator removed; paging/watch/relist evidence still valid)* | PASS |
 | DATA-4 2,000 pods | `ResourceListPage.test.tsx` "pages 2,000 pods, filters them and applies a watch update to a visible pod" | PASS |
 | DATA-5 Watch lifecycle, one per key | `hooks.test.tsx` "shares one stream per key, aborts it on unmount and on a namespace change" | PASS |
 

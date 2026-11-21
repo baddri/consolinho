@@ -3,8 +3,8 @@ import { useCurrentUser } from '@/features/auth';
 import { disabledActionProps, type DisabledActionProps } from '@/shared/ui';
 import { BulkGrantWizard } from '../grants/bulk/BulkGrantWizard';
 import { useAdminAccess } from '../useAdminAccess';
+import { adminSourceText } from './adminSource';
 import { UserActionDialog, type UserActionKind, type UserActionTarget } from './UserActionDialogs';
-import { adminViaConfigurationText } from './UserRoleLabels';
 
 /** ADM-5: why an admin can't demote or deactivate their own account (same wording as the Api's `Users.SelfChange`). */
 export const SELF_CHANGE_REASON = "You can't demote or deactivate yourself.";
@@ -67,7 +67,7 @@ export function useUserActions(user: UserActionTarget): UserActions {
   }
   if (user.role === 'admin') {
     const demoteReason = user.isAdminViaConfiguration
-      ? `${adminViaConfigurationText(user.adminConfigurationSource)}. Change the configuration to remove.`
+      ? `${adminSourceText(user.adminConfigurationSource)}. Remove it in the deployment settings.`
       : isSelf
         ? SELF_CHANGE_REASON
         : undefined;

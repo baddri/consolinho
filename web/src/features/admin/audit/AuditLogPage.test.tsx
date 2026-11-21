@@ -6,6 +6,7 @@ import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { adminRoute } from '../routes';
+import { auditActionLabel } from './auditActionLabels';
 import { formatDetails } from './AuditEntryRow';
 
 const HOUR_MS = 3_600_000;
@@ -58,7 +59,9 @@ describe('AuditLogPage', () => {
     const firstRow = within(table).getByText(first.summary).closest('tr');
     if (!firstRow) throw new Error('row not found');
     const cells = within(firstRow);
-    expect(cells.getByText(first.action)).toBeInTheDocument();
+    // The row shows the human label; the raw id is only in the expanded details (T-0114).
+    expect(cells.getByText(auditActionLabel(first.action))).toBeInTheDocument();
+    expect(cells.queryByText(first.action)).not.toBeInTheDocument();
     expect(firstRow).toHaveTextContent(`${first.targetType} ${first.targetName}`);
     expect(firstRow.querySelector('time')).toHaveAttribute('dateTime', first.occurredAt);
 
@@ -73,6 +76,10 @@ describe('AuditLogPage', () => {
 
     await user.click(cells.getByRole('button', { name: 'Details' }));
     expect(await within(table).findByText(/"groups": \[/)).toBeInTheDocument();
+    expect(within(table).getByText(first.action, { selector: 'code' })).toBeInTheDocument();
+    // Target and Cluster are repeated in the expanded row: their columns are hidden below 2xl (T-0114).
+    expect(within(table).getByText('Target', { selector: 'dt *' })).toBeInTheDocument();
+    expect(within(table).getByText('Cluster', { selector: 'dt *' })).toBeInTheDocument();
     expect(within(table).getByText(first.correlationId ?? '')).toBeInTheDocument();
     expect(within(table).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
   });
@@ -239,22 +246,27 @@ describe('AuditLogPage', () => {
     expect(screen.getByRole('option', { name: 'Proxy' })).toBeInTheDocument();
   });
 
-  it('400 on a hand-edited filter shows the problem and "Clear filters"', async () => {
+  it('400 on a hand-edited filter shows the problem and "Clear all filters"', async () => {
     const { user, router } = renderApp('/admin/audit?from=yesterday');
 
     expect(await screen.findByText('These filters are not valid')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Filter errors' })).toHaveTextContent('from: Enter an ISO 8601 timestamp.');
 
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    // The toolbar's chip group has its own "Clear all filters"; the state's button renders after it.
+    const clearButtons = screen.getAllByRole('button', { name: 'Clear all filters' });
+    const stateClearButton = clearButtons.at(-1);
+    if (stateClearButton === undefined) throw new Error('no "Clear all filters" button');
+    await user.click(stateClearButton);
     await waitFor(() => expect(router.state.location.search).toBe(''));
     await findAuditTable();
   });
 
-  it('shows the no-match state with "Clear filters"', async () => {
+  it('shows the no-match state with "Clear all filters"', async () => {
     const { user } = renderApp('/admin/audit?actor=nobody');
 
-    expect(await screen.findByText('No audit entries match these filters')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(await screen.findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    const table = screen.getByRole('grid', { name: 'Audit log' });
+    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await findAuditTable();
   });
 

@@ -75,7 +75,7 @@ are RFC 9457 ProblemDetails with a human-readable `detail` the UI shows verbatim
   (no session created). Audited as `auth.login_denied` with reason.
 - **AUTH-8 Bootstrap admins.** A user whose username is in `Auth:BootstrapAdminUsers`, or who is a member of any group
   in `Auth:AdminGroups`, gets role Admin on login (persisted; audited `user.promoted` with actor `system (config)` when
-  it changes). Such users are marked "Admin via configuration" in the admin UI (see USR-6).
+  it changes). Such users are marked "Admin via configuration" in the admin UI (see USR-6). *(Superseded by CP3.5, T-0115: Role details read "Admin set in the deployment settings" / "Admin through group <g>".)*
 - **AUTH-9 `GET /api/auth/me`.** Returns username, display name (OCP `fullName` if present), role, global read-only
   flag, groups (from the last login), and whether admin comes from configuration. Returns 401 when not authenticated.
   The SPA masthead user menu shows the display name/username, a role badge for admins, a "Read only" badge when
@@ -279,7 +279,7 @@ are RFC 9457 ProblemDetails with a human-readable `detail` the UI shows verbatim
 - **SW-1 `GET /api/clusters`.** Returns, for the current user, enabled clusters with an active grant (user active):
   name, display name, environment, access mode, web console URL. No API URL, CA, or credential info. Admins get only
   their own granted clusters (GRANT-6). Sorted by environment (production first) then name — see Q6.
-- **SW-2 Switcher.** The masthead switcher lists those clusters (replacing the placeholder list) with the environment
+- **SW-2 Switcher.** The masthead switcher *(superseded by CP3.5, T-0111: sidebar switcher)* lists those clusters (replacing the placeholder list) with the environment
   label and a "Read only" label for ReadOnly grants (and for globally read-only users). Still navigation only.
   Loading → skeleton/spinner in the toggle; error → toggle shows "Clusters unavailable" with retry.
 - **SW-3 Landing.** `/` redirects to the last used cluster (localStorage) if it is still in the list, otherwise the
@@ -318,10 +318,10 @@ the ProblemDetails `detail` and a Retry button; never a blank page. Relative tim
 | Page | Layout & components | Empty / error states |
 |---|---|---|
 | `/login` | Centered `LoginPage`-style card: product name, "Log in with OpenShift" primary button, optional message `Alert` (logged out / session ended / not registered / deactivated / cancelled / unavailable) | — |
-| Masthead | Switcher `Select` with typeahead-ready structure (search comes in CP2); user `Dropdown` shows name, Admin/Read only badges, Log out | Switcher: "No clusters" disabled; "Clusters unavailable — retry" |
+| Masthead *(superseded by CP3.5, T-0111: masthead = hamburger, logo, theme menu, user menu; switcher at the top of the sidebar)* | Switcher `Select` with typeahead-ready structure (search comes in CP2); user `Dropdown` shows name, Admin/Read only badges, Log out | Switcher: "No clusters" disabled; "Clusters unavailable — retry" |
 | `/` (no grants) | `EmptyState` with `CubesIcon`, text per SW-4 | — |
 | `/admin/users` | Toolbar (search, Role, Status, Read-only chips), "Add user" primary; Table cols per USR-1; kebab: Promote/Demote, Set read-only, Deactivate/Reactivate, Grant access | EmptyState only theoretical (the admin exists); filter-no-match → "No users match" + Clear filters |
-| `/admin/users/:username` | Header: username, display name, badges (Admin, Admin via config, Read only, Deactivated/Pending); Tabs Details / Cluster access; "Grant access to clusters" button opens bulk `Modal` (or `Wizard`: Select clusters → Mode → Review) | Cluster access empty: "No cluster access yet" + Grant button |
+| `/admin/users/:username` | Header: username, display name, badges (Admin, Admin via config, Read only, Deactivated/Pending) *(superseded by CP3.5, T-0115: no "via config" badge; source shown in Role details; bulk wizard in Actions, "Grant access" in the Cluster access toolbar)*; Tabs Details / Cluster access; "Grant access to clusters" button opens bulk `Modal` (or `Wizard`: Select clusters → Mode → Review) | Cluster access empty: "No cluster access yet" + Grant button |
 | `/admin/clusters` | Expiry `Alert` (CRED-8) on top; Toolbar (search, Environment, Status); "Register cluster" primary; Table cols per CLU-7; kebab: Edit, Test connection, Enable/Disable, Delete (only when disabled) | Empty: "No clusters registered" + Register cluster CTA, short explanation of what's needed (API URL, CA, SA token) |
 | `/admin/clusters/new`, `/:name/edit` | Full-page `Form` with `FormSection`s: Identity (name, display name, environment), Connection (API URL, CA bundle `FileUpload`/textarea, Skip TLS `Switch` with warning `Alert`), Links (web console URL), Status (enabled). After create, land on the cluster's Credentials tab with an "Add a credential" prompt | Inline field errors; 409 name taken on the name field |
 | `/admin/clusters/:name` | Tabs Details / Credentials / Access. Credentials tab: table (name, SA identity, fingerprint in monospace, expiry label, grants, last test) + "Add credential", kebab: Test, Rotate, Delete. Test result shown in a `Modal` or expandable panel: step list with status icons (`CheckCircle`/`ExclamationTriangle`/`ExclamationCircle`), headline level `Label`, capability grid (`DescriptionList` or compact table with check/cross), hints (TEST-4), optional namespace inspect | Credentials empty: "No credentials — users can't be granted access until you add a ServiceAccount token" + `oc create token <sa> -n <ns> --duration=...` hint in a `ClipboardCopy`. Access empty: "Nobody has access to this cluster" + Grant |

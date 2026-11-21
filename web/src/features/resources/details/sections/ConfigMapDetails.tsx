@@ -1,15 +1,8 @@
-import {
-  CodeBlock,
-  CodeBlockCode,
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  Stack,
-  StackItem,
-  Title,
-} from '@patternfly/react-core';
+import { CodeBlock, CodeBlockCode, DescriptionList } from '@patternfly/react-core';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import type { ConfigMap } from '@/shared/k8s';
+import { DetailsItem } from '@/shared/ui';
+import { DetailsSubsection } from './DetailsSubsection';
 
 /** Decoded byte length of a base64 string (`binaryData` values), without decoding it. */
 export function base64Size(value: string): number {
@@ -26,43 +19,50 @@ export function formatBytes(bytes: number): string {
 }
 
 /**
- * ConfigMap part of the Details tab (UI-4): each `data` key with its value in a read-only code block, then the
- * `binaryData` keys with their decoded size (the bytes themselves aren't shown).
+ * ConfigMap sections below the details grid (UI-4): each `data` key as a term over its value in a read-only code block
+ * (OCP `ConfigMapDataView`), then the `binaryData` keys with their decoded size (the bytes themselves aren't shown).
+ * A config map has no kind-specific summary fields, so the grid's right column stays empty (as in OCP).
  */
 export function ConfigMapDetails({ obj }: { obj: ConfigMap }) {
   const data = Object.entries(obj.data ?? {});
   const binary = Object.entries(obj.binaryData ?? {});
   return (
-    <Stack hasGutter>
-      <StackItem>
-        <Title headingLevel="h3">Data</Title>
-      </StackItem>
-      {data.length === 0 && <StackItem>No data</StackItem>}
-      {data.map(([key, value]) => (
-        <StackItem key={key}>
-          <Title headingLevel="h4">{key}</Title>
-          <CodeBlock aria-label={key}>
-            <CodeBlockCode>{value}</CodeBlockCode>
-          </CodeBlock>
-        </StackItem>
-      ))}
+    <>
+      <DetailsSubsection title="Data">
+        {data.length === 0 ? (
+          'No data'
+        ) : (
+          <DescriptionList aria-label="Data">
+            {data.map(([key, value]) => (
+              <DetailsItem key={key} label={key}>
+                <CodeBlock aria-label={key}>
+                  <CodeBlockCode>{value}</CodeBlockCode>
+                </CodeBlock>
+              </DetailsItem>
+            ))}
+          </DescriptionList>
+        )}
+      </DetailsSubsection>
       {binary.length > 0 && (
-        <>
-          <StackItem>
-            <Title headingLevel="h3">Binary data</Title>
-          </StackItem>
-          <StackItem>
-            <DescriptionList aria-label="Binary data" isCompact isHorizontal>
+        <DetailsSubsection title="Binary data">
+          <Table aria-label="Binary data" variant="compact">
+            <Thead>
+              <Tr>
+                <Th>Key</Th>
+                <Th>Size</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
               {binary.map(([key, value]) => (
-                <DescriptionListGroup key={key}>
-                  <DescriptionListTerm>{key}</DescriptionListTerm>
-                  <DescriptionListDescription>{formatBytes(base64Size(value))}</DescriptionListDescription>
-                </DescriptionListGroup>
+                <Tr key={key}>
+                  <Td dataLabel="Key">{key}</Td>
+                  <Td dataLabel="Size">{formatBytes(base64Size(value))}</Td>
+                </Tr>
               ))}
-            </DescriptionList>
-          </StackItem>
-        </>
+            </Tbody>
+          </Table>
+        </DetailsSubsection>
       )}
-    </Stack>
+    </>
   );
 }

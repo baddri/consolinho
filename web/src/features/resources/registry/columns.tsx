@@ -1,8 +1,8 @@
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
-import { PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
+import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
 import { LabelList, RelativeTime } from '@/shared/ui';
-import { ResourceLink } from '../components/ResourceLink';
+import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
 import type { ColumnDef } from './types';
 
@@ -13,11 +13,15 @@ export function timestampValue(value: string | undefined): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-/** Name column: kind badge + link to the object's details page. Sort key `name`. */
+/**
+ * Name column: kind badge + link to the object's details page. Sort key `name`. A quarter of the table, so generated
+ * pod names (`web-7d4b9c8f6d-2xkqp`) stay on one line next to badge at 1280 instead of breaking at every hyphen.
+ */
 export function nameColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T> {
   return {
     id: 'name',
     title: 'Name',
+    width: 25,
     cell: (obj) => (
       <ResourceLink model={model} name={obj.metadata.name ?? ''} namespace={obj.metadata.namespace} />
     ),
@@ -25,11 +29,14 @@ export function nameColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T>
   };
 }
 
-/** Link to `model`'s list in one namespace of the active cluster. */
+/** `NS` badge + link to `model`'s list in one namespace of the active cluster (plain name outside a cluster). */
 function NamespaceListLink({ model, namespace }: { model: K8sModel; namespace: string }) {
   const cluster = useActiveCluster();
-  if (cluster === undefined) return <>{namespace}</>;
-  return <Link to={resourcePath(cluster, model, { namespace })}>{namespace}</Link>;
+  return (
+    <BadgedName badge={NamespaceModel}>
+      {cluster === undefined ? namespace : <Link to={resourcePath(cluster, model, { namespace })}>{namespace}</Link>}
+    </BadgedName>
+  );
 }
 
 /** Namespace column, shown only in all-namespaces mode; links to the same kind's list in that namespace. */

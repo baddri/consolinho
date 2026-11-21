@@ -57,6 +57,8 @@ export function CredentialExpiryAlert() {
     <Alert
       variant={summary.expired > 0 ? 'danger' : 'warning'}
       isInline
+      // The page's toolbar follows directly; keep the spacer--md gap between them.
+      className="pf-v6-u-mb-md"
       title={expiryAlertTitle(summary)}
       actionLinks={<AlertActionLink component={ReviewLink}>Review credentials</AlertActionLink>}
     />

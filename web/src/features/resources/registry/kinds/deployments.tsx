@@ -1,7 +1,6 @@
-import { DescriptionList, Stack, StackItem, Title } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { DeploymentModel, type Deployment, type K8sResource } from '@/shared/k8s';
-import { RelativeTime } from '@/shared/ui';
+import { DetailsItem, RelativeTime } from '@/shared/ui';
 import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
 import {
   PodSelectorLink,
@@ -12,7 +11,7 @@ import {
   namespaceColumn,
 } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
-import { DetailItem } from './DetailItem';
+import { DetailsSubsection } from '../../details/sections/DetailsSubsection';
 
 /** A listed deployment (`metadata` always present). */
 export type DeploymentResource = Deployment & K8sResource;
@@ -78,34 +77,30 @@ function ConditionsTable({ deployment }: { deployment: Deployment }) {
   );
 }
 
-/** Deployment part of the Details tab (UI-4): replica counts, strategy, selector and the conditions table. */
+/** Deployment fields of the Details tab's right column (UI-4): replica counts, strategy and the pod selector. */
 function DeploymentDetails({ obj }: { obj: DeploymentResource }) {
   const counts = obj.status;
   return (
-    <Stack hasGutter>
-      <StackItem>
-        <DescriptionList aria-label="Deployment status" isCompact isHorizontal>
-          <DetailItem term="Desired replicas">{desired(obj)}</DetailItem>
-          <DetailItem term="Current replicas">{counts?.replicas ?? 0}</DetailItem>
-          <DetailItem term="Ready replicas">{counts?.readyReplicas ?? 0}</DetailItem>
-          <DetailItem term="Updated replicas">{counts?.updatedReplicas ?? 0}</DetailItem>
-          <DetailItem term="Available replicas">{counts?.availableReplicas ?? 0}</DetailItem>
-          <DetailItem term="Update strategy">{strategyText(obj)}</DetailItem>
-          <DetailItem term="Pod selector">
-            <PodSelectorLink
-              namespace={obj.metadata.namespace}
-              matchLabels={obj.spec?.selector.matchLabels}
-            />
-          </DetailItem>
-        </DescriptionList>
-      </StackItem>
-      <StackItem>
-        <Title headingLevel="h3">Conditions</Title>
-      </StackItem>
-      <StackItem>
-        <ConditionsTable deployment={obj} />
-      </StackItem>
-    </Stack>
+    <>
+      <DetailsItem label="Desired replicas">{desired(obj)}</DetailsItem>
+      <DetailsItem label="Current replicas">{counts?.replicas ?? 0}</DetailsItem>
+      <DetailsItem label="Ready replicas">{counts?.readyReplicas ?? 0}</DetailsItem>
+      <DetailsItem label="Updated replicas">{counts?.updatedReplicas ?? 0}</DetailsItem>
+      <DetailsItem label="Available replicas">{counts?.availableReplicas ?? 0}</DetailsItem>
+      <DetailsItem label="Update strategy">{strategyText(obj)}</DetailsItem>
+      <DetailsItem label="Pod selector">
+        <PodSelectorLink namespace={obj.metadata.namespace} matchLabels={obj.spec?.selector.matchLabels} />
+      </DetailsItem>
+    </>
+  );
+}
+
+/** Conditions section below the deployment's details grid (UI-4). */
+function DeploymentConditions({ obj }: { obj: DeploymentResource }) {
+  return (
+    <DetailsSubsection title="Conditions">
+      <ConditionsTable deployment={obj} />
+    </DetailsSubsection>
   );
 }
 
@@ -115,6 +110,7 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   nav: { section: 'workloads', order: 20 },
   status: deploymentStatus,
   DetailsSection: DeploymentDetails,
+  ExtraSections: DeploymentConditions,
   columns: [
     nameColumn(DeploymentModel),
     namespaceColumn(DeploymentModel),

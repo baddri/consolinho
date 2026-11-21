@@ -4,13 +4,11 @@ import {
   EmptyStateActions,
   EmptyStateBody,
   EmptyStateFooter,
-  PageSection,
   Skeleton,
-  Title,
 } from '@patternfly/react-core';
 import { Link, useParams, type LinkProps } from 'react-router';
 import { isApiError } from '@/shared/api';
-import { ErrorState } from '@/shared/ui';
+import { ErrorState, PageBody, PageHeading, type BreadcrumbCrumb } from '@/shared/ui';
 import { useCluster } from './api';
 import { ClusterForm } from './form/ClusterForm';
 
@@ -18,6 +16,9 @@ import { ClusterForm } from './form/ClusterForm';
 function ClustersLink(props: Omit<LinkProps, 'to'>) {
   return <Link {...props} to="/admin/clusters" />;
 }
+
+/** Breadcrumb `Clusters › <current page>` of both modes (`UX.md` §3). */
+const crumbs = (current: string): BreadcrumbCrumb[] => [{ label: 'Clusters', to: '/admin/clusters' }, { label: current }];
 
 /**
  * `/admin/clusters/new` (register) and `/admin/clusters/:name/edit` (edit) — one form (T-0034); the mode follows from
@@ -32,12 +33,10 @@ export function ClusterFormPage() {
 function RegisterClusterPage() {
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">Register cluster</Title>
-      </PageSection>
-      <PageSection>
+      <PageHeading breadcrumbs={crumbs('Register cluster')} title="Register cluster" />
+      <PageBody>
         <ClusterForm />
-      </PageSection>
+      </PageBody>
     </>
   );
 }
@@ -51,10 +50,8 @@ function EditClusterPage({ name }: { name: string }) {
   const { data: cluster, error, isPending, refetch } = useCluster(name);
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">{`Edit ${name}`}</Title>
-      </PageSection>
-      <PageSection>
+      <PageHeading breadcrumbs={crumbs('Edit cluster')} title={`Edit ${name}`} />
+      <PageBody>
         {isPending && <Skeleton height="20rem" screenreaderText="Loading cluster" />}
         {error &&
           !cluster &&
@@ -73,7 +70,7 @@ function EditClusterPage({ name }: { name: string }) {
             <ErrorState error={error} title="Could not load cluster" onRetry={() => void refetch()} />
           ))}
         {cluster && <ClusterForm cluster={cluster} onReload={async () => (await refetch()).data} />}
-      </PageSection>
+      </PageBody>
     </>
   );
 }

@@ -147,8 +147,8 @@ describe('Grants tabs (T-0039)', () => {
     const writes = captureGrantWrites();
     const { user } = renderApp('/admin/users/bob/access');
     await screen.findByText('No cluster access yet');
-    await clickFirst(user, 'Add access');
-    const dialog = await screen.findByRole('dialog', { name: 'Add cluster access for bob' });
+    await clickFirst(user, 'Grant access');
+    const dialog = await screen.findByRole('dialog', { name: 'Grant bob access to a cluster' });
 
     await pick(user, 'Cluster', 'staging', 'staging-eu-1');
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'));
@@ -175,8 +175,8 @@ describe('Grants tabs (T-0039)', () => {
   it('GRANT-2/Q7: existing access disabled, picker test labels, production read-write warning', async () => {
     const { user } = renderApp('/admin/users/alice/access');
     await findTable('Cluster access of alice');
-    await user.click(screen.getByRole('button', { name: 'Add access' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Add cluster access for alice' });
+    await user.click(screen.getByRole('button', { name: 'Grant access' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Grant alice access to a cluster' });
 
     await user.click(within(dialog).getByRole('combobox', { name: 'Cluster' }));
     const taken = await screen.findByRole('option', { name: /^prod-eu-1/ });
@@ -231,8 +231,8 @@ describe('Grants tabs (T-0039)', () => {
     server.use(http.post('/api/admin/grants', () => answer));
     const { user } = renderApp('/admin/users/bob/access');
     await screen.findByText('No cluster access yet');
-    await clickFirst(user, 'Add access');
-    const dialog = await screen.findByRole('dialog', { name: 'Add cluster access for bob' });
+    await clickFirst(user, 'Grant access');
+    const dialog = await screen.findByRole('dialog', { name: 'Grant bob access to a cluster' });
     await pick(user, 'Cluster', 'dev-1', 'dev-1');
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-edit'));
 
@@ -249,7 +249,7 @@ describe('Grants tabs (T-0039)', () => {
     await waitFor(() =>
       expect(credential).toHaveAccessibleDescription(expect.stringContaining('This credential belongs to another cluster.')),
     );
-    expect(screen.getByRole('dialog', { name: 'Add cluster access for bob' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Grant bob access to a cluster' })).toBeInTheDocument();
   });
 
   it('GRANT-3: changes mode and credential with the version, recovering from a conflict', async () => {
@@ -298,7 +298,8 @@ describe('Grants tabs (T-0039)', () => {
     const { user } = renderApp('/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
-    const dialog = await screen.findByRole('dialog', { name: /Revoke carol's access to prod-eu-1 \(production\)\?/ });
+    const dialog = await screen.findByRole('dialog', { name: 'Revoke access? prod' });
+    expect(dialog).toHaveTextContent("Are you sure you want to revoke carol's access to prod-eu-1?");
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 
     expect(await screen.findByText("Revoked carol's access to prod-eu-1")).toBeInTheDocument();
@@ -310,7 +311,7 @@ describe('Grants tabs (T-0039)', () => {
     const { user } = renderApp('/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
-    const dialog = await screen.findByRole('dialog', { name: /Revoke carol's access/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Revoke access\?/ });
     mockDb.grants = mockDb.grants.filter((grant) => grant.id !== grantIds.carolProdEu);
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
 
@@ -323,8 +324,8 @@ describe('Grants tabs (T-0039)', () => {
     server.use(http.get('/api/admin/clusters', () => problem(500, { detail: 'Database unavailable' })));
     const { user } = renderApp('/admin/users/bob/access');
     await screen.findByText('No cluster access yet');
-    await clickFirst(user, 'Add access');
-    await screen.findByRole('dialog', { name: 'Add cluster access for bob' });
+    await clickFirst(user, 'Grant access');
+    await screen.findByRole('dialog', { name: 'Grant bob access to a cluster' });
     await user.click(screen.getByRole('combobox', { name: 'Cluster' }));
     expect(await screen.findByRole('option', { name: 'Could not load clusters' })).toBeDisabled();
   });
@@ -336,8 +337,8 @@ describe('Grants tabs (T-0039)', () => {
     await waitFor(() => expect(queryClient.getQueryData(accessibleClustersQueryKey)).toBeDefined());
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
-    await user.click(screen.getByRole('button', { name: 'Add access' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Add cluster access for admin' });
+    await user.click(screen.getByRole('button', { name: 'Grant access' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Grant admin access to a cluster' });
     await pick(user, 'Cluster', 'staging', 'staging-eu-1');
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'));
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
@@ -371,7 +372,7 @@ describe('Grants tabs (T-0039)', () => {
     setMockUser('ines');
     const { user } = renderApp('/admin/users/alice/access');
     const table = await findTable('Cluster access of alice');
-    expect(screen.getByRole('button', { name: 'Add access' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Grant access' })).toHaveAttribute('aria-disabled', 'true');
     await user.click(within(rowOf(table, 'prod-eu-1')).getByRole('button', { name: 'Kebab toggle' }));
     expect(await screen.findByRole('menuitem', { name: 'Change' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('menuitem', { name: 'Revoke' })).toHaveAttribute('aria-disabled', 'true');

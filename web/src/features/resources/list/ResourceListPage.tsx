@@ -3,21 +3,18 @@ import {
   Button,
   EmptyState,
   EmptyStateBody,
-  Flex,
-  FlexItem,
   PageSection,
   Pagination,
-  Title,
   type PerPageOptions,
 } from '@patternfly/react-core';
 import { SearchIcon } from '@patternfly/react-icons';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router';
-import { NamespaceSelector, useLastNamespace } from '@/features/cluster-context';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { Navigate, useLocation } from 'react-router';
 import { apiVersionOf, useK8sDiscovery, useK8sList, type K8sResource } from '@/shared/k8s';
 import { TableEmptyRow, useClientSort, type SortValue } from '@/shared/table';
-import { KindBadge } from '../components/KindBadge';
+import { PageBody, PageHeading } from '@/shared/ui';
 import { ResourceRowActions } from '../actions/ResourceRowActions';
+import { ProjectBar } from '../components/ProjectBar';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { ResourcePageSkeleton } from '../components/ResourcePageSkeleton';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
@@ -117,7 +114,10 @@ interface ResourceListProps {
   namespace: string | undefined;
 }
 
-/** Header, toolbar, table and pagination of one live list; data from `useK8sList`, filters from the URL. */
+/**
+ * Project bar, heading, toolbar, table and pagination of one live list (or the `EmptyBox`-style empty state); data
+ * from `useK8sList`, filters from the URL.
+ */
 function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListProps) {
   const { model } = descriptor;
   const filters = useResourceFilters(descriptor);
@@ -148,9 +148,17 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
   );
 
   const columns = useMemo(
-    () => descriptor.columns.filter((column) => !column.allNamespacesOnly || scope === 'all'),
+    () =>
+      scope === 'all'
+        ? descriptor.columns.map((column) =>
+            column.allNamespacesVisibility ? { ...column, visibility: column.allNamespacesVisibility } : column,
+          )
+        : descriptor.columns.filter((column) => !column.allNamespacesOnly),
     [descriptor, scope],
   );
+
+  // Nothing in the list and no filter: OCP's `EmptyBox` alone — no headers, no "0 - 0 of 0" pagination.
+  const isEmpty = !list.isPending && !list.error && sorted.length === 0 && !filters.isFiltered;
 
   const pagination = (variant: 'top' | 'bottom') => (
     <Pagination
@@ -172,21 +180,16 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
   return (
     <>
       {model.namespaced && <ProjectBar descriptor={descriptor} cluster={cluster} namespace={namespace} />}
-      <PageSection>
-        <Flex alignItems={{ default: 'alignItemsCenter' }} spaceItems={{ default: 'spaceItemsSm' }}>
-          <FlexItem>
-            <KindBadge model={model} />
-          </FlexItem>
-          <FlexItem>
-            <Title headingLevel="h1">{model.labelPlural}</Title>
-          </FlexItem>
-          <FlexItem>
-            <LiveIndicator status={list.liveStatus} />
-          </FlexItem>
-        </Flex>
-      </PageSection>
-      <PageSection>
-        <ResourceListToolbar descriptor={descriptor} filters={filters} actions={pagination('top')} />
+      <PageHeading
+        title={model.labelPlural}
+        status={list.liveStatus === 'paused' ? <LiveIndicator status={list.liveStatus} /> : undefined}
+      />
+      <PageBody>
+        <ResourceListToolbar
+          descriptor={descriptor}
+          filters={filters}
+          actions={isEmpty ? undefined : pagination('top')}
+        />
         {list.error ? (
           <ResourceErrorState
             error={list.error}
@@ -195,6 +198,8 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
             namespace={namespace}
             onRetry={() => list.refetch()}
           />
+        ) : isEmpty ? (
+          <EmptyState variant="sm" titleText={`No ${model.labelPlural} found`} headingLevel="h2" />
         ) : (
           <>
             <ResourceTable
@@ -206,90 +211,30 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
               rowActions={(obj) => <ResourceRowActions cluster={cluster} descriptor={descriptor} obj={obj} />}
               emptyRow={
                 sorted.length === 0 && (
-                  <ListEmptyRow
-                    descriptor={descriptor}
-                    namespace={namespace}
-                    colSpan={columns.length + 1}
-                    isFiltered={filters.isFiltered}
-                    onClearFilters={filters.clearAll}
-                  />
+                  <FilteredEmptyRow colSpan={columns.length + 1} onClearFilters={filters.clearAll} />
                 )
               }
             />
             {sorted.length > 0 && pagination('bottom')}
           </>
         )}
-      </PageSection>
+      </PageBody>
     </>
   );
 }
 
-/**
- * The project selector above a namespaced list (NS-1/NS-2): selecting navigates to the same kind in the chosen
- * project (or all projects), keeping the query string; the shown project is remembered for the cluster.
- */
-function ProjectBar({
-  descriptor,
-  cluster,
-  namespace,
-}: {
-  descriptor: ResourceDescriptor;
-  cluster: string;
-  /** A namespace or {@link ALL_NAMESPACES}. */
-  namespace: string | undefined;
-}) {
-  const navigate = useNavigate();
-  const { search } = useLocation();
-  const [, rememberNamespace] = useLastNamespace(cluster);
-  const selected = namespace === ALL_NAMESPACES ? undefined : namespace;
-
-  useEffect(() => rememberNamespace(selected), [rememberNamespace, selected]);
-
+/** Filters matched nothing (OCP copy): "No results match the filter criteria" + Clear all filters, under the headers. */
+function FilteredEmptyRow({ colSpan, onClearFilters }: { colSpan: number; onClearFilters: () => void }) {
   return (
-    <PageSection>
-      <NamespaceSelector
-        cluster={cluster}
-        namespace={selected}
-        onSelect={(next) =>
-          void navigate(
-            resourcePath(cluster, descriptor.model, { namespace: next ?? ALL_NAMESPACES, search }),
-          )
-        }
-      />
-    </PageSection>
+    <TableEmptyRow
+      colSpan={colSpan}
+      title="No results match the filter criteria"
+      icon={SearchIcon}
+      actions={
+        <Button variant="link" onClick={onClearFilters}>
+          Clear all filters
+        </Button>
+      }
+    />
   );
-}
-
-/** "No pods found in shop", or with filters applied "No pods match the filters" + Clear filters. */
-function ListEmptyRow({
-  descriptor,
-  namespace,
-  colSpan,
-  isFiltered,
-  onClearFilters,
-}: {
-  descriptor: ResourceDescriptor;
-  namespace: string | undefined;
-  colSpan: number;
-  isFiltered: boolean;
-  onClearFilters: () => void;
-}) {
-  const plural = descriptor.model.labelPlural;
-  if (isFiltered) {
-    return (
-      <TableEmptyRow
-        colSpan={colSpan}
-        title={`No ${plural} match the filters`}
-        icon={SearchIcon}
-        actions={
-          <Button variant="link" onClick={onClearFilters}>
-            Clear filters
-          </Button>
-        }
-      />
-    );
-  }
-  const where =
-    namespace === undefined ? '' : namespace === ALL_NAMESPACES ? ' in any project' : ` in ${namespace}`;
-  return <TableEmptyRow colSpan={colSpan} title={`No ${plural} found${where}`} />;
 }

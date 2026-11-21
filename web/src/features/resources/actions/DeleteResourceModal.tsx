@@ -1,7 +1,6 @@
 import { Content } from '@patternfly/react-core';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import { ConfirmModal, EnvironmentLabel } from '@/shared/ui';
-import { useNamespaceModel } from '../details/useNamespaceModel';
 import type { ResourceDescriptor } from '../registry/types';
 import { useDeleteResource } from './useDeleteResource';
 
@@ -21,10 +20,10 @@ export interface DeleteResourceModalProps {
 }
 
 /**
- * UI-8 delete confirmation (ADR-0015 §7): a danger dialog titled "Delete <Kind> <name>?" with the cluster's
- * environment label, a body naming the project/namespace and the cluster, and type-to-confirm when the descriptor sets
- * `deleteRequiresName`. A failure (e.g. the proxy's 403 read-only detail or the cluster's RBAC `Status`) stays inline;
- * success toasts "<name> deleted from <cluster>".
+ * UI-8 delete confirmation (ADR-0015 §7, OCP `delete-modal.tsx`): a danger dialog titled "Delete <Kind>?" with the
+ * cluster's environment label, a body naming object, namespace and cluster in bold ("in namespace", as OCP says even
+ * for projects), and type-to-confirm when the descriptor sets `deleteRequiresName`. A failure (e.g. the proxy's 403
+ * read-only detail or the cluster's RBAC `Status`) stays inline; success toasts "<name> deleted from <cluster>".
  */
 export function DeleteResourceModal({
   cluster,
@@ -41,17 +40,14 @@ export function DeleteResourceModal({
       onClose();
     },
   });
-  const namespaceModel = useNamespaceModel(cluster);
   const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
   const scope = model.namespaced ? namespace : undefined;
   const confirm = () => mutation.mutate({ namespace: scope, name });
 
-  const where =
-    scope === undefined ? `on ${cluster}` : `in ${namespaceModel.label.toLowerCase()} ${scope} on ${cluster}`;
   return (
     <ConfirmModal
       isOpen
-      title={`Delete ${model.label} ${name}?`}
+      title={`Delete ${model.label}?`}
       titleLabel={environment ? <EnvironmentLabel environment={environment} isCompact /> : undefined}
       confirmLabel="Delete"
       variant="danger"
@@ -61,7 +57,16 @@ export function DeleteResourceModal({
       onConfirm={confirm}
       onClose={onClose}
     >
-      <Content component="p">{`${model.label} ${name} ${where} will be deleted.`}</Content>
+      <Content component="p">
+        Are you sure you want to delete <strong>{name}</strong>
+        {scope !== undefined && (
+          <>
+            {' in namespace '}
+            <strong>{scope}</strong>
+          </>
+        )}{' '}
+        on cluster <strong>{cluster}</strong>?
+      </Content>
     </ConfirmModal>
   );
 }

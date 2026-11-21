@@ -1,12 +1,10 @@
-import { Breadcrumb, BreadcrumbItem, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core';
 import type { ReactNode } from 'react';
-import { Link } from 'react-router';
 import type { K8sModel } from '@/shared/k8s';
+import { PageHeading } from '@/shared/ui';
 import { KindBadge } from '../components/KindBadge';
 import { ResourceStatusLabel } from '../components/ResourceStatusLabel';
 import { resourcePath } from '../paths';
 import type { ResourceStatus } from '../registry/types';
-import { useNamespaceModel } from './useNamespaceModel';
 
 /** Props for {@link ResourceHeader}. */
 export interface ResourceHeaderProps {
@@ -23,68 +21,21 @@ export interface ResourceHeaderProps {
 }
 
 /**
- * `Projects › <ns> › <Kinds> › <name>`, or `<Kinds> › <name>` for cluster-scoped kinds (spec §5). The items are direct
- * `BreadcrumbItem` children with no conditional gaps: `Breadcrumb` draws dividers by child index.
- */
-function ResourceBreadcrumb({
-  cluster,
-  model,
-  namespace,
-  name,
-}: Omit<ResourceHeaderProps, 'status' | 'actions'>) {
-  const namespaceModel = useNamespaceModel(cluster);
-  const links: { to: string; text: string }[] = [];
-  if (model.namespaced && namespace !== undefined) {
-    links.push(
-      { to: resourcePath(cluster, namespaceModel), text: namespaceModel.labelPlural },
-      { to: resourcePath(cluster, namespaceModel, { name: namespace }), text: namespace },
-    );
-  }
-  links.push({ to: resourcePath(cluster, model, { namespace }), text: model.labelPlural });
-  return (
-    <Breadcrumb>
-      {links.map(({ to, text }) => (
-        <BreadcrumbItem
-          key={to}
-          render={({ className }) => (
-            <Link className={className} to={to}>
-              {text}
-            </Link>
-          )}
-        />
-      ))}
-      <BreadcrumbItem isActive>{name}</BreadcrumbItem>
-    </Breadcrumb>
-  );
-}
-
-/**
- * Header of a resource details page (spec §5): breadcrumb, then kind badge + name as `h1` + status label, with an
- * actions slot on the right. Rendered in every state of the page (loading, not found, errors).
+ * Heading of a resource details page (`UX.md` §3, OCP `breadcrumbsForDetailsPage`): breadcrumb `<Kinds> › <Kind>
+ * details` (the list in the object's namespace, or the cluster-scoped list), kind badge + name as `h1`, the status as
+ * an outlined label and the actions on the right. Rendered in every state of the page (loading, not found, errors).
  */
 export function ResourceHeader({ cluster, model, namespace, name, status, actions }: ResourceHeaderProps) {
   return (
-    <PageSection>
-      <ResourceBreadcrumb cluster={cluster} model={model} namespace={namespace} name={name} />
-      <Flex
-        justifyContent={{ default: 'justifyContentSpaceBetween' }}
-        alignItems={{ default: 'alignItemsCenter' }}
-      >
-        <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
-          <FlexItem>
-            <KindBadge model={model} />
-          </FlexItem>
-          <FlexItem>
-            <Title headingLevel="h1">{name}</Title>
-          </FlexItem>
-          {status && (
-            <FlexItem>
-              <ResourceStatusLabel status={status} />
-            </FlexItem>
-          )}
-        </Flex>
-        {actions && <FlexItem>{actions}</FlexItem>}
-      </Flex>
-    </PageSection>
+    <PageHeading
+      breadcrumbs={[
+        { label: model.labelPlural, to: resourcePath(cluster, model, { namespace }) },
+        { label: `${model.label} details` },
+      ]}
+      icon={<KindBadge model={model} />}
+      title={name}
+      status={status && <ResourceStatusLabel status={status} asLabel />}
+      actions={actions}
+    />
   );
 }

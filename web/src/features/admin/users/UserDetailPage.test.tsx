@@ -12,12 +12,16 @@ async function findDetails(timeout?: number) {
   return screen.findByLabelText('User details', { selector: 'dl' }, { timeout });
 }
 
-/** Reads the details description list as `term → text`. */
-function detailsOf(list: HTMLElement): Record<string, string> {
-  const terms = within(list).getAllByRole('term');
-  const values = within(list).getAllByRole('definition');
+/** Reads both details columns of the Details tab as `term → text`. */
+function details(): Record<string, string> {
+  const panel = screen.getByRole('tabpanel', { name: 'Details' });
+  const terms = within(panel).getAllByRole('term');
+  const values = within(panel).getAllByRole('definition');
   return Object.fromEntries(terms.map((term, i) => [term.textContent, values[i]?.textContent ?? '']));
 }
+
+/** Texts that must never reach an admin (`UX.md` §11). */
+const INTERNAL_COPY = /CP\d|proxy|configuration \(|user list/;
 
 beforeEach(() => mockViewportWidth(1440));
 afterEach(() => server.events.removeAllListeners());
@@ -36,33 +40,61 @@ describe('UserDetailPage (T-0032)', () => {
       expect(screen.getByText('Alice Example', { selector: 'p' })).toBeInTheDocument();
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
       expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/admin/users');
+      expect(within(crumbs).getByText('User details')).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('heading', { name: 'User details', level: 2 })).toBeInTheDocument();
+      // One create entry point on the page (T-0114 review): the bulk wizard lives in the Actions menu.
+      expect(screen.queryByRole('button', { name: 'Grant access to clusters' })).not.toBeInTheDocument();
 
-      const details = detailsOf(list);
-      expect(details).toMatchObject({
+      expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
+        'Username',
+        'Display name',
+        'Role',
+        'Status',
+        'Read only',
+      ]);
+      const values = details();
+      expect(values).toMatchObject({
+        Username: 'alice',
         Role: 'User',
         Status: 'Active',
         'Display name': 'Alice Example',
         'Groups last seen': 'sre',
         'Cluster grants': '2',
       });
-      expect(details['Read only']).toMatch(/^No.*Read-only applies on every cluster regardless of grant mode/);
-      expect(details.Created).toMatch(/ago by alice$/);
-      expect(details['Last login']).toMatch(/ago$/);
-      expect(within(list).getByRole('link', { name: 'View audit entries' })).toHaveAttribute(
+      expect(values['Read only']).toBe(
+        "NoRead-only users can't change anything on any cluster or in Fleet administration.",
+      );
+      expect(values.Created).toMatch(/ago by alice$/);
+      expect(values['Last login']).toMatch(/ago$/);
+      expect(document.body.textContent).not.toMatch(INTERNAL_COPY);
+      expect(screen.getByRole('link', { name: 'View audit entries' })).toHaveAttribute(
         'href',
         '/admin/audit?user=alice',
       );
     },
   );
 
-  it('USR-6: a configuration admin is labelled with the source', async () => {
+  it('USR-6: a configuration admin shows where the role comes from, in user language', async () => {
     renderApp('/admin/users/admin');
-    const list = await findDetails();
+    await findDetails();
 
     const labels = screen.getByRole('list', { name: 'User labels' });
     expect(within(labels).getByText('Admin')).toBeInTheDocument();
-    expect(within(labels).getByText('Admin via configuration (group fleetconsole-admins)')).toBeInTheDocument();
-    expect(detailsOf(list).Role).toBe('Administrator — granted by configuration (group fleetconsole-admins)');
+    expect(details().Role).toBe('AdministratorAdmin through group fleetconsole-admins');
+    expect(document.body.textContent).not.toMatch(INTERNAL_COPY);
+  });
+
+  it('USR-6: an admin from the deployment user list and a read-only admin', async () => {
+    const ines = mockDb.users.find((u) => u.username === 'ines');
+    if (!ines) throw new Error('no ines fixture');
+    ines.adminConfigurationSource = 'user list';
+    renderApp('/admin/users/ines');
+    await findDetails();
+
+    const labels = screen.getByRole('list', { name: 'User labels' });
+    expect(within(labels).getByText('Read only')).toBeInTheDocument();
+    expect(details().Role).toContain('Admin set in the deployment settings');
+    expect(document.body.textContent).not.toMatch(INTERNAL_COPY);
   });
 
   it('tabs are URL-driven', async () => {
@@ -99,7 +131,7 @@ describe('UserDetailPage (T-0032)', () => {
     expect(demote).toHaveAttribute('aria-disabled', 'true');
     await user.hover(demote);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'Admin granted by configuration (group fleetconsole-admins). Change the configuration to remove.',
+      'Admin through group fleetconsole-admins. Remove it in the deployment settings.',
     );
     expect(screen.getByRole('menuitem', { name: 'Deactivate' })).toHaveAttribute('aria-disabled', 'true');
 

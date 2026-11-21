@@ -17,6 +17,7 @@ export function AppShell() {
       banner={<EnvironmentBanner />}
       sidebar={<AppSidebar />}
       isManagedSidebar
+      isContentFilled
       skipToContent={<SkipToContent href={`#${MAIN_CONTENT_ID}`}>Skip to content</SkipToContent>}
       mainContainerId={MAIN_CONTENT_ID}
     >

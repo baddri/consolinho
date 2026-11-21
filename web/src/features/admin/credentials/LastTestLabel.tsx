@@ -1,6 +1,6 @@
-import { Flex, FlexItem, Label } from '@patternfly/react-core';
+import { Flex, FlexItem } from '@patternfly/react-core';
 import type { CapabilityLevel, ConnectionTestStep, ConnectionTestSummary } from '@/shared/api';
-import { RelativeTime } from '@/shared/ui';
+import { RelativeTime, StatusIconText } from '@/shared/ui';
 
 /** Display names of the connection-test steps (TEST-1), as in "Failed at Authentication". */
 export const TEST_STEP_LABELS: Record<ConnectionTestStep, string> = {
@@ -23,14 +23,16 @@ export const CAPABILITY_LABELS: Record<CapabilityLevel, string> = {
 export interface LastTestLabelProps {
   /** The credential's last connection test; `null` = never tested. */
   lastTest: ConnectionTestSummary | null;
+  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  asLabel?: boolean;
 }
 
 /**
- * Last connection test of one credential (CRED-3, TEST-5): "Never tested", a green "Passed" label with the capability
- * headline, or a red "Failed at <step>" label, each with the relative test time; plus a warning "Settings changed
- * since last test" when the cluster's connection settings changed afterwards (`isStale`).
+ * Last connection test of one credential (CRED-3, TEST-5) as icon + text (`UX.md` §5): "Never tested", "Passed" with
+ * the capability headline (green check) or "Failed at <step>" (danger), each with the relative test time; plus a
+ * warning "Settings changed since last test" when the cluster's connection settings changed afterwards (`isStale`).
  */
-export function LastTestLabel({ lastTest }: LastTestLabelProps) {
+export function LastTestLabel({ lastTest, asLabel }: LastTestLabelProps) {
   if (lastTest === null) return <span className="pf-v6-u-text-color-subtle">Never tested</span>;
   const { succeeded, failedStep, headline, testedAt, isStale } = lastTest;
   let text = 'Failed';
@@ -38,17 +40,16 @@ export function LastTestLabel({ lastTest }: LastTestLabelProps) {
   else if (failedStep !== null) text = `Failed at ${TEST_STEP_LABELS[failedStep]}`;
   return (
     <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
+      {/* Status and time on their own lines, like the expiry cell; the status never breaks mid-phrase. */}
+      <FlexItem className="pf-v6-u-text-nowrap">
+        <StatusIconText status={succeeded ? 'success' : 'danger'} text={text} asLabel={asLabel} />
+      </FlexItem>
       <FlexItem>
-        <Label isCompact status={succeeded ? 'success' : 'danger'}>
-          {text}
-        </Label>{' '}
         <RelativeTime value={testedAt} />
       </FlexItem>
       {isStale && (
         <FlexItem>
-          <Label isCompact status="warning">
-            Settings changed since last test
-          </Label>
+          <StatusIconText status="warning" text="Settings changed since last test" />
         </FlexItem>
       )}
     </Flex>

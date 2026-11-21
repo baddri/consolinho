@@ -1,13 +1,15 @@
+import { EmptyState, EmptyStateBody } from '@patternfly/react-core';
 import { EventModel, useK8sList, type K8sResource } from '@/shared/k8s';
-import { TableEmptyRow, useClientSort, type SortValue } from '@/shared/table';
+import { useClientSort, type SortValue } from '@/shared/table';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { useResourceDetails } from '../details/detailsContext';
 import { ResourceTable } from '../list/ResourceTable';
 import { eventColumns } from '../registry/kinds/events';
 import type { ColumnDef } from '../registry/types';
 
-/** Exact empty text of UI-5. */
-export const NO_EVENTS_TEXT = 'No events — events are kept for about an hour by default.';
+/** Empty-state title and body (UI-5 text, split OCP `EmptyBox`-style by T-0113). */
+export const NO_EVENTS_TITLE = 'No events';
+export const NO_EVENTS_BODY = 'Events are kept for about an hour by default.';
 
 const COLUMNS: ColumnDef<K8sResource>[] = eventColumns({ withInvolvedObject: false });
 const NO_EVENTS: K8sResource[] = [];
@@ -21,7 +23,8 @@ const SORT_ACCESSORS: Record<string, (event: K8sResource) => SortValue> = Object
 
 /**
  * Events tab (UI-5): the object's events only — a live list filtered server-side by `involvedObject.uid` in the
- * object's namespace — newest first, with the Events list columns minus "Involved object". Lazy route module.
+ * object's namespace — newest first, with the Events list columns minus "Involved object". Without events a small
+ * `EmptyState` replaces the table (no orphan column headers). Lazy route module.
  */
 export function ResourceEventsTab() {
   const { cluster, obj } = useResourceDetails();
@@ -46,6 +49,13 @@ export function ResourceEventsTab() {
       />
     );
   }
+  if (!events.isPending && sorted.length === 0) {
+    return (
+      <EmptyState variant="sm" titleText={NO_EVENTS_TITLE} headingLevel="h2">
+        <EmptyStateBody>{NO_EVENTS_BODY}</EmptyStateBody>
+      </EmptyState>
+    );
+  }
   return (
     <ResourceTable
       ariaLabel="Events"
@@ -53,7 +63,6 @@ export function ResourceEventsTab() {
       rows={sorted}
       sortProps={sortProps}
       isPending={events.isPending}
-      emptyRow={sorted.length === 0 && <TableEmptyRow colSpan={COLUMNS.length} title={NO_EVENTS_TEXT} />}
     />
   );
 }

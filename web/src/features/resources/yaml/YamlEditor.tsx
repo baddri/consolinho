@@ -27,7 +27,7 @@ export function YamlEditor({ value, onChange, isReadOnly, downloadFileName, tool
   return (
     <Stack hasGutter>
       {toolbar !== undefined && <StackItem>{toolbar}</StackItem>}
-      <StackItem>
+      <StackItem isFilled>
         <CodeEditor
           code={value}
           onCodeChange={onChange}
@@ -37,8 +37,9 @@ export function YamlEditor({ value, onChange, isReadOnly, downloadFileName, tool
           isDownloadEnabled
           downloadFileName={downloadFileName}
           isLanguageLabelVisible
-          // Fills most of the viewport; Monaco scrolls long objects itself instead of growing the page.
-          height="60vh"
+          // Fills the YAML tab down to the bottom of the content card (`UX.md` §7; the tab's section and stacks are
+          // filled flex columns); Monaco scrolls long objects itself instead of growing the page.
+          height="100%"
           options={{ ariaLabel: 'YAML editor', scrollBeyondLastLine: false, tabSize: 2 }}
         />
       </StackItem>

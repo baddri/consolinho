@@ -1,15 +1,9 @@
-import {
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  Stack,
-  StackItem,
-  Title,
-} from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import type { ReactNode } from 'react';
 import type { Pod } from '@/shared/k8s';
+import { DetailsItem } from '@/shared/ui';
+import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
+import type { ResourceStatus } from '../../registry/types';
+import { DetailsSubsection } from './DetailsSubsection';
 
 type ContainerStatus = NonNullable<NonNullable<Pod['status']>['containerStatuses']>[number];
 type ContainerState = NonNullable<ContainerStatus['state']>;
@@ -28,16 +22,6 @@ function lastTermination(status: ContainerStatus | undefined): string {
   const terminated = status?.lastState?.terminated;
   if (!terminated) return '—';
   return `${terminated.reason ?? 'Terminated'}, exit code ${String(terminated.exitCode)}`;
-}
-
-/** One summary row of the pod's `DescriptionList`. */
-function Item({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <DescriptionListGroup>
-      <DescriptionListTerm>{term}</DescriptionListTerm>
-      <DescriptionListDescription>{children}</DescriptionListDescription>
-    </DescriptionListGroup>
-  );
 }
 
 /** Containers table: spec order, joined with their statuses by name. */
@@ -76,28 +60,39 @@ function ContainersTable({ pod }: { pod: Pod }) {
   );
 }
 
+/** Props for {@link PodDetails}. */
+export interface PodDetailsProps {
+  obj: Pod;
+  /** The descriptor's pod status (same as the title's), passed in so this module needn't import the descriptor. */
+  status: ResourceStatus;
+}
+
 /**
- * Pod part of the Details tab (UI-4): phase, node, pod IP(s), QoS class and the containers table with state + reason,
- * restarts and the last termination — what you need to see why a pod crash-loops.
+ * Pod fields of the Details tab's right column (UI-4): status as icon + text (OCP `PodDetailsList`, matching the
+ * title, so a crash-looping pod never reads "Running"), node, pod IP(s) and QoS class.
  */
-export function PodDetails({ obj }: { obj: Pod }) {
+export function PodDetails({ obj, status }: PodDetailsProps) {
   const podIPs = obj.status?.podIPs?.map(({ ip }) => ip) ?? (obj.status?.podIP ? [obj.status.podIP] : []);
   return (
-    <Stack hasGutter>
-      <StackItem>
-        <DescriptionList aria-label="Pod status" isCompact isHorizontal>
-          <Item term="Phase">{obj.status?.phase ?? 'Unknown'}</Item>
-          <Item term="Node">{obj.spec?.nodeName ?? 'Not scheduled'}</Item>
-          <Item term={podIPs.length > 1 ? 'Pod IPs' : 'Pod IP'}>{podIPs.join(', ') || '—'}</Item>
-          <Item term="QoS class">{obj.status?.qosClass ?? '—'}</Item>
-        </DescriptionList>
-      </StackItem>
-      <StackItem>
-        <Title headingLevel="h3">Containers</Title>
-      </StackItem>
-      <StackItem>
-        <ContainersTable pod={obj} />
-      </StackItem>
-    </Stack>
+    <>
+      <DetailsItem label="Status">
+        <ResourceStatusLabel status={status} />
+      </DetailsItem>
+      <DetailsItem label="Node">{obj.spec?.nodeName ?? 'Not scheduled'}</DetailsItem>
+      <DetailsItem label={podIPs.length > 1 ? 'Pod IPs' : 'Pod IP'}>{podIPs.join(', ') || '—'}</DetailsItem>
+      <DetailsItem label="QoS class">{obj.status?.qosClass ?? '—'}</DetailsItem>
+    </>
+  );
+}
+
+/**
+ * Containers section below the pod's details grid (UI-4): state + reason, restarts and the last termination — what you
+ * need to see why a pod crash-loops.
+ */
+export function PodContainers({ obj }: { obj: Pod }) {
+  return (
+    <DetailsSubsection title="Containers">
+      <ContainersTable pod={obj} />
+    </DetailsSubsection>
   );
 }

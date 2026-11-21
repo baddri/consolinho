@@ -14,10 +14,11 @@ async function findDetails(timeout?: number) {
   return screen.findByLabelText('Cluster details', { selector: 'dl' }, { timeout });
 }
 
-/** Reads the details description list as `term → text`. */
-function detailsOf(list: HTMLElement): Record<string, string> {
-  const terms = within(list).getAllByRole('term');
-  const values = within(list).getAllByRole('definition');
+/** Reads both details columns of the Details tab as `term → text`. */
+function details(): Record<string, string> {
+  const panel = screen.getByRole('tabpanel', { name: 'Details' });
+  const terms = within(panel).getAllByRole('term');
+  const values = within(panel).getAllByRole('definition');
   return Object.fromEntries(terms.map((term, i) => [term.textContent, values[i]?.textContent ?? '']));
 }
 
@@ -92,13 +93,23 @@ describe('ClusterDetailPage (T-0035)', () => {
       expect(screen.getByText('Production EU 1', { selector: 'p' })).toBeInTheDocument();
       const labels = screen.getByRole('list', { name: 'Cluster labels' });
       expect(within(labels).getByText('prod')).toBeInTheDocument();
-      expect(within(labels).queryByText('Disabled')).not.toBeInTheDocument();
       expect(within(labels).queryByText('TLS not verified')).not.toBeInTheDocument();
+      // Header status label + details Status.
+      expect(screen.getAllByText('Enabled')).toHaveLength(2);
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
       expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute('href', '/admin/clusters');
+      expect(within(crumbs).getByText('Cluster details')).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('heading', { name: 'Cluster details', level: 2 })).toBeInTheDocument();
 
-      const details = detailsOf(list);
-      expect(details).toMatchObject({
+      expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
+        'Display name',
+        'Environment',
+        'Description',
+        'Status',
+        'Web console',
+      ]);
+      const values = details();
+      expect(values).toMatchObject({
         'Display name': 'Production EU 1',
         Environment: 'prod',
         Description: 'Customer-facing workloads, Frankfurt.',
@@ -106,15 +117,15 @@ describe('ClusterDetailPage (T-0035)', () => {
         Status: 'Enabled',
         'Users with access': '3',
       });
-      expect(details['API URL']).toContain(mockDb.clusters.find((c) => c.name === 'prod-eu-1')?.apiUrl);
-      expect(within(list).getByRole('button', { name: 'Copy API URL' })).toBeInTheDocument();
-      expect(details.Created).toMatch(/ago by /);
+      expect(values['API URL']).toContain(mockDb.clusters.find((c) => c.name === 'prod-eu-1')?.apiUrl);
+      expect(screen.getByRole('button', { name: 'Copy API URL' })).toBeInTheDocument();
+      expect(values.Created).toMatch(/ago by /);
       const consoleLink = within(list).getByRole('link', {
         name: 'https://console-openshift-console.apps.prod-eu-1.example.com',
       });
       expect(consoleLink).toHaveAttribute('target', '_blank');
       expect(consoleLink).toHaveAttribute('rel', 'noopener noreferrer');
-      expect(within(list).getByRole('link', { name: 'View audit entries' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'View audit entries' })).toHaveAttribute(
         'href',
         '/admin/audit?cluster=prod-eu-1',
       );
@@ -145,7 +156,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     expect(screen.getByText('No CA bundle — the system trust store is used.')).toBeInTheDocument();
     expect(screen.queryByRole('grid', { name: /CA certificates/ })).not.toBeInTheDocument();
-    expect(detailsOf(screen.getByLabelText('Cluster details', { selector: 'dl' }))['Web console']).toBe('—');
+    expect(details()['Web console']).toBe('—');
   });
 
   it('CLU-3: skip-TLS shows the header label and a warning instead of the trust-store note', async () => {
@@ -190,8 +201,8 @@ describe('ClusterDetailPage (T-0035)', () => {
   it('CLU-5: enabling dev-2 updates the header from the response and refreshes the switcher', async () => {
     const { user, queryClient } = renderApp('/admin/clusters/dev-2');
     await findDetails();
-    const labels = screen.getByRole('list', { name: 'Cluster labels' });
-    expect(within(labels).getByText('Disabled')).toBeInTheDocument();
+    // Header status label + details Status.
+    expect(screen.getAllByText('Disabled')).toHaveLength(2);
     const setData = vi.spyOn(queryClient, 'setQueryData');
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -199,10 +210,11 @@ describe('ClusterDetailPage (T-0035)', () => {
     expect(items.map((item) => item.textContent)).toEqual(['Edit', 'Test connection', 'Enable', 'Delete']);
     expect(screen.getByRole('menuitem', { name: 'Delete' })).not.toHaveAttribute('aria-disabled', 'true');
     await user.click(screen.getByRole('menuitem', { name: 'Enable' }));
-    const dialog = await screen.findByRole('dialog', { name: /Enable dev-2/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Enable cluster\?/ });
     await user.click(within(dialog).getByRole('button', { name: 'Enable' }));
 
-    await waitFor(() => expect(within(labels).queryByText('Disabled')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Disabled')).not.toBeInTheDocument());
+    expect(screen.getAllByText('Enabled')).toHaveLength(2);
     expect(setData).toHaveBeenCalledWith(adminKeys.cluster('dev-2'), expect.objectContaining({ isEnabled: true }));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: accessibleClustersQueryKey });
   });
@@ -213,7 +225,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     await openActions(user);
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /Delete dev-2/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Delete cluster\?/ });
     await user.click(within(dialog).getByRole('textbox'));
     await user.paste('dev-2');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
@@ -239,7 +251,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     await openActions(user);
     await user.click(screen.getByRole('menuitem', { name: 'Disable' }));
-    const dialog = await screen.findByRole('dialog', { name: /Disable dev-1/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Disable cluster\?/ });
     deleteBehindOurBack('dev-1');
     await user.click(within(dialog).getByRole('button', { name: 'Disable' }));
 

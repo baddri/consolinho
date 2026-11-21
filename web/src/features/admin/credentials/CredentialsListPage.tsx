@@ -1,23 +1,27 @@
-import { Button, Content, PageSection, Title } from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import type { Credential } from '@/shared/api';
 import {
   FilterToolbar,
+  LOW_PRIORITY_COLUMN,
   TableEmptyRow,
+  TableNoMatchRow,
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
   type SortValue,
 } from '@/shared/table';
-import { ErrorState } from '@/shared/ui';
+import { ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { ENVIRONMENT_OPTIONS } from '../clusters/clusterFilters';
 import { useFleetCredentials } from './api';
 import { CREDENTIAL_FILTERS, EXPIRY_OPTIONS, matchesCredentialFilters } from './credentialFilters';
 import { CredentialExpiryAlert } from './CredentialExpiryAlert';
-import { FLEET_CREDENTIAL_COLUMN_COUNT, FleetCredentialRow } from './FleetCredentialRow';
+import {
+  FLEET_CREDENTIAL_COLUMN_COUNT,
+  FLEET_CREDENTIAL_COLUMN_VISIBILITY,
+  FleetCredentialRow,
+} from './FleetCredentialRow';
 
 /**
  * Sort keys. `expiry` ascending with nulls last is exactly the server's primary order and the sort is stable, so the
@@ -34,7 +38,7 @@ const NO_CREDENTIALS: Credential[] = [];
  * `/admin/credentials` — every credential of the fleet in one list, soonest expiry first (CRED-7), under the expiry
  * alert (CRED-8). Filters live in the URL (`?q=&expiry=&env=`) so the alert can link to a pre-filtered view; sorting
  * by expiry or cluster is client-side. Rows link to the cluster's Credentials tab, where rotate/delete live.
- * Lazy-loaded by `routes.tsx`.
+ * Fingerprint and Grants hide below `2xl` so the compact table fits 1280. Lazy-loaded by `routes.tsx`.
  */
 export function CredentialsListPage() {
   const { data, error, isPending, refetch } = useFleetCredentials();
@@ -49,14 +53,14 @@ export function CredentialsListPage() {
 
   return (
     <>
-      <PageSection>
-        <Title headingLevel="h1">Credentials</Title>
-        <Content component="p">
-          ServiceAccount tokens of every cluster, soonest expiry first. Rotate or delete them on the cluster&apos;s
-          Credentials tab.
-        </Content>
-      </PageSection>
-      <PageSection>
+      <PageHeading
+        title="Credentials"
+        subtitle={
+          "ServiceAccount tokens of every cluster, soonest expiry first. Rotate or delete them on the cluster's " +
+          'Credentials tab.'
+        }
+      />
+      <PageBody>
         <CredentialExpiryAlert />
         {error && <ErrorState error={error} title="Could not load credentials" onRetry={() => void refetch()} />}
         <FilterToolbar
@@ -91,37 +95,40 @@ export function CredentialsListPage() {
           <Table aria-label="Credentials" variant="compact">
             <Thead>
               <Tr>
-                <Th sort={sortProps('cluster', 0)}>Cluster</Th>
-                <Th>Name</Th>
-                <Th>Service account</Th>
-                <Th>Fingerprint</Th>
-                <Th sort={sortProps('expiry', 4)}>Expiry</Th>
-                <Th>Grants</Th>
-                <Th>Last test</Th>
+                <Th modifier="nowrap" sort={sortProps('cluster', 0)}>
+                  Cluster
+                </Th>
+                <Th modifier="nowrap">Name</Th>
+                <Th modifier="nowrap">Service account</Th>
+                <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                  Fingerprint
+                </Th>
+                <Th modifier="nowrap" sort={sortProps('expiry', 4)}>
+                  Expiry
+                </Th>
+                <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
+                  Grants
+                </Th>
+                <Th modifier="nowrap">Last test</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {isPending && <TableSkeletonRows columns={FLEET_CREDENTIAL_COLUMN_COUNT} />}
+              {isPending && (
+                <TableSkeletonRows
+                  columns={FLEET_CREDENTIAL_COLUMN_COUNT}
+                  columnVisibility={FLEET_CREDENTIAL_COLUMN_VISIBILITY}
+                />
+              )}
               {data?.length === 0 && (
                 <TableEmptyRow
                   colSpan={FLEET_CREDENTIAL_COLUMN_COUNT}
-                  title="No credentials yet"
+                  title="No credentials found"
                   body="Credentials are added per cluster, on the cluster's Credentials tab."
                   actions={<Link to="/admin/clusters">Go to Clusters</Link>}
                 />
               )}
               {credentials.length > 0 && sorted.length === 0 && (
-                <TableEmptyRow
-                  colSpan={FLEET_CREDENTIAL_COLUMN_COUNT}
-                  title="No credentials match"
-                  body="No credentials match the current filters."
-                  icon={SearchIcon}
-                  actions={
-                    <Button variant="link" onClick={clearAll}>
-                      Clear filters
-                    </Button>
-                  }
-                />
+                <TableNoMatchRow colSpan={FLEET_CREDENTIAL_COLUMN_COUNT} onClearAll={clearAll} />
               )}
               {sorted.map((credential) => (
                 <FleetCredentialRow key={credential.id} credential={credential} />
@@ -129,7 +136,7 @@ export function CredentialsListPage() {
             </Tbody>
           </Table>
         )}
-      </PageSection>
+      </PageBody>
     </>
   );
 }

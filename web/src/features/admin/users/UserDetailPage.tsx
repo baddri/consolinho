@@ -4,28 +4,25 @@ import {
   EmptyStateActions,
   EmptyStateBody,
   EmptyStateFooter,
-  PageSection,
   Skeleton,
-  Tab,
-  TabContent,
-  Tabs,
-  TabTitleText,
 } from '@patternfly/react-core';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, type LinkProps } from 'react-router';
 import { isApiError, type UserDetail } from '@/shared/api';
-import { ErrorState, useToast } from '@/shared/ui';
-import { USER_DETAIL_TABS, useAdminTab, type UserDetailTab } from '../adminTabs';
+import { ErrorState, PageBody, PageTabs, useToast } from '@/shared/ui';
+import {
+  detailPageTabs,
+  USER_DETAIL_TAB_TITLES,
+  USER_DETAIL_TABS,
+  useAdminTab,
+  type UserDetailTab,
+} from '../adminTabs';
 import { BulkGrantWizard } from '../grants/bulk/BulkGrantWizard';
 import { UserGrantsTab } from '../grants/GrantsTab';
 import { useUser } from './api';
 import { UserDetailHeader } from './UserDetailHeader';
 import { UserDetailsTab } from './UserDetailsTab';
 import { userDetailPath } from './UserRow';
-
-/** URL of each tab; tabs are URL segments (FRONTEND.md "Routing"), so switching tabs navigates. */
-const tabPath = (username: string, tab: UserDetailTab) =>
-  tab === 'details' ? userDetailPath(username) : `${userDetailPath(username)}/${tab}`;
 
 /** Router link to the users list that PatternFly's `Button` can render as. */
 function UsersLink(props: Omit<LinkProps, 'to'>) {
@@ -93,12 +90,6 @@ function useBulkGrantOpen() {
   return [isOpen, setOpen] as const;
 }
 
-/** Tab titles, also the accessible names of their panels. */
-const TAB_TITLES: Record<UserDetailTab, string> = { details: 'Details', access: 'Cluster access' };
-
-/** DOM id of a tab's panel, referenced by the tab's `aria-controls`. */
-const panelId = (tab: UserDetailTab) => `user-detail-${tab}-panel`;
-
 /** Content of the active tab; only that one is mounted, so e.g. the grants query runs only on its tab. */
 function UserTabPanel({ user, tab, onGrantAccess }: UserTabsProps) {
   if (tab === 'details') {
@@ -116,49 +107,29 @@ interface UserTabsProps {
 }
 
 /**
- * URL-driven Details / Cluster access tabs of a loaded user: the tab bar sits in a `PageSection type="tabs"` (PF6
- * page-tabs idiom), the active panel in its own `PageSection` below; selecting a tab navigates to its URL.
+ * URL-driven Details / Cluster access tabs of a loaded user as `PageTabs` aligned with the heading (`UX.md` §4), then
+ * the active tab's content in a `PageBody` labelled by the tab; selecting a tab navigates to its URL.
  */
 function UserTabs({ user, tab, onGrantAccess }: UserTabsProps) {
-  const navigate = useNavigate();
+  const tabs = detailPageTabs(USER_DETAIL_TABS, USER_DETAIL_TAB_TITLES, userDetailPath(user.username));
   return (
     <>
-      <PageSection type="tabs">
-        <Tabs
-          activeKey={tab}
-          onSelect={(_event, key) => {
-            const next = USER_DETAIL_TABS.find((candidate) => candidate === key);
-            if (next && next !== tab) void navigate(tabPath(user.username, next));
-          }}
-          aria-label="User detail tabs"
-        >
-          {USER_DETAIL_TABS.map((key) => (
-            <Tab
-              key={key}
-              eventKey={key}
-              title={<TabTitleText>{TAB_TITLES[key]}</TabTitleText>}
-              tabContentId={panelId(key)}
-            />
-          ))}
-        </Tabs>
-      </PageSection>
-      <PageSection>
-        <TabContent id={panelId(tab)} eventKey={tab} activeKey={tab} aria-label={TAB_TITLES[tab]}>
-          <UserTabPanel user={user} tab={tab} onGrantAccess={onGrantAccess} />
-        </TabContent>
-      </PageSection>
+      <PageTabs tabs={tabs} activeKey={tab} aria-label="User detail tabs" />
+      <PageBody role="tabpanel" aria-label={USER_DETAIL_TAB_TITLES[tab]}>
+        <UserTabPanel user={user} tab={tab} onGrantAccess={onGrantAccess} />
+      </PageBody>
     </>
   );
 }
 
 /**
- * `/admin/users/:username[/access]` — who a user is and what they can do (USR-7): header with labels and the shared
- * Actions menu, then Details and Cluster access tabs whose selection comes from the URL (`useAdminTab`). The router
+ * `/admin/users/:username[/access]` — who a user is and what they can do (USR-7): `PageHeading` with labels and the
+ * shared Actions menu, then Details and Cluster access tabs whose selection comes from the URL (`useAdminTab`). The router
  * decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
  * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry —
  * both only while nothing is loaded: a failed background refetch keeps the loaded data, and a 404 after load sends
- * the admin back to the list with a toast. "Grant access to clusters" (header, Cluster access empty state, or router
- * state {@link OpenBulkGrantState} after "Create and grant access") opens the bulk grant wizard.
+ * the admin back to the list with a toast. "Grant access to clusters" (Actions menu, Cluster access empty state, or
+ * router state {@link OpenBulkGrantState} after "Create and grant access") opens the bulk grant wizard.
  * Lazy-loaded by `routes.tsx`.
  */
 export function UserDetailPage() {
@@ -172,20 +143,20 @@ export function UserDetailPage() {
 
   return (
     <>
-      <UserDetailHeader username={username} user={user} isLoading={isPending} onGrantAccess={openBulkGrant} />
+      <UserDetailHeader username={username} user={user} isLoading={isPending} />
       {isPending && (
-        <PageSection>
+        <PageBody>
           <Skeleton height="10rem" screenreaderText="Loading user" />
-        </PageSection>
+        </PageBody>
       )}
       {error && !user && (
-        <PageSection>
+        <PageBody>
           {isUserNotFound(error) ? (
             <UserNotFound username={username} />
           ) : (
             <ErrorState error={error} title="Could not load user" onRetry={() => void refetch()} />
           )}
-        </PageSection>
+        </PageBody>
       )}
       {user && <UserTabs user={user} tab={tab} onGrantAccess={openBulkGrant} />}
       <BulkGrantWizard username={username} isOpen={isBulkGrantOpen} onClose={() => setBulkGrantOpen(false)} />

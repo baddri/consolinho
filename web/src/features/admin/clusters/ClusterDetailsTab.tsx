@@ -1,17 +1,15 @@
-import {
-  ClipboardCopy,
-  DescriptionList,
-  DescriptionListDescription,
-  DescriptionListGroup,
-  DescriptionListTerm,
-  Stack,
-  StackItem,
-} from '@patternfly/react-core';
+import { ClipboardCopy, Stack, StackItem } from '@patternfly/react-core';
 import { ExternalLinkAltIcon } from '@patternfly/react-icons';
-import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import type { ClusterDetail } from '@/shared/api';
-import { EnvironmentLabel, RelativeTime } from '@/shared/ui';
+import {
+  DetailsColumn,
+  DetailsGrid,
+  DetailsItem,
+  EnvironmentLabel,
+  RelativeTime,
+  SectionHeading,
+} from '@/shared/ui';
 import { CaCertificatesTable } from './CaCertificatesTable';
 import { ClusterStatusLabel } from './ClusterStatusLabel';
 import { TlsModeLabel } from './TlsModeLabel';
@@ -21,16 +19,6 @@ const EMPTY = '—';
 
 /** Link target of "View audit entries": the audit log filtered to the cluster (CLU-8, AUD-4). */
 export const clusterAuditPath = (name: string) => `/admin/audit?${new URLSearchParams({ cluster: name })}`;
-
-/** One term / description pair of the list. */
-function Detail({ term, children }: { term: string; children: ReactNode }) {
-  return (
-    <DescriptionListGroup>
-      <DescriptionListTerm>{term}</DescriptionListTerm>
-      <DescriptionListDescription>{children}</DescriptionListDescription>
-    </DescriptionListGroup>
-  );
-}
 
 /** The cluster's own web console, opened in a new tab (it lives on another origin). */
 function WebConsoleLink({ url }: { url: string }) {
@@ -47,55 +35,61 @@ export interface ClusterDetailsTabProps {
 }
 
 /**
- * Details tab of the cluster detail page (CLU-8): connection settings (API URL with copy, web console link, TLS
- * mode), status, counts, change history and a link to the cluster's audit entries, followed by the CA certificates
+ * Details tab of the cluster detail page (CLU-8, `UX.md` §6): "Cluster details" h2 over two vertical columns — what
+ * the cluster is (display name, environment, description, status, web console link) left, how it is reached and its
+ * history (API URL with copy, TLS mode, counts, change times, audit link) right — followed by the CA certificates
  * ({@link CaCertificatesTable}, CLU-2). Purely presentational; the page loads the `ClusterDetail`.
  */
 export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {
   return (
     <Stack hasGutter>
       <StackItem>
-        <DescriptionList isHorizontal aria-label="Cluster details">
-          <Detail term="Display name">{cluster.displayName}</Detail>
-          <Detail term="Environment">
-            <EnvironmentLabel environment={cluster.environment} isCompact />
-          </Detail>
-          <Detail term="API URL">
-            <ClipboardCopy isReadOnly variant="inline-compact" hoverTip="Copy API URL" clickTip="Copied">
-              {cluster.apiUrl}
-            </ClipboardCopy>
-          </Detail>
-          <Detail term="Web console">
-            {cluster.webConsoleUrl ? <WebConsoleLink url={cluster.webConsoleUrl} /> : EMPTY}
-          </Detail>
-          <Detail term="Description">{cluster.description ?? EMPTY}</Detail>
-          <Detail term="TLS">
-            <TlsModeLabel tlsMode={cluster.tlsMode} />
-          </Detail>
-          <Detail term="Status">
-            <ClusterStatusLabel isEnabled={cluster.isEnabled} />
-          </Detail>
-          <Detail term="Credentials">{cluster.credentialCount}</Detail>
-          <Detail term="Users with access">{cluster.grantCount}</Detail>
-          <Detail term="Connection settings changed">
-            <RelativeTime value={cluster.connectionSettingsChangedAt} />
-          </Detail>
-          <Detail term="Created">
-            <RelativeTime value={cluster.createdAt} /> by {cluster.createdBy}
-          </Detail>
-          <Detail term="Updated">
-            {cluster.updatedAt ? (
-              <>
-                <RelativeTime value={cluster.updatedAt} /> by {cluster.updatedBy ?? EMPTY}
-              </>
-            ) : (
-              'Never'
-            )}
-          </Detail>
-          <Detail term="Audit">
-            <Link to={clusterAuditPath(cluster.name)}>View audit entries</Link>
-          </Detail>
-        </DescriptionList>
+        <SectionHeading text="Cluster details" />
+        <DetailsGrid>
+          <DetailsColumn aria-label="Cluster details">
+            <DetailsItem label="Display name">{cluster.displayName}</DetailsItem>
+            <DetailsItem label="Environment">
+              <EnvironmentLabel environment={cluster.environment} isCompact />
+            </DetailsItem>
+            <DetailsItem label="Description">{cluster.description ?? EMPTY}</DetailsItem>
+            <DetailsItem label="Status">
+              <ClusterStatusLabel isEnabled={cluster.isEnabled} />
+            </DetailsItem>
+            <DetailsItem label="Web console">
+              {cluster.webConsoleUrl ? <WebConsoleLink url={cluster.webConsoleUrl} /> : EMPTY}
+            </DetailsItem>
+          </DetailsColumn>
+          <DetailsColumn aria-label="Connection and history">
+            <DetailsItem label="API URL">
+              <ClipboardCopy isReadOnly variant="inline-compact" hoverTip="Copy API URL" clickTip="Copied">
+                {cluster.apiUrl}
+              </ClipboardCopy>
+            </DetailsItem>
+            <DetailsItem label="TLS">
+              <TlsModeLabel tlsMode={cluster.tlsMode} />
+            </DetailsItem>
+            <DetailsItem label="Credentials">{cluster.credentialCount}</DetailsItem>
+            <DetailsItem label="Users with access">{cluster.grantCount}</DetailsItem>
+            <DetailsItem label="Connection settings changed">
+              <RelativeTime value={cluster.connectionSettingsChangedAt} />
+            </DetailsItem>
+            <DetailsItem label="Created">
+              <RelativeTime value={cluster.createdAt} /> by {cluster.createdBy}
+            </DetailsItem>
+            <DetailsItem label="Updated">
+              {cluster.updatedAt ? (
+                <>
+                  <RelativeTime value={cluster.updatedAt} /> by {cluster.updatedBy ?? EMPTY}
+                </>
+              ) : (
+                'Never'
+              )}
+            </DetailsItem>
+            <DetailsItem label="Audit">
+              <Link to={clusterAuditPath(cluster.name)}>View audit entries</Link>
+            </DetailsItem>
+          </DetailsColumn>
+        </DetailsGrid>
       </StackItem>
       <StackItem>
         <CaCertificatesTable cluster={cluster} />

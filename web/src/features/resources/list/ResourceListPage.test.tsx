@@ -112,13 +112,18 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['pods', 'Pods', WEB_PODS[0] ?? ''],
     ['configmaps', 'ConfigMaps', 'web-config'],
     ['events', 'Events', 'Back-off restarting failed container web in pod ' + CRASHING_POD],
-  ])('renders %s from the fixtures with a Live indicator', async (plural, title, sample) => {
+  ])('renders %s from the fixtures without a badge or Live label (UX.md §3)', async (plural, title, sample) => {
     renderApp(`/c/dev-1/k8s/ns/shop/${plural}`);
 
     const table = await findTable(title);
     expect(await within(table).findByText(sample)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: title, level: 1 })).toBeInTheDocument();
-    expect(await screen.findByText('Live')).toBeInTheDocument();
+    // The h1 is the plural alone: no kind badge before it, no "Live" label after it (CP2 §5 superseded by T-0112).
+    const heading = screen.getByRole('heading', { name: title, level: 1 });
+    expect(heading).toHaveTextContent(new RegExp(`^${title}$`));
+    expect(screen.queryByText('Live')).not.toBeInTheDocument();
+    // The project bar is its own row above the heading (UX.md §2).
+    const projectBar = screen.getByRole('button', { name: 'Project: shop' });
+    expect(projectBar.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it.each([
@@ -143,13 +148,15 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['events', 'Events'],
     ['deployments', 'Deployments'],
     ['services', 'Services'],
-  ])('shows the empty state for %s in an empty namespace', async (plural, title) => {
+  ])('shows only the empty state for %s in an empty namespace (OCP EmptyBox)', async (plural, title) => {
     renderApp(`/c/dev-1/k8s/ns/empty/${plural}`);
 
-    const table = await findTable(title);
     expect(
-      await within(table).findByRole('heading', { name: `No ${title} found in empty` }),
+      await screen.findByRole('heading', { name: `No ${title} found` }, { timeout: COLD_START_TIMEOUT_MS }),
     ).toBeInTheDocument();
+    // No table headers and no "0 - 0 of 0" pagination.
+    expect(screen.queryByRole('grid', { name: title })).not.toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: /pagination/ })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -273,9 +280,9 @@ describe('resource list filters and sorting (UI-3)', () => {
     await user.click(screen.getByRole('checkbox', { name: 'CrashLoopBackOff' }));
     await user.click(screen.getByRole('checkbox', { name: 'Failed' }));
     expect(
-      await within(table).findByRole('heading', { name: 'No Pods match the filters' }),
+      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
     ).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear filters' }));
+    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
     await waitFor(() => expect(linkNames(table)).toEqual(WEB_PODS));
     expect(router.state.location.search).toBe('');
   });
@@ -367,8 +374,9 @@ describe('resource list filters and sorting (UI-3)', () => {
       'href',
       `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`,
     );
-    // Owner kind (ReplicaSet) isn't registered: plain text.
-    expect(within(table).getAllByText(/^ReplicaSet web-/)).toHaveLength(3);
+    // Owner kind (ReplicaSet) isn't registered: "RS" badge (kind as hover title) + plain name.
+    expect(within(table).getAllByText(/^web-7d4b9c8f6d$/)).toHaveLength(3);
+    expect(within(table).getAllByTitle('ReplicaSet')).toHaveLength(3);
     expect(within(table).getAllByText('CrashLoopBackOff')).toHaveLength(1);
   });
 });
@@ -377,8 +385,8 @@ describe('live updates (DATA-3)', () => {
   it('adds and removes pods without reload', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/pods');
     const table = await findTable('Pods');
+    // Rows mean the list is in; the watch starts from its resourceVersion, so earlier changes are replayed.
     await within(table).findByText(CRASHING_POD);
-    await screen.findByText('Live');
 
     mockK8s.upsert('dev-1', shopPod('extra-pod'));
     expect(await within(table).findByRole('link', { name: 'extra-pod' })).toBeInTheDocument();

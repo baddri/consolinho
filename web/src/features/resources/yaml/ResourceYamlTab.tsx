@@ -134,7 +134,7 @@ export function ResourceYamlTab() {
           )}
         </StackItem>
       )}
-      <StackItem>
+      <StackItem isFilled>
         <YamlEditor
           value={isDirty ? edit.text : liveText}
           onChange={onChange}

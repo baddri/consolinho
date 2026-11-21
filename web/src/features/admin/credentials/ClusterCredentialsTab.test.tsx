@@ -244,6 +244,8 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     await rowAction(user, table, 'fleet-view', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-view on prod-eu-1/ });
     expect(dialog).toHaveAccessibleName(/prod$/);
+    // The environment label follows the title text inside the heading (UX.md §9), not in the header's help slot.
+    expect(within(within(dialog).getByRole('heading', { level: 1 })).getByText('prod')).toBeInTheDocument();
     expect(within(dialog).getByText(before?.fingerprint ?? '')).toBeInTheDocument();
     expect(within(dialog).getByText(/^2 users are affected\./)).toBeInTheDocument();
 
@@ -309,7 +311,8 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     const table = await findTable('prod-us-1');
 
     await rowAction(user, table, 'legacy-token', 'Delete');
-    let dialog = await screen.findByRole('dialog', { name: /Delete credential legacy-token from prod-us-1\?/ });
+    let dialog = await screen.findByRole('dialog', { name: /^Delete credential\?/ });
+    expect(dialog).toHaveTextContent('Are you sure you want to delete legacy-token from cluster prod-us-1?');
     server.use(
       http.delete('/api/admin/clusters/{name}/credentials/{credentialId}', () =>
         problem(409, { code: 'Credentials.InUse', detail: 'Credential legacy-token is used by 1 grants.' }),
@@ -323,7 +326,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
     server.resetHandlers();
     await rowAction(user, table, 'legacy-token', 'Delete');
-    dialog = await screen.findByRole('dialog', { name: /Delete credential legacy-token/ });
+    dialog = await screen.findByRole('dialog', { name: /^Delete credential\?/ });
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
     expect(await screen.findByText('Credential legacy-token deleted from prod-us-1')).toBeInTheDocument();
     await waitFor(() => expect(within(table).queryByText('legacy-token')).not.toBeInTheDocument());
@@ -349,7 +352,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     const { user } = renderApp('/admin/clusters/prod-us-1/credentials');
     const table = await findTable('prod-us-1');
     await rowAction(user, table, 'legacy-token', 'Delete');
-    const dialog = await screen.findByRole('dialog', { name: /Delete credential legacy-token from prod-us-1\?/ });
+    const dialog = await screen.findByRole('dialog', { name: /^Delete credential\?/ });
     mockDb.credentials = mockDb.credentials.filter((c) => c.id !== credentialIds.prodUsLegacy);
 
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));

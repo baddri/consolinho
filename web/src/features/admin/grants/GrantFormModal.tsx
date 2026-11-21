@@ -9,7 +9,7 @@ import {
   RadioGroupField,
   useFormProblem,
 } from '@/shared/forms';
-import { EnvironmentLabel, useToast } from '@/shared/ui';
+import { EnvironmentLabel, InlineLabelTitle, useToast } from '@/shared/ui';
 import { useClusters } from '../clusters/api';
 import { isGrantGone, useCreateGrant, useUpdateGrant } from './api';
 import { ClusterTypeahead } from './ClusterTypeahead';
@@ -66,7 +66,7 @@ function titleOf(props: GrantFormModalProps): { title: string; environment?: Clu
     };
   }
   return props.target.perspective === 'user'
-    ? { title: `Add cluster access for ${props.target.username}` }
+    ? { title: `Grant ${props.target.username} access to a cluster` }
     : { title: `Grant access to ${props.target.cluster.name}`, environment: props.target.cluster.environment };
 }
 
@@ -90,14 +90,13 @@ export function GrantFormModal(props: GrantFormModalProps) {
       aria-labelledby={environment === undefined ? titleId : `${titleId} ${labelId}`}
     >
       <ModalHeader
-        title={title}
-        labelId={titleId}
-        help={
-          environment !== undefined ? (
-            <span id={labelId}>
-              <EnvironmentLabel environment={environment} isCompact />
-            </span>
-          ) : undefined
+        title={
+          <InlineLabelTitle
+            title={title}
+            titleId={titleId}
+            label={environment !== undefined ? <EnvironmentLabel environment={environment} isCompact /> : undefined}
+            labelId={labelId}
+          />
         }
       />
       <GrantForm {...props} />

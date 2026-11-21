@@ -1,4 +1,5 @@
 import type { LabelProps } from '@patternfly/react-core';
+import type { ThProps } from '@patternfly/react-table';
 import type { ReactNode } from 'react';
 import type { K8sModel, K8sResource } from '@/shared/k8s';
 import type { FilterOption, SortValue } from '@/shared/table';
@@ -14,7 +15,10 @@ import type { FilterOption, SortValue } from '@/shared/table';
 /** Sidebar section a kind is listed in (spec UI-2). */
 export type NavSectionId = 'home' | 'workloads' | 'networking' | 'administration';
 
-/** Status shown as a coloured `Label` in the list's Status cell and (T-0075) the details header. */
+/**
+ * Status of an object; `ResourceStatusLabel` maps `color` to a status icon + text (red danger, orange pending, green
+ * success, else neutral) in the list's Status cell and the details header.
+ */
 export interface ResourceStatus {
   title: string;
   color: NonNullable<LabelProps['color']>;
@@ -30,6 +34,13 @@ export interface ColumnDef<T> {
   /** Shown only in all-namespaces mode (the Namespace column). */
   allNamespacesOnly?: boolean;
   width?: 10 | 15 | 20 | 25 | 30 | 40;
+  /**
+   * PF responsive visibility of the header and cells (OCP's column `className`): low-priority columns use
+   * `['hidden', 'visibleOnXl']` (or `…OnLg`) so narrow screens drop them instead of truncating headers.
+   */
+  visibility?: ThProps['visibility'];
+  /** `visibility` in all-namespaces mode, where the Namespace column takes the room (Pods' Owner goes first). */
+  allNamespacesVisibility?: ThProps['visibility'];
 }
 
 /** A checkbox filter of the list toolbar; `id` is its URL search param (`?status=`, `?type=`). */
@@ -51,10 +62,17 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   defaultSort?: { columnId: string; direction: 'asc' | 'desc' };
   status?(obj: T): ResourceStatus | undefined;
   /**
-   * Kind-specific part of the Details tab (T-0075), a function component (`<DetailsSection obj={obj} />`). Declared as
-   * a method rather than `ComponentType<{ obj: T }>` so it stays bivariant like the other callbacks.
+   * Kind-specific fields of the Details tab (T-0075, T-0113): `DetailsItem`s only, rendered as the right column of the
+   * "<Kind> details" grid next to the common metadata (`UX.md` §6). A function component
+   * (`<DetailsSection obj={obj} />`), declared as a method rather than `ComponentType<{ obj: T }>` so it stays
+   * bivariant like the other callbacks.
    */
   DetailsSection?(props: { obj: T }): ReactNode;
+  /**
+   * Further full-width sections below the details grid (Containers, Conditions, Ports, Data), each a
+   * `DetailsSubsection` with its own heading. Same component shape as {@link DetailsSection}.
+   */
+  ExtraSections?(props: { obj: T }): ReactNode;
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /** Delete asks to type the name (Namespace, Project). */

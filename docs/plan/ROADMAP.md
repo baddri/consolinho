@@ -49,6 +49,16 @@ Containerfile (multi-stage: node build → dotnet publish → ubi/chiseled runti
 Secrets for bootstrap admin + DP cert, DB migration job, health probes, resource limits, NetworkPolicy, deployment
 runbook in `docs/ops/`.
 
+## CP3.5 — OCP look & feel (before CP4) — DONE (tag cp-3.5)
+Make the UI look like the OpenShift console, and fit for production. Run by the new `ux-designer` agent: it audits
+every screen (light + dark) against the OCP console (`openshift/console` source), writes `docs/architecture/UX.md` and
+task files, and does a visual review of each FE task. Human asks (2026-11-21): (1) everything as close to the OCP
+console as possible; (2) move the cluster switcher from the masthead to the top of the sidebar, where OCP has its
+perspective switcher; (3) admin area polish. Known issues: the grant wizard shows two close buttons and a second
+panel behind it (Modal `onClose` + `WizardHeader` close, modal wider than the wizard); user details show internal
+copy ("enforced by the proxy from CP2", "Admin via configuration (user list)") and badly styled tabs; the register
+cluster form is full width.
+
 ## CP4 — Workloads day-2 operations
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
@@ -93,3 +103,7 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP3 spec) DP certificate rotation helper (script or admin page showing key ring age/expiry).
 - (CP3 ACCEPT) `deploy-dev.sh --register-self`: automate the 4 smoke steps (SA token, register host cluster, credential, grant) after every test-cluster reinstall.
 - (CP1 ACCEPT, for CP2 spec) Extend the token-leak sweep and authz matrix to proxy routes (QA R4); proxy strips client `Authorization`.
+- (CP3.5 ACCEPT) Audit log: human labels for proxy actions (`proxy.update` → "Updated <kind>", denied → "Denied: …"); raw ids only in the expanded row. Needs the id list from the backend.
+- (CP3.5 ACCEPT) Admin source as structured data (`kind` + `group`) in the users API instead of the "Admin granted by configuration (…)" string the SPA parses.
+- (CP3.5 ACCEPT) YAML tab like OCP `edit-yaml.tsx`: Save / Reload / Cancel, Save always enabled (CP4 YAML work).
+- (CP3.5 ACCEPT) Absolute `Timestamp` (globe icon, relative tooltip) in list "Created" columns too, as in OCP.

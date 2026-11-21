@@ -1,5 +1,4 @@
 import { Button } from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { act, render, renderHook, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -9,7 +8,7 @@ import {
   FilterToolbar,
   matchesText,
   SingleSelectFilter,
-  TableEmptyRow,
+  TableNoMatchRow,
   TableSkeletonRows,
   useClientSort,
   useUrlFilters,
@@ -106,17 +105,7 @@ function DemoList({ rows }: { rows?: DemoCluster[] }) {
         <Tbody>
           {rows === undefined && <TableSkeletonRows columns={2} rows={3} />}
           {rows !== undefined && sorted.length === 0 && (
-            <TableEmptyRow
-              colSpan={2}
-              icon={SearchIcon}
-              title="No clusters match"
-              body="Adjust or clear the filters."
-              actions={
-                <Button variant="link" onClick={clearAll}>
-                  Clear filters
-                </Button>
-              }
-            />
+            <TableNoMatchRow colSpan={2} onClearAll={clearAll} />
           )}
           {sorted.map((c) => (
             <Tr key={c.name}>
@@ -286,11 +275,12 @@ describe('admin list kit (demo list)', () => {
     expect(router.state.location.search).toBe('?status=weird&keep=1&env=staging&env=production');
   });
 
-  it('shows the no-match row with "Clear filters"', async () => {
+  it('shows the no-match row with "Clear all filters"', async () => {
     const { user, router } = renderDemo('/admin/clusters?q=nothing-matches');
 
-    expect(screen.getByRole('heading', { name: 'No clusters match' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(screen.getByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
+    const table = screen.getByRole('grid', { name: 'Clusters' });
+    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
 
     expect(router.state.location.search).toBe('');
     expect(visibleNames()).toHaveLength(4);
@@ -301,6 +291,21 @@ describe('admin list kit (demo list)', () => {
 
     expect(screen.getAllByRole('row')).toHaveLength(4); // header + 3 skeleton rows
     expect(screen.getAllByText('Loading')).toHaveLength(1);
+  });
+
+  it('gives skeleton cells the visibility of their responsive columns', () => {
+    render(
+      <Table aria-label="Loading">
+        <Tbody>
+          <TableSkeletonRows columns={3} rows={1} columnVisibility={{ 1: ['hidden', 'visibleOn2Xl'] }} />
+        </Tbody>
+      </Table>,
+    );
+
+    const [first, second, third] = screen.getAllByRole('cell');
+    expect(second).toHaveClass('pf-m-hidden', 'pf-m-visible-on-2xl');
+    expect(first).not.toHaveClass('pf-m-hidden');
+    expect(third).not.toHaveClass('pf-m-hidden');
   });
 
   it('sorts by column, toggles direction and keeps nulls last', async () => {

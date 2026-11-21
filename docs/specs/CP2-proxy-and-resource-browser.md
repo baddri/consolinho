@@ -237,14 +237,14 @@ never reveals whether a cluster exists. Proxy errors raised by FleetConsole are 
 - **Masthead:** `[logo] [cluster switcher: name + env label] ... [user menu]`. A thin colour band under the masthead
   in the environment colour for production and staging (none for development). Switcher menu: search, "Recent",
   "All clusters" grouped as in CP1 Q6, each item with env label and "Read only" label.
-- **Page header:** breadcrumb `Projects › shop › Pods › web-7c9…` on details; title with a kind badge (`P`, `D`, `S`,
+- **Page header:** breadcrumb `Projects › shop › Pods › web-7c9…` on details *(superseded by CP3.5, T-0113: OCP breadcrumb `<Kinds> › <Kind> details`, project bar above)*; title with a kind badge (`P`, `D`, `S`,
   `CM`, `NS` — OCP style) and status label; Actions dropdown right-aligned. Tabs: Details · YAML · Events only; no
   placeholder Logs/Pods tabs (CP4 adds them; tabs that do nothing erode trust).
 - **Components:** PatternFly `Table` (compact) with `Toolbar` + `ToolbarFilter` chips; `Menu` + `SearchInput` for the
   switcher and project selector; `CodeEditor` (Monaco) for YAML; `Modal` (variant small, danger) for delete;
   `Tooltip` on disabled `Button`s (wrap in a span so the tooltip shows); `EmptyState` for 403/404/empty;
   `Label` for status (red for Failed/CrashLoopBackOff, orange for Pending, green for Running/Succeeded).
-- **Live indicator:** small "Live" / "Paused — retrying" label next to the list title; never a modal.
+- **Live indicator:** small "Live" / "Paused — retrying" label next to the list title; never a modal. *(Superseded by CP3.5, T-0112: no Live label; watch behaviour unchanged.)*
 - **Empty states:** "No pods found in `shop`" with "Clear filters" when filters are active.
 - **Time:** relative ("3m ago") with absolute UTC + local tooltip.
 

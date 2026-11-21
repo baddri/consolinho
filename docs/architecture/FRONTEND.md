@@ -16,7 +16,7 @@ react-hook-form + zod, `yaml`, `kubernetes-types` (TS types only), xterm.js for 
 web/src/
   app/                    # bootstrapping only
     main.tsx  App.tsx  router.tsx  providers.tsx (QueryClient, theme)
-    layout/               # AppShell: Masthead (logo, ClusterSwitcher, user menu), Sidebar nav, page container
+    layout/               # AppShell: Masthead (logo, theme menu, user menu), Sidebar (ClusterSwitcher on top, nav), page container
   shared/                 # no feature knowledge
     api/                  # openapi-fetch client for /api (generated schema in api/schema.gen.ts), error → ProblemDetails
                           #   baseUrl = page origin: OpenAPI paths already include the /api prefix (Api maps MapGroup("/api"))
@@ -31,7 +31,8 @@ web/src/
       watch.ts            # streaming watch (fetch + ReadableStream, NDJSON) with resourceVersion resume
       hooks.ts            # useK8sList / useK8sGet / useK8sWatch → TanStack Query, keyed by [cluster, model, ns, ...]
       access.ts           # useCanI(verb, model, ns) via SelfSubjectAccessReview
-    ui/                   # reusable presentational pieces: ResourceLink, StatusLabel, RelativeTime, LabelList, ErrorState,
+    ui/                   # reusable presentational pieces: page/ (PageHeading, PageTabs, PageBody, SectionHeading, DetailsGrid;
+                          #   ADR-0031), StatusIconText, RelativeTime, LabelList, ErrorState,
                           #   ConfirmModal, EnvironmentLabel, ActionButton (disabled-with-reason), ToastProvider/useToast
     hooks/  utils/
   mocks/                  # MSW mock backend typed by the generated schema: fixtures/, db.ts, session.ts, handlers/, browser.ts (ADR-0016)
@@ -92,7 +93,8 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
   SPA resource paths are built only by `features/resources/paths.ts:resourcePath()`.
 - `localStorage` (convenience only, `fleetconsole.*` keys via `shared/hooks/useStoredValue`): last cluster, recent
   clusters per username (SW-8), last project per cluster (NS-2), "show default projects" (NS-4).
-- Environment tag drives a coloured label in the masthead (e.g. prod = red) so users always know where they are.
+- Environment tag drives a coloured label in the sidebar cluster switcher (e.g. prod = red) and, for prod/staging, the
+  environment band above the content, so users always know where they are.
 
 ## The resource registry
 
@@ -108,8 +110,11 @@ export const deploymentDescriptor: ResourceDescriptor<Deployment> = {
 Adding a kind = one descriptor file + register it + optional kind-specific components. The generic pages handle
 loading/error/empty states, filtering, sorting, pagination and watch updates.
 
-**CP2 shape (ADR-0023):** `{ model, nav?, columns, filters?, defaultSort?, status?, DetailsSection?, hasEventsTab?,
-deleteRequiresName? }` in `features/resources/registry/kinds/<plural>.tsx`; tabs are fixed (Details · YAML · Events)
+**CP2 shape (ADR-0023):** `{ model, nav?, columns, filters?, defaultSort?, status?, DetailsSection?, ExtraSections?,
+hasEventsTab?, deleteRequiresName? }` in `features/resources/registry/kinds/<plural>.tsx`. Details tab (T-0113, OCP
+`DeploymentDetails`): `SectionHeading` "<Kind> details" over a `DetailsGrid` — left column the shared metadata, right
+column `DetailsSection` (shared `DetailsItem`s only, no tables or headings) — then `ExtraSections` full width, each a
+`details/sections/DetailsSubsection` (h2 + region: Containers, Conditions, Ports, Data). Tabs are fixed (Details · YAML · Events)
 and actions generic (Edit YAML, Delete, gated by `useResourceAccess`). The `detailTabs`/`actions` fields above arrive
 with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (registry + discovery).
 
@@ -118,7 +123,7 @@ with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (reg
 - All k8s calls go through `shared/k8s/client.ts`; all FleetConsole API calls through `shared/api`.
 - Query keys always start with `['k8s', cluster, ...]` so switching cluster can never show another cluster's data.
 - Lists use watch to stay live (ADR-0022): the list query holds `{ items, resourceVersion }`, a ref-counted watch
-  (one per key per tab) patches it; 410 → relist; errors → backoff 1 s → 30 s with a "Paused — retrying" label.
+  (one per key per tab) patches it; 410 → relist; errors → backoff 1 s → 30 s with a "Paused — retrying" status in the heading (nothing is shown while live, CP3.5).
   Kubernetes `Status` errors map to `ApiError` with `code = "Kubernetes.<reason>"`; proxy errors keep their `Proxy.*`
   code. Big lists paginate client-side (PF `Pagination`), no virtualisation.
 - Mutations invalidate/update the relevant query keys; show PatternFly alerts for success/failure.
@@ -162,6 +167,7 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 
 ## Admin list pages
 
+- Primary create action ("Add user", "Register cluster") in the `PageHeading` actions slot, not the toolbar.
 - Toolbar (`SearchInput` + checkbox `Select` filters with `ToolbarFilter` labels and "Clear all filters") above a
   composable PF `Table` (`Thead/Tbody/Tr/Th/Td`, sortable `Th`, `ActionsColumn` kebab per row).
 - Lists are bounded arrays: filtering and sorting happen client-side; **filter state lives in the URL search params**
@@ -173,7 +179,22 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 
 ## UI conventions
 
-- PatternFly components and tokens only; no custom CSS unless unavoidable (then CSS modules, colocated).
+- Look and feel follow the OpenShift console: visual rules in `docs/architecture/UX.md`; this section is the code side.
+- PatternFly components and tokens only; no custom CSS unless unavoidable (then CSS modules, colocated, each rule
+  commented with the OCP behaviour it reproduces).
+- **Page anatomy** (ADR-0031, `shared/ui/page`): every page starts with `PageHeading` (the only `h1`; breadcrumb on
+  details pages as `<Plural> › <Kind> details`; status, category labels, actions right), then `PageTabs` (URL-segment
+  tabs, `Tabs component="nav" usePageInsets`) where the page has tabs, then `PageBody`. Details tabs use
+  `SectionHeading` + `DetailsGrid`/`DetailsColumn`/`DetailsItem` (two columns, vertical terms; never horizontal
+  `DescriptionList`). Namespaced resource pages show the project bar above the heading. `Page isContentFilled`.
+- **Status = icon + text** via `StatusIconText` (`asLabel` only in a details title); each feature maps its enum to
+  `StatusKind` in one adapter component. `Label` is for categories only (environment, role, Read only, groups, k8s labels).
+- Tables: composable PF `Table variant="compact"`; headers never truncate; low-priority columns use
+  `visibility={LOW_PRIORITY_COLUMN}` (`shared/table`: `['hidden', 'visibleOn2Xl']`, hidden below 1450px; PF `xl` is
+  already on at 1280) on `Th` and every `Td` (and `TableSkeletonRows columnVisibility`) instead of squeezing or
+  truncating.
+- Modals: exactly one close control; wizard-in-modal has no `Modal onClose` (`WizardHeader` closes, `onEscapePress`).
+  Context labels go inline after the title, never in the header `help` slot.
 - No DOM access: the global `document` and `window.document` / `globalThis.document` / `self.document` are
   lint-forbidden outside `app/main.tsx`, `shared/theme/ThemeProvider.tsx` and test files. Full-page navigation uses
   links (`<a href>`), not `location` assignments.
@@ -184,9 +205,9 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
 - Every page handles loading (Skeleton), error (ErrorState with retry), empty (EmptyState) explicitly.
 - Destructive actions use a confirm modal that names the resource and cluster.
 - Respect `useCanI` to hide/disable actions the user can't perform; still handle 403 gracefully.
-- Dark theme support via PatternFly's theme class (`pf-v6-theme-dark` on `<html>`); light/dark toggle in the masthead.
+- Dark theme support via PatternFly's theme class (`pf-v6-theme-dark` on `<html>`); Light / Dark / System icon menu in the masthead.
   `shared/theme/ThemeProvider` is the only code allowed to touch the document (PF dark tokens live on `:root` and
-  menus are portalled); the choice is remembered in `localStorage`, defaulting to the OS preference.
+  menus are portalled); the preference (`light|dark|system`) is remembered in `localStorage`, default `system`, which follows OS changes live.
 
 ## Testing
 

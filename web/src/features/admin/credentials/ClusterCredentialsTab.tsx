@@ -41,7 +41,7 @@ export function ClusterCredentialsTab({ cluster }: { cluster: CredentialCluster 
     <>
       <Toolbar aria-label="Credentials toolbar">
         <ToolbarContent>
-          <ToolbarItem>{addButton}</ToolbarItem>
+          <ToolbarItem align={{ default: 'alignEnd' }}>{addButton}</ToolbarItem>
         </ToolbarContent>
       </Toolbar>
       {error && <ErrorState error={error} title="Could not load credentials" onRetry={() => void refetch()} />}
@@ -49,13 +49,13 @@ export function ClusterCredentialsTab({ cluster }: { cluster: CredentialCluster 
         <Table aria-label={`Credentials of ${cluster.name}`} variant="compact">
           <Thead>
             <Tr>
-              <Th>Name</Th>
-              <Th>Service account</Th>
-              <Th>Fingerprint</Th>
-              <Th>Expiry</Th>
-              <Th>Grants</Th>
-              <Th>Last test</Th>
-              <Th>Rotated</Th>
+              <Th modifier="nowrap">Name</Th>
+              <Th modifier="nowrap">Service account</Th>
+              <Th modifier="nowrap">Fingerprint</Th>
+              <Th modifier="nowrap">Expiry</Th>
+              <Th modifier="nowrap">Grants</Th>
+              <Th modifier="nowrap">Last test</Th>
+              <Th modifier="nowrap">Rotated</Th>
               <Th screenReaderText="Actions" />
             </Tr>
           </Thead>
