@@ -1,0 +1,9 @@
+/* OCP `.co-m-pane__body` (`public/style/_common.scss`): no row gap inside a section (the heading's own margin spaces
+   it), and a divider between consecutive sections. */
+.section {
+  --pf-v6-c-page__main-section--RowGap: 0;
+}
+
+.section + .section {
+  border-top: 1px solid var(--pf-t--global--border--color--default);
+}

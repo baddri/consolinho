@@ -1,0 +1,47 @@
+/* OCP console-shared/src/components/editor/CodeEditor.scss `.ocs-yaml-editor`: the editor fills its parent column. */
+.editor {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* CodeEditor.scss `.co-code-editor` */
+.editor :global(.pf-v6-c-code-editor) {
+  flex-grow: 1;
+}
+
+/* CodeEditor.scss `.monaco-editor`: part of OCP's fix for the ResizeObserver loop when the editor shrinks. */
+.editor :global(.monaco-editor) {
+  position: absolute;
+}
+
+/* CodeEditor.scss `.pf-v6-c-code-editor__controls`: toolbar as tall as a button ($co-button-height, _vars.scss),
+   controls take the row so "Shortcuts" sits at the right end. */
+.editor :global(.pf-v6-c-code-editor__controls) {
+  align-items: center;
+  min-height: calc(
+    var(--pf-t--global--font--size--body--default) * var(--pf-t--global--font--line-height--body) +
+      var(--pf-t--global--spacer--control--vertical--default) * 2
+  );
+  width: 100%;
+}
+
+/* CodeEditor.scss: no toolbar on mobile ($screen-sm-max). */
+@media (max-width: 767px) {
+  .editor :global(.pf-v6-c-code-editor__header) {
+    display: none;
+  }
+
+  .editor :global(.pf-v6-c-code-editor__header + .pf-v6-c-code-editor__main) {
+    border-block-start-width: var(--pf-t--global--border--width--box--default);
+  }
+}
+
+/* OCP console-shared/src/components/editor/BasicCodeEditor.scss: match Monaco's dark background (theme.ts). OCP keys it
+   on the page's `.pf-v6-theme-dark:not(.pf-v6-theme-high-contrast)`; here on the editor's own resolved theme, so the
+   "Light"/"Dark" colour scheme override gets the right background on either page theme. */
+.dark :global(.pf-v6-c-code-editor:not(.pf-m-read-only)) {
+  --pf-v6-c-code-editor__main--BackgroundColor: var(--pf-t--color--gray--90);
+  --pf-v6-c-code-editor__tab--BackgroundColor: var(--pf-t--color--gray--90);
+}

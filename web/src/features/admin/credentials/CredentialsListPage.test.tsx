@@ -5,6 +5,7 @@ import { credentialIds, http, mockDb, problem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
+import { checkFilterOption } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
 
 /** Every fixture credential as `cluster/name`, in server order (expiry asc, nulls last, then cluster, name). */
@@ -32,10 +33,12 @@ function cellText(row: HTMLElement, label: string): string {
   return row.querySelector(`[data-label="${label}"]`)?.textContent ?? '';
 }
 
-/** `cluster/name` of a body row (the name cell's first text node, without the description); `null` for state rows. */
+/**
+ * `cluster/name` of a body row (the name after its kind badge, without the description); `null` for state rows.
+ */
 function rowKey(row: HTMLElement): string | null {
   const cluster = within(row).queryByRole('link')?.textContent;
-  const name = row.querySelector('[data-label="Name"]')?.firstChild?.textContent;
+  const name = row.querySelector('[data-label="Name"]')?.firstChild?.lastChild?.textContent;
   return cluster && name ? `${cluster}/${name}` : null;
 }
 
@@ -85,6 +88,9 @@ describe('CredentialsListPage (CRED-7)', () => {
     expect(cellText(expired, 'Service account')).toBe('fleetconsole/fleet-view');
 
     expect(within(rowOf(table, 'prod-us-1/legacy-token')).getByText('Not a ServiceAccount token')).toBeInTheDocument();
+    // Credential badge "CC" (ClusterCredential), distinct from the cluster's "C" in the same row (UX.md §5).
+    expect(within(expired).getByTitle('Credential')).toHaveTextContent(/^CC$/);
+    expect(within(expired).getByTitle('Cluster')).toHaveTextContent(/^C$/);
     expect(within(rowOf(table, 'dev-2/fleet-view')).getByText('Disabled')).toBeInTheDocument();
     expect(within(rowOf(table, 'dev-1/fleet-edit')).queryByText('Disabled')).not.toBeInTheDocument();
     expect(within(rowOf(table, 'dev-2/fleet-view')).getByText('Never tested')).toBeInTheDocument();
@@ -113,18 +119,15 @@ describe('CredentialsListPage (CRED-7)', () => {
     const { user, router } = renderApp('/admin/credentials');
     const table = await findTable();
 
-    await user.click(screen.getByRole('textbox', { name: 'Search credentials' }));
+    await user.click(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('fleetconsole/fleet-edit');
     await waitFor(() => expect(visibleRows(table)).toEqual(['prod-eu-1/fleet-edit', 'dev-1/fleet-edit']));
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Environment' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Development' }));
+    await checkFilterOption(user, 'Environment', 'Development');
     await waitFor(() => expect(visibleRows(table)).toEqual(['dev-1/fleet-edit']));
     expect(router.state.location.search).toBe('?q=fleetconsole%2Ffleet-edit&env=development');
 
-    await user.click(within(screen.getByRole('group', { name: 'Credentials toolbar' })).getByRole('button', {
-      name: 'Clear all filters',
-    }));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(visibleRows(table)).toEqual(SERVER_ORDER));
   });
 
@@ -133,30 +136,26 @@ describe('CredentialsListPage (CRED-7)', () => {
     const table = await findTable();
 
     await waitFor(() => expect(visibleRows(table)).toEqual(['prod-us-1/legacy-token', 'staging-eu-1/fleet-admin']));
-    const toolbar = screen.getByRole('group', { name: 'Credentials toolbar' });
-    const chips = within(within(toolbar).getByRole('list', { name: 'Expiry' }));
+    const chips = within(screen.getByRole('list', { name: 'Expiry' }));
     expect(chips.getByText('No expiry')).toBeInTheDocument();
     expect(chips.getByText('Unknown')).toBeInTheDocument();
   });
 
-  it('shows the no-match state with "Clear all filters"', async () => {
+  it('shows the OCP no-match row with "Clear filters"', async () => {
     const { user } = renderApp('/admin/credentials?q=nothing-like-this');
     const table = await screen.findByRole('grid', { name: 'Credentials' });
 
-    expect(
-      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
-    ).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
+    expect(await within(table).findByText('No Credentials found')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(visibleRows(table)).toEqual(SERVER_ORDER));
   });
 
   it('QG-3: empty state links to Clusters', async () => {
     mockDb.credentials = [];
     renderApp('/admin/credentials');
-    const table = await screen.findByRole('grid', { name: 'Credentials' });
 
-    expect(await within(table).findByRole('heading', { name: 'No credentials found' })).toBeInTheDocument();
-    expect(within(table).getByRole('link', { name: 'Go to Clusters' })).toHaveAttribute('href', '/admin/clusters');
+    expect(await screen.findByRole('heading', { name: 'No Credentials found' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to Clusters' })).toHaveAttribute('href', '/admin/clusters');
   });
 
   it('QG-3: skeleton rows while loading', async () => {

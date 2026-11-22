@@ -1,7 +1,7 @@
 import { useMatches } from 'react-router';
 
 /** Tabs of the resource details page, in display order; `details` is the index route (no URL segment). */
-export const RESOURCE_TABS = ['details', 'yaml', 'events'] as const;
+export const RESOURCE_TABS = ['details', 'yaml', 'pods', 'events'] as const;
 /** A tab of the resource details page. */
 export type ResourceTab = (typeof RESOURCE_TABS)[number];
 

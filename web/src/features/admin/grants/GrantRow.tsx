@@ -1,12 +1,12 @@
 import { Flex, FlexItem } from '@patternfly/react-core';
 import { ActionsColumn, Td, Tr, type IAction } from '@patternfly/react-table';
-import { Link } from 'react-router';
 import type { Grant } from '@/shared/api';
 import { disabledActionProps, EnvironmentLabel, RelativeTime } from '@/shared/ui';
+import { AdminResourceLink, AdminResourceName } from '../AdminResourceLink';
 import { clusterDetailPath } from '../clusters/clusterTarget';
 import { CredentialExpiryLabel } from '../credentials/CredentialExpiryLabel';
 import { LastTestLabel } from '../credentials/LastTestLabel';
-import { userDetailPath } from '../users/UserRow';
+import { userDetailPath } from '../users/userColumns';
 import { UserStatusLabel } from '../users/UserStatusLabel';
 import { AccessModeLabel } from './AccessModeLabel';
 import { GrantStateLabels } from './GrantStateLabels';
@@ -35,7 +35,7 @@ function ClusterCell({ grant }: { grant: Grant }) {
   return (
     <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
       <FlexItem>
-        <Link to={clusterDetailPath(grant.clusterName)}>{grant.clusterName}</Link>
+        <AdminResourceLink kind="Cluster" name={grant.clusterName} to={clusterDetailPath(grant.clusterName)} />
         {grant.clusterDisplayName !== grant.clusterName && (
           <div className={SUBTLE}>{grant.clusterDisplayName}</div>
         )}
@@ -52,7 +52,7 @@ function UserCell({ grant }: { grant: Grant }) {
   return (
     <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
       <FlexItem>
-        <Link to={userDetailPath(grant.username)}>{grant.username}</Link>
+        <AdminResourceLink kind="User" name={grant.username} to={userDetailPath(grant.username)} />
         {grant.userDisplayName !== null && <div className={SUBTLE}>{grant.userDisplayName}</div>}
       </FlexItem>
       {/* "User deactivated" is a GRANT-5 state label; showing the status label too would say it twice. */}
@@ -90,7 +90,9 @@ export function GrantRow({ grant, perspective, onChange, onRevoke, readOnlyReaso
       </Td>
       <Td dataLabel="Credential">
         <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>
-          <FlexItem>{grant.credentialName}</FlexItem>
+          <FlexItem>
+            <AdminResourceName kind="Credential">{grant.credentialName}</AdminResourceName>
+          </FlexItem>
           <FlexItem>
             <CredentialExpiryLabel expiryStatus={grant.credentialExpiryStatus} expiresAt={grant.credentialExpiresAt} />
           </FlexItem>

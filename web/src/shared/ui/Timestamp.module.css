@@ -1,0 +1,10 @@
+/* OCP `.co-icon-and-text` (`public/components/_icon-and-text.scss`): icon and text baseline-aligned, 5px apart. */
+.timestamp {
+  align-items: baseline;
+  display: inline-flex;
+}
+
+.icon {
+  flex-shrink: 0;
+  margin-right: 5px;
+}

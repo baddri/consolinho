@@ -1,0 +1,277 @@
+/*
+ * OCP event stream: `public/components/_sysevent-stream.scss`, `_sysevent-icon.scss` and `_toggle-play.scss`.
+ * Breakpoints are OCP's `$screen-sm-min` (576px) and `$pf-v6-global--breakpoint--xl` (1200px).
+ */
+
+/* `.co-sysevent-stream` */
+.stream {
+  padding: 60px 0 50px 0;
+  position: relative;
+}
+
+/* `.co-sysevent-stream__status` */
+.status {
+  display: flex;
+  justify-content: space-between;
+  left: 40px;
+  position: absolute;
+  right: 4px;
+  top: 9px;
+}
+
+/* `.co-sysevent-stream__connection-error` */
+.connectionError {
+  color: var(--pf-t--global--text--color--status--danger--default);
+}
+
+/* `.co-sysevent-stream__timeline` */
+.timeline {
+  bottom: 30px;
+  position: absolute;
+  top: 35px;
+}
+
+/* `.co-sysevent-stream__timeline__end-message` (hidden on an empty timeline) */
+.endMessage {
+  bottom: 0;
+  position: absolute;
+  transform: translateY(50%);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.timelineEmpty .endMessage {
+  display: none;
+}
+
+/* `.co-sysevent-stream__timeline__btn` */
+.timelineButton {
+  margin: 0;
+  margin-left: 2px;
+  transform: translate(0%, -100%);
+}
+
+/* `.co-toggle-play.pf-v6-c-button` (`_toggle-play.scss`): the round pause/play button, green ring while streaming. */
+.togglePlay:global(.pf-v6-c-button) {
+  align-items: center;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  border: var(--pf-t--global--border--width--extra-strong) solid var(--pf-t--global--border--color--default);
+  border-radius: 50%;
+  height: 37px;
+  margin-right: 15px;
+  padding: 0;
+  width: 37px;
+}
+
+.togglePlayActive:global(.pf-v6-c-button) {
+  border-color: var(--pf-t--global--border--color--status--success--default);
+}
+
+/* `.co-sysevent--transition` on OCP's virtualised row: the gap between cards. Off-screen cards skip layout and paint
+   (`content-visibility`), which keeps 500 cards cheap where OCP uses react-virtualized. */
+.item {
+  contain-intrinsic-size: auto 110px;
+  content-visibility: auto;
+  padding-bottom: 15px;
+}
+
+/* `.co-sysevent-slide-in`: new events fade in. */
+.slideIn {
+  animation: event-enter var(--pf-t--global--motion--duration--slide-in--default)
+    var(--pf-t--global--motion--timing-function--accelerate);
+}
+
+@keyframes event-enter {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+/* `.co-sysevent` */
+.event {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+/* `.co-sysevent__icon-box`: the timeline dot and its connector (xl and up). */
+.iconBox {
+  display: none;
+  flex: 0 0 100px;
+  position: relative;
+}
+
+/* `.co-sysevent-icon` (`_sysevent-icon.scss`) */
+.icon {
+  background-color: var(--pf-t--global--background--color--primary--default);
+  border: var(--pf-t--global--border--width--extra-strong) solid var(--pf-t--global--color--nonstatus--gray--default);
+  border-radius: var(--pf-t--global--border--radius--400);
+  height: 18px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(calc(50% - 17px), calc(-50% + 1px));
+  width: 18px;
+  z-index: 10;
+}
+
+/* `.co-sysevent__icon-line`: connector matching the timeline and card border colour. */
+.iconLine {
+  background-color: var(--pf-t--global--color--nonstatus--gray--default);
+  height: 3px;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  width: 50%;
+}
+
+/* `.co-sysevent__box`: opaque so overlapping text never shows through. */
+.box {
+  background-color: var(--pf-t--global--background--color--primary--default);
+  border: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--color--nonstatus--gray--default);
+  border-radius: var(--pf-t--global--border--radius--medium);
+  flex: none;
+  padding: 10px;
+  width: 100%;
+}
+
+/* `.co-sysevent__subheader` */
+.subheader {
+  display: flex;
+  justify-content: space-between;
+  white-space: pre;
+}
+
+.subheader > *:not(:first-child) {
+  margin-left: 8px;
+}
+
+/* `.co-sysevent__resourcelink` */
+.resourceLink {
+  display: block;
+  flex: 2 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The namespace link: `pf-v6-u-display-none pf-v6-u-display-block-on-sm`. */
+.namespaceLink {
+  display: none;
+}
+
+/* `.co-sysevent__timestamp` */
+.timestamp {
+  display: flex;
+  flex: 1 0 0;
+  justify-content: flex-end;
+}
+
+/* `.co-sysevent__details` */
+.details {
+  column-gap: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* `.co-sysevent__source` */
+.source {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* `.co-sysevent__count-and-actions` */
+.countAndActions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+}
+
+/* `.co-sysevent__message` (+ `co-break-word`): long messages scroll inside the card. */
+.message {
+  margin-right: -11px;
+  margin-top: 10px;
+  max-height: 150px;
+  overflow-wrap: break-word;
+  overflow-y: auto;
+  padding-right: 11px;
+  position: relative;
+  word-break: break-word;
+}
+
+/* `.co-sysevent--warning` */
+.warning .icon,
+.warning .box {
+  border-color: var(--pf-t--global--border--color--status--warning--default);
+}
+
+.warning .iconLine {
+  background-color: var(--pf-t--global--border--color--status--warning--default);
+}
+
+@media (min-width: 576px) {
+  .status {
+    left: 45px;
+    padding-left: 25px;
+    right: 0;
+  }
+
+  .namespaceLink {
+    display: block;
+  }
+}
+
+@media (min-width: 1200px) {
+  .stream {
+    padding-left: 5px;
+    padding-top: 50px;
+  }
+
+  .timeline {
+    border-bottom: var(--pf-t--global--border--width--extra-strong) solid var(--pf-t--global--color--nonstatus--gray--default);
+    border-left: var(--pf-t--global--border--width--extra-strong) solid var(--pf-t--global--color--nonstatus--gray--default);
+    margin-left: 10px;
+  }
+
+  .timelineEmpty {
+    border-color: transparent;
+  }
+
+  .timelineButton {
+    margin-left: -2px;
+    transform: translate(-50%, -100%);
+  }
+
+  .endMessage {
+    left: 57px;
+  }
+
+  /* `.co-sysevent { margin-left: -40px }`, on the row so the card stays inside the row's paint containment. */
+  .item {
+    margin-left: -40px;
+  }
+
+  .event {
+    flex-wrap: nowrap;
+  }
+
+  .box {
+    border: var(--pf-t--global--border--width--regular) solid var(--pf-t--global--color--nonstatus--gray--default);
+    flex: 1 2 auto;
+    min-width: 0%;
+  }
+
+  .warning .box {
+    border-color: var(--pf-t--global--border--color--status--warning--default);
+  }
+
+  .iconBox {
+    display: block;
+  }
+}

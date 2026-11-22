@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.5 closed) · **Current checkpoint:** CP4 — Workloads day-2 operations (not started) ·
-**Branch:** `main`
+**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP4 — Workloads day-2 (SPEC next) ·
+**Branch:** `main` (CP4 work goes on `cp/4-workloads`)
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -15,11 +15,18 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
-1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0118 (CP3.5 UX
+0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
+   `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
+   waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +
+   ux-designer (visual, against `scripts/ocp-ref`) in parallel; only the architect runs `check-fe.sh`.
+1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0133 (field-help +
+   ring scale, W3/W4), one cluster-OpenAPI capability (YAML schema sidebar W1 + field help), "Edit <Kind>" form editors,
+   kind-specific actions, Search page (list labels link to it then; today they link to the filtered list),
+   shared `?label=` path helper (T-0136 nit), `itemKey 'edit-yaml'`→`'edit'` (T-0135 nit). Also T-0118 (CP3.5 UX
    follow-ups) and the CP3.5 backlog items in ROADMAP (YAML Cancel/Save, audit labels, structured admin source —
    FE parses strings in `users/adminSource.ts`), plus: `Timestamp`/`DetailsSubsection` → shared/ui + unit test;
    `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
-2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
+2. CP6 follow-ups: T-0107, T-0108 (CP3), T-0130 (events cache), T-0134 (Favorites modal focus), T-0128 (unfavourite button).
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
 ## How the human can test (current state)
@@ -28,6 +35,8 @@
 - e2e: with Aspire running, `cd web && npm run e2e`.
 
 ## Needs human
+- CP3.6 reference console: human chose local `bridge` (2026-11-22); built and verified. The orchestrator starts it with
+  `scripts/ocp-ref/run-console.sh` (needs a live `oc login`; the token expires) — `docs/dev/OCP-REFERENCE.md`.
 - CP2 H1–H6 manual checks on real clusters. Optional: confirm product name before CP3 (image/Route names; UI brand is
   "Consolinho" since T-0055).
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` (T-0054 worktree) — safe to remove.

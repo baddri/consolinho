@@ -17,6 +17,10 @@ describe('UserMenu (AUTH-9)', () => {
     const menu = await screen.findByRole('menu');
     expect(screen.getByText('ines')).toBeInTheDocument();
     expect(screen.getByText('1 group')).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: 'User preferences' })).toHaveAttribute(
+      'href',
+      '/user-preferences',
+    );
     expect(within(menu).getByRole('menuitem', { name: 'Log out' })).toBeInTheDocument();
   });
 

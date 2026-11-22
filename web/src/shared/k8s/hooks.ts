@@ -21,7 +21,12 @@ export interface K8sLiveResult<D> {
  * Keeps `target`'s query live through the shared watch: acquires it while `enabled` and the key is mounted, and
  * syncs it with the cached `resourceVersion` whenever the data changes (first load, relist). Returns its status.
  */
-function useWatch(target: WatchTarget, enabled: boolean, resourceVersion: string | undefined, updatedAt: number) {
+function useWatch(
+  target: WatchTarget,
+  enabled: boolean,
+  resourceVersion: string | undefined,
+  updatedAt: number,
+) {
   const manager = watchManagerFor(useQueryClient());
   const hash = hashKey(target.queryKey);
 
@@ -50,7 +55,11 @@ export function useK8sList<T>(
 ): K8sLiveResult<T[]> {
   const { namespace, labelSelector, fieldSelector, enabled = true } = opts;
   const target = useMemo<WatchTarget>(() => {
-    const listOpts: ListOptions = { namespace: model.namespaced ? namespace : undefined, labelSelector, fieldSelector };
+    const listOpts: ListOptions = {
+      namespace: model.namespaced ? namespace : undefined,
+      labelSelector,
+      fieldSelector,
+    };
     return {
       cluster,
       model,

@@ -89,6 +89,16 @@ stream proxy bodies, never buffer watch/log streams.
 - Typed everything. No `any` (lint-enforced). Admin API types are generated from the backend OpenAPI document.
 - Components and hooks get a short TSDoc comment explaining purpose and non-obvious behaviour.
 
+### UI north star: mirror the OCP console (human directive, 2026-11-22)
+- The UI must look and feel **exactly like the OpenShift web console**, so an OCP user feels at home. Fleet features
+  (cluster switcher, Fleet administration) are the only inventions, and they follow OCP's style.
+- Reference = the local clone **`/home/bad/works/openshift-console`** (`main`; paths in docs are relative to its
+  `frontend/`). Before you build or review a screen, `grep -rn` it for the OCP counterpart and read that component. Don't work from memory.
+  If the clone is missing, use `gh api repos/openshift/console/contents/<path>`.
+- **Our own code:** reproduce OCP's structure, PF components and variants, spacing, CSS values and copy. Don't copy OCP
+  files or large blocks, and never use Red Hat/OpenShift logos or trademarks.
+- Parity comes before features: new feature work waits until the parity checkpoint (ROADMAP CP3.6) is accepted. Rules: `docs/architecture/UX.md`.
+
 ## Context & token discipline (every agent, every session)
 
 Everything you read stays in context and is re-sent on every later turn, so reading is the main cost of this project.

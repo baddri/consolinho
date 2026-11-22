@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api';
-import { k8sDelete, k8sQueryKeys, type K8sModel } from '@/shared/k8s';
+import { k8sDelete, k8sQueryKeys, type K8sModel, type PropagationPolicy } from '@/shared/k8s';
 import { useToast } from '@/shared/ui';
 
 /** The object {@link useDeleteResource} deletes. */
@@ -8,6 +8,8 @@ export interface DeleteTarget {
   /** Ignored for cluster-scoped kinds. */
   namespace: string | undefined;
   name: string;
+  /** Sent as `DeleteOptions.propagationPolicy` when set (OCP's "Delete dependent objects" checkbox). */
+  propagationPolicy?: PropagationPolicy;
 }
 
 /** Options of {@link useDeleteResource}. */
@@ -32,13 +34,17 @@ function isAlreadyGone(error: unknown): boolean {
  * visit doesn't flash it; lists are never refetched — their watch removes the row. Errors are the proxy's
  * ProblemDetails (`Proxy.UserReadOnly`, `Proxy.ReadOnlyGrant`) or the cluster's `Status`; a 404 counts as success.
  */
-export function useDeleteResource(cluster: string, model: K8sModel, { onDeleted }: DeleteResourceOptions = {}) {
+export function useDeleteResource(
+  cluster: string,
+  model: K8sModel,
+  { onDeleted }: DeleteResourceOptions = {},
+) {
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: async ({ namespace, name }: DeleteTarget) => {
+    mutationFn: async ({ namespace, name, propagationPolicy }: DeleteTarget) => {
       try {
-        await k8sDelete(cluster, model, namespace, name);
+        await k8sDelete(cluster, model, namespace, name, propagationPolicy);
       } catch (error) {
         if (!isAlreadyGone(error)) throw error;
       }

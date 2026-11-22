@@ -1,0 +1,22 @@
+/*
+ * Labels cells (OCP `public/components/utils/_label.scss`): labels wrap onto further lines inside the cell, and a
+ * label longer than the cell truncates with an ellipsis instead of widening the column.
+ * - A one-track grid `minmax(0, max-content)` gives the cell a min-content width of 0 but keeps its natural
+ *   max-content width: the auto-layout table never widens past the page for the longest label (the column only has
+ *   to fit its start width, `labelsColumn`), yet hands the Labels column its share of spare room.
+ * - Flex items default to `min-width: auto` (their unwrapped text); `min-width: 0` lets PatternFly's own label text
+ *   truncation (`max-width: 100%`) apply.
+ */
+.labels {
+  display: grid;
+  grid-template-columns: minmax(0, max-content);
+  min-width: 0;
+}
+
+.labels :global(.pf-v6-c-label-group),
+.labels :global(.pf-v6-c-label-group) li,
+.labels :global(.pf-v6-c-label-group) ul,
+.labels :global(.pf-v6-c-label),
+.labels :global(.pf-v6-c-label__content) {
+  min-width: 0;
+}

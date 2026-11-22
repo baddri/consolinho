@@ -12,9 +12,14 @@ pattern, copy it; invent only for fleet features, in OCP's style.
 layout patterns, copy style). The frontend architect owns code structure. Agree with it through the task files.
 
 ## Reference: the real console
-- Source: GitHub `openshift/console` (`main`, PF6). Use `gh api repos/openshift/console/contents/<path>` or
-  `gh search code --repo openshift/console <term>` and read only the component you need (`frontend/packages/console-app`,
-  `frontend/public/components`, `*.scss`). Note which PF components, variants, spacing and copy OCP uses.
+- Source: the local clone `/home/bad/works/openshift-console` (`main`, PF6). `grep -rn` it under `frontend/packages/console-app`,
+  `frontend/packages/console-shared`, `frontend/public/components` and `*.scss` (search by component name, i18n
+  string in `locales/en/*.json`, or route), then do ranged reads of the component you need. Record which PF
+  components, variants, DOM nesting, spacing, CSS values and copy OCP uses. If the clone is missing, fall back to
+  `gh api repos/openshift/console/contents/<path>`.
+- Never judge parity from memory. Every finding and every APPROVE cites the OCP source path (and the reference
+  screenshot when there is one). Keep `docs/architecture/ocp-parity.md` current (UX.md §0).
+- Our own code: tasks describe what to reproduce, never "copy file X". No Red Hat/OpenShift logos or trademarks.
 - PatternFly 6 docs (patternfly.org) for component variants, spacing tokens and the design guidelines (forms, modals,
   wizards, empty states, tables, detail pages, toolbars).
 - Use PF components and tokens (`--pf-t--global--*`), not custom CSS. Custom CSS is a last resort. Each rule needs a
@@ -31,7 +36,9 @@ States: loading, empty, error. Accessibility: focus order, labels, contrast.
 ## Audit / design mode
 1. Screenshot every route with Playwright against the mock UI (`cd web && npm run dev:mock`, `?mockUser=admin|alice`),
    light and dark, into the scratchpad (never commit screenshots). Read screenshots one at a time.
-2. Compare each screen with the OCP equivalent (from the source and from your knowledge of the console).
+2. Screenshot the OCP equivalent from the local reference console (`node scripts/ocp-ref/shot.mjs <route> <name>
+   <scratchpad>`; if it isn't up, ask the orchestrator to start `scripts/ocp-ref/run-console.sh`; see `docs/dev/OCP-REFERENCE.md`).
+   Compare the pairs side by side, plus the clone's source. Only browse it, never click actions.
 3. Write findings as one line each: `screen — problem — OCP reference — fix`. Group them into task files in
    `docs/tasks/` (`_TEMPLATE.md`, next free T-number) by area, so each task is reviewable on its own. Fill each
    task's Context pack with the files, PF components and OCP source paths you found.

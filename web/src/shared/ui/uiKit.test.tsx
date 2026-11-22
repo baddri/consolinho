@@ -135,7 +135,9 @@ describe('ConfirmModal', () => {
     const dialog = screen.getByRole('dialog', { name: 'Delete cluster prod-eu-1? prod' });
     expect(dialog).toHaveAccessibleDescription('Users lose access to prod-eu-1.');
     // Danger confirms get OCP's warning icon; the label sits inside the title, not in the header's help slot.
-    const heading = within(dialog).getByRole('heading', { name: /^Warning alert: ?Delete cluster prod-eu-1\? prod$/ });
+    const heading = within(dialog).getByRole('heading', {
+      name: /^Warning alert: ?Delete cluster prod-eu-1\? prod$/,
+    });
     expect(within(heading).getByText('prod')).toBeInTheDocument();
     expect(within(dialog).getAllByRole('button', { name: /close/i })).toHaveLength(1);
 
@@ -168,7 +170,9 @@ describe('ConfirmModal', () => {
         Users lose access to prod-eu-1.
       </ConfirmModal>,
     );
-    expect(screen.getByRole('heading', { name: /^Danger alert: ?Delete cluster prod-eu-1\?$/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /^Danger alert: ?Delete cluster prod-eu-1\?$/ }),
+    ).toBeInTheDocument();
   });
 
   it('keeps confirm disabled until the exact text is typed; Enter then confirms', async () => {
@@ -251,16 +255,17 @@ describe('ConfirmModal', () => {
 });
 
 describe('NotFoundPage', () => {
-  it('shows the 404 page heading as h1 above an empty state that links home', () => {
+  it("shows OCP's 404: h1, one sentence and a link home", () => {
     render(
       <MemoryRouter>
         <NotFoundPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { level: 1, name: '404: Page not found' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'This page does not exist' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('heading', { level: 1, name: '404: Page Not Found' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading')).toHaveLength(1);
+    expect(screen.getByText("We couldn't find that page.")).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Return to homepage' })).toHaveAttribute('href', '/');
   });
 });
 

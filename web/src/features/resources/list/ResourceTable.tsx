@@ -47,7 +47,6 @@ export function ResourceTable({
           {columns.map((column, index) => (
             <Th
               key={column.id}
-              width={column.width}
               visibility={column.visibility}
               modifier="nowrap"
               sort={column.sortValue ? sortProps(column.id, index) : undefined}

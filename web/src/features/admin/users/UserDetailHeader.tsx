@@ -1,6 +1,7 @@
 import { Label, LabelGroup, Skeleton } from '@patternfly/react-core';
 import type { UserDetail } from '@/shared/api';
-import { PageHeading } from '@/shared/ui';
+import { KindBadge, PageHeading } from '@/shared/ui';
+import { ADMIN_KIND_ABBR } from '../AdminResourceLink';
 import { UserActionsDropdown } from './UserActionsDropdown';
 import { UserStatusLabel } from './UserStatusLabel';
 
@@ -41,14 +42,15 @@ export interface UserDetailHeaderProps {
 
 /**
  * Heading of the user detail page (USR-7, `UX.md` §3) via {@link PageHeading}: breadcrumb `Users › User details`, the
- * username as `h1` with the status as an outlined label and the Admin / Read only labels, the display name as
- * subtitle and the shared Actions menu ({@link UserActionsDropdown}, whose first item opens the bulk grant wizard) on
- * the right. The Cluster access tab's toolbar holds the one create button, so the heading has no second one.
+ * large "U" kind badge and the username as `h1`, the status in a read `Badge`, the Admin / Read only labels and the
+ * Actions menu ({@link UserActionsDropdown}) on the right. No subtitle, as OCP: the display name is in the Details
+ * tab. Granting access lives only in the Cluster access tab's toolbar ("Grant access").
  */
 export function UserDetailHeader({ username, user, isLoading }: UserDetailHeaderProps) {
   return (
     <PageHeading
       breadcrumbs={BREADCRUMBS}
+      icon={<KindBadge kind="User" abbr={ADMIN_KIND_ABBR.User} size="lg" />}
       title={username}
       status={
         isLoading ? (
@@ -58,7 +60,6 @@ export function UserDetailHeader({ username, user, isLoading }: UserDetailHeader
         )
       }
       labels={user && <UserHeaderLabels user={user} />}
-      subtitle={user?.displayName}
       actions={user && <UserActionsDropdown user={user} />}
     />
   );

@@ -9,10 +9,14 @@ export function displayName(obj: K8sResource): string | undefined {
   return obj.metadata.annotations?.[PROJECT_ANNOTATIONS.displayName];
 }
 
-/** `status.phase` as a label: `Active` green, `Terminating` orange, anything else grey. */
+/** `status.phase` (`Active` green check, `Terminating` ban icon, OCP `Status`), `Unknown` when unset. */
 export function phaseStatus(obj: NamespaceLike): ResourceStatus {
-  const title = obj.status?.phase ?? 'Unknown';
-  return { title, color: title === 'Active' ? 'green' : title === 'Terminating' ? 'orange' : 'grey' };
+  return { title: obj.status?.phase ?? 'Unknown' };
+}
+
+/** OCP's subtle placeholder text for an unset value ("No display name", "No requester"; `namespace.tsx`). */
+export function Placeholder({ text }: { text: string }) {
+  return <span className="pf-v6-u-text-color-subtle">{text}</span>;
 }
 
 /** Display name and Status columns shared by Projects and Namespaces. */
@@ -21,7 +25,7 @@ export function namespaceLikeColumns<T extends NamespaceLike>(): ColumnDef<T>[] 
     {
       id: 'displayName',
       title: 'Display name',
-      cell: (obj) => displayName(obj) ?? '—',
+      cell: (obj) => displayName(obj) ?? <Placeholder text="No display name" />,
       sortValue: (obj) => displayName(obj) ?? null,
     },
     {

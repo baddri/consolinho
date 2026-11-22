@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { AuditCategory } from '@/shared/api';
-import { useUrlFilters, type FilterDefs, type FilterOption, type FilterValues } from '@/shared/table';
+import type { FilterDefs, FilterOption, FilterValues } from '@/shared/table';
 import type { AuditQueryFilters } from '../queryKeys';
+import { useAdminListFilters } from '../useAdminListFilters';
 import { isTimeRange, resolveRange, TIME_RANGES, type TimeRange } from './timeRange';
 
 const CATEGORIES: readonly AuditCategory[] = ['auth', 'users', 'clusters', 'credentials', 'grants', 'proxy'];
@@ -90,12 +91,12 @@ export function effectiveRange(values: AuditFilterValues): TimeRange | undefined
 }
 
 /**
- * URL-backed filter state of the audit log (`useUrlFilters` over {@link AUDIT_FILTERS}). `setTimeRange` writes `range`
+ * URL-backed filter state of the audit log (`useAdminListFilters` over {@link AUDIT_FILTERS}). `setTimeRange` writes `range`
  * and drops `from`/`to` (unless switching to `custom`) in one URL update, which two `useUrlFilters` setters in the
  * same event could not do.
  */
 export function useAuditFilters() {
-  const filters = useUrlFilters(AUDIT_FILTERS);
+  const filters = useAdminListFilters(AUDIT_FILTERS);
   const [, setSearchParams] = useSearchParams();
 
   const setTimeRange = useCallback(

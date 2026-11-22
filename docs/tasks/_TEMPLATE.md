@@ -24,6 +24,7 @@ Routes, types, interfaces, ADR links. Enough that the engineer doesn't have to g
 - Docs: `BACKEND.md` § <heading>, ADR-00xx
 - Exemplars: `src/.../SomeUseCase/Handler.cs:Handle` or `file:L40-90` (pattern to copy — symbol or line range, not a folder)
 - Touch points: `file:Symbol` for every existing type/method/route/test helper the engineer must change or call
+- OCP reference (UI tasks): `/home/bad/works/openshift-console/frontend/<path>:Symbol`, the counterpart to mirror
 
 ## Acceptance criteria
 - [ ] ...

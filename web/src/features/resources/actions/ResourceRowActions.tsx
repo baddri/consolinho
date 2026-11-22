@@ -1,4 +1,4 @@
-import { ActionsColumn, Td } from '@patternfly/react-table';
+import { ActionsColumn } from '@patternfly/react-table';
 import type { K8sResource } from '@/shared/k8s';
 import type { ResourceDescriptor } from '../registry/types';
 import { useResourceActions } from './useResourceActions';
@@ -11,9 +11,10 @@ export interface ResourceRowActionsProps {
 }
 
 /**
- * The kebab cell of a resource list row (UI-8): Edit YAML and Delete from `useResourceActions`. The access check is
- * namespace-level (no name), so rows of one namespace share a single SelfSubjectAccessReview, and only rendered
- * (current page) rows mount it. After a delete the list's watch removes the row.
+ * The kebab of a resource list row (UI-8; the list's data view renders the sticky action cell around it): Edit <Kind>
+ * and Delete <Kind> from `useResourceActions`. The access check is namespace-level (no name), so rows of one namespace share
+ * a single SelfSubjectAccessReview, and only rendered (current page) rows mount it. After a delete the list's watch
+ * removes the row.
  */
 export function ResourceRowActions({ cluster, descriptor, obj }: ResourceRowActionsProps) {
   const name = obj.metadata.name ?? '';
@@ -25,9 +26,9 @@ export function ResourceRowActions({ cluster, descriptor, obj }: ResourceRowActi
     reviewByName: false,
   });
   return (
-    <Td isActionCell>
+    <>
       <ActionsColumn items={items} />
       {dialog}
-    </Td>
+    </>
   );
 }

@@ -1,9 +1,12 @@
+import { RhUiSearchIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
 import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
-import { LabelList, RelativeTime } from '@/shared/ui';
+import { kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
+import { useResourceRoute } from '../resourceRoute';
+import styles from './columns.module.css';
 import type { ColumnDef } from './types';
 
 /** Milliseconds since epoch of an ISO timestamp, `null` when absent or unparseable (sorts last). */
@@ -14,14 +17,17 @@ export function timestampValue(value: string | undefined): number | null {
 }
 
 /**
- * Name column: kind badge + link to the object's details page. Sort key `name`. A quarter of the table, so generated
- * pod names (`web-7d4b9c8f6d-2xkqp`) stay on one line next to badge at 1280 instead of breaking at every hyphen.
+ * Name column (`type: 'name'`): kind badge + link to the object's details page, sticky and `nowrap` like OCP, so
+ * generated pod names (`web-7d4b9c8f6d-2xkqp`) stay on one line. Sort key `name`.
  */
 export function nameColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T> {
   return {
     id: 'name',
     title: 'Name',
-    width: 25,
+    type: 'name',
+    // Names don't wrap, so the column starts wide enough for a generated pod name; measured from the page width
+    // while skeleton rows show, it would be too narrow and the rows would push the table past the page.
+    width: 210,
     cell: (obj) => (
       <ResourceLink model={model} name={obj.metadata.name ?? ''} namespace={obj.metadata.namespace} />
     ),
@@ -34,7 +40,11 @@ function NamespaceListLink({ model, namespace }: { model: K8sModel; namespace: s
   const cluster = useActiveCluster();
   return (
     <BadgedName badge={NamespaceModel}>
-      {cluster === undefined ? namespace : <Link to={resourcePath(cluster, model, { namespace })}>{namespace}</Link>}
+      {cluster === undefined ? (
+        namespace
+      ) : (
+        <Link to={resourcePath(cluster, model, { namespace })}>{namespace}</Link>
+      )}
     </BadgedName>
   );
 }
@@ -44,6 +54,7 @@ export function namespaceColumn<T extends K8sResource>(model: K8sModel): ColumnD
   return {
     id: 'namespace',
     title: 'Namespace',
+    type: 'namespace',
     allNamespacesOnly: true,
     cell: (obj) =>
       obj.metadata.namespace === undefined ? (
@@ -55,12 +66,12 @@ export function namespaceColumn<T extends K8sResource>(model: K8sModel): ColumnD
   };
 }
 
-/** "Created" column: relative time with the absolute time in a tooltip; sorts by timestamp. */
+/** "Created" column: OCP `Timestamp` (clock icon + absolute date, relative within 10.5 minutes); sorts by time. */
 export function ageColumn<T extends K8sResource>(): ColumnDef<T> {
   return {
     id: 'created',
     title: 'Created',
-    cell: (obj) => <RelativeTime value={obj.metadata.creationTimestamp ?? null} />,
+    cell: (obj) => <Timestamp value={obj.metadata.creationTimestamp} />,
     sortValue: (obj) => timestampValue(obj.metadata.creationTimestamp),
   };
 }
@@ -80,28 +91,86 @@ export interface PodSelectorLinkProps {
 }
 
 /**
- * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2); "—" without a selector,
- * plain text outside a cluster or namespace.
+ * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2), with OCP `Selector`'s
+ * search icon and ", "-joined terms; "No selector" in subtle text without one, plain text outside a cluster or namespace.
  */
 export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps) {
   const cluster = useActiveCluster();
   const selector = labelSelectorString(matchLabels);
-  if (selector === '') return <>—</>;
+  if (selector === '') return <div className="pf-v6-u-text-color-subtle">No selector</div>;
   if (cluster === undefined || namespace === undefined) return <>{selector}</>;
   const search = new URLSearchParams({ label: selector }).toString();
-  return <Link to={resourcePath(cluster, PodModel, { namespace, search })}>{selector}</Link>;
+  return (
+    <Link to={resourcePath(cluster, PodModel, { namespace, search })}>
+      <RhUiSearchIcon className="pf-v6-u-mr-xs" />
+      {selector.replace(/,/g, ', ')}
+    </Link>
+  );
 }
 
-/** Labels column: `key=value` labels, collapsed after three. Not sortable. */
-export function labelsColumn<T extends K8sResource>(): ColumnDef<T> {
+/** Props for {@link ReplicasCountLink}. */
+export interface ReplicasCountLinkProps {
+  /** The workload's model (Deployment, ReplicaSet); it must have a Pods tab (`podsSelector`). */
+  model: K8sModel;
+  obj: K8sResource;
+  /** "N of M pods". */
+  title: string;
+}
+
+/**
+ * OCP `ReplicasCount` (`workload-table.tsx`): a workload's "N of M pods" as a link to its Pods tab on the active
+ * cluster; plain text outside a cluster.
+ */
+export function ReplicasCountLink({ model, obj, title }: ReplicasCountLinkProps) {
+  const cluster = useActiveCluster();
+  const { namespace, name } = obj.metadata;
+  if (cluster === undefined || namespace === undefined || name === undefined) return <>{title}</>;
+  return <Link to={resourcePath(cluster, model, { namespace, name, tab: 'pods' })}>{title}</Link>;
+}
+
+/** Props for {@link ListLabels}. */
+interface ListLabelsProps {
+  /** The listed kind: labels take its colour and link to its list. */
+  model: K8sModel;
+  labels: Readonly<Record<string, string>>;
+}
+
+/**
+ * A list row's labels as OCP `LabelList` (`public/components/utils/label-list.tsx`): the shared unboxed
+ * `ResourceLabels` in the kind's colour. OCP links each label to Search; we have no Search page, so each links to this
+ * kind's list in the current scope (namespace or all namespaces) filtered by it (`?label=key=value`, ADR-0023), the
+ * same result for one kind. Plain labels outside a cluster route.
+ */
+function ListLabels({ model, labels }: ListLabelsProps) {
+  const { cluster, namespace } = useResourceRoute();
+  const linkTo = (key: string, value: string) =>
+    resourcePath(cluster, model, {
+      namespace: model.namespaced ? namespace : undefined,
+      search: new URLSearchParams({ label: `${key}=${value}` }).toString(),
+    });
+  return (
+    <div className={styles.labels}>
+      <ResourceLabels
+        labels={labels}
+        color={kindLabelColor(model.kind)}
+        linkTo={cluster === '' ? undefined : linkTo}
+        isBoxed={false}
+      />
+    </div>
+  );
+}
+
+/**
+ * Labels column of `model`'s list: {@link ListLabels} ("No labels" in subtle text without any). Not sortable. Labels
+ * wrap inside the cell and truncate when longer than it (`columns.module.css`), so the column never pushes the table
+ * past the page. Start width like OCP's `getLabelsColumnWidthStyleProp` (200 px there), 180 px here: the most our
+ * Deployments list in all projects leaves at 1280 next to its nowrap headers.
+ */
+export function labelsColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T> {
   return {
     id: 'labels',
     title: 'Labels',
-    cell: (obj) => (
-      <LabelList
-        aria-label="Labels"
-        labels={Object.entries(obj.metadata.labels ?? {}).map(([key, value]) => `${key}=${value}`)}
-      />
-    ),
+    width: 180,
+    cell: (obj) => <ListLabels model={model} labels={obj.metadata.labels ?? {}} />,
   };
 }

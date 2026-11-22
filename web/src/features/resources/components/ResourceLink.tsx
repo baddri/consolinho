@@ -9,19 +9,23 @@ import { KindBadge } from './KindBadge';
 /** Props for {@link BadgedName}. */
 export interface BadgedNameProps {
   /** Kind shown as the badge; none renders the name alone. */
-  badge?: Pick<K8sModel, 'abbr' | 'label'>;
+  badge?: Pick<K8sModel, 'abbr' | 'kind'>;
   /** The name: a router link or plain text. */
   children: ReactNode;
 }
 
 /**
- * OCP `ResourceLink` layout without the routing: kind badge and name on one line with a small gap, the name wrapping
- * only when its column is too narrow. Used for links whose target isn't the object's details page (namespace column)
+ * OCP `ResourceLink` layout (`co-resource-item`) without the routing: kind badge (its own 4px right margin) and name
+ * on one line, baseline-aligned, the name wrapping only when its column is too narrow and allows it. Used for links whose target isn't the object's details page (namespace column)
  * and for kinds the registry doesn't know (owner `ReplicaSet`).
  */
 export function BadgedName({ badge, children }: BadgedNameProps) {
   return (
-    <Flex gap={{ default: 'gapSm' }} flexWrap={{ default: 'nowrap' }} alignItems={{ default: 'alignItemsBaseline' }}>
+    <Flex
+      gap={{ default: 'gapNone' }}
+      flexWrap={{ default: 'nowrap' }}
+      alignItems={{ default: 'alignItemsBaseline' }}
+    >
       {badge && (
         <FlexItem flex={{ default: 'flexNone' }}>
           <KindBadge model={badge} />

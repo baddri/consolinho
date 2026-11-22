@@ -18,10 +18,11 @@ import {
   Truncate,
 } from '@patternfly/react-core';
 import { ClusterIcon } from '@patternfly/react-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { AccessibleCluster } from '@/shared/api';
 import { EnvironmentLabel, environmentLabel } from '@/shared/ui';
+import { useClusterSwitcherOpenRequest } from './clusterSwitcherRequest';
 import { clusterSwitchPath } from './clusterSwitchPath';
 import { NoMatchStatus } from './NoMatchStatus';
 import { useAccessibleClusters } from './useAccessibleClusters';
@@ -58,22 +59,24 @@ function ClusterBadges({ cluster }: { cluster: AccessibleCluster }) {
 }
 
 /**
- * Toggle content: the name as a heading like OCP's perspective switcher (`Title h2 size="md"`) with the labels on a
- * second line, so the narrow sidebar gives the name its full width; longer names still truncate with a tooltip.
+ * Toggle content on one line like OCP's perspective switcher (`NavHeader.tsx`): the name as `Title h2 size="md"`,
+ * the labels inline after it. The title itself shrinks and clips with an ellipsis (`pf-v6-u-text-truncate`), so the
+ * gap before the labels stays; the full name is in the toggle's accessible name and in the menu.
  */
 function ToggleContent({ cluster }: { cluster: AccessibleCluster }) {
   return (
     <Flex
-      direction={{ default: 'column' }}
-      spaceItems={{ default: 'spaceItemsXs' }}
+      spaceItems={{ default: 'spaceItemsSm' }}
+      flexWrap={{ default: 'nowrap' }}
+      alignItems={{ default: 'alignItemsCenter' }}
       className="pf-v6-u-min-width pf-v6-u-text-align-start"
     >
-      <Title headingLevel="h2" size="md">
-        <Truncate content={cluster.name} />
-      </Title>
-      <Flex spaceItems={{ default: 'spaceItemsSm' }}>
-        <ClusterLabels cluster={cluster} />
-      </Flex>
+      <FlexItem flex={{ default: 'flex_1' }} className="pf-v6-u-min-width">
+        <Title headingLevel="h2" size="md" className="pf-v6-u-text-truncate">
+          {cluster.name}
+        </Title>
+      </FlexItem>
+      <ClusterLabels cluster={cluster} />
     </Flex>
   );
 }
@@ -121,7 +124,7 @@ function ClusterItem({ cluster }: { cluster: AccessibleCluster }) {
  *
  * - a search box, focused on open, filters by name, display name and environment; Enter opens the first match (SW-7);
  * - a "Recent" group from {@link useRecentClusters} above "All clusters" (contract order), hidden while searching,
- *   when empty (SW-8) or when it would list every cluster again.
+ *   when empty (SW-8), when it would list every cluster again or only the shown cluster.
  *
  * The toggle shows the active cluster; outside a cluster (admin pages) it shows {@link usePreferredCluster} — the
  * cluster the sidebar links target — and that cluster is marked selected.
@@ -141,6 +144,9 @@ export function ClusterSwitcher() {
   const location = useLocation();
   const { data: clusters, error, refetch } = useAccessibleClusters();
   const { recent } = useRecentClusters();
+
+  // "Select a cluster" on the not-available page opens this menu (T-0097).
+  useClusterSwitcherOpenRequest(useCallback(() => setIsOpen(true), []));
 
   // Focus the search box once the popper has rendered the menu (same deferral PF uses for its own open focus).
   useEffect(() => {
@@ -173,8 +179,10 @@ export function ClusterSwitcher() {
   const shown = clusters.find((cluster) => cluster.name === shownName);
   const needle = searchText.trim().toLowerCase();
   const matches = needle ? clusters.filter((cluster) => matchesSearch(cluster, needle)) : clusters;
-  // Hidden when it would only repeat "All clusters" (e.g. a single granted cluster).
-  const showRecent = !needle && recent.length > 0 && recent.length < clusters.length;
+  // Hidden when it would only repeat "All clusters" (e.g. a single granted cluster) or hold nothing but the cluster
+  // already checked in "All clusters" (T-0119 item 8).
+  const showRecent =
+    !needle && recent.length < clusters.length && recent.some((cluster) => cluster.name !== shown?.name);
 
   const changeOpen = (open: boolean) => {
     setIsOpen(open);

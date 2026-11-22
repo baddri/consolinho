@@ -5,42 +5,46 @@ import { LOGO_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
-import { openSidebar } from '@/test/sidebar';
+import { expandSection, openSidebar } from '@/test/sidebar';
 import { renderApp } from '@/test/render';
 
 /**
- * Fakes `matchMedia('(prefers-color-scheme: dark)')` (jsdom has none). Call before rendering; `setDark` flips the
- * OS setting and fires `change` like a browser does.
+ * Fakes `matchMedia` (jsdom has none) for `prefers-color-scheme: dark` and `prefers-contrast: more`. Call before
+ * rendering; the setters flip the OS setting and fire `change` like a browser does.
  */
-function mockOsDarkMode(initiallyDark: boolean) {
-  let matches = initiallyDark;
+function mockOsMedia({ dark = false, moreContrast = false }: { dark?: boolean; moreContrast?: boolean }) {
+  const state = { dark, moreContrast };
   const listeners = new Set<() => void>();
-  const query = {
-    get matches() {
-      return matches;
-    },
-    addEventListener: (_type: 'change', listener: () => void) => listeners.add(listener),
-    removeEventListener: (_type: 'change', listener: () => void) => listeners.delete(listener),
-  } as unknown as MediaQueryList;
-  vi.stubGlobal('matchMedia', vi.fn(() => query));
+  const queryFor = (media: string) =>
+    ({
+      get matches() {
+        return media.includes('prefers-contrast') ? state.moreContrast : state.dark;
+      },
+      addEventListener: (_type: 'change', listener: () => void) => listeners.add(listener),
+      removeEventListener: (_type: 'change', listener: () => void) => listeners.delete(listener),
+    }) as unknown as MediaQueryList;
+  vi.stubGlobal('matchMedia', vi.fn(queryFor));
+  const set = (change: Partial<typeof state>) => {
+    Object.assign(state, change);
+    act(() => listeners.forEach((listener) => listener()));
+  };
   return {
-    setDark(dark: boolean) {
-      matches = dark;
-      act(() => listeners.forEach((listener) => listener()));
-    },
+    setDark: (value: boolean) => set({ dark: value }),
+    setMoreContrast: (value: boolean) => set({ moreContrast: value }),
   };
 }
 
-/** Opens the masthead theme menu and returns its options. */
-async function openThemeMenu(user: UserEvent) {
-  await user.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Theme' }));
-  return within(await screen.findByRole('listbox', { name: 'Theme' })).getAllByRole('option');
+/** Opens Help › About and returns the About dialog. */
+async function openAbout(user: UserEvent) {
+  await user.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Help menu' }));
+  await user.click(await screen.findByRole('menuitem', { name: 'About' }));
+  return screen.findByRole('dialog', { name: 'Consolinho' });
 }
 
 describe('AppShell', () => {
   // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
   it(
-    'renders a masthead with only brand, theme menu and user menu, and the cluster switcher atop the sidebar',
+    'renders a masthead with only brand, help menu and user menu, and the cluster switcher atop the sidebar',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const { user } = renderApp('/c/dev-1/overview');
@@ -52,13 +56,16 @@ describe('AppShell', () => {
       const mastheadButtons = within(masthead)
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label') ?? button.textContent);
-      expect(mastheadButtons).toEqual(['Global navigation', 'Theme', expect.stringMatching(/Fleet Admin/)]);
+      expect(mastheadButtons).toEqual(['Global navigation', 'Help menu', expect.stringMatching(/Fleet Admin/)]);
 
       const nav = await openSidebar(user);
       const toggle = await within(nav).findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' });
       expect(toggle).toHaveTextContent('dev');
-      // First child of the nav, before the sections (UX.md §2).
+      // First child of the nav, before the sections (UX.md §2); one line: labels inline after the name.
       expect(within(nav).getAllByRole('button')[0]).toBe(toggle);
+      expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('dev-1');
+      // No version footer in the sidebar (it moved to Help › About).
+      expect(screen.queryByText(/0\.0\.0-test/)).not.toBeInTheDocument();
     },
   );
 
@@ -71,16 +78,23 @@ describe('AppShell', () => {
       .getAllByRole('button')
       .filter((button) => !button.getAttribute('aria-label')?.endsWith('switch cluster'))
       .map((button) => button.textContent);
-    expect(sections).toEqual(['Home', 'Workloads', 'Networking', 'Administration', 'Fleet administration']);
+    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Administration', 'Fleet administration']);
+    await expandSection(user, nav, 'Home');
     const events = within(nav).getByRole('link', { name: 'Events' });
     expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
     expect(events).toHaveAttribute('aria-current', 'page');
   });
 
-  it('expands the section of the current page and targets the active cluster', async () => {
+  // OCP `NavSection.tsx`: every section starts collapsed, also the one holding the current page (T-0119).
+  it('starts every section collapsed, marks the current one and targets the active cluster', async () => {
     const { user } = renderApp('/c/dev-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
+    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Administration', 'Fleet administration']) {
+      expect(within(nav).getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false');
+    }
+    expect(within(nav).getByRole('button', { name: 'Workloads' }).closest('li')).toHaveClass('pf-m-current');
+    await expandSection(user, nav, 'Workloads');
     expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('href', '/c/dev-1/k8s/pods');
     expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'ConfigMaps' })).toBeVisible();
@@ -102,42 +116,45 @@ describe('AppShell', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the Consolinho version from the Api', async () => {
-    const { user } = renderApp('/c/dev-1/overview');
-    await openSidebar(user);
-
-    // `getByText` matches own text nodes only: the footer's are "Consolinho · Test" (the version is a child
-    // element), and the `·` keeps the masthead logo ("Consolinho") from matching too.
-    const footer = await screen.findByText(/^Consolinho ·/);
-    expect(footer).toBeVisible();
-    expect(footer).toHaveTextContent('Consolinho 0.0.0-test · Test');
-  });
-
-  it('shows a fallback when version information cannot be loaded', async () => {
-    server.use(http.get('*/api/system/info', () => new HttpResponse(null, { status: 503 })));
-    renderApp('/c/dev-1/overview');
-
-    expect(await screen.findByText('Version information unavailable')).toBeInTheDocument();
-  });
-
-  describe('theme menu', () => {
-    afterEach(() => vi.unstubAllGlobals());
-
-    it('switches to dark, marks the choice and switches to the light-on-dark logo', async () => {
+  describe('Help › About', () => {
+    it('shows the product name, version and environment from the Api', async () => {
       const { user } = renderApp('/c/dev-1/overview');
+      await screen.findByRole('link', { name: 'Consolinho' });
+
+      const about = await openAbout(user);
+      expect(within(about).getByRole('heading', { name: 'Consolinho' })).toBeInTheDocument();
+      expect(await within(about).findByText('0.0.0-test')).toBeInTheDocument();
+      expect(within(about).getByText('Test')).toBeInTheDocument();
+
+      await user.click(within(about).getByRole('button', { name: /close/i }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('shows a fallback when version information cannot be loaded', async () => {
+      server.use(http.get('*/api/system/info', () => new HttpResponse(null, { status: 503 })));
+      const { user } = renderApp('/c/dev-1/overview');
+      await screen.findByRole('link', { name: 'Consolinho' });
+
+      const about = await openAbout(user);
+      expect(await within(about).findByText('Version information unavailable')).toBeInTheDocument();
+    });
+  });
+
+  // UX.md §1: theme classes on <html> like OCP; the masthead theme menu is gone (User preferences, T-0120).
+  describe('theme', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      document.documentElement.className = '';
+    });
+
+    it('uses the glass and felt themes and the light logo by default', async () => {
+      renderApp('/c/dev-1/overview');
+
       expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
-
-      const options = await openThemeMenu(user);
-      expect(options.map((option) => option.textContent)).toEqual(['Light', 'Dark', 'System']);
-      // No stored choice: System.
-      expect(screen.getByRole('option', { name: 'System' })).toHaveAttribute('aria-selected', 'true');
-      await user.click(screen.getByRole('option', { name: 'Dark' }));
-
-      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
-      expect(document.documentElement).toHaveClass('pf-v6-theme-dark');
-      expect(localStorage.getItem('fleetconsole.theme')).toBe('dark');
-      await openThemeMenu(user);
-      expect(screen.getByRole('option', { name: 'Dark' })).toHaveAttribute('aria-selected', 'true');
+      expect(document.documentElement).toHaveClass('pf-v6-theme-glass', 'pf-v6-theme-felt');
+      expect(document.documentElement).not.toHaveClass('pf-v6-theme-dark');
+      expect(document.documentElement).not.toHaveClass('pf-v6-theme-high-contrast');
+      expect(within(screen.getByRole('banner')).queryByRole('button', { name: 'Theme' })).not.toBeInTheDocument();
     });
 
     it('keeps a stored choice across reloads', async () => {
@@ -145,10 +162,11 @@ describe('AppShell', () => {
       renderApp('/c/dev-1/overview');
 
       expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(document.documentElement).toHaveClass('pf-v6-theme-dark');
     });
 
-    it('follows the OS setting live on System', async () => {
-      const os = mockOsDarkMode(false);
+    it('follows the OS colour scheme live on System', async () => {
+      const os = mockOsMedia({ dark: false });
       localStorage.setItem('fleetconsole.theme', 'system');
       renderApp('/c/dev-1/overview');
       expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
@@ -158,6 +176,20 @@ describe('AppShell', () => {
       await waitFor(() => expect(document.documentElement).toHaveClass('pf-v6-theme-dark'));
       expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
       expect(localStorage.getItem('fleetconsole.theme')).toBe('system');
+    });
+
+    it('switches glass to high contrast under prefers-contrast: more, live', async () => {
+      const os = mockOsMedia({ moreContrast: true });
+      renderApp('/c/dev-1/overview');
+      await screen.findByRole('img', { name: 'Consolinho' });
+
+      expect(document.documentElement).toHaveClass('pf-v6-theme-high-contrast', 'pf-v6-theme-felt');
+      expect(document.documentElement).not.toHaveClass('pf-v6-theme-glass');
+
+      os.setMoreContrast(false);
+
+      await waitFor(() => expect(document.documentElement).toHaveClass('pf-v6-theme-glass'));
+      expect(document.documentElement).not.toHaveClass('pf-v6-theme-high-contrast');
     });
   });
 

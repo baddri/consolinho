@@ -1,6 +1,14 @@
-import { MenuToggle, Select, SelectList, SelectOption, ToolbarFilter, ToolbarItem } from '@patternfly/react-core';
+import {
+  MenuToggle,
+  Select,
+  SelectList,
+  SelectOption,
+  ToolbarFilter,
+  ToolbarItem,
+} from '@patternfly/react-core';
+import { DataViewCheckboxFilter } from '@patternfly/react-data-view';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FilterToolbar, SingleSelectFilter } from '@/shared/table';
+import { ConsoleFilterToolbar, DataViewTextFilter, type DataViewFilterValue } from '@/shared/ui';
 import { useClusters } from '../clusters/api';
 import { useUsers } from '../users/api';
 import { CATEGORY_OPTIONS, effectiveRange, SYSTEM_ACTOR, type AuditFiltersState } from './auditFilters';
@@ -37,12 +45,14 @@ export interface AuditFiltersProps {
 }
 
 /**
- * Toolbar of `/admin/audit` (AUD-4): actor and cluster typeaheads (suggestions from the admin users/clusters lists,
- * free text allowed), category select, debounced target search, time range presets with a custom from/to, and a
- * removable "User" label for the user detail page's `?user=` deep link (USR-7). Every filter lives in the URL.
+ * Toolbar of `/admin/audit` (AUD-4) on the OCP list toolbar (shared `ConsoleFilterToolbar`, `UX.md` §5): a
+ * category select over the debounced target search, the actor and cluster typeaheads (suggestions from the admin
+ * users/clusters lists, free text allowed) and the category checkboxes (one category at a time); then the time range
+ * presets with a custom from/to, and a removable "User" label for the user detail page's `?user=` deep link (USR-7).
+ * Every filter lives in the URL; applied ones show as chips with "Clear filters".
  */
 export function AuditFilters({ filters }: AuditFiltersProps) {
-  const { values, setText, setSingle, clearAll, setTimeRange } = filters;
+  const { values, setText, onFilterChange, clearAll, setTimeRange } = filters;
   const users = useUsers();
   const clusters = useClusters();
 
@@ -55,70 +65,73 @@ export function AuditFilters({ filters }: AuditFiltersProps) {
   const commitTarget = useCallback((value: string) => setText('target', value), [setText]);
   const [target, setTarget] = useDebouncedText(values.target ?? '', commitTarget, TARGET_DEBOUNCE_MS);
 
+  // Memoised: `DataViewFilters` resets the selected category whenever its children's props change.
+  const filterNodes = useMemo(
+    () => [
+      <DataViewTextFilter key="target" filterId="target" title="Target" placeholder="Filter by target name" />,
+      <TypeaheadFilter key="actor" filterId="actor" title="Actor" placeholder="Actor" options={actorOptions} />,
+      <DataViewCheckboxFilter
+        key="category"
+        filterId="category"
+        title="Category"
+        placeholder="Filter by category"
+        options={CATEGORY_OPTIONS}
+      />,
+      <TypeaheadFilter key="cluster" filterId="cluster" title="Cluster" placeholder="Cluster" options={clusterOptions} />,
+    ],
+    [actorOptions, clusterOptions],
+  );
+  const filterValues = useMemo<Record<string, DataViewFilterValue>>(
+    () => ({
+      target,
+      actor: values.actor,
+      category: values.category ? [values.category] : [],
+      cluster: values.cluster,
+    }),
+    [target, values.actor, values.category, values.cluster],
+  );
+  const onChange = (filterId: string, value: DataViewFilterValue) => {
+    if (filterId === 'target') setTarget(typeof value === 'string' ? value : '');
+    else onFilterChange(filterId, value);
+  };
+  const range = effectiveRange(values);
+
   return (
-    <FilterToolbar
-      ariaLabel="Audit log toolbar"
-      search={{
-        value: target,
-        onChange: setTarget,
-        placeholder: 'Filter by target name',
-        ariaLabel: 'Search targets',
-      }}
-      filterItems={
+    <ConsoleFilterToolbar
+      aria-label="Audit log toolbar"
+      filterNodes={filterNodes}
+      filterValues={filterValues}
+      onFilterChange={onChange}
+      onClearAllFilters={clearAll}
+    >
+      {values.user && (
+        <ToolbarFilter
+          categoryName="User"
+          labels={[{ key: values.user, node: values.user }]}
+          deleteLabel={() => setText('user', '')}
+          deleteLabelGroup={() => setText('user', '')}
+          showToolbarItem={false}
+        >
+          {null}
+        </ToolbarFilter>
+      )}
+      <TimeRangeFilter range={range} onChange={setTimeRange} />
+      {range === 'custom' && (
         <>
-          <TypeaheadFilter
-            categoryName="Actor"
-            placeholder="Actor"
-            options={actorOptions}
-            value={values.actor}
-            onChange={(value) => setText('actor', value ?? '')}
-          />
-          {values.user && (
-            <ToolbarFilter
-              categoryName="User"
-              labels={[{ key: values.user, node: values.user }]}
-              deleteLabel={() => setText('user', '')}
-              deleteLabelGroup={() => setText('user', '')}
-              showToolbarItem={false}
-            >
-              {null}
-            </ToolbarFilter>
-          )}
-          <SingleSelectFilter
-            categoryName="Category"
-            options={CATEGORY_OPTIONS}
-            value={values.category}
-            onChange={(value) => setSingle('category', value)}
-          />
-          <TypeaheadFilter
-            categoryName="Cluster"
-            placeholder="Cluster"
-            options={clusterOptions}
-            value={values.cluster}
-            onChange={(value) => setText('cluster', value ?? '')}
-          />
-          <TimeRangeFilter
-            range={effectiveRange(values)}
-            onChange={setTimeRange}
-          />
-          {effectiveRange(values) === 'custom' && (
-            <>
-              <ToolbarItem>
-                <DateTimeField label="From" value={values.from} onChange={(value) => setText('from', value ?? '')} />
-              </ToolbarItem>
-              <ToolbarItem>
-                <DateTimeField
-                  label="To"
-                  defaultTime="23:59"
-                  value={values.to}
-                  onChange={(value) => setText('to', value ?? '')} />
-              </ToolbarItem>
-            </>
-          )}
+          <ToolbarItem>
+            <DateTimeField label="From" value={values.from} onChange={(value) => setText('from', value ?? '')} />
+          </ToolbarItem>
+          <ToolbarItem>
+            <DateTimeField
+              label="To"
+              defaultTime="23:59"
+              value={values.to}
+              onChange={(value) => setText('to', value ?? '')}
+            />
+          </ToolbarItem>
         </>
-      }
-      onClearAll={clearAll}
-    />
+      )}
+    </ConsoleFilterToolbar>
   );
 }
 

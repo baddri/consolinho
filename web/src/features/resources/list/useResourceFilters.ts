@@ -36,8 +36,8 @@ export interface ResourceFilters {
   selected: Record<string, string[]>;
   setName: (value: string) => void;
   setLabelSelector: (value: string) => void;
-  toggle: (filterId: string, value: string) => void;
-  clear: (filterId: string) => void;
+  /** Replaces the selection of a descriptor filter (a checkbox filter reports its whole selection). */
+  setSelected: (filterId: string, values: string[]) => void;
   clearAll: () => void;
   /** True when any filter (name, label or descriptor filter) is applied. */
   isFiltered: boolean;
@@ -51,6 +51,20 @@ export function useResourceFilters(descriptor: ResourceDescriptor): ResourceFilt
   const text = useUrlFilters(TEXT_FILTERS);
   const rows = useUrlFilters(rowFilterDefs(descriptor));
   const [, setSearchParams] = useSearchParams();
+
+  const setSelected = useCallback(
+    (filterId: string, values: string[]) =>
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(filterId);
+          for (const value of values) next.append(filterId, value);
+          return next;
+        },
+        { replace: true },
+      ),
+    [setSearchParams],
+  );
 
   // Two `useUrlFilters` would each write from the same rendered params, so the second write would undo the first.
   const clearAll = useCallback(() => {
@@ -71,8 +85,7 @@ export function useResourceFilters(descriptor: ResourceDescriptor): ResourceFilt
     selected: rows.values,
     setName: (value) => text.setText('name', value),
     setLabelSelector: (value) => text.setText('label', value.trim()),
-    toggle: rows.toggle,
-    clear: rows.clear,
+    setSelected,
     clearAll,
     isFiltered: text.activeCount + rows.activeCount > 0,
   };

@@ -9,7 +9,8 @@ import {
   type MenuToggleElement,
 } from '@patternfly/react-core';
 import { UserIcon } from '@patternfly/react-icons';
-import { useState, type Ref } from 'react';
+import { forwardRef, useState, type AnchorHTMLAttributes, type Ref } from 'react';
+import { Link } from 'react-router';
 import { errorMessage, type CurrentUser } from '@/shared/api';
 import { useToast } from '@/shared/ui';
 import { useCurrentUser } from './useCurrentUser';
@@ -22,6 +23,16 @@ function groupsSummary(groups: readonly string[]): string {
   }
   return groups.length === 1 ? '1 group' : `${groups.length} groups`;
 }
+
+/**
+ * Client-side link to User preferences for the dropdown item (OCP `LinkTo('/user-preferences')`). The path is a
+ * literal: importing it from `features/preferences` would make the two features import each other.
+ */
+const UserPreferencesLink = forwardRef<HTMLAnchorElement, AnchorHTMLAttributes<HTMLAnchorElement>>(
+  function UserPreferencesLink(props, ref) {
+    return <Link {...props} ref={ref} to="/user-preferences" />;
+  },
+);
 
 /** Toggle content: display name (or username) plus role/read-only badges (AUTH-9). */
 function UserToggleContent({ user }: { user: CurrentUser }) {
@@ -51,7 +62,8 @@ function UserToggleContent({ user }: { user: CurrentUser }) {
 
 /**
  * Masthead user menu (AUTH-9, AUTH-10). The toggle names the signed-in user and shows "Admin" / "Read only" badges;
- * the dropdown starts with a non-interactive header (username and group count) followed by "Log out".
+ * the dropdown starts with a non-interactive header (username and group count) followed by "User preferences" and
+ * "Log out" (OCP `masthead-toolbar.tsx`).
  *
  * Rendered inside `RequireSession`, so the user is normally loaded; renders nothing otherwise. A failed logout is
  * reported as a toast and the user stays signed in.
@@ -95,6 +107,9 @@ export function UserMenu() {
       </Content>
       <Divider />
       <DropdownList>
+        <DropdownItem key="preferences" component={UserPreferencesLink}>
+          User preferences
+        </DropdownItem>
         <DropdownItem key="logout" onClick={onLogout} isDisabled={logout.isPending}>
           Log out
         </DropdownItem>

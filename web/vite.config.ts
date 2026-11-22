@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { readFile } from 'node:fs/promises';
 import { fileURLToPath, URL } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
@@ -96,6 +97,34 @@ function mockLoginRedirect(): Plugin {
   };
 }
 
+/** MSW's browser worker (`npx msw init msw/`), kept outside `public/` so it can never be copied into `dist/`. */
+const MSW_WORKER_FILE = 'mockServiceWorker.js';
+
+/**
+ * Mock mode only: serves `msw/mockServiceWorker.js` at `/mockServiceWorker.js`, next to the regular `public/` assets
+ * (`theme-init.js`, `favicon.svg`). Vite supports a single `publicDir`, so pointing it at `msw/` would hide `public/`;
+ * this middleware adds the one worker file instead. `apply: 'serve'` keeps it out of builds.
+ */
+function serveMswWorker(): Plugin {
+  const workerPath = fileURLToPath(new URL(`./msw/${MSW_WORKER_FILE}`, import.meta.url));
+  return {
+    name: 'fleetconsole-serve-msw-worker',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(`/${MSW_WORKER_FILE}`, (_req, res, next) => {
+        readFile(workerPath).then(
+          (body) => {
+            res.setHeader('Content-Type', 'text/javascript');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.end(body);
+          },
+          next,
+        );
+      });
+    },
+  };
+}
+
 /** Mock mode is dev-server only: `vite build --mode mock` would ship MSW and the fixtures, so it is refused outright. */
 function assertNotMockBuild(command: 'build' | 'serve', mode: string): void {
   if (command === 'build' && mode === MOCK_MODE) {
@@ -108,11 +137,13 @@ function assertNotMockBuild(command: 'build' | 'serve', mode: string): void {
 export default defineConfig(({ command, mode }) => {
   assertNotMockBuild(command, mode);
   return {
-    plugins: mode === MOCK_MODE ? [react(), mockLoginRedirect()] : [react(), stripMonacoCdnDefault()],
-    // The MSW worker script lives in `msw/` and is served only in mock mode, so it never lands in `dist/`. Mock mode
-    // replaces `public/` rather than adding to it: if a `public/` directory is ever added, mock mode must serve both
-    // (e.g. copy the worker in, or a small plugin serving `msw/`).
-    publicDir: mode === MOCK_MODE ? 'msw' : 'public',
+    plugins:
+      mode === MOCK_MODE
+        ? [react(), mockLoginRedirect(), serveMswWorker()]
+        : [react(), stripMonacoCdnDefault()],
+    // `public/` (pre-paint theme script, favicon) is served in every mode and copied into `dist/`. The MSW worker
+    // lives in `msw/` instead and is added only by `serveMswWorker` in mock mode, so it never lands in `dist/`.
+    publicDir: 'public',
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },

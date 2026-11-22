@@ -7,6 +7,7 @@ checkpoint: 4
 depends_on: []
 paths: [web/src/features/resources/]
 review_rounds: 0
+superseded_by: T-0121
 ---
 
 ## Goal

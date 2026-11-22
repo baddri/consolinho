@@ -1,51 +1,51 @@
 import type { UseQueryResult } from '@tanstack/react-query';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { Grant, UserDetail } from '@/shared/api';
 import { ActionButton, ErrorState } from '@/shared/ui';
 import { useAdminAccess } from '../useAdminAccess';
 import { useClusterGrants, useUserGrants } from './api';
-import { GrantFormModal, type GrantCluster, type GrantCreateTarget } from './GrantFormModal';
+import { GrantFormModal, type GrantCluster } from './GrantFormModal';
 import type { GrantPerspective } from './GrantRow';
 import { GrantsTable } from './GrantsTable';
 import { RevokeGrantModal } from './RevokeGrantModal';
 
-/** Which dialog a grants tab shows; grants are referenced by id so the dialog always gets the current version. */
-type GrantDialog = { kind: 'create' } | { kind: 'change' | 'revoke'; grantId: string } | null;
+/** Which row dialog a grants tab shows; grants are referenced by id so the dialog always gets the current version. */
+type GrantDialog = { kind: 'change' | 'revoke'; grantId: string } | null;
 
 /** Props for {@link GrantsTabContent}. */
 interface GrantsTabContentProps {
   query: UseQueryResult<Grant[]>;
-  target: GrantCreateTarget;
+  /** Which side the rows name: clusters on the user page, users on the cluster page. */
+  perspective: GrantPerspective;
   ariaLabel: string;
   createLabel: string;
   emptyTitle: string;
   emptyBody: string;
-  /** Extra empty-state actions after the create button (e.g. bulk grant). */
-  emptyActions?: ReactNode;
+  /** The create button's action: the bulk grant wizard (user tab) or the single-grant dialog (cluster tab). */
+  onCreate: () => void;
 }
 
 /**
  * Shared body of both grants tabs: `ErrorState` with Retry when the list can't load, else `GrantsTable` with the
- * create button, and the create / change / revoke dialogs. Read-only admins see every action disabled with the
+ * create button (`onCreate`) and the change / revoke dialogs. Read-only admins see every action disabled with the
  * reason (ADM-2). A dialog for a grant that disappears (revoked meanwhile) closes with the list.
  */
 function GrantsTabContent({
   query,
-  target,
+  perspective,
   ariaLabel,
   createLabel,
   emptyTitle,
   emptyBody,
-  emptyActions,
+  onCreate,
 }: GrantsTabContentProps) {
   const { readOnlyReason } = useAdminAccess();
   const [dialog, setDialog] = useState<GrantDialog>(null);
   const { data, error, refetch } = query;
-  const perspective: GrantPerspective = target.perspective;
   const close = () => setDialog(null);
 
   const createButton = (
-    <ActionButton disabledReason={readOnlyReason} onClick={() => setDialog({ kind: 'create' })}>
+    <ActionButton disabledReason={readOnlyReason} onClick={onCreate}>
       {createLabel}
     </ActionButton>
   );
@@ -54,7 +54,7 @@ function GrantsTabContent({
     return <ErrorState error={error} title="Could not load grants" onRetry={() => void refetch()} />;
   }
 
-  const selected = dialog !== null && dialog.kind !== 'create' ? data?.find((g) => g.id === dialog.grantId) : undefined;
+  const selected = dialog ? data?.find((g) => g.id === dialog.grantId) : undefined;
 
   return (
     <>
@@ -68,22 +68,13 @@ function GrantsTabContent({
         emptyState={{
           title: emptyTitle,
           body: emptyBody,
-          action: (
-            <>
-              {createButton}
-              {emptyActions}
-            </>
-          ),
+          action: createButton,
         }}
         toolbarActions={createButton}
       />
-      {dialog?.kind === 'create' && (
-        <GrantFormModal mode="create" target={target} existing={data ?? []} onClose={close} />
-      )}
       {dialog?.kind === 'change' && selected && (
         <GrantFormModal
           mode="edit"
-          perspective={perspective}
           grant={selected}
           onReload={async () => (await refetch()).data?.find((g) => g.id === selected.id)}
           onClose={close}
@@ -96,46 +87,58 @@ function GrantsTabContent({
 
 /**
  * "Cluster access" tab of the user detail page (USR-7): the clusters `user` can reach, through which credential and
- * in which mode, with "Grant access" (the page's one create button, worded like the cluster tab's) and per-row
- * Change / Revoke. Admins appear only with grants (GRANT-6). The empty state also offers "Grant access to clusters"
- * (`onBulkGrant`, GRANT-4); otherwise the bulk wizard is in the heading's Actions menu.
+ * in which mode, with per-row Change / Revoke. "Grant access" in the toolbar (and the empty state) is the page's one
+ * grant entry point (T-0118 #9): it calls `onGrantAccess`, which opens the bulk grant wizard for 1..n clusters
+ * (GRANT-4). Admins appear only with grants (GRANT-6).
  */
-export function UserGrantsTab({ user, onBulkGrant }: { user: Pick<UserDetail, 'username'>; onBulkGrant?: () => void }) {
+export function UserGrantsTab({
+  user,
+  onGrantAccess,
+}: {
+  user: Pick<UserDetail, 'username'>;
+  onGrantAccess: () => void;
+}) {
   const query = useUserGrants(user.username);
-  const { readOnlyReason } = useAdminAccess();
   return (
     <GrantsTabContent
       query={query}
-      target={{ perspective: 'user', username: user.username }}
+      perspective="user"
       ariaLabel={`Cluster access of ${user.username}`}
       createLabel="Grant access"
       emptyTitle="No cluster access yet"
       emptyBody={`${user.username} can't reach any cluster until you grant access.`}
-      emptyActions={
-        onBulkGrant && (
-          <ActionButton variant="secondary" disabledReason={readOnlyReason} onClick={onBulkGrant}>
-            Grant access to clusters
-          </ActionButton>
-        )
-      }
+      onCreate={onGrantAccess}
     />
   );
 }
 
 /**
  * "Access" tab of the cluster detail page (CLU-8, US-9): who can touch `cluster`, with a text filter, "Grant access"
- * and per-row Change / Revoke. The admin role never implies access (GRANT-6), so admins appear only with grants.
+ * (the single-grant dialog, picking a user) and per-row Change / Revoke. The admin role never implies access
+ * (GRANT-6), so admins appear only with grants.
  */
 export function ClusterGrantsTab({ cluster }: { cluster: GrantCluster }) {
   const query = useClusterGrants(cluster.name);
+  const [creating, setCreating] = useState(false);
   return (
-    <GrantsTabContent
-      query={query}
-      target={{ perspective: 'cluster', cluster: { name: cluster.name, environment: cluster.environment } }}
-      ariaLabel={`Access to ${cluster.name}`}
-      createLabel="Grant access"
-      emptyTitle="Nobody has access to this cluster"
-      emptyBody={`Grant users access to ${cluster.name}; administrators need a grant too.`}
-    />
+    <>
+      <GrantsTabContent
+        query={query}
+        perspective="cluster"
+        ariaLabel={`Access to ${cluster.name}`}
+        createLabel="Grant access"
+        emptyTitle="Nobody has access to this cluster"
+        emptyBody={`Grant users access to ${cluster.name}; administrators need a grant too.`}
+        onCreate={() => setCreating(true)}
+      />
+      {creating && (
+        <GrantFormModal
+          mode="create"
+          cluster={{ name: cluster.name, environment: cluster.environment }}
+          existing={query.data ?? []}
+          onClose={() => setCreating(false)}
+        />
+      )}
+    </>
   );
 }

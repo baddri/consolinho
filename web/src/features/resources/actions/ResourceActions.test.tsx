@@ -6,6 +6,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } 
 import { mockK8s, problem, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
+import { deploymentDescriptor } from '../registry/kinds/deployments';
 import { projectDescriptor } from '../registry/kinds/projects';
 import { resourceRoutes } from '../routes';
 import { DeleteResourceModal } from './DeleteResourceModal';
@@ -36,7 +37,15 @@ function recordAccessReviews(): string[] {
 }
 
 /** Shows what {@link useResourceAccess} answers, for the reason-order tests. */
-function AccessProbe({ cluster, model, namespace }: { cluster: string; model: K8sModel; namespace?: string }) {
+function AccessProbe({
+  cluster,
+  model,
+  namespace,
+}: {
+  cluster: string;
+  model: K8sModel;
+  namespace?: string;
+}) {
   const { isChecking, disabledReason } = useResourceAccess(cluster, { verb: 'delete', model, namespace });
   return <p>{isChecking ? 'checking' : (disabledReason ?? 'allowed')}</p>;
 }
@@ -51,7 +60,7 @@ async function findRow(name: string): Promise<HTMLElement> {
 
 async function openKebab(user: UserEvent, name: string): Promise<HTMLElement> {
   await user.click(within(await findRow(name)).getByRole('button', { name: 'Kebab toggle' }));
-  return screen.findByRole('menuitem', { name: 'Delete' });
+  return screen.findByRole('menuitem', { name: 'Delete Pod' });
 }
 
 /**
@@ -66,7 +75,14 @@ function deleteBeforeResponding(status: 200 | 404, ms = 300): void {
       return status === 200
         ? HttpResponse.json({ kind: 'Status', apiVersion: 'v1', status: 'Success', code: 200 })
         : HttpResponse.json(
-            { kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'NotFound', code: 404, message: 'gone' },
+            {
+              kind: 'Status',
+              apiVersion: 'v1',
+              status: 'Failure',
+              reason: 'NotFound',
+              code: 404,
+              message: 'gone',
+            },
             { status: 404 },
           );
     }),
@@ -157,7 +173,9 @@ describe('resource actions (UI-8)', () => {
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     const dialog = await screen.findByRole('dialog', { name: 'Delete Pod? dev' });
-    expect(dialog).toHaveTextContent(`Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`);
+    expect(dialog).toHaveTextContent(
+      `Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`,
+    );
     expect(within(dialog).getByText(POD, { selector: 'strong' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
@@ -166,7 +184,7 @@ describe('resource actions (UI-8)', () => {
     expect(mockK8s.get('dev-1', PodModel, 'shop', POD)).toBeUndefined();
   });
 
-  it('shows the server\'s 403 detail in the modal', async () => {
+  it("shows the server's 403 detail in the modal", async () => {
     server.use(
       http.delete(PROXY, () =>
         problem(403, { code: 'Proxy.ReadOnlyGrant', detail: 'Your access to dev-1 is read-only.' }),
@@ -190,7 +208,7 @@ describe('resource actions (UI-8)', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
     );
-    const del = screen.getByRole('menuitem', { name: 'Delete' });
+    const del = screen.getByRole('menuitem', { name: 'Delete Pod' });
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     const dialog = await screen.findByRole('dialog');
@@ -220,22 +238,33 @@ describe('resource actions (UI-8)', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
     );
-    const del = screen.getByRole('menuitem', { name: 'Delete' });
+    const del = screen.getByRole('menuitem', { name: 'Delete Pod' });
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
 
     // The watch turns the page "not found" (dropping the Actions menu and its dialog) before the DELETE answers.
-    expect(await screen.findByText(`Pod ${POD} not found on dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(new RegExp(`Pod ${POD} was not found on dev-1\\.`))).toBeInTheDocument();
     expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
-  it('Edit YAML opens the YAML tab', async () => {
+  it('words the items as OCP: "Edit <Kind>", "Delete <Kind>", in order and in normal colour', async () => {
+    const { user } = renderApp(`${POD_LIST}/${POD}`);
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
+    );
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Edit Pod', 'Delete Pod']);
+    for (const item of items) expect(item.closest('li')).not.toHaveClass('pf-m-danger');
+  });
+
+  it('Edit Pod opens the YAML tab', async () => {
     const { user, router } = renderApp(POD_LIST);
 
     await user.click(within(await findRow(POD)).getByRole('button', { name: 'Kebab toggle' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Edit YAML' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Pod' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`${POD_LIST}/${POD}/yaml`));
   });
@@ -260,5 +289,57 @@ describe('DeleteResourceModal', () => {
     await user.click(within(dialog).getByRole('textbox'));
     await user.paste('shop');
     expect(confirm).toBeEnabled();
+  });
+
+  it.each([
+    ['checked', true, 'Foreground'],
+    ['unchecked', false, 'Orphan'],
+  ])(
+    'deployments: "Delete dependent objects" %s sends propagationPolicy %s (OCP delete-modal)',
+    async (_state, keepChecked, policy) => {
+      const bodies: unknown[] = [];
+      server.use(
+        http.delete(PROXY, async ({ request }) => {
+          bodies.push(await request.json());
+          return HttpResponse.json({ kind: 'Status', status: 'Success' });
+        }),
+      );
+      const onClose = vi.fn();
+      const { user } = renderWithProviders(
+        <DeleteResourceModal
+          cluster="dev-1"
+          descriptor={deploymentDescriptor}
+          namespace="shop"
+          name="web"
+          onClose={onClose}
+        />,
+      );
+
+      const dialog = await screen.findByRole('dialog', { name: /Delete Deployment\?/ });
+      const dependents = within(dialog).getByRole('checkbox', {
+        name: 'Delete dependent objects of this resource',
+      });
+      expect(dependents).toBeChecked();
+      if (!keepChecked) await user.click(dependents);
+      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(bodies).toEqual([{ kind: 'DeleteOptions', apiVersion: 'v1', propagationPolicy: policy }]);
+    },
+  );
+
+  it('kinds without a cascade policy (projects) have no dependents checkbox', async () => {
+    renderWithProviders(
+      <DeleteResourceModal
+        cluster="dev-1"
+        descriptor={projectDescriptor}
+        namespace={undefined}
+        name="shop"
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Project? dev' });
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ import type {
   Namespace,
   Pod,
   Project,
+  ReplicaSet,
   Service,
 } from '@/shared/k8s';
 import { fingerprintOf } from '../fixtures/ids';
@@ -164,8 +165,8 @@ export function podObject(
   ownerUid?: string,
 ): Pod {
   return {
-    apiVersion: 'v1',
     kind: 'Pod',
+    apiVersion: 'v1',
     metadata: {
       name,
       namespace,
@@ -210,8 +211,8 @@ export function podEvent(
 ): Event {
   const podName = pod.metadata?.name ?? '';
   return {
-    apiVersion: 'v1',
     kind: 'Event',
+    apiVersion: 'v1',
     metadata: {
       name: `${podName}.${suffix}`,
       namespace: pod.metadata?.namespace,
@@ -240,8 +241,8 @@ export function podEvent(
 
 function namespaceObject(name: string, uid: string): Namespace {
   return {
-    apiVersion: 'v1',
     kind: 'Namespace',
+    apiVersion: 'v1',
     metadata: {
       name,
       uid,
@@ -266,8 +267,8 @@ function projectObject(namespace: Namespace): Project {
         ? { 'openshift.io/display-name': 'Payments', 'openshift.io/requester': 'alice' }
         : {};
   return {
-    apiVersion: 'project.openshift.io/v1',
     kind: 'Project',
+    apiVersion: 'project.openshift.io/v1',
     // A project is a view of its namespace: same name and uid.
     metadata: { ...namespace.metadata, annotations },
     spec: { finalizers: ['kubernetes'] },
@@ -284,8 +285,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   const replicaSetUid = nextUid();
 
   const deployment: Deployment = {
-    apiVersion: 'apps/v1',
     kind: 'Deployment',
+    apiVersion: 'apps/v1',
     metadata: {
       name: 'web',
       namespace: 'shop',
@@ -294,6 +295,26 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
       creationTimestamp: minutesBefore(60 * 24 * 30),
       labels: { app: 'web' },
       annotations: { 'deployment.kubernetes.io/revision': '4' },
+      // Server bookkeeping on every real object; the YAML tab folds it on load (T-0123).
+      managedFields: [
+        {
+          manager: 'kubectl-client-side-apply',
+          operation: 'Update',
+          apiVersion: 'apps/v1',
+          time: minutesBefore(60 * 24 * 30),
+          fieldsType: 'FieldsV1',
+          fieldsV1: { 'f:metadata': { 'f:labels': { '.': {}, 'f:app': {} } }, 'f:spec': { 'f:replicas': {} } },
+        },
+        {
+          manager: 'kube-controller-manager',
+          operation: 'Update',
+          apiVersion: 'apps/v1',
+          time: minutesBefore(60),
+          fieldsType: 'FieldsV1',
+          fieldsV1: { 'f:status': { 'f:availableReplicas': {}, 'f:readyReplicas': {} } },
+          subresource: 'status',
+        },
+      ],
     },
     spec: {
       replicas: 3,
@@ -301,7 +322,18 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
       strategy: { type: 'RollingUpdate', rollingUpdate: { maxSurge: '25%', maxUnavailable: '25%' } },
       template: {
         metadata: { labels: { app: 'web' } },
-        spec: { containers: [{ name: 'web', image, ports: [{ containerPort: 8080, protocol: 'TCP' }] }] },
+        spec: {
+          containers: [
+            {
+              name: 'web',
+              image,
+              ports: [{ containerPort: 8080, protocol: 'TCP' }],
+              resources: { limits: { cpu: '500m', memory: '256Mi' } },
+              volumeMounts: [{ name: 'config', mountPath: '/etc/web', readOnly: true }],
+            },
+          ],
+          volumes: [{ name: 'config', configMap: { name: 'web-config' } }],
+        },
       },
     },
     status: {
@@ -348,8 +380,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   );
 
   const service: Service = {
-    apiVersion: 'v1',
     kind: 'Service',
+    apiVersion: 'v1',
     metadata: {
       name: 'web',
       namespace: 'shop',
@@ -369,8 +401,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   };
 
   const webConfig: ConfigMap = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'web-config',
       namespace: 'shop',
@@ -385,8 +417,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   };
 
   const webAssets: ConfigMap = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'web-assets',
       namespace: 'shop',
@@ -430,14 +462,52 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     );
   }
 
-  return [deployment, ...pods, service, webConfig, webAssets, ...events] as K8sResource[];
+  const replicaSet: ReplicaSet = {
+    kind: 'ReplicaSet',
+    apiVersion: 'apps/v1',
+    metadata: {
+      name: WEB_REPLICASET,
+      namespace: 'shop',
+      uid: replicaSetUid,
+      creationTimestamp: minutesBefore(180),
+      labels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) },
+      annotations: { 'deployment.kubernetes.io/revision': '4' },
+      ownerReferences: [
+        {
+          apiVersion: 'apps/v1',
+          kind: 'Deployment',
+          name: 'web',
+          uid: deploymentUid,
+          controller: true,
+          blockOwnerDeletion: true,
+        },
+      ],
+    },
+    spec: {
+      replicas: 3,
+      selector: { matchLabels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) } },
+      template: {
+        metadata: { labels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) } },
+        spec: deployment.spec?.template.spec,
+      },
+    },
+    status: {
+      replicas: 3,
+      readyReplicas: 2,
+      availableReplicas: 2,
+      fullyLabeledReplicas: 3,
+      observedGeneration: 4,
+    },
+  };
+
+  return [deployment, replicaSet, ...pods, service, webConfig, webAssets, ...events] as K8sResource[];
 }
 
 /** The `payments` namespace holds just a config map, so it is not empty. */
 function paymentsObjects(cluster: string, nextUid: () => string): K8sResource[] {
   const config: ConfigMap = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'payments-config',
       namespace: 'payments',

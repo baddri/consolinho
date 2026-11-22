@@ -12,7 +12,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } 
 import { mockDb, mockK8s, problem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
-import { NO_EVENTS_BODY, NO_EVENTS_TITLE } from '../events/ResourceEventsTab';
+import { NO_EVENTS } from '../events/EventStreamView';
 import { resourceRoutes } from '../routes';
 import { base64Size, formatBytes } from './sections/ConfigMapDetails';
 
@@ -86,8 +86,10 @@ describe('pod details (UI-4)', () => {
 
       const containers = await screen.findByRole('grid', { name: 'Containers' });
       const row = within(containers).getByRole('row', { name: /^web/ });
-      expect(within(row).getByText('Waiting: CrashLoopBackOff')).toBeInTheDocument();
-      expect(within(row).getByText('Error, exit code 1')).toBeInTheDocument();
+      // OCP `PodContainerTable`: state, readiness and the last state with exit code and reason.
+      expect(within(row).getByText('Waiting')).toBeInTheDocument();
+      expect(within(row).getByText('Not ready')).toBeInTheDocument();
+      expect(within(row).getByText('Terminated with exit code 1 (Error)')).toBeInTheDocument();
       expect(
         within(row).getByText(
           String(getPod('dev-1', CRASHING_POD).status?.containerStatuses?.[0]?.restartCount),
@@ -95,15 +97,45 @@ describe('pod details (UI-4)', () => {
       ).toBeInTheDocument();
       expect(screen.getByText('worker-1')).toBeInTheDocument();
       expect(screen.getByText('10.128.3.7')).toBeInTheDocument();
-      // Header status label from the descriptor.
-      expect(screen.getAllByText('CrashLoopBackOff').length).toBeGreaterThan(0);
-      // Unregistered owner kind (ReplicaSet): badge + plain name, no link.
-      expect(screen.getByTitle('ReplicaSet')).toBeInTheDocument();
-      expect(screen.getByText('web-7d4b9c8f6d')).toBeInTheDocument();
-      // Namespace link in the metadata column.
+      // Header status badge from the descriptor (OCP `ResourceStatus`: a read PF badge).
+      const heading = screen.getByRole('heading', { name: CRASHING_POD, level: 1 });
       expect(
-        within(screen.getByLabelText('Metadata')).getByRole('link', { name: 'shop' }),
-      ).toHaveAttribute('href', '/c/dev-1/k8s/cluster/projects/shop');
+        heading.closest('.pf-v6-c-page__main-section')?.querySelector('.pf-v6-c-badge.pf-m-read'),
+      ).toHaveTextContent('CrashLoopBackOff');
+      const metadata = screen.getByLabelText('Metadata');
+      // OCP `ResourceSummary` + `PodResourceSummary` order and labels.
+      expect(
+        within(metadata)
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual([
+        'Name',
+        'Namespace',
+        'Labels',
+        'Node selector',
+        'Tolerations',
+        'Annotations',
+        'Created at',
+        'Owner',
+      ]);
+      // OCP `PodDetailsList` order and labels.
+      expect(
+        within(screen.getByLabelText('Pod properties'))
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual(['Status', 'Restart policy', 'Active deadline seconds', 'Pod IP', 'Host IP', 'Node']);
+      // Owner ReplicaSet: kind badge + link to its details page.
+      expect(within(metadata).getByRole('link', { name: 'web-7d4b9c8f6d' })).toHaveAttribute(
+        'href',
+        '/c/dev-1/k8s/ns/shop/replicasets/web-7d4b9c8f6d',
+      );
+      // Namespace link in the metadata column.
+      expect(within(metadata).getByRole('link', { name: 'shop' })).toHaveAttribute(
+        'href',
+        '/c/dev-1/k8s/cluster/projects/shop',
+      );
+      // Namespace shown with the NS badge (OCP), even though it links to the project.
+      expect(within(metadata).getByTitle('Namespace')).toHaveTextContent('NS');
 
       const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
       expect(tabs).toEqual(['Details', 'YAML', 'Events']);
@@ -148,7 +180,7 @@ describe('pod details (UI-4)', () => {
 });
 
 describe('details project bar', () => {
-  it('shows on a pod and opens the picked project\'s list', async () => {
+  it("shows on a pod and opens the picked project's list", async () => {
     const { user, router } = renderApp(POD_PATH);
 
     await user.click(await screen.findByRole('button', { name: 'Project: shop' }));
@@ -194,7 +226,7 @@ describe('config map details (UI-4)', () => {
 });
 
 describe('details tabs (URL segments)', () => {
-  it('switches to YAML by URL and shows the object without managedFields', async () => {
+  it('switches to YAML by URL and shows the whole object, managedFields included (folded by Monaco)', async () => {
     const cm = mockK8s.get('dev-1', ConfigMapModel, 'shop', 'web-config') as ConfigMap & K8sResource;
     mockK8s.upsert('dev-1', {
       ...cm,
@@ -209,7 +241,7 @@ describe('details tabs (URL segments)', () => {
     );
     const yaml = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: 'YAML editor' });
     expect(yaml.value).toContain('kind: ConfigMap');
-    expect(yaml.value).not.toContain('managedFields');
+    expect(yaml.value).toContain('manager: kubectl');
   });
 });
 
@@ -228,17 +260,22 @@ describe('events tab (UI-5)', () => {
     const pod = getPod('dev-1', CRASHING_POD);
     renderApp(`${POD_PATH}/events`);
 
-    const table = await screen.findByRole('grid', { name: 'Events' });
+    const stream = await screen.findByRole('list', { name: 'Events' });
     expect(screen.getByRole('tab', { name: 'Events' })).toHaveAttribute('aria-selected', 'true');
-    await within(table).findByText('BackOff');
-    expect(fieldSelectors).toContain(`involvedObject.uid=${pod.metadata.uid ?? ''}`);
-    const reasons = () =>
-      within(table)
-        .getAllByRole('row')
-        .slice(1)
-        .map((row) => within(row).queryByText(/^(BackOff|Started|Killing)$/)?.textContent);
-    expect(reasons()).toEqual(['BackOff', 'Started']);
-    expect(within(table).queryByRole('columnheader', { name: 'Involved object' })).not.toBeInTheDocument();
+    expect(fieldSelectors).toContain(
+      `involvedObject.uid=${pod.metadata.uid ?? ''},involvedObject.name=${CRASHING_POD},involvedObject.kind=Pod`,
+    );
+    const messages = () =>
+      within(stream)
+        .getAllByRole('group')
+        .map((message) => message.textContent);
+    expect(messages()).toEqual([
+      `Back-off restarting failed container web in pod ${CRASHING_POD}`,
+      'Started container web',
+    ]);
+    // The OCP stream on a details tab has no toolbar.
+    expect(screen.queryByRole('combobox', { name: 'Resources' })).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 2 events')).toBeInTheDocument();
 
     mockK8s.upsert('dev-1', {
       apiVersion: 'v1',
@@ -257,15 +294,16 @@ describe('events tab (UI-5)', () => {
       lastTimestamp: new Date().toISOString(),
     } as K8sResource);
 
-    await waitFor(() => expect(reasons()).toEqual(['Killing', 'BackOff', 'Started']));
+    await waitFor(() => expect(messages()[0]).toBe('Stopping container web'));
+    expect(screen.getByText('Showing 3 events')).toBeInTheDocument();
   });
 
-  it('shows a small empty state without table headers', async () => {
+  it('shows "No events" under the stream header (OCP NoEvents)', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config/events');
 
-    expect(await screen.findByRole('heading', { name: NO_EVENTS_TITLE })).toBeInTheDocument();
-    expect(screen.getByText(NO_EVENTS_BODY)).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+    expect(await screen.findByText(NO_EVENTS)).toBeInTheDocument();
+    expect(screen.getByText('Showing 0 events')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Events' })).not.toBeInTheDocument();
   });
 });
 
@@ -273,7 +311,8 @@ describe('details error states (UI-10)', () => {
   it('shows not found with a link to the list', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/pods/nope');
 
-    expect(await screen.findByRole('heading', { name: 'Pod nope not found on dev-1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '404: Page Not Found' })).toBeInTheDocument();
+    expect(screen.getByText(/Pod nope was not found on dev-1\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View Pods in shop' })).toHaveAttribute(
       'href',
       '/c/dev-1/k8s/ns/shop/pods',
@@ -288,7 +327,7 @@ describe('details error states (UI-10)', () => {
     mockK8s.remove('dev-1', PodModel, 'shop', CRASHING_POD);
 
     expect(
-      await screen.findByRole('heading', { name: `Pod ${CRASHING_POD} not found on dev-1` }),
+      await screen.findByText(new RegExp(`Pod ${CRASHING_POD} was not found on dev-1\\.`)),
     ).toBeInTheDocument();
   });
 
@@ -301,7 +340,7 @@ describe('details error states (UI-10)', () => {
     await router.navigate(`/c/lab-1/k8s/ns/shop/pods/${CRASHING_POD}`);
 
     expect(
-      await screen.findByRole('heading', { name: `Pod ${CRASHING_POD} not found on lab-1` }),
+      await screen.findByText(new RegExp(`Pod ${CRASHING_POD} was not found on lab-1\\.`)),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View Pods in shop' })).toHaveAttribute(
       'href',
@@ -329,13 +368,13 @@ describe('details error states (UI-10)', () => {
     expect(screen.getByText("The service account for dev-1 can't get pods in shop.")).toBeInTheDocument();
   });
 
-  it('shows the proxy error detail with Retry on 502', async () => {
+  it('shows the proxy error detail with Try again on 502', async () => {
     answerGet('pods', CRASHING_POD, () =>
       problem(502, { code: 'Proxy.UpstreamUnavailable', detail: 'upstream down' }),
     );
     renderApp(POD_PATH);
 
     expect(await screen.findByText(/upstream down/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });

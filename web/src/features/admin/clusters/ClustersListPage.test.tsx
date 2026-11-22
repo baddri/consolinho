@@ -5,6 +5,7 @@ import { mockDb, problem, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
+import { checkFilterOption } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
 
 /** All fixture cluster names in display order (sorted by name). */
@@ -59,28 +60,27 @@ describe('ClustersListPage (CLU-7)', () => {
     expect(prodEuCells.getByText('prod')).toBeInTheDocument();
     expect(prodEu).toHaveTextContent('https://api.prod-eu-1.example.com:6443');
     expect(prodEuCells.getByText('Enabled')).toBeInTheDocument();
-    expect(prodEuCells.getByText('CA bundle')).toBeInTheDocument();
     expect(prodEuCells.getByText('Expires soon')).toBeInTheDocument();
     expect(prodEuCells.getByText('Passed')).toBeInTheDocument();
     expect(prodEuCells.getByText('2 days ago')).toBeInTheDocument();
     expect(prodEu).toHaveTextContent('fleet-view');
-    expect(prodEuCells.getByRole('cell', { name: '3' })).toBeInTheDocument();
+    // TLS and Users are additional columns ("Manage columns"), so the table fits the page up to 1920.
+    expect(within(table).queryByRole('columnheader', { name: /^TLS/ })).not.toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: /^Users/ })).not.toBeInTheDocument();
 
     const prodUs = within(rowOf(table, 'prod-us-1'));
-    expect(prodUs.getByText('System trust')).toBeInTheDocument();
     expect(prodUs.getByText('Expired')).toBeInTheDocument();
     expect(prodUs.getByText('Failed')).toBeInTheDocument();
 
     const staging = within(rowOf(table, 'staging-eu-1'));
-    expect(staging.getByText('TLS not verified')).toBeInTheDocument();
     expect(staging.getByText('Settings changed since last test')).toBeInTheDocument();
     expect(staging.getByText('No expiry')).toBeInTheDocument();
 
+    // Disabled with OCP's ban icon (UX.md §5); names carry the fleet kind badge "C".
     const dev2 = rowOf(table, 'dev-2');
-    expect(dev2).toHaveClass('pf-v6-u-text-color-subtle');
     expect(within(dev2).getByText('Disabled')).toBeInTheDocument();
     expect(within(dev2).getByText('Never tested')).toBeInTheDocument();
-    expect(rowOf(table, 'dev-1')).not.toHaveClass('pf-v6-u-text-color-subtle');
+    expect(within(dev2).getByText('C')).toHaveAttribute('title', 'Cluster');
 
     // lab-1 has no credentials: count 0 and no expiry icon.
     expect(within(rowOf(table, 'lab-1')).queryByRole('img')).not.toBeInTheDocument();
@@ -98,22 +98,20 @@ describe('ClustersListPage (CLU-7)', () => {
     const { user, router } = renderApp('/admin/clusters');
     const table = await findClustersTable();
 
-    await user.click(screen.getByRole('textbox', { name: 'Search clusters' }));
+    await user.click(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('api.prod');
     await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-us-1']));
     expect(router.state.location.search).toBe('?q=api.prod');
 
-    await user.clear(screen.getByRole('textbox', { name: 'Search clusters' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('Development');
     await waitFor(() => expect(visibleClusters(table)).toEqual(['dev-1', 'dev-2']));
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Status' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Disabled' }));
+    await checkFilterOption(user, 'Status', 'Disabled');
     await waitFor(() => expect(visibleClusters(table)).toEqual(['dev-2']));
     expect(router.state.location.search).toBe('?q=Development&status=disabled');
 
-    const toolbar = screen.getByRole('group', { name: 'Clusters toolbar' });
-    await user.click(within(toolbar).getByRole('button', { name: 'Clear all filters' }));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(visibleClusters(table)).toEqual(ALL_CLUSTERS));
   });
 
@@ -122,35 +120,30 @@ describe('ClustersListPage (CLU-7)', () => {
     const table = await findClustersTable();
 
     await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-us-1']));
-    const toolbar = screen.getByRole('group', { name: 'Clusters toolbar' });
-    expect(
-      within(within(toolbar).getByRole('list', { name: 'Environment' })).getByText('Production'),
-    ).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Environment' })).getByText('Production')).toBeInTheDocument();
   });
 
-  it('shows the no-match state with "Clear all filters" when nothing matches', async () => {
+  it('shows the OCP no-match row with "Clear filters" when nothing matches', async () => {
     const { user } = renderApp('/admin/clusters?q=nothing-like-this');
     const table = await screen.findByRole('grid', { name: 'Clusters' });
 
-    expect(
-      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
-    ).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
+    expect(await within(table).findByText('No Clusters found')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(visibleClusters(table)).toEqual(ALL_CLUSTERS));
   });
 
   it('shows the empty state with Register cluster when no cluster exists', async () => {
     mockDb.clusters = [];
     const { user, router } = renderApp('/admin/clusters');
-    const table = await screen.findByRole('grid', { name: 'Clusters' });
 
-    expect(await within(table).findByRole('heading', { name: 'No clusters found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'No Clusters found' })).toBeInTheDocument();
     expect(
-      within(table).getByText(
-        "You need the cluster's API URL, its CA bundle (or system trust) and a ServiceAccount token.",
-      ),
+      screen.getByText("You need the cluster's API URL, its CA bundle (or system trust) and a ServiceAccount token."),
     ).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Register cluster' }));
+    // The heading's button and the empty state's.
+    const [, emptyStateRegister] = screen.getAllByRole('button', { name: 'Register cluster' });
+    if (!emptyStateRegister) throw new Error('no Register cluster in the empty state');
+    await user.click(emptyStateRegister);
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/new'));
   });
 
@@ -183,7 +176,7 @@ describe('ClustersListPage (CLU-7)', () => {
     expect(visibleClusters(table)).toEqual(ALL_CLUSTERS);
   });
 
-  it('renders 40+ clusters without pagination', async () => {
+  it('renders 40+ clusters on one page (50 per page, as OCP)', async () => {
     const [template] = mockDb.clusters;
     if (!template) throw new Error('no fixture cluster');
     for (let i = 0; i < 40; i++) {
@@ -197,7 +190,6 @@ describe('ClustersListPage (CLU-7)', () => {
     const table = await findClustersTable();
 
     expect(visibleClusters(table)).toHaveLength(ALL_CLUSTERS.length + 40);
-    expect(screen.queryByRole('navigation', { name: /pagination/i })).not.toBeInTheDocument();
   });
 
   it('keeps Register cluster visible but aria-disabled for a read-only admin (ADM-2)', async () => {
@@ -209,8 +201,7 @@ describe('ClustersListPage (CLU-7)', () => {
     const register = screen.getByRole('button', { name: 'Register cluster' });
     expect(register).toHaveAttribute('aria-disabled', 'true');
     // The create action sits in the page heading (UX.md §3), not in the toolbar.
-    const toolbar = screen.getByRole('group', { name: 'Clusters toolbar' });
-    expect(within(toolbar).queryByRole('button', { name: 'Register cluster' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Register cluster' })).toHaveLength(1);
     await user.hover(register);
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/read-only/i);
   });

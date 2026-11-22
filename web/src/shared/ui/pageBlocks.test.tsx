@@ -20,7 +20,7 @@ describe('PageHeading', () => {
         <PageHeading
           title="alice"
           breadcrumbs={[{ label: 'Users', to: '/admin/users' }, { label: 'User details' }]}
-          icon={<span>U</span>}
+          icon={<span aria-hidden="true">U</span>}
           status={<StatusIconText status="success" text="Active" asLabel />}
           labels={<span>Read only</span>}
           subtitle="Grants and credentials of this user."
@@ -162,11 +162,11 @@ describe('StatusIconText', () => {
     expect(container.querySelector('svg')).toBeNull();
   });
 
-  it('renders an outlined compact label with asLabel', () => {
+  it('renders icon + text in a read badge with asLabel (OCP ResourceStatus)', () => {
     const { container } = render(<StatusIconText status="success" text="Active" asLabel />);
-    const label = container.querySelector('.pf-v6-c-label');
-    expect(label).toHaveClass('pf-m-outline', 'pf-m-compact');
-    expect(label).toHaveTextContent('Active');
-    expect(label?.querySelector('svg')?.closest('[aria-hidden="true"]')).not.toBeNull();
+    const badge = container.querySelector('.pf-v6-c-badge');
+    expect(badge).toHaveClass('pf-m-read');
+    expect(badge).toHaveTextContent('Active');
+    expect(badge?.querySelector('svg')?.closest('[aria-hidden="true"]')).not.toBeNull();
   });
 });

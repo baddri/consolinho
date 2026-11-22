@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ActionGroup, Button, Content, Form } from '@patternfly/react-core';
+import { ActionGroup, Button, Content } from '@patternfly/react-core';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import type { ClusterDetail } from '@/shared/api';
 import { ConflictAlert, FormProblemAlert, useFormProblem } from '@/shared/forms';
-import { ActionButton, ConfirmModal, EnvironmentLabel } from '@/shared/ui';
+import { ActionButton, ConfirmModal, EnvironmentLabel, FlexForm, FormBody, FormFooter } from '@/shared/ui';
 import { useAdminAccess } from '../../useAdminAccess';
 import { clusterDetailPath } from '../clusterTarget';
 import {
@@ -92,29 +92,36 @@ export function ClusterForm({ cluster, onReload }: ClusterFormProps) {
 
   return (
     <>
-      {/* OCP forms are never full width (`UX.md` §8): PF caps a width-limited form at 55rem. */}
-      <Form isWidthLimited noValidate onSubmit={(event) => void submit(event)}>
-        <IdentitySection control={form.control} isEdit={isEdit} />
-        <ConnectionSection control={form.control} isEdit={isEdit} />
-        <LinksSection control={form.control} />
-        {!isEdit && <StatusSection control={form.control} />}
-        {/* Server errors sit right above the buttons that caused them (`UX.md` §8). */}
-        <ConflictAlert problem={problem} onReload={() => void reload()} isReloading={isReloading} />
-        <FormProblemAlert problem={problem} />
-        <ActionGroup>
-          <ActionButton
-            type="submit"
-            disabledReason={readOnlyReason}
-            isAriaDisabled={isSubmitting}
-            isLoading={isSubmitting}
-          >
-            {isEdit ? 'Save' : 'Register'}
-          </ActionButton>
-          <Button variant="link" onClick={() => void navigate(cancelPath)}>
-            Cancel
-          </Button>
-        </ActionGroup>
-      </Form>
+      {/* OCP full-page form (`UX.md` §8): 650px field column, buttons in a sticky footer. */}
+      <FlexForm onSubmit={(event) => void submit(event)}>
+        <FormBody>
+          <IdentitySection control={form.control} isEdit={isEdit} />
+          <ConnectionSection control={form.control} isEdit={isEdit} />
+          <LinksSection control={form.control} />
+          {!isEdit && <StatusSection control={form.control} />}
+        </FormBody>
+        <FormFooter
+          actions={
+            <ActionGroup>
+              <ActionButton
+                type="submit"
+                disabledReason={readOnlyReason}
+                isAriaDisabled={isSubmitting}
+                isLoading={isSubmitting}
+              >
+                {isEdit ? 'Save' : 'Register'}
+              </ActionButton>
+              <Button variant="secondary" onClick={() => void navigate(cancelPath)}>
+                Cancel
+              </Button>
+            </ActionGroup>
+          }
+        >
+          {/* Server errors sit right above the buttons that caused them (OCP `ButtonBar`, `UX.md` §8). */}
+          <ConflictAlert problem={problem} onReload={() => void reload()} isReloading={isReloading} />
+          <FormProblemAlert problem={problem} />
+        </FormFooter>
+      </FlexForm>
       <ConfirmModal
         isOpen={confirmingName !== null}
         title="Save without TLS verification"

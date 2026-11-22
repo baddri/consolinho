@@ -14,7 +14,6 @@ export interface ResourceActionItem extends DisabledActionProps {
   itemKey: 'edit-yaml' | 'delete';
   title: string;
   onClick: () => void;
-  isDanger?: boolean;
 }
 
 /** Options of {@link useResourceActions}. */
@@ -43,9 +42,9 @@ export interface ResourceActions {
 
 /**
  * Builds the generic actions of one object (UI-8/9) and owns the dialog they open, so the row kebab and the details
- * Actions menu offer the same items: "Edit YAML" (always enabled — the YAML tab explains read-only itself) and
- * "Delete", gated by {@link useResourceAccess}: aria-disabled without tooltip while checking, with the reason when
- * denied.
+ * Actions menu offer the same items, worded and ordered as OCP's common actions (`useCommonActions.ts`, normal
+ * colour): "Edit <Kind>" (opens the YAML tab; always enabled — the tab explains read-only itself) and "Delete <Kind>",
+ * gated by {@link useResourceAccess}: aria-disabled without tooltip while checking, with the reason when denied.
  */
 export function useResourceActions({
   cluster,
@@ -69,18 +68,19 @@ export function useResourceActions({
   const items: ResourceActionItem[] = [
     {
       itemKey: 'edit-yaml',
-      title: 'Edit YAML',
+      title: `Edit ${model.kind}`,
       onClick: () => void navigate(resourcePath(cluster, model, { namespace, name, tab: 'yaml' })),
     },
     {
       itemKey: 'delete',
-      title: 'Delete',
-      isDanger: true,
+      title: `Delete ${model.kind}`,
       onClick: () => {
         if (!isDeleteBlocked) setDeleteOpen(true);
       },
       // While checking: aria-disabled without a tooltip — there is no reason to give yet.
-      ...(deleteAccess.isChecking ? { isAriaDisabled: true } : disabledActionProps(deleteAccess.disabledReason)),
+      ...(deleteAccess.isChecking
+        ? { isAriaDisabled: true }
+        : disabledActionProps(deleteAccess.disabledReason)),
     },
   ];
 

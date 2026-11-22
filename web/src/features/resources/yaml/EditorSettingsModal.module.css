@@ -1,0 +1,5 @@
+/* OCP modals/edit-yaml-settings-modal.tsx renders PF `SimpleSelect` (@patternfly/react-templates), whose toggle defaults
+   to `toggleWidth: '200px'`. */
+.toggle {
+  width: 200px;
+}

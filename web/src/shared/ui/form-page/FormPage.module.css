@@ -1,0 +1,58 @@
+/* OCP packages/console-shared/src/components/form-utils/FlexForm.tsx: the form fills the main area so the footer
+   sits at the bottom even when the fields are short. `form.` outranks PF's `.pf-v6-c-form` grid. */
+form.flexForm {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* OCP form-utils/FormBody.tsx: the body is a PF form grid. Section titles as OCP's dev-console `FormSection`
+   (`<Title headingLevel="h2">`, size xl = heading--md, no negative bottom margin). */
+.paneForm {
+  --pf-v6-c-form__section-title--FontSize: var(--pf-t--global--font--size--heading--md);
+  --pf-v6-c-form__section-title--MarginBlockEnd: 0;
+
+  display: grid;
+  gap: var(--pf-v6-c-form--GridGap);
+}
+
+/* PF's form section title uses the body font; OCP's `Title` uses the heading font. */
+.paneForm :global(.pf-v6-c-form__section-title) {
+  font-family: var(--pf-t--global--font--family--heading);
+  line-height: var(--pf-t--global--font--line-height--heading);
+}
+
+/* OCP public/style/_forms.scss `.co-m-pane__form`: full-page forms are never full width. */
+@media (min-width: 769px) {
+  .paneForm {
+    max-width: 650px;
+  }
+}
+
+@media (min-width: 992px) {
+  .paneForm {
+    min-width: 650px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .paneForm {
+    max-width: 50%;
+  }
+}
+
+/* OCP form-utils/FormFooter.scss `.ocs-form-footer`: above menu-toggle borders (z-index xs + 1); the page-section
+   padding already equals OCP's gutters. The action group has no extra top margin
+   (`pf-v6-c-form__group--no-top-margin`). */
+.footer {
+  --pf-v6-c-form__group--m-action--MarginBlockStart: 0;
+
+  z-index: calc(var(--pf-t--global--z-index--xs) + 1);
+}
+
+/* OCP FormFooter `ButtonBar`: alerts stack above the buttons. */
+.footerContent {
+  display: grid;
+  gap: var(--pf-t--global--spacer--md);
+}

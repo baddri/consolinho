@@ -9,7 +9,9 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 1 | Identity & administration | done (tag cp-1) |
 | 2 | Proxy, cluster switcher & generic resource browser (MVP) | done |
 | 3 | Deploy to OpenShift | done (tag cp-3) |
-| 4 | Workloads day-2 operations | planned |
+| 3.5 | OCP look & feel | done (tag cp-3.5) |
+| 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
+| 4 | Workloads day-2 operations | planned (next) |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 6 | Hardening, observability & polish | planned |
 
@@ -59,10 +61,22 @@ panel behind it (Modal `onClose` + `WizardHeader` close, modal wider than the wi
 copy ("enforced by the proxy from CP2", "Admin via configuration (user list)") and badly styled tabs; the register
 cluster form is full width.
 
+## CP3.6 — OCP parity: mirror the console (before CP4) — DONE (tag cp-3.6)
+Human directive (2026-11-22): the UI must look and feel exactly like the OCP console ("feels like home"), in our own
+code, before we build more features. Reference = local clone `/home/bad/works/openshift-console` (CLAUDE.md "UI north
+star", UX.md §0). Run by the `ux-designer`, which also writes the spec, so this checkpoint skips the PO SPEC step:
+1. Write `docs/architecture/ocp-parity.md`: one row per screen (shell: masthead, sidebar/nav, switcher; list, details,
+   YAML, events tabs; forms, modals, empty/error states; admin pages) with our route, OCP route, OCP source path, and
+   status `match` / `gap: …`. Fold in T-0118.
+2. Get reference screenshots of the real console where possible (see HANDOVER "Needs human").
+3. Turn the gaps into FE tasks by area, then BUILD with the usual architect + ux reviews.
+Done when every row is `match` (or the human explicitly waives the row) and the PO accepts.
+
 ## CP4 — Workloads day-2 operations
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
 (trigger now, suspend), ConfigMaps/Secrets (reveal with confirm, edit), HPA. Search across kinds by label.
+(CP3.6 ACCEPT) Cluster OpenAPI definitions via the proxy, feeding the YAML schema sidebar and the details field-help popovers (T-0133); Deployment ring scale buttons.
 
 ## CP5 — Networking, storage, compute & cluster overview
 Services, Routes (with link-out), Ingresses, NetworkPolicies; PVCs, PVs, StorageClasses; Nodes (cordon/drain view,
@@ -107,3 +121,5 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP3.5 ACCEPT) Admin source as structured data (`kind` + `group`) in the users API instead of the "Admin granted by configuration (…)" string the SPA parses.
 - (CP3.5 ACCEPT) YAML tab like OCP `edit-yaml.tsx`: Save / Reload / Cancel, Save always enabled (CP4 YAML work).
 - (CP3.5 ACCEPT) Absolute `Timestamp` (globe icon, relative tooltip) in list "Created" columns too, as in OCP.
+- (CP3.6 ACCEPT) Switcher toggle: never clip the cluster name ("prod…") for its labels; drop "Read only" before the name (prod-eu-1 vs prod-us-1).
+- (CP3.6 ACCEPT) Events card timestamp crowds the object name at 375px.

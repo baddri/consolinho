@@ -8,7 +8,7 @@ import { mockK8s, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { resourceRoutes } from '../routes';
-import { parseEdited, toEditorText } from './yamlObject';
+import { managedFieldsLine, parseEdited, toEditorText } from './yamlObject';
 
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const CM_YAML = '/c/dev-1/k8s/ns/shop/configmaps/web-config/yaml';
@@ -69,37 +69,52 @@ function withData(text: string, data: Record<string, unknown>): string {
 
 describe('yamlObject', () => {
   const cm: ConfigMapObject = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'web-config',
       namespace: 'shop',
       resourceVersion: '7',
+      creationTimestamp: '2026-11-17T15:07:55Z',
       managedFields: [{ manager: 'kubectl', operation: 'Apply' }],
     },
     data: { a: 'b' },
   };
 
-  it('hides managedFields unless shown', () => {
-    expect(toEditorText(cm, { showManagedFields: false })).not.toContain('managedFields');
-    expect(toEditorText(cm, { showManagedFields: true })).toContain('manager: kubectl');
+  it('dumps the object like OCP: key order kept, managedFields included, single quotes, timestamps quoted', () => {
+    const text = toEditorText(cm);
+    expect(text.split('\n').slice(0, 2)).toEqual(['kind: ConfigMap', 'apiVersion: v1']);
+    expect(text).toContain('manager: kubectl');
+    expect(text).toContain("resourceVersion: '7'");
+    expect(text).toContain("creationTimestamp: '2026-11-17T15:07:55Z'");
   });
 
-  it('builds the PUT body without managedFields and with the original resourceVersion', () => {
-    const text = toEditorText(cm, { showManagedFields: true }).replace('resourceVersion: "7"', 'resourceVersion: "99"');
-    const result = parseEdited(text, cm);
-    expect(result).toEqual({
-      ok: true,
-      obj: { ...cm, metadata: { name: 'web-config', namespace: 'shop', resourceVersion: '7' } },
-    });
+  it('finds the managedFields line to fold, if any', () => {
+    expect(managedFieldsLine(toEditorText(cm))).toBe(8);
+    expect(managedFieldsLine(toEditorText({ ...cm, metadata: { name: 'x' } }))).toBeUndefined();
+    expect(managedFieldsLine('managedFields: []\nmetadata: {}')).toBeUndefined();
+    expect(managedFieldsLine('kind: [')).toBeUndefined();
+  });
+
+  it('builds the PUT body as edited (managedFields kept) with the original resourceVersion', () => {
+    const text = toEditorText(cm).replace("resourceVersion: '7'", "resourceVersion: '99'");
+    expect(parseEdited(text, cm)).toEqual({ ok: true, obj: cm });
   });
 
   it.each([
     ['broken YAML', 'kind: [', /^Invalid YAML/],
     ['a list', '- a\n- b', /one object/],
     ['two documents', 'a: 1\n---\nb: 2', /^Invalid YAML/],
-    ['a changed name', stringify({ ...cm, metadata: { ...cm.metadata, name: 'other' } }), /^metadata\.name can't/],
-    ['a changed namespace', stringify({ ...cm, metadata: { ...cm.metadata, namespace: 'x' } }), /namespace can't/],
+    [
+      'a changed name',
+      stringify({ ...cm, metadata: { ...cm.metadata, name: 'other' } }),
+      /^metadata\.name can't/,
+    ],
+    [
+      'a changed namespace',
+      stringify({ ...cm, metadata: { ...cm.metadata, namespace: 'x' } }),
+      /namespace can't/,
+    ],
     ['a changed kind', stringify({ ...cm, kind: 'Secret' }), /^kind can't/],
   ])('rejects %s', (_case, text, message) => {
     const result = parseEdited(text, cm);
@@ -110,7 +125,7 @@ describe('yamlObject', () => {
 
 describe('YAML tab (UI-6)', () => {
   it(
-    'hides managedFields until toggled and offers Copy and Download',
+    'shows managedFields, OCP toolbar and buttons; Download saves <kind>-<name>.yaml',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const cm = storedConfigMap();
@@ -118,19 +133,38 @@ describe('YAML tab (UI-6)', () => {
         ...cm,
         metadata: { ...cm.metadata, managedFields: [{ manager: 'kubectl', operation: 'Apply' }] },
       });
-      const { user } = renderApp(CM_YAML);
+      renderApp(CM_YAML);
 
       const editor = await findEditor();
       expect(editor.value).toContain('kind: ConfigMap');
-      expect(editor.value).not.toContain('managedFields');
-      expect(screen.getByRole('button', { name: 'Copy code to clipboard' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Download code' })).toBeInTheDocument();
-
-      await user.click(screen.getByRole('switch', { name: 'Show managed fields' }));
       expect(editor.value).toContain('manager: kubectl');
-      expect(screen.getByText('Saving to dev-1')).toBeInTheDocument();
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Copy code to clipboard' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Editor settings' })).toBeInTheDocument();
+      // jsdom has no Fullscreen API, so the control is disabled.
+      expect(screen.getByRole('button', { name: 'Toggle fullscreen mode' })).toBeDisabled();
+
+      for (const label of ['Save', 'Reload', 'Cancel']) {
+        expect(await screen.findByRole('button', { name: label })).toBeInTheDocument();
+      }
+      const download = screen.getByRole('link', { name: 'Download' });
+      expect(download).toHaveAttribute('download', 'configmap-web-config.yaml');
+      expect(decodeURIComponent(download.getAttribute('href') ?? '')).toBe(
+        `data:text/yaml;charset=utf-8,${editor.value}`,
+      );
     },
   );
+
+  it('Cancel returns to Details', async () => {
+    const { user, router } = renderApp(CM_YAML);
+    await findEditableEditor();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'),
+    );
+  });
 
   it('alice on prod-eu-1: read-only editor with the reason and no Save', async () => {
     setMockUser('alice');
@@ -141,11 +175,14 @@ describe('YAML tab (UI-6)', () => {
     expect(editor).toHaveAttribute('readonly');
     expect(editor.value).toContain('kind: Pod');
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Saving to/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Download' })).toBeInTheDocument();
   });
 });
 
 describe('YAML tab save (UI-7, QG-3)', () => {
-  it('saves the edit: PUT with the loaded resourceVersion, toast, editor shows the new version', async () => {
+  it('saves the edit: PUT with the loaded resourceVersion, success alert, editor shows the new version', async () => {
     const puts = recordPuts();
     const loadedRv = storedConfigMap().metadata.resourceVersion;
     const { user } = renderApp(CM_YAML);
@@ -154,27 +191,30 @@ describe('YAML tab save (UI-7, QG-3)', () => {
     await setText(user, editor, withData(editor.value, { greeting: 'hello' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByText('web-config saved on dev-1')).toBeInTheDocument();
+    const saved = await waitFor(() => {
+      const current = storedConfigMap();
+      expect(current.data).toEqual({ greeting: 'hello' });
+      return current;
+    });
+    const savedRv = saved.metadata.resourceVersion ?? '';
+    expect(await screen.findByText(`web-config has been updated to version ${savedRv}`)).toBeInTheDocument();
     await waitFor(() => expect(puts).toHaveLength(1));
     expect(puts[0]).toMatchObject({ data: { greeting: 'hello' }, metadata: { resourceVersion: loadedRv } });
-    const saved = storedConfigMap();
-    expect(saved.data).toEqual({ greeting: 'hello' });
-    await waitFor(() => expect(editor.value).toContain(`resourceVersion: "${saved.metadata.resourceVersion}"`));
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await waitFor(() => expect(editor.value).toContain(`resourceVersion: '${savedRv}'`));
   });
 
   it('names the cluster and its environment label next to Save (SW-10)', async () => {
     renderApp(CM_YAML);
     await findEditableEditor();
 
-    // The flex row that holds Save, Reload, the target cluster and its environment label.
-    const bar = screen.getByText('Saving to dev-1').parentElement;
-    if (!bar) throw new Error('Save bar not found');
+    // The ActionGroup's actions row holds Save, Reload, Cancel, the target cluster with its label, and Download.
+    const bar = screen.getByRole('button', { name: 'Save' }).parentElement;
+    if (!bar) throw new Error('Button bar not found');
+    expect(within(bar).getByText('Saving to dev-1')).toBeInTheDocument();
     expect(within(bar).getByText('dev')).toBeInTheDocument();
-    expect(within(bar).getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
 
-  it('stale edit: banner while dirty, 409 alert on Save, edits kept until Reload', async () => {
+  it('stale edit: OCP info alert while dirty, conflict error on Save, edits kept until Reload', async () => {
     const { user } = renderApp(CM_YAML);
     const editor = await findEditableEditor();
     const edited = withData(editor.value, { mine: 'yes' });
@@ -182,23 +222,50 @@ describe('YAML tab save (UI-7, QG-3)', () => {
 
     mockK8s.upsert('dev-1', { ...storedConfigMap(), data: { theirs: 'yes' } } as ConfigMapObject);
 
-    expect(await screen.findByText('This object changed on the cluster')).toBeInTheDocument();
+    expect(await screen.findByText('This object has been updated.')).toBeInTheDocument();
+    expect(screen.getByText('Click reload to see the new version.')).toBeInTheDocument();
     expect(editor.value).toBe(edited);
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(await screen.findByText('This object has been updated since you opened it')).toBeInTheDocument();
+    expect(await screen.findByText('An error occurred')).toBeInTheDocument();
     expect(editor.value).toBe(edited);
     expect(storedConfigMap().data).toEqual({ theirs: 'yes' });
 
-    // The alert's own Reload action comes first in the DOM; the toolbar's Reload does the same.
-    const [alertReload] = screen.getAllByRole('button', { name: 'Reload' });
-    if (!alertReload) throw new Error('no Reload action');
-    await user.click(alertReload);
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
     await waitFor(() => expect(editor.value).toContain('theirs: yes'));
-    expect(screen.queryByText('This object has been updated since you opened it')).not.toBeInTheDocument();
+    expect(screen.queryByText('An error occurred')).not.toBeInTheDocument();
+    expect(screen.queryByText('This object has been updated.')).not.toBeInTheDocument();
   });
 
-  it('422: shows the server message and keeps the edits', async () => {
+  it('409 before the watch delivers the newer version: the reload hint shows anyway', async () => {
+    server.use(
+      http.put(PROXY, () =>
+        HttpResponse.json(
+          {
+            kind: 'Status',
+            apiVersion: 'v1',
+            metadata: {},
+            status: 'Failure',
+            reason: 'Conflict',
+            code: 409,
+            message: 'Operation cannot be fulfilled on configmaps "web-config": the object has been modified',
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    const { user } = renderApp(CM_YAML);
+    const editor = await findEditableEditor();
+    await setText(user, editor, withData(editor.value, { mine: 'yes' }));
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByText(/the object has been modified/)).toBeInTheDocument();
+    expect(screen.getByText('This object has been updated.')).toBeInTheDocument();
+    expect(screen.getByText('Click reload to see the new version.')).toBeInTheDocument();
+  });
+
+  it('422: shows the server message and keeps the edits until Reload', async () => {
     const { user } = renderApp(CM_YAML);
     const editor = await findEditableEditor();
     const edited = withData(editor.value, { count: 3 });
@@ -207,14 +274,20 @@ describe('YAML tab save (UI-7, QG-3)', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByText(/data\[count\]: Invalid value: must be a string/)).toBeInTheDocument();
+    expect(screen.getByText('An error occurred')).toBeInTheDocument();
     expect(editor.value).toBe(edited);
 
-    await user.type(editor, ' ');
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
     expect(screen.queryByText(/data\[count\]: Invalid value/)).not.toBeInTheDocument();
+    expect(editor.value).not.toBe(edited);
   });
 
   it.each([
-    ['a changed metadata.name', (text: string) => text.replace('name: web-config', 'name: other'), /metadata\.name/],
+    [
+      'a changed metadata.name',
+      (text: string) => text.replace('name: web-config', 'name: other'),
+      /metadata\.name/,
+    ],
     ['broken YAML', () => 'kind: [', /Invalid YAML/],
   ])('%s: client-side error and no request', async (_case, edit, message) => {
     const puts = recordPuts();
@@ -224,7 +297,7 @@ describe('YAML tab save (UI-7, QG-3)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    expect(await screen.findByText("web-config can't be saved")).toBeInTheDocument();
+    expect(await screen.findByText('An error occurred')).toBeInTheDocument();
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(puts).toEqual([]);
   });
@@ -236,7 +309,7 @@ describe('YAML tab save (UI-7, QG-3)', () => {
     mockK8s.upsert('dev-1', { ...storedConfigMap(), data: { live: 'update' } } as ConfigMapObject);
 
     await waitFor(() => expect(editor.value).toContain('live: update'));
-    expect(screen.queryByText('This object changed on the cluster')).not.toBeInTheDocument();
+    expect(screen.queryByText('This object has been updated.')).not.toBeInTheDocument();
   });
 
   it('asks before navigating away from unsaved edits', async () => {
@@ -247,13 +320,16 @@ describe('YAML tab save (UI-7, QG-3)', () => {
     await user.click(screen.getByRole('tab', { name: 'Details' }));
     const dialog = await screen.findByRole('dialog', { name: 'Discard unsaved changes?' });
     expect(dialog).toHaveTextContent('Your edits to web-config on dev-1');
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(router.state.location.pathname).toBe(CM_YAML);
     expect(editor.value).toContain('draft: x');
 
-    await user.click(screen.getByRole('tab', { name: 'Details' }));
+    // The bar's Cancel leaves the page too, so it asks the same way.
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
     await user.click(await screen.findByRole('button', { name: 'Discard' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'),
+    );
   });
 });
 
@@ -268,5 +344,7 @@ it('never sends a PUT without resourceVersion', async () => {
   await user.click(screen.getByRole('button', { name: 'Save' }));
 
   await waitFor(() => expect(puts).toHaveLength(1));
-  expect(puts[0]).toMatchObject({ metadata: { resourceVersion: storedConfigMap().metadata.resourceVersion } });
+  expect(puts[0]).toMatchObject({
+    metadata: { resourceVersion: storedConfigMap().metadata.resourceVersion },
+  });
 });

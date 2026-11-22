@@ -36,7 +36,7 @@ export interface ClusterDetailsTabProps {
 
 /**
  * Details tab of the cluster detail page (CLU-8, `UX.md` §6): "Cluster details" h2 over two vertical columns — what
- * the cluster is (display name, environment, description, status, web console link) left, how it is reached and its
+ * the cluster is (name, display name, environment, description, status, web console link) left, how it is reached and its
  * history (API URL with copy, TLS mode, counts, change times, audit link) right — followed by the CA certificates
  * ({@link CaCertificatesTable}, CLU-2). Purely presentational; the page loads the `ClusterDetail`.
  */
@@ -47,6 +47,7 @@ export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {
         <SectionHeading text="Cluster details" />
         <DetailsGrid>
           <DetailsColumn aria-label="Cluster details">
+            <DetailsItem label="Name">{cluster.name}</DetailsItem>
             <DetailsItem label="Display name">{cluster.displayName}</DetailsItem>
             <DetailsItem label="Environment">
               <EnvironmentLabel environment={cluster.environment} isCompact />

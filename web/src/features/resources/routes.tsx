@@ -19,15 +19,17 @@ const detailsPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
 const detailsTabs: Record<'details' | DetailsTab, RouteObject['lazy']> = {
   details: () => import('./details/ResourceDetailsTab').then((m) => ({ Component: m.ResourceDetailsTab })),
   yaml: () => import('./yaml/ResourceYamlTab').then((m) => ({ Component: m.ResourceYamlTab })),
+  pods: () => import('./details/ResourcePodsTab').then((m) => ({ Component: m.ResourcePodsTab })),
   events: () => import('./events/ResourceEventsTab').then((m) => ({ Component: m.ResourceEventsTab })),
 };
 
 /**
- * Details layout at `path` (header + tab bar) with one child per tab: the index (Details), `yaml` and `events`. The
+ * Details layout at `path` (header + tab bar) with one child per tab: the index (Details), `yaml`, `pods` (kinds with
+ * a `podsSelector`) and `events`. The
  * children's handle `{ scope, tab }` tells `useResourceRoute` / `useResourceTab` the scope and tab.
  */
 function detailsRoutes(path: string, scope: ResourceRouteHandle['scope']): RouteObject[] {
-  const tabs: DetailsTab[] = ['yaml', 'events'];
+  const tabs: DetailsTab[] = ['yaml', 'pods', 'events'];
   return [
     {
       path,

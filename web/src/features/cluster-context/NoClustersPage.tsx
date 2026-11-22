@@ -32,8 +32,8 @@ export function NoClustersPage() {
     <PageSection>
       <EmptyState titleText="No clusters assigned yet" headingLevel="h1" icon={CubesIcon}>
         <EmptyStateBody>
-          You are logged in as <strong>{username}</strong>, but no clusters have been assigned to you.
-          Ask a {PRODUCT_NAME} administrator to grant you access.
+          You are logged in as <strong>{username}</strong>, but no clusters have been assigned to you. Ask a{' '}
+          {PRODUCT_NAME} administrator to grant you access.
         </EmptyStateBody>
         {isAdmin && (
           <EmptyStateFooter>

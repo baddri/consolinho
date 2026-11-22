@@ -15,6 +15,7 @@ import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { adminKeys } from '../queryKeys';
+import { withoutBadges } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
 
 type User = ReturnType<typeof renderApp>['user'];
@@ -26,11 +27,11 @@ async function findTable(name: string, timeout?: number) {
   return table;
 }
 
-/** The body row whose first cell starts with `text`. */
+/** The body row whose first cell starts with `text` (after the kind badge). */
 function rowOf(table: HTMLElement, text: string): HTMLElement {
   const row = within(table)
     .getAllByRole('row')
-    .find((candidate) => within(candidate).queryAllByRole('cell')[0]?.textContent.startsWith(text));
+    .find((candidate) => withoutBadges(within(candidate).queryAllByRole('cell')[0]).startsWith(text));
   if (!row) throw new Error(`No row ${text}`);
   return row;
 }
@@ -40,12 +41,12 @@ function firstCells(table: HTMLElement): string[] {
   return within(table)
     .getAllByRole('row')
     .slice(1)
-    .map((row) => within(row).queryAllByRole('cell')[0]?.textContent ?? '');
+    .map((row) => withoutBadges(within(row).queryAllByRole('cell')[0]));
 }
 
 /** Text of the cell with `dataLabel` in `row`. */
 function cellText(row: HTMLElement, label: string): string {
-  return row.querySelector(`[data-label="${label}"]`)?.textContent ?? '';
+  return withoutBadges(row.querySelector(`[data-label="${label}"]`) ?? undefined);
 }
 
 /** Opens the row kebab of `text` and clicks `action`. */
@@ -63,7 +64,7 @@ async function pick(user: User, label: string, text: string, value: string) {
 
 /** Clicks the first button named `name` (the empty state repeats the toolbar's create button). */
 async function clickFirst(user: User, name: string) {
-  const [button] = screen.getAllByRole('button', { name });
+  const [button] = await screen.findAllByRole('button', { name });
   if (!button) throw new Error(`No button ${name}`);
   await user.click(button);
 }
@@ -143,14 +144,13 @@ describe('Grants tabs (T-0039)', () => {
     expect(await within(table).findByText('No grants match')).toBeInTheDocument();
   });
 
-  it('GRANT-2: creates from the user page with the single credential pre-selected and ReadOnly by default', async () => {
+  it('GRANT-2: a cluster with one credential pre-selects it; ReadOnly is the default', async () => {
     const writes = captureGrantWrites();
-    const { user } = renderApp('/admin/users/bob/access');
-    await screen.findByText('No cluster access yet');
+    const { user } = renderApp('/admin/clusters/staging-eu-1/access');
     await clickFirst(user, 'Grant access');
-    const dialog = await screen.findByRole('dialog', { name: 'Grant bob access to a cluster' });
+    const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
 
-    await pick(user, 'Cluster', 'staging', 'staging-eu-1');
+    await pick(user, 'User', 'bob', 'bob');
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'));
     expect(within(dialog).getByRole('radio', { name: /Read only/ })).toBeChecked();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
@@ -168,23 +168,14 @@ describe('Grants tabs (T-0039)', () => {
         csrf: '1',
       },
     ]);
-    const table = await findTable('Cluster access of bob');
-    expect(rowOf(table, 'staging-eu-1')).toBeInTheDocument();
   });
 
-  it('GRANT-2/Q7: existing access disabled, picker test labels, production read-write warning', async () => {
-    const { user } = renderApp('/admin/users/alice/access');
-    await findTable('Cluster access of alice');
-    await user.click(screen.getByRole('button', { name: 'Grant access' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Grant alice access to a cluster' });
+  it('GRANT-2/Q7: picker test labels and the production read-write warning', async () => {
+    const { user } = renderApp('/admin/clusters/prod-us-1/access');
+    await clickFirst(user, 'Grant access');
+    const dialog = await screen.findByRole('dialog', { name: /Grant access to prod-us-1/ });
 
-    await user.click(within(dialog).getByRole('combobox', { name: 'Cluster' }));
-    const taken = await screen.findByRole('option', { name: /^prod-eu-1/ });
-    expect(taken).toBeDisabled();
-    expect(taken).toHaveTextContent('already has access');
-
-    await user.paste('prod-us');
-    await user.click(await screen.findByRole('option', { name: /^prod-us-1/ }));
+    await pick(user, 'User', 'bob', 'bob');
     expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('Select a credential');
     await user.click(within(dialog).getByRole('button', { name: 'Credential' }));
     expect(await screen.findByRole('option', { name: /^fleet-view/ })).toHaveTextContent(/Expired.*Last test failed/);
@@ -229,17 +220,16 @@ describe('Grants tabs (T-0039)', () => {
       detail: 'bob already has access to dev-1 — change the existing grant instead',
     });
     server.use(http.post('/api/admin/grants', () => answer));
-    const { user } = renderApp('/admin/users/bob/access');
-    await screen.findByText('No cluster access yet');
+    const { user } = renderApp('/admin/clusters/dev-1/access');
     await clickFirst(user, 'Grant access');
-    const dialog = await screen.findByRole('dialog', { name: 'Grant bob access to a cluster' });
-    await pick(user, 'Cluster', 'dev-1', 'dev-1');
+    const dialog = await screen.findByRole('dialog', { name: /Grant access to dev-1/ });
+    await pick(user, 'User', 'bob', 'bob');
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-edit'));
 
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
-    const cluster = within(dialog).getByRole('combobox', { name: 'Cluster' });
-    await waitFor(() => expect(cluster).toHaveAttribute('aria-invalid', 'true'));
-    expect(cluster).toHaveAccessibleDescription(
+    const picker = within(dialog).getByRole('combobox', { name: 'User' });
+    await waitFor(() => expect(picker).toHaveAttribute('aria-invalid', 'true'));
+    expect(picker).toHaveAccessibleDescription(
       expect.stringContaining('bob already has access to dev-1 — change the existing grant instead'),
     );
 
@@ -249,7 +239,7 @@ describe('Grants tabs (T-0039)', () => {
     await waitFor(() =>
       expect(credential).toHaveAccessibleDescription(expect.stringContaining('This credential belongs to another cluster.')),
     );
-    expect(screen.getByRole('dialog', { name: 'Grant bob access to a cluster' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /Grant access to dev-1/ })).toBeInTheDocument();
   });
 
   it('GRANT-3: changes mode and credential with the version, recovering from a conflict', async () => {
@@ -321,25 +311,23 @@ describe('Grants tabs (T-0039)', () => {
   });
 
   it('GRANT-2: the picker says when its options could not load', async () => {
-    server.use(http.get('/api/admin/clusters', () => problem(500, { detail: 'Database unavailable' })));
-    const { user } = renderApp('/admin/users/bob/access');
-    await screen.findByText('No cluster access yet');
+    server.use(http.get('/api/admin/users', () => problem(500, { detail: 'Database unavailable' })));
+    const { user } = renderApp('/admin/clusters/prod-eu-1/access');
     await clickFirst(user, 'Grant access');
-    await screen.findByRole('dialog', { name: 'Grant bob access to a cluster' });
-    await user.click(screen.getByRole('combobox', { name: 'Cluster' }));
-    expect(await screen.findByRole('option', { name: 'Could not load clusters' })).toBeDisabled();
+    await screen.findByRole('dialog', { name: /Grant access to prod-eu-1/ });
+    await user.click(screen.getByRole('combobox', { name: 'User' }));
+    expect(await screen.findByRole('option', { name: 'Could not load users' })).toBeDisabled();
   });
 
   it('GRANT-6: an admin granting themselves a cluster sees it in the switcher without reload', async () => {
     setMockUser('admin');
-    const { user, queryClient } = renderApp('/admin/users/admin/access');
-    await findTable('Cluster access of admin');
+    const { user, queryClient } = renderApp('/admin/clusters/staging-eu-1/access');
     await waitFor(() => expect(queryClient.getQueryData(accessibleClustersQueryKey)).toBeDefined());
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
-    await user.click(screen.getByRole('button', { name: 'Grant access' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Grant admin access to a cluster' });
-    await pick(user, 'Cluster', 'staging', 'staging-eu-1');
+    await clickFirst(user, 'Grant access');
+    const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
+    await pick(user, 'User', 'admin', 'admin');
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'));
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 

@@ -1,0 +1,23 @@
+/* OCP `.co-namespace-bar` (`public/components/_dropdown.scss`): no vertical padding, the toggle sets the height. */
+.bar {
+  padding-block: 0;
+  white-space: nowrap;
+}
+
+/*
+ * OCP `.co-namespace-selector .pf-v6-c-menu-toggle.pf-m-plain` (`_dropdown.scss` L49-58) and
+ * `.co-namespace-dropdown__menu-toggle` (`NamespaceDropdown.scss`): flush left, `$font-size-base + 2` (16px) text
+ * with 9px vertical padding from `md` up (15px, 2px below).
+ */
+.bar :global(.pf-v6-c-menu-toggle) {
+  font-size: 15px;
+  padding-block: 2px;
+  padding-inline: 0;
+}
+
+@media (min-width: 768px) {
+  .bar :global(.pf-v6-c-menu-toggle) {
+    font-size: 16px;
+    padding-block: 9px;
+  }
+}

@@ -1,0 +1,16 @@
+/* OCP `.co-resource-item` (`public/components/_resource.scss`) on the details-page title: the kind badge sits inside
+   the h1 (so it inherits the heading weight) and shares its baseline with the name; the badge's own margin spaces them. */
+.title {
+  align-items: baseline;
+  display: flex;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* OCP renders the heading status badge inside the h1 (`console-dynamic-plugin-sdk/src/app/components/utils/
+   resource-status.scss`, `vertical-align: middle`): it inherits the heading font and line height, and sits centred
+   on the title line. Ours is the h1's sibling, so set both here. */
+.status {
+  font-family: var(--pf-t--global--font--family--heading);
+  line-height: var(--pf-t--global--font--line-height--heading);
+}

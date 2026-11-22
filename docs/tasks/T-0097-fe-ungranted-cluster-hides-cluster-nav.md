@@ -7,6 +7,7 @@ checkpoint: 6
 depends_on: []
 paths: [web/src/app/layout/, web/src/features/cluster-context/]
 review_rounds: 0
+superseded_by: [T-0119, T-0125]
 ---
 
 ## Goal

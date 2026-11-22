@@ -169,8 +169,10 @@ function DeactivateDialog({ user, onClose }: { user: UserActionTarget; onClose: 
       onClose={onClose}
     >
       <Content component="p">
-        {`Deactivate ${username}? They will be logged out within a minute and lose access to all ${grantCount} ` +
-          `${grantCount === 1 ? 'cluster' : 'clusters'}. Their grants are kept and return if reactivated.`}
+        {grantCount === 0
+          ? `${username} will be logged out within a minute.`
+          : `${username} will be logged out within a minute and lose access to ${grantCount} ` +
+            `${grantCount === 1 ? 'cluster' : 'clusters'}. Their grants are kept and return if reactivated.`}
       </Content>
     </TransitionDialog>
   );

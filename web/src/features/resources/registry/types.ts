@@ -1,8 +1,8 @@
-import type { LabelProps } from '@patternfly/react-core';
 import type { ThProps } from '@patternfly/react-table';
 import type { ReactNode } from 'react';
 import type { K8sModel, K8sResource } from '@/shared/k8s';
-import type { FilterOption, SortValue } from '@/shared/table';
+import type { FilterOption } from '@/shared/table';
+import type { DataViewColumn } from '@/shared/ui';
 
 /**
  * Descriptor shape of the resource registry (ADR-0023 §3).
@@ -16,29 +16,21 @@ import type { FilterOption, SortValue } from '@/shared/table';
 export type NavSectionId = 'home' | 'workloads' | 'networking' | 'administration';
 
 /**
- * Status of an object; `ResourceStatusLabel` maps `color` to a status icon + text (red danger, orange pending, green
- * success, else neutral) in the list's Status cell and the details header.
+ * Status of an object: a Kubernetes status word (`Running`, `Active`) or a phrase (`1 of 3 pods`).
+ * `ResourceStatusLabel` renders it with the OCP icon for that word (shared `Status`, `UX.md` §5) in the list's Status
+ * cell and the details header; phrases OCP doesn't know render as text only.
  */
 export interface ResourceStatus {
   title: string;
-  color: NonNullable<LabelProps['color']>;
 }
 
-/** One list column. Only columns with `sortValue` are sortable. */
-export interface ColumnDef<T> {
-  /** Stable id, also the sort key (`'name'`, `'created'`). */
-  id: string;
-  title: string;
-  cell(obj: T): ReactNode;
-  sortValue?(obj: T): SortValue;
+/**
+ * One list column: a shared `DataViewColumn` (`id` is the sort and column-management key, `type: 'name'` sticky,
+ * `visibility` for low-priority columns, `defaultVisible: false` for additional columns) plus all-namespaces options.
+ */
+export interface ColumnDef<T> extends DataViewColumn<T> {
   /** Shown only in all-namespaces mode (the Namespace column). */
   allNamespacesOnly?: boolean;
-  width?: 10 | 15 | 20 | 25 | 30 | 40;
-  /**
-   * PF responsive visibility of the header and cells (OCP's column `className`): low-priority columns use
-   * `['hidden', 'visibleOnXl']` (or `…OnLg`) so narrow screens drop them instead of truncating headers.
-   */
-  visibility?: ThProps['visibility'];
   /** `visibility` in all-namespaces mode, where the Namespace column takes the room (Pods' Owner goes first). */
   allNamespacesVisibility?: ThProps['visibility'];
 }
@@ -52,6 +44,19 @@ export interface RowFilter<T> {
   matches(obj: T, values: string[]): boolean;
 }
 
+/**
+ * Optional rows of the Details tab's common metadata column, in OCP `ResourceSummary` order (`details-page.tsx`):
+ * Pod selector, Node selector and Tolerations after Labels, `Extra` (e.g. a deployment's Status) after Annotations.
+ * A row shows when its getter is declared, even for an empty value. Method syntax keeps them bivariant.
+ */
+export interface SummaryFields<T> {
+  podSelector?(obj: T): Record<string, string> | undefined;
+  nodeSelector?(obj: T): Record<string, string> | undefined;
+  tolerations?(obj: T): readonly unknown[] | undefined;
+  /** `DetailsItem`s between Annotations and "Created at", as OCP `ResourceSummary`'s children. */
+  Extra?(props: { obj: T }): ReactNode;
+}
+
 /** Everything the generic pages need to render one kind. */
 export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   model: K8sModel;
@@ -61,6 +66,12 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   /** Initial sort; defaults to the `name` column ascending. */
   defaultSort?: { columnId: string; direction: 'asc' | 'desc' };
   status?(obj: T): ResourceStatus | undefined;
+  /** No status badge in the details heading (OCP Deployment: status is a "Status" row of the Details tab instead). */
+  hideHeadingStatus?: boolean;
+  /** Extra rows of the common metadata column ({@link SummaryFields}). */
+  summary?: SummaryFields<T>;
+  /** Shown under the "<Kind> details" heading above the grid, e.g. a deployment's pod ring. */
+  DetailsTop?(props: { obj: T }): ReactNode;
   /**
    * Kind-specific fields of the Details tab (T-0075, T-0113): `DetailsItem`s only, rendered as the right column of the
    * "<Kind> details" grid next to the common metadata (`UX.md` §6). A function component
@@ -73,6 +84,16 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * `DetailsSubsection` with its own heading. Same component shape as {@link DetailsSection}.
    */
   ExtraSections?(props: { obj: T }): ReactNode;
+  /**
+   * Label selector of the object's pods: declaring it adds a Pods tab (OCP workloads' `/pods` tab) listing the pods
+   * that match, and is where the "N of M pods" status links.
+   */
+  podsSelector?(obj: T): Record<string, string> | undefined;
+  /**
+   * How the list page renders: `table` (default, `ConsoleDataView`) or `eventStream`, OCP's live stream of event cards
+   * with its own toolbar (Event only, `UX.md` §6a).
+   */
+  listLayout?: 'table' | 'eventStream';
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /** Delete asks to type the name (Namespace, Project). */

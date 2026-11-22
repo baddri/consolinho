@@ -188,7 +188,12 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
       menuRef={menuRef}
       toggleRef={toggleRef}
       toggle={
-        <MenuToggle ref={toggleRef} variant="plainText" onClick={() => changeOpen(!isOpen)} isExpanded={isOpen}>
+        <MenuToggle
+          ref={toggleRef}
+          variant="plainText"
+          onClick={() => changeOpen(!isOpen)}
+          isExpanded={isOpen}
+        >
           {`${noun}: ${namespace ?? allLabel}`}
         </MenuToggle>
       }

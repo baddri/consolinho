@@ -167,9 +167,11 @@ describe('User actions (T-0031)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
     const dialog = await screen.findByRole('dialog', { name: 'Deactivate alice?' });
     expect(dialog).toHaveTextContent(
-      'Deactivate alice? They will be logged out within a minute and lose access to all 2 clusters. Their grants ' +
-        'are kept and return if reactivated.',
+      'alice will be logged out within a minute and lose access to 2 clusters. Their grants are kept and return if ' +
+        'reactivated.',
     );
+    // The body doesn't repeat the title's question.
+    expect(within(dialog).getAllByText(/Deactivate alice\?/)).toHaveLength(1);
     await user.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
     expect(await screen.findByText('alice deactivated')).toBeInTheDocument();
     expect(await within(rowOf(table, 'alice')).findByText('Deactivated')).toBeInTheDocument();
@@ -180,6 +182,17 @@ describe('User actions (T-0031)', () => {
     await user.click(within(reactivate).getByRole('button', { name: 'Reactivate' }));
     expect(await screen.findByText('dave reactivated')).toBeInTheDocument();
     expect(await within(rowOf(table, 'dave')).findByText('Active')).toBeInTheDocument();
+  });
+
+  it('USR-4: deactivating a user without grants mentions no clusters or grants', async () => {
+    const { user } = renderApp('/admin/users');
+    const table = await findUsersTable();
+
+    await openKebab(user, table, 'bob');
+    await user.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Deactivate bob?' });
+    expect(within(dialog).getByText('bob will be logged out within a minute.')).toBeInTheDocument();
+    expect(dialog).not.toHaveTextContent(/grants|clusters/);
   });
 
   it('USR-5: sets read-only with the explanation', async () => {

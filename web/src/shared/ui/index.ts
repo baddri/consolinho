@@ -15,6 +15,16 @@ export {
   type InlineLabelTitleProps,
 } from './ConfirmModal';
 export {
+  ConsoleDataView,
+  type ConsoleDataViewProps,
+  type DataViewFilterValue,
+} from './data-view/ConsoleDataView';
+export { ConsoleFilterToolbar, type ConsoleFilterToolbarProps } from './data-view/ConsoleFilterToolbar';
+export { DataViewLabelFilter, type DataViewLabelFilterProps } from './data-view/DataViewLabelFilter';
+export { DataViewTextFilter, type DataViewTextFilterProps } from './data-view/DataViewTextFilter';
+export { FilterTextInput, type FilterTextInputProps } from './data-view/FilterTextInput';
+export type { DataViewColumn, DataViewColumnType } from './data-view/types';
+export {
   DetailsColumn,
   DetailsGrid,
   DetailsItem,
@@ -27,17 +37,32 @@ export {
   type EnvironmentLabelProps,
   type EnvironmentLabelStyle,
 } from './EnvironmentLabel';
+export { DetailsSubsection, type DetailsSubsectionProps } from './page/DetailsSubsection';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
+export { FlexForm, FormBody, FormFooter, type FlexFormProps } from './form-page/FormPage';
 export { formatAbsoluteTime, formatRelativeTime } from './formatRelativeTime';
+export { KindBadge, kindAbbr, type KindBadgeProps } from './kind-badge/KindBadge';
+export { kindLabelColor } from './kind-badge/kindLabelColor';
 export { LabelList, type LabelListProps } from './LabelList';
-export { NotFoundPage } from './NotFoundPage';
+export { LoadError, type LoadErrorProps } from './LoadError';
+export { NotFoundPage, ReturnToHomepageButton, type NotFoundPageProps } from './NotFoundPage';
 export { PageBody, type PageBodyProps } from './page/PageBody';
+export {
+  HeadingFavoriteContext,
+  type HeadingFavoriteProps,
+  type HeadingFavoriteRenderer,
+} from './page/headingFavorite';
 export { PageHeading, type BreadcrumbCrumb, type PageHeadingProps } from './page/PageHeading';
 export { PageTabs, type PageTab, type PageTabsProps } from './page/PageTabs';
 export { PlaceholderPage, type PlaceholderPageProps } from './PlaceholderPage';
 export { RelativeTime, type RelativeTimeProps } from './RelativeTime';
+export { ResourceLabels, type ResourceLabelsProps } from './ResourceLabels';
 export { SectionHeading, type SectionHeadingProps } from './page/SectionHeading';
+export { Status, statusKindOf, type StatusProps } from './Status';
 export { StatusIconText, type StatusIconTextProps, type StatusKind } from './StatusIconText';
+export { Timestamp, type TimestampProps } from './Timestamp';
+export { durationText, timestampText, utcTimestampText } from './formatTimestamp';
+export { useTimestampTick } from './timestampTick';
 export { TOAST_TIMEOUT_MS, ToastProvider } from './ToastProvider';
 export { TypeaheadSelect, type TypeaheadItem, type TypeaheadSelectProps } from './TypeaheadSelect';
 export type { ShowToast, ToastApi } from './toastContext';

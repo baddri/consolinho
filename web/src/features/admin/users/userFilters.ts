@@ -7,13 +7,13 @@ const STATUSES: readonly UserStatus[] = ['active', 'pending', 'deactivated'];
 
 /**
  * URL filters of `/admin/users` (FRONTEND.md "Routing": `?q=&role=&status=&readOnly=`): `q` searches username,
- * display name and groups; `role`/`status` are multi-selects; `readOnly` is `yes` or `no`.
+ * display name and groups; `role`, `status` and `readOnly` (`yes`/`no`) are multi-selects.
  */
 export const USER_FILTERS = {
   q: { kind: 'text' },
   role: { kind: 'multi', values: ROLES },
   status: { kind: 'multi', values: STATUSES },
-  readOnly: { kind: 'single', values: ['yes', 'no'] },
+  readOnly: { kind: 'multi', values: ['yes', 'no'] },
 } as const satisfies FilterDefs;
 
 /** Current values of {@link USER_FILTERS}. */
@@ -31,7 +31,7 @@ export const STATUS_OPTIONS: FilterOption[] = STATUSES.map((status) => ({
   label: USER_STATUS_TEXT[status],
 }));
 
-/** Options of the read-only filter (shown under the category "Read only", e.g. "Read only: Yes"). */
+/** Options of the read-only filter (chips under the category "Read only", e.g. "Read only: Yes"). */
 export const READ_ONLY_OPTIONS: FilterOption[] = [
   { value: 'yes', label: 'Yes' },
   { value: 'no', label: 'No' },
@@ -43,6 +43,6 @@ export function matchesUserFilters(user: UserListItem, filters: UserFilterValues
     matchesText(filters.q ?? '', user.username, user.displayName, ...user.groups) &&
     (filters.role.length === 0 || filters.role.includes(user.role)) &&
     (filters.status.length === 0 || filters.status.includes(user.status)) &&
-    (filters.readOnly === undefined || (filters.readOnly === 'yes') === user.isReadOnly)
+    (filters.readOnly.length === 0 || filters.readOnly.includes(user.isReadOnly ? 'yes' : 'no'))
   );
 }

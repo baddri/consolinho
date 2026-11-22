@@ -1,0 +1,58 @@
+/*
+ * OCP `.co-m-resource-icon` (`public/components/_resource.scss`): a filled pill with white text before resource names.
+ * OCP hard-codes these sizes and the per-kind colours below (`public/style/_vars.scss`); they are the same in the light
+ * and dark themes.
+ */
+.badge {
+  background-color: #2b9af3; /* `$color-container-dark`, the default */
+  border-radius: 20px;
+  color: var(--pf-t--color--white);
+  display: inline-block;
+  flex-shrink: 0;
+  font-size: 14px; /* `$font-size-base` */
+  line-height: 16px;
+  margin-right: 4px;
+  min-width: 18px;
+  padding: 1px 4px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* `.co-m-resource-icon--lg` (`_resource.scss`): the large badge before a details-page title. */
+.lg {
+  font-size: 17px; /* `$font-size-base + 3` */
+  line-height: 20px;
+  margin-right: 7px;
+  min-width: 24px;
+  padding: 0 7px;
+}
+
+/* `.co-m-resource-pod` (`_resource.scss`): `$color-pod-dark`. */
+.pod {
+  background-color: #009596;
+}
+
+/* `.co-m-resource-deployment`, `-replicaset`, `-statefulset` (petset), `-daemonset`, `-job`, …: `$color-pod-overlord`. */
+.workload {
+  background-color: #004080;
+}
+
+/* `.co-m-resource-namespace`, `.co-m-resource-project`: `$color-namespace-dark`. */
+.namespace {
+  background-color: #1e4f18;
+}
+
+/* `.co-m-resource-configmap`: `$color-configmap-dark`. */
+.configmap {
+  background-color: #40199a;
+}
+
+/* `.co-m-resource-secret`: `$color-secret-dark`. */
+.secret {
+  background-color: #c46100;
+}
+
+/* `.co-m-resource-service`: `$color-service-dark`. */
+.service {
+  background-color: #6ca100;
+}

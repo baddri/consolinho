@@ -18,6 +18,8 @@ its paths under `web/`, the components/hooks to create with props/signatures, ro
 depends on (and which backend task provides them — use MSW mocks so FE work never blocks on BE), and test expectations.
 Fill the **Context pack** with `file:Symbol` / `file:Lx-Ly` exemplars and touch points you found while designing —
 this is the cheapest place to save the engineer dozens of exploratory reads.
+Every UI task also gets an **OCP reference** line: the counterpart component path(s) in `/home/bad/works/openshift-console/frontend`
+(CLAUDE.md "UI north star"). Mirror OCP's component choice and structure, but in our own code.
 When PatternFly APIs are uncertain, check the PatternFly 6 docs (patternfly.org) rather than guessing.
 
 ## Review mode

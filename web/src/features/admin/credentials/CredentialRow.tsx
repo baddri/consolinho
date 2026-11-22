@@ -1,6 +1,8 @@
 import { ActionsColumn, Td, Tr } from '@patternfly/react-table';
 import type { Credential } from '@/shared/api';
 import { RelativeTime } from '@/shared/ui';
+import { AdminResourceName } from '../AdminResourceLink';
+import { CredentialDescription } from './CredentialDescription';
 import { CredentialExpiryLabel } from './CredentialExpiryLabel';
 import type { CredentialCluster } from './CredentialModalFrame';
 import { LastTestLabel } from './LastTestLabel';
@@ -14,25 +16,27 @@ export const CREDENTIAL_COLUMN_COUNT = 8;
 const SUBTLE = 'pf-v6-u-text-color-subtle';
 
 /**
- * One row of a cluster's credentials table (CRED-3/4): name with description, ServiceAccount identity, fingerprint,
- * expiry, grant count, last test and last rotation, then the Rotate / Delete kebab whose dialog renders in the row
- * (a portalled modal) with the row's current representation.
+ * One row of a cluster's credentials table (CRED-3/4): kind badge + name with its description (two lines at most),
+ * ServiceAccount identity, fingerprint, expiry, grant count, last test and last rotation, then the Rotate / Delete
+ * kebab whose dialog renders in the row (a portalled modal) with the row's current representation.
  */
 export function CredentialRow({ cluster, credential }: { cluster: CredentialCluster; credential: Credential }) {
   const { items, dialog } = useCredentialActions(cluster, credential);
   return (
     <Tr>
       <Td dataLabel="Name">
-        {credential.name}
-        {credential.description !== null && <div className={SUBTLE}>{credential.description}</div>}
+        <AdminResourceName kind="Credential">
+          <span className="pf-v6-u-text-nowrap">{credential.name}</span>
+        </AdminResourceName>
+        {credential.description !== null && <CredentialDescription description={credential.description} />}
       </Td>
-      <Td dataLabel="Service account">
+      <Td dataLabel="Service account" modifier="nowrap">
         <ServiceAccountCell {...credential} />
       </Td>
       <Td dataLabel="Fingerprint" className="pf-v6-u-font-family-monospace">
         {credential.fingerprint}
       </Td>
-      <Td dataLabel="Expiry">
+      <Td dataLabel="Expiry" modifier="nowrap">
         <CredentialExpiryLabel expiryStatus={credential.expiryStatus} expiresAt={credential.expiresAt} />
       </Td>
       <Td dataLabel="Grants">{credential.grantCount}</Td>

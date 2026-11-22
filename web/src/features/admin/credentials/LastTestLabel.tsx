@@ -23,7 +23,7 @@ export const CAPABILITY_LABELS: Record<CapabilityLevel, string> = {
 export interface LastTestLabelProps {
   /** The credential's last connection test; `null` = never tested. */
   lastTest: ConnectionTestSummary | null;
-  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  /** Read `Badge` around icon + text — details-page headers only (`UX.md` §3). */
   asLabel?: boolean;
 }
 

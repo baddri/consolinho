@@ -1,6 +1,7 @@
 import { Label, LabelGroup, Skeleton } from '@patternfly/react-core';
 import type { ClusterDetail } from '@/shared/api';
-import { EnvironmentLabel, PageHeading } from '@/shared/ui';
+import { EnvironmentLabel, KindBadge, PageHeading } from '@/shared/ui';
+import { ADMIN_KIND_ABBR } from '../AdminResourceLink';
 import { ClusterActionsDropdown } from './ClusterActionsDropdown';
 import { ClusterStatusLabel } from './ClusterStatusLabel';
 import type { ClusterActionsOptions } from './useClusterActions';
@@ -35,15 +36,16 @@ export interface ClusterDetailHeaderProps extends ClusterActionsOptions {
 
 /**
  * Heading of the cluster detail page (CLU-8, `UX.md` §3) via {@link PageHeading}: breadcrumb `Clusters › Cluster
- * details`, the name as `h1` with the Enabled / Disabled status as an outlined label, the compact environment and
- * "TLS not verified" labels, the display name as subtitle (when it differs from the name) and the Actions menu
- * ({@link ClusterActionsDropdown}) on the right. Status and labels follow the cached detail, so enable/disable updates
- * them.
+ * details`, the large "C" kind badge and the name as `h1`, the Enabled / Disabled status in a read `Badge`, the
+ * compact environment and "TLS not verified" labels and the Actions menu ({@link ClusterActionsDropdown}) on the
+ * right. No subtitle, as OCP: the display name is in the Details tab. Status and labels follow the cached detail, so
+ * enable/disable updates them.
  */
 export function ClusterDetailHeader({ name, cluster, isLoading, onDeleted, onGone }: ClusterDetailHeaderProps) {
   return (
     <PageHeading
       breadcrumbs={BREADCRUMBS}
+      icon={<KindBadge kind="Cluster" abbr={ADMIN_KIND_ABBR.Cluster} size="lg" />}
       title={name}
       status={
         isLoading ? (
@@ -53,7 +55,6 @@ export function ClusterDetailHeader({ name, cluster, isLoading, onDeleted, onGon
         )
       }
       labels={cluster && <ClusterHeaderLabels cluster={cluster} />}
-      subtitle={cluster && cluster.displayName !== cluster.name ? cluster.displayName : undefined}
       actions={cluster && <ClusterActionsDropdown cluster={cluster} onDeleted={onDeleted} onGone={onGone} />}
     />
   );

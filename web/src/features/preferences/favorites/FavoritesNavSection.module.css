@@ -1,0 +1,5 @@
+/* OCP `FavoriteNavItems.scss`: the empty message lines up with the nav links. */
+.empty {
+  color: var(--pf-v6-c-nav__link--Color);
+  padding-inline-start: var(--pf-v6-c-nav__link--PaddingInlineStart);
+}

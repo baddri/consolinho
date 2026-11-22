@@ -43,10 +43,12 @@ const documentViaGlobalBans = ['window', 'globalThis', 'self'].map((object) => (
 }));
 const noDocumentGlobal = ['error', { name: 'document', message: domMessage }];
 
-/** Files allowed to touch `document`: React mount point, theme class on <html>, tests. DOM lookups stay banned. */
+/** Files allowed to touch `document`: mount point, <html> theme class, Fullscreen API, tests. Lookups stay banned. */
 const documentAllowedFiles = [
   'src/app/main.tsx',
   'src/shared/theme/ThemeProvider.tsx',
+  // The Fullscreen API's state and exit are document-level (YAML editor "Toggle fullscreen mode", T-0123).
+  'src/features/resources/yaml/useFullscreen.ts',
   'src/**/*.test.{ts,tsx}',
   'src/test/**',
 ];

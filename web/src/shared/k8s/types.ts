@@ -4,7 +4,7 @@
  * objects must handle missing fields — just as with a real API server.
  */
 export type { ConfigMap, Event, Namespace, Pod, Service } from 'kubernetes-types/core/v1';
-export type { Deployment } from 'kubernetes-types/apps/v1';
+export type { Deployment, ReplicaSet } from 'kubernetes-types/apps/v1';
 export type {
   SelfSubjectAccessReview,
   SelfSubjectAccessReviewSpec,

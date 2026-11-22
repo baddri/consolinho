@@ -1,4 +1,7 @@
 import {
+  ActionList,
+  ActionListGroup,
+  ActionListItem,
   Breadcrumb,
   BreadcrumbItem,
   Content,
@@ -7,8 +10,10 @@ import {
   PageSection,
   Title,
 } from '@patternfly/react-core';
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router';
+import { HeadingFavoriteContext } from './headingFavorite';
+import styles from './PageHeading.module.css';
 
 /** One breadcrumb step; a crumb without `to` is the current page (rendered last, `isActive`). */
 export interface BreadcrumbCrumb {
@@ -22,7 +27,7 @@ export interface PageHeadingProps {
   title: ReactNode;
   /** Details pages only (`UX.md` §3): `<Plural> › <Kind> details`. */
   breadcrumbs?: BreadcrumbCrumb[];
-  /** Left of the title, e.g. the feature's kind badge; shared code never knows kinds. */
+  /** Inside the h1 before the title (OCP `co-resource-item`), e.g. the feature's kind badge; shared code never knows kinds. */
   icon?: ReactNode;
   /** Right of the title, e.g. `StatusIconText asLabel`. */
   status?: ReactNode;
@@ -34,6 +39,8 @@ export interface PageHeadingProps {
   actions?: ReactNode;
   /** Optional alert below everything else. */
   alert?: ReactNode;
+  /** Hides the favourite star (OCP `hideFavoriteButton`), e.g. on pages that cannot be revisited by URL. */
+  hideFavorite?: boolean;
 }
 
 /**
@@ -71,9 +78,10 @@ function HeadingBreadcrumb({ crumbs }: { crumbs: BreadcrumbCrumb[] }) {
 }
 
 /**
- * OCP page heading (`console-shared/.../heading/PageHeading.tsx`, `UX.md` §3): breadcrumb → one row with
- * [icon] h1 + status + labels on the left and actions on the right (wrapping below, never overlapping) → subtitle →
- * alert. Every page renders exactly one.
+ * OCP page heading (`console-shared/.../heading/PageHeading.tsx`, `UX.md` §3): breadcrumb → one top-aligned row with
+ * h1 ([icon] title) + status + labels on the left and, on the right, an `ActionList` with the favourite star (when the app
+ * provides {@link HeadingFavoriteContext}) followed by the actions (wrapping below, never overlapping) → subtitle 8px
+ * below the h1 → alert. Every page renders exactly one.
  */
 export function PageHeading({
   title,
@@ -84,7 +92,14 @@ export function PageHeading({
   subtitle,
   actions,
   alert,
+  hideFavorite = false,
 }: PageHeadingProps) {
+  const renderFavorite = useContext(HeadingFavoriteContext);
+  const favorite =
+    renderFavorite && !hideFavorite
+      ? renderFavorite({ defaultName: typeof title === 'string' ? title : undefined })
+      : undefined;
+  const hasActionList = Boolean(favorite) || Boolean(actions);
   return (
     <PageSection hasBodyWrapper={false}>
       <Flex direction={{ default: 'column' }} gap={{ default: 'gapMd' }}>
@@ -93,31 +108,54 @@ export function PageHeading({
             <HeadingBreadcrumb crumbs={breadcrumbs} />
           </FlexItem>
         )}
-        <Flex
-          justifyContent={{ default: 'justifyContentSpaceBetween' }}
-          alignItems={{ default: 'alignItemsCenter' }}
-          flexWrap={{ default: 'wrap' }}
-          gap={{ default: 'gapMd' }}
-        >
+        {/* Title row + subtitle without a gap: like OCP's `PageHeader`, the h1 carries `pf-v6-u-mb-sm` when a subtitle
+            follows, so the subtitle sits 8px under the h1 (or right under a taller action). */}
+        <Flex direction={{ default: 'column' }} gap={{ default: 'gapNone' }}>
+          {/* Top-aligned like OCP's `Split`: the h1 top lines up with the star/actions top. */}
           <Flex
-            alignItems={{ default: 'alignItemsCenter' }}
+            justifyContent={{ default: 'justifyContentSpaceBetween' }}
+            alignItems={{ default: 'alignItemsFlexStart' }}
             flexWrap={{ default: 'wrap' }}
-            gap={{ default: 'gapSm' }}
+            gap={{ default: 'gapMd' }}
           >
-            {icon && <FlexItem>{icon}</FlexItem>}
-            <FlexItem>
-              <Title headingLevel="h1">{title}</Title>
-            </FlexItem>
-            {status && <FlexItem>{status}</FlexItem>}
-            {labels && <FlexItem>{labels}</FlexItem>}
+            <Flex
+              alignItems={{ default: 'alignItemsCenter' }}
+              flexWrap={{ default: 'wrap' }}
+              gap={{ default: 'gapSm' }}
+            >
+              <FlexItem>
+                <Title
+                  headingLevel="h1"
+                  className={
+                    [icon ? styles.title : undefined, subtitle ? 'pf-v6-u-mb-sm' : undefined]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  }
+                >
+                  {icon}
+                  {title}
+                </Title>
+              </FlexItem>
+              {status && <FlexItem className={styles.status}>{status}</FlexItem>}
+              {labels && <FlexItem>{labels}</FlexItem>}
+            </Flex>
+            {hasActionList && (
+              <FlexItem>
+                <ActionList>
+                  <ActionListGroup>
+                    {favorite && <ActionListItem>{favorite}</ActionListItem>}
+                    {actions && <ActionListItem>{actions}</ActionListItem>}
+                  </ActionListGroup>
+                </ActionList>
+              </FlexItem>
+            )}
           </Flex>
-          {actions && <FlexItem>{actions}</FlexItem>}
+          {subtitle && (
+            <FlexItem>
+              <Content component="p">{subtitle}</Content>
+            </FlexItem>
+          )}
         </Flex>
-        {subtitle && (
-          <FlexItem>
-            <Content component="p">{subtitle}</Content>
-          </FlexItem>
-        )}
         {alert && <FlexItem>{alert}</FlexItem>}
       </Flex>
     </PageSection>

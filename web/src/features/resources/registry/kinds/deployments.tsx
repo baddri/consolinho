@@ -1,17 +1,19 @@
-import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import { useActiveCluster } from '@/features/cluster-context';
 import { DeploymentModel, type Deployment, type K8sResource } from '@/shared/k8s';
-import { DetailsItem, RelativeTime } from '@/shared/ui';
-import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
+import { DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
+import { ConditionsTable } from '../../components/ConditionsTable';
+import { ContainersTable } from '../../components/ContainersTable';
+import { PodRing } from '../../components/PodRing';
+import { VolumesTable } from '../../components/VolumesTable';
 import {
   PodSelectorLink,
-  ageColumn,
+  ReplicasCountLink,
   labelSelectorString,
   labelsColumn,
   nameColumn,
   namespaceColumn,
 } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
-import { DetailsSubsection } from '../../details/sections/DetailsSubsection';
 
 /** A listed deployment (`metadata` always present). */
 export type DeploymentResource = Deployment & K8sResource;
@@ -21,106 +23,135 @@ function desired(deployment: Deployment): number {
   return deployment.spec?.replicas ?? 1;
 }
 
-function ready(deployment: Deployment): number {
-  return deployment.status?.readyReplicas ?? 0;
+/** Current replicas (`status.replicas`), the first number of OCP's "N of M pods". */
+function current(deployment: Deployment): number {
+  return deployment.status?.replicas ?? 0;
 }
 
 /**
- * "`ready` of `desired` pods": red when the `Available` condition is False, green when all desired pods are ready,
- * orange while the rollout is still progressing.
+ * "`status.replicas` of `spec.replicas` pods", as OCP's workload Status column (`workload-table.tsx`
+ * `ReplicasCount`): plain text (no status icon), linking to the Pods tab in lists (`ReplicasCountLink`).
  */
 export function deploymentStatus(deployment: Deployment): ResourceStatus {
-  const title = `${ready(deployment)} of ${desired(deployment)} pods`;
-  const available = deployment.status?.conditions?.find((condition) => condition.type === 'Available');
-  if (available?.status === 'False') return { title, color: 'red' };
-  return { title, color: ready(deployment) === desired(deployment) ? 'green' : 'orange' };
+  return { title: `${String(current(deployment))} of ${String(desired(deployment))} pods` };
 }
 
-/** "RollingUpdate (max surge 25%, max unavailable 25%)" or just the strategy type. */
-function strategyText(deployment: Deployment): string {
-  const strategy = deployment.spec?.strategy;
-  const type = strategy?.type ?? 'RollingUpdate';
-  const rolling = strategy?.rollingUpdate;
-  if (type !== 'RollingUpdate' || !rolling) return type;
-  return `${type} (max surge ${String(rolling.maxSurge ?? '25%')}, max unavailable ${String(rolling.maxUnavailable ?? '25%')})`;
+/** OCP `DeploymentDetails` Status row: "Up to date" once all replicas are updated and available, else "Updating". */
+export function rolloutStatus(deployment: Deployment): 'Up to date' | 'Updating' {
+  const status = deployment.status;
+  const upToDate =
+    (status?.availableReplicas ?? 0) === (status?.updatedReplicas ?? 0) &&
+    desired(deployment) === (status?.availableReplicas ?? 0);
+  return upToDate ? 'Up to date' : 'Updating';
 }
 
-/** Deployment conditions: type, status, reason, message and the last update. */
-function ConditionsTable({ deployment }: { deployment: Deployment }) {
+/** "N seconds" (OCP `{{count}} second`), or "Not configured". */
+function secondsText(seconds: number | undefined): string {
+  if (!seconds) return 'Not configured';
+  return `${String(seconds)} ${seconds === 1 ? 'second' : 'seconds'}`;
+}
+
+/** "pod" / "pods" for `count`, as OCP's `{{count}} pod` plural. */
+function pods(count: number): string {
+  return count === 1 ? 'pod' : 'pods';
+}
+
+/** OCP's ring above the grid: the deployment's live pods. */
+function DeploymentPodRing({ obj }: { obj: DeploymentResource }) {
+  const cluster = useActiveCluster();
+  if (cluster === undefined) return null;
+  return <PodRing cluster={cluster} workload={obj} selector={obj.spec?.selector.matchLabels} />;
+}
+
+/** "Status" row of the metadata column (OCP shows it there rather than in the heading). */
+function DeploymentStatusRow({ obj }: { obj: DeploymentResource }) {
   return (
-    <Table aria-label="Conditions" variant="compact">
-      <Thead>
-        <Tr>
-          <Th>Type</Th>
-          <Th>Status</Th>
-          <Th>Reason</Th>
-          <Th>Message</Th>
-          <Th>Updated</Th>
-        </Tr>
-      </Thead>
-      <Tbody>
-        {(deployment.status?.conditions ?? []).map((condition) => (
-          <Tr key={condition.type}>
-            <Td dataLabel="Type">{condition.type}</Td>
-            <Td dataLabel="Status">{condition.status}</Td>
-            <Td dataLabel="Reason">{condition.reason ?? '—'}</Td>
-            <Td dataLabel="Message" modifier="breakWord">
-              {condition.message ?? '—'}
-            </Td>
-            <Td dataLabel="Updated">
-              <RelativeTime value={condition.lastUpdateTime ?? condition.lastTransitionTime ?? null} />
-            </Td>
-          </Tr>
-        ))}
-      </Tbody>
-    </Table>
+    <DetailsItem label="Status">
+      <Status status={rolloutStatus(obj)} />
+    </DetailsItem>
   );
 }
 
-/** Deployment fields of the Details tab's right column (UI-4): replica counts, strategy and the pod selector. */
+/**
+ * Right column of the Details tab, OCP `DeploymentDetailsList` (`deployment.tsx`): Update strategy, Max unavailable
+ * and Max surge (rolling updates only, "1 of 2 pods" / "3 greater than 2 pods"), Progress deadline seconds, Min ready
+ * seconds.
+ */
 function DeploymentDetails({ obj }: { obj: DeploymentResource }) {
-  const counts = obj.status;
+  const strategy = obj.spec?.strategy;
+  const type = strategy?.type ?? 'RollingUpdate';
+  const replicas = desired(obj);
   return (
     <>
-      <DetailsItem label="Desired replicas">{desired(obj)}</DetailsItem>
-      <DetailsItem label="Current replicas">{counts?.replicas ?? 0}</DetailsItem>
-      <DetailsItem label="Ready replicas">{counts?.readyReplicas ?? 0}</DetailsItem>
-      <DetailsItem label="Updated replicas">{counts?.updatedReplicas ?? 0}</DetailsItem>
-      <DetailsItem label="Available replicas">{counts?.availableReplicas ?? 0}</DetailsItem>
-      <DetailsItem label="Update strategy">{strategyText(obj)}</DetailsItem>
-      <DetailsItem label="Pod selector">
-        <PodSelectorLink namespace={obj.metadata.namespace} matchLabels={obj.spec?.selector.matchLabels} />
+      <DetailsItem label="Update strategy">{type}</DetailsItem>
+      {type === 'RollingUpdate' && (
+        <>
+          <DetailsItem label="Max unavailable">
+            {`${String(strategy?.rollingUpdate?.maxUnavailable ?? 1)} of ${String(replicas)} ${pods(replicas)}`}
+          </DetailsItem>
+          <DetailsItem label="Max surge">
+            {`${String(strategy?.rollingUpdate?.maxSurge ?? 1)} greater than ${String(replicas)} ${pods(replicas)}`}
+          </DetailsItem>
+        </>
+      )}
+      <DetailsItem label="Progress deadline seconds">
+        {secondsText(obj.spec?.progressDeadlineSeconds)}
       </DetailsItem>
+      <DetailsItem label="Min ready seconds">{secondsText(obj.spec?.minReadySeconds)}</DetailsItem>
     </>
   );
 }
 
-/** Conditions section below the deployment's details grid (UI-4). */
-function DeploymentConditions({ obj }: { obj: DeploymentResource }) {
+/** Sections below the deployment's details grid (OCP `DeploymentDetails`): Containers, Volumes, Conditions. */
+function DeploymentSections({ obj }: { obj: DeploymentResource }) {
+  const podSpec = obj.spec?.template.spec;
   return (
-    <DetailsSubsection title="Conditions">
-      <ConditionsTable deployment={obj} />
-    </DetailsSubsection>
+    <>
+      <DetailsSubsection title="Containers">
+        <ContainersTable containers={podSpec?.containers ?? []} />
+      </DetailsSubsection>
+      <DetailsSubsection title="Volumes">
+        <VolumesTable spec={podSpec} namespace={obj.metadata.namespace} />
+      </DetailsSubsection>
+      <DetailsSubsection title="Conditions">
+        <ConditionsTable conditions={obj.status?.conditions} />
+      </DetailsSubsection>
+    </>
   );
 }
 
-/** Deployments (UI-3): Name, Namespace, Status, Labels, Pod selector, Created. */
+/** Deployments (UI-3, OCP `workload-table.tsx`): Name, Namespace, Status, Labels, Pod selector. */
 export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   model: DeploymentModel,
   nav: { section: 'workloads', order: 20 },
   status: deploymentStatus,
+  hideHeadingStatus: true,
+  summary: {
+    podSelector: (deployment) => deployment.spec?.selector.matchLabels,
+    nodeSelector: (deployment) => deployment.spec?.template.spec?.nodeSelector,
+    tolerations: (deployment) => deployment.spec?.template.spec?.tolerations,
+    Extra: DeploymentStatusRow,
+  },
+  DetailsTop: DeploymentPodRing,
   DetailsSection: DeploymentDetails,
-  ExtraSections: DeploymentConditions,
+  ExtraSections: DeploymentSections,
+  podsSelector: (deployment) => deployment.spec?.selector.matchLabels,
   columns: [
     nameColumn(DeploymentModel),
     namespaceColumn(DeploymentModel),
     {
       id: 'status',
       title: 'Status',
-      cell: (deployment) => <ResourceStatusLabel status={deploymentStatus(deployment)} />,
-      sortValue: (deployment) => ready(deployment) / Math.max(desired(deployment), 1),
+      cell: (deployment) => (
+        <ReplicasCountLink
+          model={DeploymentModel}
+          obj={deployment}
+          title={deploymentStatus(deployment).title}
+        />
+      ),
+      sortValue: (deployment) => current(deployment) / Math.max(desired(deployment), 1),
     },
-    labelsColumn(),
+    labelsColumn(DeploymentModel),
     {
       id: 'selector',
       title: 'Pod selector',
@@ -132,6 +163,5 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
       ),
       sortValue: (deployment) => labelSelectorString(deployment.spec?.selector.matchLabels),
     },
-    ageColumn(),
   ],
 };

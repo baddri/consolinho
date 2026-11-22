@@ -6,7 +6,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldSt
 import { credentialIds, mockDb, mockGuid, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
-import { openSidebar } from '@/test/sidebar';
+import { expandSection, openSidebar } from '@/test/sidebar';
 import { accessibleClustersQueryKey, useAccessibleClusters } from './index';
 
 const LAST_CLUSTER_KEY = 'fleetconsole.lastCluster';
@@ -134,7 +134,9 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
     expect(await findSwitcher(user, 'No clusters')).toBeDisabled();
     // Nothing follows the switcher, so there is no divider under it.
     expect(within(await openSidebar(user)).queryByRole('separator')).not.toBeInTheDocument();
-    expect(within(screen.getByRole('banner')).queryByRole('button', { name: 'No clusters' })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('banner')).queryByRole('button', { name: 'No clusters' }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -273,6 +275,15 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
 
     const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     expect(optionNames(options)).toEqual(['dev-1']);
+    expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
+  });
+
+  it('has no Recent group when it would hold only the shown cluster (T-0119)', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/c/prod-eu-1/overview');
+
+    const options = await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
+    expect(optionNames(options)).toContain('staging-eu-1');
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
   });
 
@@ -425,7 +436,8 @@ describe('ClusterGate (SW-5)', () => {
       await screen.findByRole('heading', { name: `Cluster ${cluster} is not available`, level: 1 }),
     ).toBeInTheDocument();
     expect(screen.getByText("It does not exist or you don't have access.")).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Return to homepage' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('button', { name: 'Select a cluster' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Overview' })).not.toBeInTheDocument();
     expect(localStorage.getItem(LAST_CLUSTER_KEY)).toBeNull();
   });
@@ -439,23 +451,54 @@ describe('sidebar cluster links', () => {
     const { user } = renderApp('/admin/users');
 
     const nav = await openSidebar(user);
-    expect(await within(nav).findByRole('link', { name: 'Events' })).toHaveAttribute(
+    await expandSection(user, nav, 'Home');
+    expect(within(nav).getByRole('link', { name: 'Events' })).toHaveAttribute(
       'href',
       '/c/prod-eu-1/k8s/events',
     );
   });
 
-  it('target a granted cluster on the "not available" page', async () => {
-    setMockUser('alice');
-    localStorage.setItem(LAST_CLUSTER_KEY, 'staging-eu-1');
+  // T-0097: the sidebar never links into clusters from the "not available" page; admins keep Fleet administration.
+  it('are hidden on the "not available" page and come back after switching to a granted cluster', async () => {
+    localStorage.setItem(LAST_CLUSTER_KEY, 'dev-1');
     const { user } = renderApp('/c/nope/overview');
 
     await screen.findByRole('heading', { name: 'Cluster nope is not available' });
     const nav = await openSidebar(user);
-    expect(within(nav).getByRole('link', { name: 'Events' })).toHaveAttribute(
-      'href',
-      '/c/staging-eu-1/k8s/events',
-    );
+    const sectionTitles = () =>
+      within(nav)
+        .getAllByRole('button')
+        .slice(1) // the cluster switcher ("Select a cluster": the URL's cluster is not in the list)
+        .map((button) => button.textContent);
+    expect(sectionTitles()).toEqual(['Fleet administration']);
+    expect(within(nav).queryByRole('link', { name: 'Events' })).not.toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('button', { name: 'Select a cluster' }));
+    await user.click(await screen.findByRole('option', { name: /dev-1/ }));
+
+    await expandSection(user, nav, 'Home');
+    expect(within(nav).getByRole('link', { name: 'Events' })).toHaveAttribute('href', '/c/dev-1/k8s/events');
+    expect(sectionTitles()).toContain('Fleet administration');
+  });
+
+  it('open from the "not available" page: its "Select a cluster" opens the sidebar switcher', async () => {
+    const { user, router } = renderApp('/c/nope/overview');
+
+    await screen.findByRole('heading', { name: 'Cluster nope is not available' });
+    await user.click(within(screen.getByRole('main')).getByRole('button', { name: 'Select a cluster' }));
+    await user.click(await screen.findByRole('option', { name: /dev-1/ }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/overview'));
+  });
+
+  it('are absent for a non-admin on the "not available" page', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/c/nope/overview');
+
+    await screen.findByRole('heading', { name: 'Cluster nope is not available' });
+    const nav = await openSidebar(user);
+    expect(within(nav).queryByRole('button', { name: 'Home' })).not.toBeInTheDocument();
+    expect(within(nav).queryByRole('link', { name: 'Events' })).not.toBeInTheDocument();
   });
 
   it('are hidden for a user without clusters', async () => {

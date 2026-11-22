@@ -4,7 +4,7 @@ import type { K8sModel } from '@/shared/k8s';
 export const ALL_NAMESPACES = 'all';
 
 /** Details tab segments; the Details tab itself has none. */
-export type DetailsTab = 'yaml' | 'events';
+export type DetailsTab = 'yaml' | 'pods' | 'events';
 
 /** Options of {@link resourcePath}. */
 export interface ResourcePathOptions {

@@ -22,6 +22,10 @@ air-gapped) and with the planned CSP (`script-src 'self'`). Monaco is also sever
    wrapper module (Monaco can't run in jsdom); a build-level check (`npm run build`) proves the bundle.
 5. YAML parse/stringify uses the `yaml` package; `metadata.managedFields` is removed from the editor text unless the
    user toggles it on, and is omitted from the `PUT` body (the API server keeps the existing value when omitted).
+   *Amended 2026-11-22 (CP3.6, T-0123, OCP parity):* `managedFields` stay in the editor text, folded on load (OCP
+   `registerAutoFold`), no toggle; the `PUT` body is the object as edited, `managedFields` included like OCP. The
+   `resourceVersion` stays pinned to the version the edit started from. The `YamlEditor` props in §4 changed with it
+   (toolbar: Copy, Editor settings, fullscreen, Shortcuts; Download moved to the button bar).
 
 ## Consequences
 - The CSP (backend, SECURITY.md "HTTP") must allow `worker-src 'self'` and Monaco's runtime styles
