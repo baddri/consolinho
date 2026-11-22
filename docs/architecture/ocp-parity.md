@@ -2,11 +2,11 @@
 
 Owner: ux-designer (UX.md §0). One row per screen or element. OCP source paths are relative to
 `/home/bad/works/openshift-console/frontend/`. A screen is done only at `match`. Audit: 2026-11-22, CP3.6, 1280 light +
-dark, reference console `http://127.0.0.1:9000` (clone `main`, OKD branding, glass contrast), our UI `dev:mock`.
+dark, reference console `http://127.0.0.1:9000` (clone `main`; audited with OKD branding, target since 2026-11-22 = `ocp` branding = glass + felt), our UI `dev:mock`.
 
 | Our route / element | OCP route | OCP source | Status | Task |
 |---|---|---|---|---|
-| Shell: theme classes on `<html>` | any | `public/index.html` (inline theme script) | gap: no `pf-v6-theme-glass`/`high-contrast`; flat grey page, no floating sidebar card or background image | T-0119 |
+| Shell: theme classes on `<html>` | any | `public/index.html` (inline theme script) | gap: no `pf-v6-theme-glass`/`high-contrast` + `pf-v6-theme-felt`; flat grey page, no floating sidebar card or background image | T-0119 |
 | Shell: masthead brand + toggle | any | `public/components/masthead/masthead.tsx` | match (own logo); height follows glass | T-0119 |
 | Shell: masthead toolbar | any | `public/components/masthead/masthead-toolbar.tsx` | gap: theme icon button (OCP has none); no help menu / About; user menu lacks User preferences | T-0119 |
 | Shell: sidebar container | any | `packages/console-app/src/components/nav/index.tsx` | gap: not a floating card (glass); version footer in sidebar (OCP: About modal) | T-0119 |

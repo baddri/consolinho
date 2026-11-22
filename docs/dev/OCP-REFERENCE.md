@@ -19,6 +19,6 @@ scripts/ocp-ref/run-console.sh            # foreground; needs `oc login`; binds 
 node scripts/ocp-ref/shot.mjs /k8s/ns/openshift-console/pods pods <scratchpad> [1920]
 ```
 - The UI is the clone's `main` (perspective "Core platform", "Ecosystem" nav), which may be newer than the cluster's
-  installed console. We mirror the clone. The "okd" logo is the default source build branding. Don't copy logos.
+  installed console. We mirror the clone. The launcher sets `BRIDGE_BRANDING=ocp` (felt theme, the look we mirror; Red Hat logo). Override with `OCP_BRANDING=okd`. Never copy logos.
 - The bearer token expires with the `oc` login. Restart the console after `oc login`.
 - Stop it with `kill <pid>` (find the pid with `ss -ltnp | grep 9000`). `pkill -f bin/bridge` also kills the calling shell.

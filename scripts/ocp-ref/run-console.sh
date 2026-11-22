@@ -2,6 +2,7 @@
 # Runs the real OCP web console (local clone of openshift/console, built once with build-backend.sh + the frontend
 # build) at http://127.0.0.1:9000 against the current `oc` login, auth disabled. REFERENCE ONLY for UI parity
 # (UX.md §0): agents only browse and screenshot it. Never click create/edit/delete actions: it runs with your token.
+# Branding defaults to `ocp`: non-OKD branding turns on `pf-v6-theme-felt`, the look we mirror (human, 2026-11-22).
 # Bound to 127.0.0.1 on purpose: auth is disabled, so it must never be reachable from the network.
 set -euo pipefail
 OCP_SRC="${OCP_SRC:-/home/bad/works/openshift-console}"
@@ -19,5 +20,6 @@ export BRIDGE_USER_AUTH=disabled BRIDGE_K8S_MODE=off-cluster \
   BRIDGE_K8S_AUTH_BEARER_TOKEN="$(cat "$TOKEN_FILE")" \
   BRIDGE_K8S_MODE_OFF_CLUSTER_SERVICE_ACCOUNT_BEARER_TOKEN_FILE="$TOKEN_FILE" \
   BRIDGE_USER_SETTINGS_LOCATION=localstorage \
-  BRIDGE_LISTEN=http://127.0.0.1:9000
+  BRIDGE_LISTEN=http://127.0.0.1:9000 \
+  BRIDGE_BRANDING="${OCP_BRANDING:-ocp}"
 exec ./bin/bridge

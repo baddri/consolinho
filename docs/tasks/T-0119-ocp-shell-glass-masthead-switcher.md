@@ -24,7 +24,7 @@ background indistinguishable from the OCP console at the same width and theme. A
 1. All pages — flat grey background, sidebar is not a card, main card opaque — OCP sets `pf-v6-theme-glass` on `<html>`
    (`index.html` L56-69; `high-contrast` when `prefers-contrast: more`) — add the contrast class next to
    `pf-v6-theme-dark` in our ThemeProvider (pre-paint script in `web/index.html` too, so no flash). PF 6.7 ships the
-   glass rules (`.pf-v6-c-page__sidebar`, `.pf-v6-c-page`, masthead); no custom CSS. No `pf-v6-theme-felt` (OKD reference).
+   glass rules (`.pf-v6-c-page__sidebar`, `.pf-v6-c-page`, masthead); no custom CSS. Also set `pf-v6-theme-felt` always (human decision 2026-11-22: OpenShift look; OCP `public/index.html` adds it for non-OKD branding).
 2. Masthead — theme icon button — OCP has none — remove `ThemeMenu` (moves to User preferences, T-0120; until then
    keep the stored preference working).
 3. Masthead — no help menu — OCP "Help menu" (`?`, `RhUiQuestionCircleIcon`-style plain button, `aria-label="Help menu"`)

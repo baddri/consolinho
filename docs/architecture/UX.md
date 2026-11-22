@@ -25,7 +25,7 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
 - Theme classes on `<html>` like OCP (`public/index.html` inline script): `pf-v6-theme-dark` per colour scheme, and
   per contrast mode `pf-v6-theme-glass` (default) or `pf-v6-theme-high-contrast` (`prefers-contrast: more`). Glass is
   what makes the floating sidebar card, the background image and the translucent main card. OCP adds
-  `pf-v6-theme-felt` only for non-OKD branding; our reference is OKD, so no felt unless the human decides otherwise.
+  `pf-v6-theme-felt` always (human, 2026-11-22: mirror the commercial OpenShift look; OCP adds felt for every non-OKD branding).
 
 ## 2. Shell
 - Masthead (`public/components/masthead/masthead.tsx`, `masthead-toolbar.tsx`): hamburger `PageToggleButton`,
