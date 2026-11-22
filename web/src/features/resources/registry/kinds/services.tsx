@@ -1,29 +1,53 @@
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { ServiceModel, type K8sResource, type Service } from '@/shared/k8s';
 import { DetailsItem, DetailsSubsection } from '@/shared/ui';
-import { PodSelectorLink, labelSelectorString, nameColumn, namespaceColumn } from '../columns';
+import { PodSelectorLink, labelSelectorString, labelsColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 
 /** A listed service (`metadata` always present). */
 export type ServiceResource = Service & K8sResource;
 
-type ServicePort = NonNullable<NonNullable<Service['spec']>['ports']>[number];
-
 function serviceType(service: Service): string {
   return service.spec?.type ?? 'ClusterIP';
 }
 
-/** `80/TCP → 8080` (target port only when it differs from the port), ports comma-joined; "—" without ports. */
-export function portsText(service: Service): string {
-  const ports = service.spec?.ports ?? [];
-  if (ports.length === 0) return '—';
-  return ports.map(portText).join(', ');
+/**
+ * OCP `ServiceLocation` (release-4.18 `service.jsx`): where the service is reached, one line per port or ingress —
+ * `clusterIP:nodePort` (NodePort), the ingress hostname or IP (LoadBalancer, "Pending" without one),
+ * `externalName:port` (ExternalName), `clusterIP:port` otherwise ("None" for a headless service).
+ */
+export function serviceLocations(service: Service): string[] {
+  const spec = service.spec ?? {};
+  const ports = spec.ports ?? [];
+  const clusterIP = spec.clusterIP ? `${spec.clusterIP}:` : '';
+  switch (spec.type) {
+    case 'NodePort':
+      return ports.map((port) => `${clusterIP}${port.nodePort ?? ''}`);
+    case 'LoadBalancer': {
+      const ingress = service.status?.loadBalancer?.ingress ?? [];
+      return ingress.length === 0 ? ['Pending'] : ingress.map((entry) => entry.hostname ?? entry.ip ?? '-');
+    }
+    case 'ExternalName': {
+      const externalName = spec.externalName ? `${spec.externalName}:` : '';
+      return ports.map((port) => `${externalName}${port.port}`);
+    }
+    default:
+      return spec.clusterIP === 'None' ? ['None'] : ports.map((port) => `${clusterIP}${port.port}`);
+  }
 }
 
-function portText(port: ServicePort): string {
-  const base = `${port.port}/${port.protocol ?? 'TCP'}`;
-  const target = port.targetPort;
-  return target === undefined || target === port.port ? base : `${base} → ${String(target)}`;
+/** The Location cell: each location on its own truncated line, as OCP's `co-truncate` rows. */
+function ServiceLocation({ service }: { service: Service }) {
+  return (
+    <>
+      {serviceLocations(service).map((location, index) => (
+        // Locations may repeat (two ports without node ports), so the index keeps the keys unique.
+        <div key={`${String(index)}-${location}`} className="pf-v6-u-text-truncate">
+          {location}
+        </div>
+      ))}
+    </>
+  );
 }
 
 /** The service's cluster IPs (dual-stack lists several); falls back to `clusterIP`. */
@@ -85,7 +109,10 @@ function ServicePorts({ obj }: { obj: ServiceResource }) {
   );
 }
 
-/** Services (UI-3): Name, Namespace, Type (≥ 2xl in all projects), Cluster IP, Ports, Selector. */
+/**
+ * Services (UI-3; OCP release-4.18 `service.jsx`, which `main` moved to the networking plugin): Name, Namespace,
+ * Labels (≥ lg), Pod selector and Location (≥ xl). Type, cluster IPs and ports are on the Details tab.
+ */
 export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   model: ServiceModel,
   nav: { section: 'networking', order: 10 },
@@ -94,29 +121,24 @@ export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   columns: [
     nameColumn(ServiceModel),
     namespaceColumn(ServiceModel),
-    {
-      id: 'type',
-      title: 'Type',
-      // Headers never wrap: with Namespace, the six headers alone are wider than the page at 1280. Type goes first
-      // (OCP's Services list has no Type column; Cluster IP, Ports and Selector make up its Location/Pod selector).
-      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
-      cell: serviceType,
-      sortValue: serviceType,
-    },
-    {
-      id: 'clusterIP',
-      title: 'Cluster IP',
-      cell: (service) => service.spec?.clusterIP ?? '—',
-      sortValue: (service) => service.spec?.clusterIP ?? null,
-    },
-    { id: 'ports', title: 'Ports', cell: portsText },
+    { ...labelsColumn<ServiceResource>(), visibility: ['hidden', 'visibleOnLg'] },
     {
       id: 'selector',
-      title: 'Selector',
+      title: 'Pod selector',
+      visibility: ['hidden', 'visibleOnXl'],
       cell: (service) => (
         <PodSelectorLink namespace={service.metadata.namespace} matchLabels={service.spec?.selector} />
       ),
       sortValue: (service) => labelSelectorString(service.spec?.selector),
+    },
+    {
+      id: 'location',
+      title: 'Location',
+      visibility: ['hidden', 'visibleOnXl'],
+      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
+      cell: (service) => <ServiceLocation service={service} />,
+      // OCP sorts Location by `spec.clusterIP`.
+      sortValue: (service) => service.spec?.clusterIP ?? null,
     },
   ],
 };

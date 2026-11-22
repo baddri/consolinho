@@ -156,15 +156,16 @@ describe('deployments (QG-3)', () => {
 });
 
 describe('services (QG-3)', () => {
-  it('lists type, cluster IP, ports and the selector link', async () => {
+  it("lists OCP's labels, pod selector and location columns", async () => {
     renderApp('/c/dev-1/k8s/ns/shop/services');
 
     const table = await screen.findByRole('grid', { name: 'Services' });
-    expect(columnHeaders(table)).toEqual(['Name', 'Type', 'Cluster IP', 'Ports', 'Selector', 'Actions']);
+    expect(columnHeaders(table)).toEqual(['Name', 'Labels', 'Pod selector', 'Location', 'Actions']);
     const row = await findRow(table, 'web');
-    expect(within(row).getByText('ClusterIP')).toBeInTheDocument();
-    expect(within(row).getByText('80/TCP → 8080')).toBeInTheDocument();
+    expect(within(row).getByText('app=web', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument();
     expect(within(row).getByRole('link', { name: 'app=web' })).toHaveAttribute('href', PODS_OF_WEB);
+    // ClusterIP service: `clusterIP:port` per port.
+    expect(within(row).getByText(/^172\.30\.\d+\.17:80$/)).toBeInTheDocument();
   });
 
   it('shows the ports table on the Details tab', async () => {

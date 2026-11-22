@@ -5,6 +5,7 @@ import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/sha
 import { LabelList, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
+import styles from './columns.module.css';
 import type { ColumnDef } from './types';
 
 /** Milliseconds since epoch of an ISO timestamp, `null` when absent or unparseable (sorts last). */
@@ -90,12 +91,12 @@ export interface PodSelectorLinkProps {
 
 /**
  * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2), with OCP `Selector`'s
- * search icon and ", "-joined terms; "—" without a selector, plain text outside a cluster or namespace.
+ * search icon and ", "-joined terms; "No selector" in subtle text without one, plain text outside a cluster or namespace.
  */
 export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps) {
   const cluster = useActiveCluster();
   const selector = labelSelectorString(matchLabels);
-  if (selector === '') return <>—</>;
+  if (selector === '') return <div className="pf-v6-u-text-color-subtle">No selector</div>;
   if (cluster === undefined || namespace === undefined) return <>{selector}</>;
   const search = new URLSearchParams({ label: selector }).toString();
   return (
@@ -126,18 +127,25 @@ export function ReplicasCountLink({ model, obj, title }: ReplicasCountLinkProps)
   return <Link to={resourcePath(cluster, model, { namespace, name, tab: 'pods' })}>{title}</Link>;
 }
 
-/** Labels column: normal-size `key=value` labels, collapsed after 20 (OCP `LabelList`). Not sortable. */
+/**
+ * Labels column (OCP `LabelList`): normal-size `key=value` labels, collapsed after 20, "No labels" in subtle text
+ * without any. Not sortable. Labels wrap inside the cell and truncate when longer than it (`columns.module.css`), so
+ * the column never pushes the table past the page. Start width like OCP's `getLabelsColumnWidthStyleProp` (200 px
+ * there), 180 px here: the most our Deployments list in all projects leaves at 1280 next to its nowrap headers.
+ */
 export function labelsColumn<T extends K8sResource>(): ColumnDef<T> {
   return {
     id: 'labels',
     title: 'Labels',
-    cell: (obj) => (
-      <LabelList
-        aria-label="Labels"
-        max={20}
-        isCompact={false}
-        labels={Object.entries(obj.metadata.labels ?? {}).map(([key, value]) => `${key}=${value}`)}
-      />
-    ),
+    width: 180,
+    cell: (obj) => {
+      const labels = Object.entries(obj.metadata.labels ?? {}).map(([key, value]) => `${key}=${value}`);
+      if (labels.length === 0) return <div className="pf-v6-u-text-color-subtle">No labels</div>;
+      return (
+        <div className={styles.labels}>
+          <LabelList aria-label="Labels" max={20} isCompact={false} labels={labels} />
+        </div>
+      );
+    },
   };
 }

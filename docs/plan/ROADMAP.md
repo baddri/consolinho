@@ -75,6 +75,7 @@ Done when every row is `match` (or the human explicitly waives the row) and the 
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
 (trigger now, suspend), ConfigMaps/Secrets (reveal with confirm, edit), HPA. Search across kinds by label.
+(CP3.6 ACCEPT) Cluster OpenAPI definitions via the proxy, feeding the YAML schema sidebar and the details field-help popovers (T-0133); Deployment ring scale buttons.
 
 ## CP5 — Networking, storage, compute & cluster overview
 Services, Routes (with link-out), Ingresses, NetworkPolicies; PVCs, PVs, StorageClasses; Nodes (cordon/drain view,
@@ -119,3 +120,5 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP3.5 ACCEPT) Admin source as structured data (`kind` + `group`) in the users API instead of the "Admin granted by configuration (…)" string the SPA parses.
 - (CP3.5 ACCEPT) YAML tab like OCP `edit-yaml.tsx`: Save / Reload / Cancel, Save always enabled (CP4 YAML work).
 - (CP3.5 ACCEPT) Absolute `Timestamp` (globe icon, relative tooltip) in list "Created" columns too, as in OCP.
+- (CP3.6 ACCEPT) Switcher toggle: never clip the cluster name ("prod…") for its labels; drop "Read only" before the name (prod-eu-1 vs prod-us-1).
+- (CP3.6 ACCEPT) Events card timestamp crowds the object name at 375px.

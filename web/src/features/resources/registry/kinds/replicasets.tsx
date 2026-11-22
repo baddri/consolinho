@@ -87,9 +87,7 @@ export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
       ),
       sortValue: (replicaSet) => current(replicaSet) / Math.max(desired(replicaSet), 1),
     },
-    // OCP `getLabelsColumnWidthStyleProp`: Labels starts at a fixed width (rendered 228 px there); its labels don't
-    // wrap, so a width measured from the page would let the longest label push the table past the page.
-    { ...labelsColumn<ReplicaSetResource>(), width: 228 },
+    labelsColumn(),
     {
       id: 'owner',
       title: 'Owner',
