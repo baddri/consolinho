@@ -226,7 +226,7 @@ describe('config map details (UI-4)', () => {
 });
 
 describe('details tabs (URL segments)', () => {
-  it('switches to YAML by URL and shows the object without managedFields', async () => {
+  it('switches to YAML by URL and shows the whole object, managedFields included (folded by Monaco)', async () => {
     const cm = mockK8s.get('dev-1', ConfigMapModel, 'shop', 'web-config') as ConfigMap & K8sResource;
     mockK8s.upsert('dev-1', {
       ...cm,
@@ -241,7 +241,7 @@ describe('details tabs (URL segments)', () => {
     );
     const yaml = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: 'YAML editor' });
     expect(yaml.value).toContain('kind: ConfigMap');
-    expect(yaml.value).not.toContain('managedFields');
+    expect(yaml.value).toContain('manager: kubectl');
   });
 });
 

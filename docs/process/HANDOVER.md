@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.6 T-0122/T-0129 done) · **Current checkpoint:** CP3.6 — OCP parity (BUILD; CP4 after it) ·
-**Branch:** `main`
+**Last updated:** 2026-11-22 (CP3.6 T-0123 done) · **Current checkpoint:** CP3.6 — OCP parity (BUILD; CP4 after it) ·
+**Branch:** `cp/3.6-ocp-parity`
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -17,8 +17,8 @@
 ## Next actions (resume here)
 0. **CP3.6 OCP parity** (ROADMAP §CP3.6), branch `cp/3.6-ocp-parity`. Look = OpenShift glass + felt (human, 2026-11-22).
    Matrix `docs/architecture/ocp-parity.md`; tasks T-0119…T-0127. Done: T-0119 (shell), T-0120 (prefs + favourites),
-   T-0121 (lists: shared `ConsoleDataView` on react-data-view), T-0122 (details) + T-0129 (Timestamp, owner links).
-   Next, in order: T-0123 (YAML), T-0124 (events), T-0125 (forms/errors), T-0126 (admin), T-0127.
+   T-0121 (lists: shared `ConsoleDataView` on react-data-view), T-0122 (details) + T-0129 (Timestamp, owner links), T-0123 (YAML).
+   Next, in order: T-0124 (events), T-0125 (forms/errors), T-0126 (admin), T-0127.
    Each FE task: engineer → frontend-architect (code) + ux-designer (visual, against `scripts/ocp-ref`) in parallel.
    Reference console must be running (`scripts/ocp-ref/run-console.sh`, needs live `oc login`). CP4 waits.
 1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0118 (CP3.5 UX

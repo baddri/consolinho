@@ -165,8 +165,8 @@ export function podObject(
   ownerUid?: string,
 ): Pod {
   return {
-    apiVersion: 'v1',
     kind: 'Pod',
+    apiVersion: 'v1',
     metadata: {
       name,
       namespace,
@@ -211,8 +211,8 @@ export function podEvent(
 ): Event {
   const podName = pod.metadata?.name ?? '';
   return {
-    apiVersion: 'v1',
     kind: 'Event',
+    apiVersion: 'v1',
     metadata: {
       name: `${podName}.${suffix}`,
       namespace: pod.metadata?.namespace,
@@ -241,8 +241,8 @@ export function podEvent(
 
 function namespaceObject(name: string, uid: string): Namespace {
   return {
-    apiVersion: 'v1',
     kind: 'Namespace',
+    apiVersion: 'v1',
     metadata: {
       name,
       uid,
@@ -267,8 +267,8 @@ function projectObject(namespace: Namespace): Project {
         ? { 'openshift.io/display-name': 'Payments', 'openshift.io/requester': 'alice' }
         : {};
   return {
-    apiVersion: 'project.openshift.io/v1',
     kind: 'Project',
+    apiVersion: 'project.openshift.io/v1',
     // A project is a view of its namespace: same name and uid.
     metadata: { ...namespace.metadata, annotations },
     spec: { finalizers: ['kubernetes'] },
@@ -285,8 +285,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   const replicaSetUid = nextUid();
 
   const deployment: Deployment = {
-    apiVersion: 'apps/v1',
     kind: 'Deployment',
+    apiVersion: 'apps/v1',
     metadata: {
       name: 'web',
       namespace: 'shop',
@@ -295,6 +295,26 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
       creationTimestamp: minutesBefore(60 * 24 * 30),
       labels: { app: 'web' },
       annotations: { 'deployment.kubernetes.io/revision': '4' },
+      // Server bookkeeping on every real object; the YAML tab folds it on load (T-0123).
+      managedFields: [
+        {
+          manager: 'kubectl-client-side-apply',
+          operation: 'Update',
+          apiVersion: 'apps/v1',
+          time: minutesBefore(60 * 24 * 30),
+          fieldsType: 'FieldsV1',
+          fieldsV1: { 'f:metadata': { 'f:labels': { '.': {}, 'f:app': {} } }, 'f:spec': { 'f:replicas': {} } },
+        },
+        {
+          manager: 'kube-controller-manager',
+          operation: 'Update',
+          apiVersion: 'apps/v1',
+          time: minutesBefore(60),
+          fieldsType: 'FieldsV1',
+          fieldsV1: { 'f:status': { 'f:availableReplicas': {}, 'f:readyReplicas': {} } },
+          subresource: 'status',
+        },
+      ],
     },
     spec: {
       replicas: 3,
@@ -360,8 +380,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   );
 
   const service: Service = {
-    apiVersion: 'v1',
     kind: 'Service',
+    apiVersion: 'v1',
     metadata: {
       name: 'web',
       namespace: 'shop',
@@ -381,8 +401,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   };
 
   const webConfig: ConfigMap = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'web-config',
       namespace: 'shop',
@@ -397,8 +417,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   };
 
   const webAssets: ConfigMap = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'web-assets',
       namespace: 'shop',
@@ -443,8 +463,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   }
 
   const replicaSet: ReplicaSet = {
-    apiVersion: 'apps/v1',
     kind: 'ReplicaSet',
+    apiVersion: 'apps/v1',
     metadata: {
       name: WEB_REPLICASET,
       namespace: 'shop',
@@ -486,8 +506,8 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
 /** The `payments` namespace holds just a config map, so it is not empty. */
 function paymentsObjects(cluster: string, nextUid: () => string): K8sResource[] {
   const config: ConfigMap = {
-    apiVersion: 'v1',
     kind: 'ConfigMap',
+    apiVersion: 'v1',
     metadata: {
       name: 'payments-config',
       namespace: 'payments',

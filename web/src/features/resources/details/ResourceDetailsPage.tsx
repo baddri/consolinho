@@ -190,7 +190,8 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 /**
  * URL-driven Details · YAML · Pods · Events tabs (Pods only with a `podsSelector`, Events unless `hasEventsTab ===
  * false`) as `PageTabs` aligned with the heading, then the active tab's content labelled by the tab: Details in a
- * `PageGroup` of its own bordered sections, the others in a `PageBody` (YAML filled, so the editor reaches the bottom).
+ * `PageGroup` of its own bordered sections, YAML in a filled unpadded section (the editor reaches the bottom), the
+ * others in a `PageBody`.
  */
 function ResourceTabs({
   descriptor,
@@ -214,8 +215,19 @@ function ResourceTabs({
         <PageGroup role="tabpanel" aria-label={TAB_TITLES[tab]}>
           {children}
         </PageGroup>
+      ) : tab === 'yaml' ? (
+        // OCP's YAML tab sits in an unpadded, filled page body; the editor insets itself (`_edit-yaml.scss`).
+        <PageSection
+          isFilled
+          hasBodyWrapper={false}
+          padding={{ default: 'noPadding' }}
+          role="tabpanel"
+          aria-label={TAB_TITLES[tab]}
+        >
+          {children}
+        </PageSection>
       ) : (
-        <PageBody isFilled={tab === 'yaml'} role="tabpanel" aria-label={TAB_TITLES[tab]}>
+        <PageBody role="tabpanel" aria-label={TAB_TITLES[tab]}>
           {children}
         </PageBody>
       )}

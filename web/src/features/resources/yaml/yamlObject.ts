@@ -1,22 +1,29 @@
-import { isMap, parseDocument, stringify } from 'yaml';
+import { isMap, isScalar, parseDocument, stringify } from 'yaml';
 import type { K8sResource } from '@/shared/k8s';
 
-/** Options of {@link toEditorText}. */
-export interface EditorTextOptions {
-  /** Keep `metadata.managedFields` (server bookkeeping that buries the object, hidden by default — UI-6). */
-  showManagedFields: boolean;
+/**
+ * The YAML text the editor shows for `obj` (UI-6), like OCP's `safeDump(obj, { lineWidth: -1 })`: keys in the order
+ * the API returned them (`kind` first from a real cluster, never reordered), `metadata.managedFields` included (the
+ * editor folds it, see {@link managedFieldsLine}), no line folding, single quotes, and timestamp-like strings quoted as
+ * js-yaml does (the `timestamp` tag makes them ambiguous, so they get quoted).
+ */
+export function toEditorText(obj: K8sResource): string {
+  return stringify(obj, { lineWidth: 0, singleQuote: true, customTags: ['timestamp'] });
 }
 
-/** `obj` without `metadata.managedFields`; the input is not modified. */
-function withoutManagedFields<T extends K8sResource>(obj: T): T {
-  const metadata = { ...obj.metadata };
-  delete metadata.managedFields;
-  return { ...obj, metadata };
-}
-
-/** The YAML text the editor shows for `obj` (UI-6). */
-export function toEditorText(obj: K8sResource, { showManagedFields }: EditorTextOptions): string {
-  return stringify(showManagedFields ? obj : withoutManagedFields(obj));
+/**
+ * The 1-based line of the `managedFields:` key under the top-level `metadata`, or `undefined` when there is none or the
+ * text doesn't parse: the line the editor folds on load (OCP `yaml-editor-utils.ts` `registerAutoFold`).
+ */
+export function managedFieldsLine(text: string): number | undefined {
+  const doc = parseDocument(text);
+  if (doc.errors.length > 0) return undefined;
+  const metadata = doc.get('metadata', true);
+  if (!isMap(metadata)) return undefined;
+  const key = metadata.items.map((pair) => pair.key).find((k) => isScalar(k) && k.value === 'managedFields');
+  const offset = isScalar(key) ? key.range?.[0] : undefined;
+  if (offset === undefined) return undefined;
+  return text.slice(0, offset).split('\n').length;
 }
 
 /** Result of {@link parseEdited}: the object to PUT, or a client-side error shown instead of sending a request. */
@@ -39,10 +46,10 @@ function isResourceLike(value: unknown): value is K8sResource {
 
 /**
  * Turns the edited text into the `PUT` body (UI-7, ADR-0024 §5), or explains why it can't be sent: invalid YAML, not a
- * single object, or a changed `apiVersion`/`kind`/`metadata.name`/`metadata.namespace`. The body omits
- * `metadata.managedFields` (the API server keeps them) and always carries `original`'s `resourceVersion` — the version
- * the edit started from — so a concurrent change answers 409 instead of being silently overwritten, even if the user
- * edited or removed the field.
+ * single object, or a changed `apiVersion`/`kind`/`metadata.name`/`metadata.namespace`. The body is the edited object
+ * as is (`metadata.managedFields` included, like OCP), except that it always carries `original`'s `resourceVersion` —
+ * the version the edit started from — so a concurrent change answers 409 instead of being silently overwritten, even if
+ * the user edited or removed the field.
  */
 export function parseEdited(text: string, original: K8sResource): ParseEditedResult {
   const doc = parseDocument(text);
@@ -59,9 +66,8 @@ export function parseEdited(text: string, original: K8sResource): ParseEditedRes
       return { ok: false, message: `${label} can't be changed here: it identifies the object.` };
     }
   }
-  const obj = withoutManagedFields(value);
   return {
     ok: true,
-    obj: { ...obj, metadata: { ...obj.metadata, resourceVersion: original.metadata.resourceVersion } },
+    obj: { ...value, metadata: { ...value.metadata, resourceVersion: original.metadata.resourceVersion } },
   };
 }

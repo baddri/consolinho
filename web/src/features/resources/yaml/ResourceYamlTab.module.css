@@ -1,0 +1,73 @@
+/* OCP public/style/_layout.scss `.co-p-has-sidebar`: the YAML tab fills the content area (and is the full screen element). */
+.page {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  position: relative;
+}
+
+/* OCP public/style/_common.scss `.co-fullscreen`: page background instead of black behind the editor in full screen. */
+.fullscreen {
+  background: var(--pf-t--global--background--image--default)
+    var(--pf-t--global--background--color--secondary--default);
+}
+
+/* OCP public/components/_edit-yaml.scss `.yaml-editor` ($pf-v6-global-gutter-y on every side). */
+.yamlEditor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: var(--pf-t--global--spacer--md);
+  position: relative;
+}
+
+/* _edit-yaml.scss `.yaml-editor__buttons` */
+.buttons {
+  padding-top: var(--pf-t--global--spacer--md);
+}
+
+/* OCP public/components/utils/_alerts.scss `.co-alert` */
+.alert {
+  margin-bottom: var(--pf-t--global--spacer--lg);
+}
+
+/* OCP public/components/utils/_alerts.scss `.co-alert--scrollable` (+ mixin/_break-word.scss `co-break-word`): a long
+   error list scrolls inside the alert instead of pushing the editor off screen; taller cap from $screen-sm-min. */
+.scrollable :global(.pf-v6-c-alert__description) {
+  max-height: 100px;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@media (min-height: 768px) {
+  .scrollable :global(.pf-v6-c-alert__description) {
+    max-height: 200px;
+  }
+}
+
+/* OCP public/style/_common.scss `.co-pre-line`: one error per line. */
+.preLine {
+  white-space: pre-line;
+}
+
+/* OCP public/style/_forms.scss `.pf-v6-c-form__group--no-top-margin` */
+/* (`!important` there; here enough specificity to beat PF's `.pf-v6-c-form__group.pf-m-action`.) */
+.actionGroup:global(.pf-v6-c-form__group.pf-m-action) {
+  margin-block-start: 0;
+}
+
+/* OCP public/style/_overrides.scss `.pf-v6-c-button--align-right` */
+/* (`!important` there; here enough specificity to beat PF's `.pf-v6-c-form__actions > *`.) */
+.alignRight:global(.pf-v6-c-button) {
+  margin-inline-start: auto;
+}
+
+/* Fleet addition (SW-10): "Saving to <cluster> <env>" next to the buttons, centred on them. */
+.target {
+  align-self: center;
+}
