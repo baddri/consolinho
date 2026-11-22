@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.5 closed) · **Current checkpoint:** CP4 — Workloads day-2 operations (not started) ·
+**Last updated:** 2026-11-22 (CP3.5 closed) · **Current checkpoint:** CP3.6 — OCP parity (not started; CP4 after it) ·
 **Branch:** `main`
 
 ## Where we are
@@ -15,6 +15,9 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
+0. **CP3.6 OCP parity first** (human directive, 2026-11-22; ROADMAP §CP3.6). Branch `cp/3.6-ocp-parity`. The
+   ux-designer writes `docs/architecture/ocp-parity.md` against the local clone `/home/bad/works/openshift-console`,
+   then files gap tasks. CP4 waits.
 1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0118 (CP3.5 UX
    follow-ups) and the CP3.5 backlog items in ROADMAP (YAML Cancel/Save, audit labels, structured admin source —
    FE parses strings in `users/adminSource.ts`), plus: `Timestamp`/`DetailsSubsection` → shared/ui + unit test;
@@ -28,6 +31,8 @@
 - e2e: with Aspire running, `cd web && npm run e2e`.
 
 ## Needs human
+- CP3.6 reference console: human chose local `bridge` (2026-11-22); built and verified. The orchestrator starts it with
+  `scripts/ocp-ref/run-console.sh` (needs a live `oc login`; the token expires) — `docs/dev/OCP-REFERENCE.md`.
 - CP2 H1–H6 manual checks on real clusters. Optional: confirm product name before CP3 (image/Route names; UI brand is
   "Consolinho" since T-0055).
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` (T-0054 worktree) — safe to remove.

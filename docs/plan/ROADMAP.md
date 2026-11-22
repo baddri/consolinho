@@ -9,7 +9,8 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 1 | Identity & administration | done (tag cp-1) |
 | 2 | Proxy, cluster switcher & generic resource browser (MVP) | done |
 | 3 | Deploy to OpenShift | done (tag cp-3) |
-| 4 | Workloads day-2 operations | planned |
+| 3.6 | OCP parity (mirror the console) | planned (next) |
+| 4 | Workloads day-2 operations | planned (after 3.6) |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 6 | Hardening, observability & polish | planned |
 
@@ -58,6 +59,17 @@ perspective switcher; (3) admin area polish. Known issues: the grant wizard show
 panel behind it (Modal `onClose` + `WizardHeader` close, modal wider than the wizard); user details show internal
 copy ("enforced by the proxy from CP2", "Admin via configuration (user list)") and badly styled tabs; the register
 cluster form is full width.
+
+## CP3.6 — OCP parity: mirror the console (before CP4)
+Human directive (2026-11-22): the UI must look and feel exactly like the OCP console ("feels like home"), in our own
+code, before we build more features. Reference = local clone `/home/bad/works/openshift-console` (CLAUDE.md "UI north
+star", UX.md §0). Run by the `ux-designer`, which also writes the spec, so this checkpoint skips the PO SPEC step:
+1. Write `docs/architecture/ocp-parity.md`: one row per screen (shell: masthead, sidebar/nav, switcher; list, details,
+   YAML, events tabs; forms, modals, empty/error states; admin pages) with our route, OCP route, OCP source path, and
+   status `match` / `gap: …`. Fold in T-0118.
+2. Get reference screenshots of the real console where possible (see HANDOVER "Needs human").
+3. Turn the gaps into FE tasks by area, then BUILD with the usual architect + ux reviews.
+Done when every row is `match` (or the human explicitly waives the row) and the PO accepts.
 
 ## CP4 — Workloads day-2 operations
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC

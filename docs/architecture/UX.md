@@ -3,11 +3,23 @@
 Owner: ux-designer. Target: an OpenShift user cannot tell FleetConsole from the OCP web console (`openshift/console`
 `main`, PatternFly 6) except for the fleet features (cluster switcher, Fleet administration). Where OCP has a pattern,
 copy it; invent only for fleet features, in OCP's style. Code structure is in `FRONTEND.md`; this file is visual only.
-OCP paths below are relative to `openshift/console/frontend/`.
+OCP paths below are relative to `openshift/console/frontend/`. The local clone is `/home/bad/works/openshift-console`.
+
+## 0. How we mirror OCP (human directive, 2026-11-22)
+- **Source first:** every screen has an OCP counterpart in the clone. Find it with `grep -rn` (component name, i18n
+  string, route) before you design, build or review, and write the path into the task. Memory is only a hint.
+- **Rendered truth:** compare against the real console side by side, at the same route, width and theme. It runs
+  locally from the clone (`docs/dev/OCP-REFERENCE.md`: `scripts/ocp-ref/run-console.sh`, screenshots with
+  `scripts/ocp-ref/shot.mjs`). Keep images in the scratchpad and never commit them. If it isn't running, fall back to source.
+- **Own code:** reimplement with our components. Mirror OCP's PF component choice and variants, DOM nesting, spacing,
+  CSS values and copy. Don't copy files or large blocks. No Red Hat/OpenShift logos or trademarks: our brand is "Consolinho".
+- **Parity matrix:** `docs/architecture/ocp-parity.md` lists each FleetConsole screen with its OCP route, its OCP source
+  path and a status (`match` / `gap: …`). The ux-designer keeps it current. A screen counts as done only at `match`.
 
 ## 1. General
-- PatternFly 6 components and `--pf-t--global--*` tokens only. Custom CSS is the last resort: a colocated CSS module,
-  each rule with a comment naming the OCP behaviour it reproduces. Never hard-code colours, sizes or fonts.
+- PatternFly 6 components and `--pf-t--global--*` tokens first. Where OCP itself uses custom SCSS (masthead, nav, resource
+  badges, `co-*` classes), reproduce OCP's values in a colocated CSS module, and give each rule a comment with the
+  OCP `*.scss` path it mirrors. Never hard-code colours that OCP takes from tokens.
 - Both themes (light, dark) and widths 1280 and 1920 must look right. No horizontal page scroll at 1280.
 - Every page renders loading (Skeleton), error (ErrorState + Retry) and empty (EmptyState) explicitly.
 

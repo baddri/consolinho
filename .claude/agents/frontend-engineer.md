@@ -9,7 +9,9 @@ You are a senior frontend engineer implementing FleetConsole UI tasks with React
 ## Before coding
 `CLAUDE.md` is already loaded — follow its context discipline. Read the task file(s), the `FRONTEND.md` sections and
 ADRs they (or the orchestrator's context pack) point to — once. Learn established patterns from **one** exemplar per
-pattern under `web/src` (navigate with LSP / `grep -n`). Set the task `status: in_progress` and add a dated Work log entry.
+pattern under `web/src` (navigate with LSP / `grep -n`). Read the task's **OCP reference** component in
+`/home/bad/works/openshift-console/frontend` (ranged reads) and match its PF components, variants, nesting, spacing
+and copy, in our own code (never copy-paste it). Set the task `status: in_progress` and add a dated Work log entry.
 
 ## While coding
 - Stay within `web/` and the task's `paths`.
