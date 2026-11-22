@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP3.7 — Fleet foundations (SPEC next) ·
+**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP3.7 — Fleet foundations (BUILD) ·
 **Branch:** `main` (CP3.7 work goes on `cp/3.7-fleet-foundations`)
 
 ## Where we are
@@ -15,7 +15,10 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
-- **CP3.7 first (human, 2026-11-23)** — ROADMAP §CP3.7 holds the decided scope (switcher display name/type tag, read-only
+- **CP3.7 BUILD (2026-11-23):** spec `docs/specs/CP3.7-fleet-foundations.md` (Q1 decided: one-line toggle), ADRs
+  0032–0035, UX.md §2a (K8s navy theme), tasks BE T-0139→T-0142 (sequential), FE T-0144…T-0151 (deps in frontmatter;
+  T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3). In progress: T-0140 (backend-engineer), T-0145 (frontend-engineer).
+- **CP3.7 scope (human, 2026-11-23)** — ROADMAP §CP3.7 holds the decided scope (switcher display name/type tag, read-only
   off the toggle, `Cluster.Distribution` + discovery gating, Fleet perspective, K8s masthead theme, multi-namespace token
   test, 4 ADRs). SPEC with `ocp-product-owner` + `ux-designer` (theme values). Groups + cache decided for CP4.5, K8s
   onboarding CP5.5 (ROADMAP). Then CP4 as below.
