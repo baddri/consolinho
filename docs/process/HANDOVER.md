@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.6 T-0120 done) · **Current checkpoint:** CP3.6 — OCP parity (not started; CP4 after it) ·
+**Last updated:** 2026-11-22 (CP3.6 T-0120 done) · **Current checkpoint:** CP3.6 — OCP parity (BUILD; CP4 after it) ·
 **Branch:** `main`
 
 ## Where we are
