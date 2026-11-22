@@ -107,6 +107,7 @@ describe('ClusterDetailPage (T-0035)', () => {
         'Name',
         'Display name',
         'Environment',
+        'Distribution',
         'Description',
         'Status',
         'Web console',
@@ -115,6 +116,7 @@ describe('ClusterDetailPage (T-0035)', () => {
       expect(values).toMatchObject({
         'Display name': 'Production EU 1',
         Environment: 'prod',
+        Distribution: 'OpenShift',
         Description: 'Customer-facing workloads, Frankfurt.',
         TLS: 'CA bundle',
         Status: 'Enabled',

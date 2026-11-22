@@ -58,6 +58,10 @@ describe('ClustersListPage (CLU-7)', () => {
     const prodEuCells = within(prodEu);
     expect(prodEuCells.getByText('Production EU 1')).toBeInTheDocument();
     expect(prodEuCells.getByText('prod')).toBeInTheDocument();
+    // DIST-3: the Type column shows the cluster type tag.
+    expect(within(table).getByRole('columnheader', { name: /^Type/ })).toBeInTheDocument();
+    expect(prodEuCells.getByText('OCP')).toBeInTheDocument();
+    expect(within(rowOf(table, 'dev-2')).getByText('K8s')).toBeInTheDocument();
     expect(prodEu).toHaveTextContent('https://api.prod-eu-1.example.com:6443');
     expect(prodEuCells.getByText('Enabled')).toBeInTheDocument();
     expect(prodEuCells.getByText('Expires soon')).toBeInTheDocument();

@@ -3,6 +3,7 @@ import { ExternalLinkAltIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import type { ClusterDetail } from '@/shared/api';
 import {
+  clusterTypeText,
   DetailsColumn,
   DetailsGrid,
   DetailsItem,
@@ -37,9 +38,9 @@ export interface ClusterDetailsTabProps {
 
 /**
  * Details tab of the cluster detail page (CLU-8, `UX.md` §6): "Cluster details" h2 over two vertical columns — what
- * the cluster is (name, display name, environment, description, status, web console link) left, how it is reached and
- * its history (API URL with copy, TLS mode, counts, change times, audit link) right — followed by the CA certificates
- * ({@link CaCertificatesTable}, CLU-2). Purely presentational; the page loads the `ClusterDetail`.
+ * the cluster is (name, display name, environment, distribution, description, status, web console link) left, how it
+ * is reached and its history (API URL with copy, TLS mode, counts, change times, audit link) right — followed by the
+ * CA certificates ({@link CaCertificatesTable}, CLU-2). Purely presentational; the page loads the `ClusterDetail`.
  */
 export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {
   return (
@@ -53,6 +54,7 @@ export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {
             <DetailsItem label="Environment">
               <EnvironmentLabel environment={cluster.environment} isCompact />
             </DetailsItem>
+            <DetailsItem label="Distribution">{clusterTypeText(cluster.distribution).word}</DetailsItem>
             <DetailsItem label="Description">{cluster.description ?? EMPTY}</DetailsItem>
             <DetailsItem label="Status">
               <ClusterStatusLabel isEnabled={cluster.isEnabled} />

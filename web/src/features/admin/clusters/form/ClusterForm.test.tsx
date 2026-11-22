@@ -166,6 +166,26 @@ describe('Register cluster (CLU-1..3)', () => {
     expectDescription(field('CA bundle'), 'The CA bundle must not contain a private key.');
   });
 
+  it('DIST-2: Distribution is required with OpenShift preselected; a server 400 lands on it', async () => {
+    server.use(
+      http.post('/api/admin/clusters', () => validationProblem({ distribution: ['Choose OpenShift or Kubernetes.'] })),
+    );
+    const { user } = renderApp('/fleet/admin/clusters/new');
+    await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
+
+    const group = screen.getByRole('radiogroup', { name: /^Distribution/ });
+    expect(within(group).getByRole('radio', { name: 'OpenShift' })).toBeChecked();
+    expect(within(group).getByRole('radio', { name: 'Kubernetes' })).not.toBeChecked();
+    expect(group).toHaveTextContent(
+      "Changes how the console presents the cluster. Available pages come from the cluster's APIs.",
+    );
+
+    await fillRequired(user);
+    await user.click(screen.getByRole('button', { name: 'Register' }));
+
+    expect(await within(group).findByText('Choose OpenShift or Kubernetes.')).toBeInTheDocument();
+  });
+
   it('CLU-2: a CA bundle over 256 KiB is rejected client-side', async () => {
     const commands = recordCommands();
     const { user } = renderApp('/fleet/admin/clusters/new');
@@ -280,6 +300,28 @@ describe('Edit cluster (CLU-4, ADM-4)', () => {
     expect(put?.body).not.toHaveProperty('name');
     expect(put?.body).not.toHaveProperty('isEnabled');
     expect(invalidate).toHaveBeenCalledWith({ queryKey: accessibleClustersQueryKey });
+  });
+
+  it('DIST-2: changing only the distribution sends it and leaves connection test results current', async () => {
+    const commands = recordCommands();
+    const cluster = mockDb.clusters.find((c) => c.name === 'prod-eu-1');
+    if (!cluster) throw new Error('fixture prod-eu-1 missing');
+    const changedAt = cluster.connectionSettingsChangedAt;
+    const { user, router } = renderApp('/fleet/admin/clusters/prod-eu-1/edit');
+    await screen.findByRole('heading', { name: 'Edit prod-eu-1', level: 1 });
+    const kubernetes = await screen.findByRole('radio', { name: 'Kubernetes' });
+    expect(screen.getByRole('radio', { name: 'OpenShift' })).toBeChecked();
+    // The stale-results note names only connection settings; the distribution is presentation only.
+    expect(screen.getByText(/stale/i)).not.toHaveTextContent(/distribution/i);
+
+    await user.click(kubernetes);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/prod-eu-1'));
+    const [put] = await commands();
+    expect(put?.body).toMatchObject({ distribution: 'kubernetes' });
+    expect(cluster.connectionSettingsChangedAt).toBe(changedAt);
+    expect(await screen.findByText('Kubernetes')).toBeInTheDocument();
   });
 
   it('ADM-4: a conflict keeps typed values; "Reload latest values" resets them', async () => {
