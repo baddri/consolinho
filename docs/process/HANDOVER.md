@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.5 closed) · **Current checkpoint:** CP3.6 — OCP parity (not started; CP4 after it) ·
+**Last updated:** 2026-11-22 (CP3.6 T-0119 done) · **Current checkpoint:** CP3.6 — OCP parity (not started; CP4 after it) ·
 **Branch:** `main`
 
 ## Where we are
@@ -15,9 +15,11 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
-0. **CP3.6 OCP parity first** (human directive, 2026-11-22; ROADMAP §CP3.6). Branch `cp/3.6-ocp-parity`. The
-   ux-designer writes `docs/architecture/ocp-parity.md` against the local clone `/home/bad/works/openshift-console`,
-   then files gap tasks. CP4 waits.
+0. **CP3.6 OCP parity** (ROADMAP §CP3.6), branch `cp/3.6-ocp-parity`. Look = OpenShift glass + felt (human, 2026-11-22).
+   Matrix `docs/architecture/ocp-parity.md`; tasks T-0119…T-0127. Done: T-0119 (shell). Next, in order: T-0120 (prefs:
+   must land before close, theme is unchangeable until then), T-0121 (lists, incl. project bar), T-0122…T-0126, T-0127.
+   Each FE task: engineer → frontend-architect (code) + ux-designer (visual, against `scripts/ocp-ref`) in parallel.
+   Reference console must be running (`scripts/ocp-ref/run-console.sh`, needs live `oc login`). CP4 waits.
 1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0118 (CP3.5 UX
    follow-ups) and the CP3.5 backlog items in ROADMAP (YAML Cancel/Save, audit labels, structured admin source —
    FE parses strings in `users/adminSource.ts`), plus: `Timestamp`/`DetailsSubsection` → shared/ui + unit test;

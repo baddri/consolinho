@@ -16,7 +16,7 @@ react-hook-form + zod, `yaml`, `kubernetes-types` (TS types only), xterm.js for 
 web/src/
   app/                    # bootstrapping only
     main.tsx  App.tsx  router.tsx  providers.tsx (QueryClient, theme)
-    layout/               # AppShell: Masthead (logo, theme menu, user menu), Sidebar (ClusterSwitcher on top, nav), page container
+    layout/               # AppShell: Masthead (logo, help menu + About, user menu), Sidebar (ClusterSwitcher on top, nav), page container
   shared/                 # no feature knowledge
     api/                  # openapi-fetch client for /api (generated schema in api/schema.gen.ts), error → ProblemDetails
                           #   baseUrl = page origin: OpenAPI paths already include the /api prefix (Api maps MapGroup("/api"))

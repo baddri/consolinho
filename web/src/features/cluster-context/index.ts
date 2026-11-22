@@ -12,6 +12,7 @@ export { accessibleClustersQueryKey, useAccessibleClusters } from './useAccessib
 export { useActiveCluster } from './useActiveCluster';
 export { useLastCluster } from './useLastCluster';
 export { useLastNamespace } from './useLastNamespace';
+export { useIsActiveClusterUnavailable } from './useIsActiveClusterUnavailable';
 export { usePreferredCluster } from './usePreferredCluster';
 export { useRecentClusters, type RecentClusters } from './useRecentClusters';
 export { isDefaultProject, useShowDefaultProjects } from './useShowDefaultProjects';

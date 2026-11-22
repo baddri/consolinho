@@ -1,0 +1,8 @@
+/*
+ * Mirrors OCP `public/style/_overrides.scss` (`.pf-v6-c-masthead__logo`): a taller logo box than PatternFly's default
+ * (2.375rem, fixed width), so a 40px logo fits and the masthead is as high as OCP's (73px).
+ */
+.logo {
+  --pf-v6-c-masthead__logo--MaxHeight: 60px;
+  --pf-v6-c-masthead__logo--Width: auto;
+}

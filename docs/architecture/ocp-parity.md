@@ -6,14 +6,14 @@ dark, reference console `http://127.0.0.1:9000` (clone `main`; audited with OKD 
 
 | Our route / element | OCP route | OCP source | Status | Task |
 |---|---|---|---|---|
-| Shell: theme classes on `<html>` | any | `public/index.html` (inline theme script) | gap: no `pf-v6-theme-glass`/`high-contrast` + `pf-v6-theme-felt`; flat grey page, no floating sidebar card or background image | T-0119 |
-| Shell: masthead brand + toggle | any | `public/components/masthead/masthead.tsx` | match (own logo); height follows glass | T-0119 |
-| Shell: masthead toolbar | any | `public/components/masthead/masthead-toolbar.tsx` | gap: theme icon button (OCP has none); no help menu / About; user menu lacks User preferences | T-0119 |
-| Shell: sidebar container | any | `packages/console-app/src/components/nav/index.tsx` | gap: not a floating card (glass); version footer in sidebar (OCP: About modal) | T-0119 |
-| Shell: cluster switcher (= perspective switcher) | any | `packages/console-app/src/components/nav/NavHeader.tsx` | gap: two-line toggle (labels below name), divider under it, search box double border + "→" button | T-0119 (T-0118 #1-2) |
-| Shell: nav sections | any | `packages/console-app/src/components/nav/NavSection.tsx`, `PerspectiveNav.tsx` | gap: no Favorites section; cluster sections shown on "cluster not available" | T-0119 (T-0097), T-0120 |
-| Shell: environment band (fleet) | `kube-admin-notifier` banner | `public/components/kube-admin-notifier.tsx` | gap: custom band, left-aligned; OCP `Banner` centred | T-0119 |
-| Shell: project bar | `/k8s/ns/openshift-console/pods` | `public/components/namespace-bar.tsx` | match | — |
+| Shell: theme classes on `<html>` | any | `public/index.html` (inline theme script) | match: glass (high-contrast under `prefers-contrast: more`) + felt, pre-paint via `public/theme-init.js` (CSP forbids inline) | T-0119 |
+| Shell: masthead brand + toggle | any | `public/components/masthead/masthead.tsx` | match (own 40px logo; 73px masthead like OCP) | T-0119 |
+| Shell: masthead toolbar | any | `public/components/masthead/masthead-toolbar.tsx` | match: Help menu (About only, no docs URL) + user menu; no theme button. User preferences item comes with T-0120 | T-0119, T-0120 |
+| Shell: sidebar container | any | `packages/console-app/src/components/nav/index.tsx` | match: floating glass card, no footer (version in Help › About) | T-0119 |
+| Shell: cluster switcher (= perspective switcher) | any | `packages/console-app/src/components/nav/NavHeader.tsx` | match: one-line 37px toggle, labels inline, no divider; search box as OCP's menu search (focus ring is PF/browser default, same in OCP). Long names clip before the first label (8px gap). Recent is hidden when it would only list the active cluster. | T-0119 (T-0118 #1-2) |
+| Shell: nav sections | any | `packages/console-app/src/components/nav/NavSection.tsx`, `PerspectiveNav.tsx` | match for T-0097 (not-available page lists only Fleet administration); gap: no Favorites section; match: every section starts collapsed like OCP `main` (`NavSection.tsx` L26), the active one marked current | T-0119 (T-0097), T-0120 |
+| Shell: environment band (fleet) | `kube-admin-notifier` banner | `public/components/kube-admin-notifier.tsx` | match: `Banner color` red/orange, centred `p`, first in the main card | T-0119 |
+| Shell: project bar | `/k8s/ns/openshift-console/pods` | `public/components/namespace-bar.tsx`, `public/components/_dropdown.scss` L49-58 | gap: OCP toggle text 16px flush at the card padding (x=346), 42px, no top padding; ours 14px with toggle padding, 16px lower | T-0121 |
 | `/user-preferences` (new) | `/user-preferences/general` | `packages/console-app/src/components/user-preferences/UserPreferencePage.tsx` | gap: missing (Color scheme, Contrast mode) | T-0120 |
 | Favourite star + Favorites nav | any list/details heading | `packages/console-app/src/components/favorite/FavoriteButton.tsx`, `FavoriteNavItems.tsx` | gap: missing | T-0120 |
 | List heading (title + Create button) | `/k8s/ns/openshift-console/pods` | `public/components/factory/ListPage/ListPageHeader.tsx`, `console-shared/src/components/heading/PageHeading.tsx` | gap: no "Create <Kind>" button, no star | T-0121, T-0120 |

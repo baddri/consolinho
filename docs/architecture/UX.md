@@ -38,7 +38,8 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
 - Sidebar (`packages/console-app/src/components/nav/index.tsx`): `PageSidebar > PageSidebarBody > Nav`. The first child
   of the `Nav` is the header switcher, then the `NavExpandable` sections.
   Order like OCP "Core platform": Home, Favorites (starred pages, `packages/console-app/src/components/favorite/`),
-  then the cluster sections, then Fleet administration. The section holding the active page is expanded.
+  then the cluster sections, then Fleet administration. Every section starts collapsed, also the one holding the
+  active page (marked current), like OCP `NavSection.tsx` (`useState(false)`).
 - **Cluster switcher = OCP's perspective switcher** (`packages/console-app/src/components/nav/NavHeader.tsx`): a
   full-width `MenuToggle` (`isFullWidth`, an icon, the name as `Title h2 size="md"`) at the top of the sidebar, menu
   opening under it. One line, same height as OCP's toggle (labels inline after the name), no divider under it. Fleet additions: search box, Recent / All clusters groups, environment and Read only labels.

@@ -4,6 +4,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } 
 import { setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
+import { expandSection } from '@/test/sidebar';
 import { adminKeys, adminRoute, useAdminAccess } from './index';
 
 /** jsdom has no layout, so PatternFly starts with the sidebar closed; open it like a user would. */
@@ -76,7 +77,11 @@ describe('admin area access (ADM-3)', () => {
 
     expect(await screen.findByRole('heading', { name: 'Clusters', level: 1 })).toBeInTheDocument();
     const nav = await openSidebar(user);
-    expect(within(nav).getByRole('button', { name: 'Fleet administration' })).toHaveAttribute('aria-expanded', 'true');
+    // Collapsed like every OCP nav section (T-0119), but marked as holding the current page.
+    const section = within(nav).getByRole('button', { name: 'Fleet administration' });
+    expect(section).toHaveAttribute('aria-expanded', 'false');
+    expect(section.closest('li')).toHaveClass('pf-m-current');
+    await expandSection(user, nav, 'Fleet administration');
     const links = {
       Users: '/admin/users',
       Clusters: '/admin/clusters',

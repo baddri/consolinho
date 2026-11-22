@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 
 /**
@@ -13,4 +13,13 @@ export async function openSidebar(user: UserEvent, timeout?: number): Promise<HT
   if (open) return open;
   await user.click(await screen.findByRole('button', { name: 'Global navigation' }, { timeout }));
   return screen.findByRole('navigation', { name: 'Global' });
+}
+
+/**
+ * Expands a collapsed sidebar section by clicking its title, like a user would: sections start collapsed (OCP
+ * `NavSection.tsx`), so their links are hidden from role queries until expanded.
+ */
+export async function expandSection(user: UserEvent, nav: HTMLElement, title: string): Promise<void> {
+  const toggle = await within(nav).findByRole('button', { name: title });
+  if (toggle.getAttribute('aria-expanded') !== 'true') await user.click(toggle);
 }

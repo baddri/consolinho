@@ -84,9 +84,9 @@ describe('session handling (ADR-0014)', () => {
     await screen.findByRole('heading', { name: 'Pods', level: 1 });
     expect(queryClient.getQueryData(ME_KEY)).toBeDefined();
 
-    // Not `me`: any Api call answering 401 means the session is gone.
-    server.use(http.get('*/api/system/info', unauthenticated));
-    await act(() => queryClient.refetchQueries({ queryKey: ['api', 'system', 'info'] }));
+    // Not `me`: any Api call answering 401 means the session is gone (the cluster list is always observed by the shell).
+    server.use(http.get('*/api/clusters', unauthenticated));
+    await act(() => queryClient.refetchQueries({ queryKey: ['api', 'clusters'] }));
 
     expect(
       await screen.findByRole('heading', {
@@ -102,8 +102,7 @@ describe('session handling (ADR-0014)', () => {
       '/api/auth/login?returnUrl=%2Fc%2Fdev-1%2Fk8s%2Fns%2Fdefault%2Fpods%3Fx%3D1%23top',
     );
 
-    // Nothing of the ended session survives: only the anonymous system/info query the login footer observes is
-    // left (its refetch got 401 too, which the handler ignores on /login — no loop).
+    // Nothing of the ended session survives: only the anonymous system/info query the login footer observes is left.
     await waitFor(() => expect(queryClient.getQueryData(ME_KEY)).toBeUndefined());
     expect(
       queryClient

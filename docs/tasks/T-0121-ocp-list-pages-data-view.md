@@ -50,6 +50,8 @@ and introduce the shared kind badge and status mapping every other page reuses. 
    5 rows.
 9. Projects list — "—" placeholders — OCP copy "No display name", "No requester" (`namespace.tsx`).
 10. Metrics columns (Memory, CPU) — OCP shows them — out of scope (no metrics source); note in parity matrix.
+11. Project bar (from T-0119 visual review) — our toggle text smaller, indented, extra top padding — OCP 16px text, flush
+    left, no top padding (`public/components/namespace-bar.tsx`, `public/components/_dropdown.scss` L49-58) — match it.
 
 ## Context pack
 - Docs: `UX.md` §3, §5; `FRONTEND.md` § model descriptors.

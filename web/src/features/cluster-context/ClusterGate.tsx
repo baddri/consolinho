@@ -4,6 +4,7 @@ import { ClusterListError, ClusterListPending } from './ClusterListStates';
 import { ClusterNotAvailablePage } from './ClusterNotAvailablePage';
 import { useAccessibleClusters } from './useAccessibleClusters';
 import { useActiveCluster } from './useActiveCluster';
+import { useIsActiveClusterUnavailable } from './useIsActiveClusterUnavailable';
 import { useLastCluster } from './useLastCluster';
 import { useRecentClusters } from './useRecentClusters';
 
@@ -19,7 +20,9 @@ export function ClusterGate() {
   const { data: clusters, error, refetch } = useAccessibleClusters();
   const [, setLastCluster] = useLastCluster();
   const { remember } = useRecentClusters();
-  const isGranted = clusters?.some((candidate) => candidate.name === cluster) ?? false;
+  const isUnavailable = useIsActiveClusterUnavailable();
+  // Granted only once the list has loaded and contains the cluster (one definition, shared with the sidebar).
+  const isGranted = clusters !== undefined && !isUnavailable;
 
   useEffect(() => {
     if (!isGranted) return;
