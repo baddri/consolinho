@@ -18,7 +18,7 @@
 - **Human approval (2026-11-23):** after CP3.7 closes (merge + tag), continue straight into **CP4** without stopping to report; still report CP3.7 delivery in the session summary.
 - **CP3.7 BUILD (2026-11-23):** spec `docs/specs/CP3.7-fleet-foundations.md` (Q1 decided: one-line toggle), ADRs
   0032–0035, UX.md §2a (K8s navy theme), tasks BE T-0139→T-0142 (sequential), FE T-0144…T-0151 (deps in frontmatter;
-  T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3), T-0140 (84ca7f2), T-0141 (716b5d7), T-0145 (81dc55c), T-0142 (300542f), T-0153 (54ba309), T-0154 (e618e38, OpenAPI nullability), T-0146 (85f4ef6), T-0148 (a92a6b5; shared RadioGroupField inline fix). In progress: T-0147 (shared tree), T-0150 (worktree, in review; orchestrator commits there, then cherry-picks). Follow-ups filed: T-0152 menu width, T-0153 switcher keyboard nav (design first; before VERIFY).
+  T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3), T-0140 (84ca7f2), T-0141 (716b5d7), T-0145 (81dc55c), T-0142 (300542f), T-0153 (54ba309), T-0154 (e618e38, OpenAPI nullability), T-0146 (85f4ef6), T-0148 (a92a6b5; shared RadioGroupField inline fix). T-0147 (9f8eadf; adds lab-1 mock credential + grants), T-0150 (5155a3f; ChipInputField, applyServerErrors `listFields`). Next: T-0149 (shared tree) + T-0151 (worktree) in parallel, then T-0152. Follow-ups filed: T-0152 menu width, T-0153 switcher keyboard nav (design first; before VERIFY).
 - **CP3.7 scope (human, 2026-11-23)** — ROADMAP §CP3.7 holds the decided scope (switcher display name/type tag, read-only
   off the toggle, `Cluster.Distribution` + discovery gating, Fleet perspective, K8s masthead theme, multi-namespace token
   test, 4 ADRs). SPEC with `ocp-product-owner` + `ux-designer` (theme values). Groups + cache decided for CP4.5, K8s
@@ -50,6 +50,7 @@
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` (T-0054 worktree) — safe to remove.
 
 ## Follow-ups (optional, not filed)
+- T-0147 review: prettier printWidth 110 vs code ~120 → one-commit reformat or set 120 (churn on every touched file).
 - T-0090 review: explicit `proxyResponse is not null` in flush condition; tests watch→unreachable (502), watch→401.
 - T-0093 review: extend Connection test with `Authorization` nominated, assert bearer still sent.
 - T-0078 review: shared DetailItem used by PodDetails; `labelSelectorString` ignores matchExpressions.
