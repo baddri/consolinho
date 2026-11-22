@@ -10,7 +10,7 @@ public sealed class ReturnUrlPolicyTests
     [InlineData("/")]
     [InlineData("/clusters")]
     [InlineData("/c/prod-eu-1/k8s/ns/default/pods?sort=name&dir=asc")]
-    [InlineData("/admin/users#top")]
+    [InlineData("/fleet/admin/users#top")]
     [InlineData("/search?q=%2F%2Fevil.example")]
     [InlineData("/login")]
     public void LocalPaths_AreKept(string returnUrl) => ReturnUrlPolicy.Sanitize(returnUrl).ShouldBe(returnUrl);

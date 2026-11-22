@@ -22,7 +22,7 @@ test('H3: switcher shows the cluster with dev and Read only labels', async ({ pa
   });
   await expect(toggle).toBeVisible();
   await toggle.click();
-  await page.getByRole('textbox', { name: 'Search clusters' }).fill(cluster());
+  await page.getByRole('combobox', { name: 'Search clusters' }).fill(cluster());
   // While searching only the "All clusters" list is shown, so the option is unique.
   const item = page.getByRole('listbox', { name: 'All clusters' }).getByRole('option', { name: cluster() });
   await expect(item).toBeVisible();
