@@ -7,6 +7,7 @@ checkpoint: CP4
 depends_on: []
 paths: [web/src/features/cluster-context, web/src/features/resources, web/src/features/admin, web/src/shared]
 review_rounds: 0
+superseded_by: [T-0119, T-0121, T-0122, T-0126]
 ---
 
 ## Goal

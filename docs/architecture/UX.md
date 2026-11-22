@@ -22,23 +22,33 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   OCP `*.scss` path it mirrors. Never hard-code colours that OCP takes from tokens.
 - Both themes (light, dark) and widths 1280 and 1920 must look right. No horizontal page scroll at 1280.
 - Every page renders loading (Skeleton), error (ErrorState + Retry) and empty (EmptyState) explicitly.
+- Theme classes on `<html>` like OCP (`public/index.html` inline script): `pf-v6-theme-dark` per colour scheme, and
+  per contrast mode `pf-v6-theme-glass` (default) or `pf-v6-theme-high-contrast` (`prefers-contrast: more`). Glass is
+  what makes the floating sidebar card, the background image and the translucent main card. OCP adds
+  `pf-v6-theme-felt` only for non-OKD branding; our reference is OKD, so no felt unless the human decides otherwise.
 
 ## 2. Shell
 - Masthead (`public/components/masthead/masthead.tsx`, `masthead-toolbar.tsx`): hamburger `PageToggleButton`,
   logo linking home, then a right-aligned toolbar of **plain icon buttons** and the user dropdown. No form controls,
   toggle groups or context selectors in the masthead.
-- Theme: a plain icon menu in the masthead toolbar (Light / Dark / System). Invented: OCP keeps it in User preferences.
+- Masthead toolbar like OCP (`masthead-toolbar.tsx`): help menu (`?`, "Help menu": Documentation, About) and the user
+  menu (User preferences, Log out). The product version lives in the About modal (`public/components/about-modal.tsx`),
+  not in a sidebar footer. No theme button: colour scheme and contrast are in User preferences
+  (`packages/console-app/src/components/user-preferences/UserPreferencePage.tsx`, "Color scheme", "Contrast mode").
 - Sidebar (`packages/console-app/src/components/nav/index.tsx`): `PageSidebar > PageSidebarBody > Nav`. The first child
   of the `Nav` is the header switcher, then the `NavExpandable` sections.
+  Order like OCP "Core platform": Home, Favorites (starred pages, `packages/console-app/src/components/favorite/`),
+  then the cluster sections, then Fleet administration. The section holding the active page is expanded.
 - **Cluster switcher = OCP's perspective switcher** (`packages/console-app/src/components/nav/NavHeader.tsx`): a
   full-width `MenuToggle` (`isFullWidth`, an icon, the name as `Title h2 size="md"`) at the top of the sidebar, menu
-  opening under it. Fleet additions: search box, Recent / All clusters groups, environment and Read only labels.
+  opening under it. One line, same height as OCP's toggle (labels inline after the name), no divider under it. Fleet additions: search box, Recent / All clusters groups, environment and Read only labels.
   On pages outside a cluster (admin) it shows the cluster the cluster nav links point to.
 - Project selector = OCP namespace bar (`public/components/namespace-bar.tsx`): first row of the main area, above the
   page heading, on namespaced list **and** details pages; `Project: <name>` toggle, then a divider.
 - The main area is filled to the bottom of the viewport (`Page isContentFilled`); the white inset card never ends
   mid-screen.
-- Environment band (fleet): prod/staging banner above the content, full width of the main area.
+- Environment band (fleet): PF `Banner` (prod `red`, staging `orange`) with centred text, first thing in the main card,
+  exactly like OCP's notifier banners (`public/components/kube-admin-notifier.tsx`: `Banner color="blue"`, centred `p`).
 
 ## 3. Page heading (every page)
 OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps component-groups `PageHeader`):
@@ -47,8 +57,11 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - Title is the only `h1`. Row gap `--pf-t--global--spacer--md`.
 - List pages: title = plural kind ("Pods", "Users"); **no kind badge**; the create button ("Create Pod", "Add user")
   sits in the heading's action slot, not in the toolbar (`public/components/factory/ListPage/ListPageHeader.tsx`).
-- Details pages: breadcrumb `<Plural kind> › <Kind> details` (OCP `breadcrumbsForDetailsPage`), title = kind badge +
-  object name, status as an outlined compact `Label` with the status icon, `Actions` dropdown on the right.
+- Details pages: breadcrumb `<Plural kind> › <Kind> details` (OCP `breadcrumbsForDetailsPage`), title = large kind
+  badge (`co-m-resource-icon--lg`) + object name, status as PF `Badge isRead` wrapping icon + text (OCP
+  `console-dynamic-plugin-sdk/.../utils/resource-status.tsx`, `padding-left: spacer--sm`), then on the right the
+  favourite star (`FavoriteButton`) and the `Actions` dropdown (`public/components/utils/headings.tsx`). No subtitle.
+- Create pages ("Create Deployment", "Register cluster") have no breadcrumb.
 - Admin details pages use the same pattern: `Users › User details`, `Clusters › Cluster details`.
 
 ## 4. Tabs
@@ -57,18 +70,28 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - Tab content in a padded `PageSection` (OCP `PaneBody`).
 
 ## 5. List pages
-- Toolbar: name filter (`SearchInput`), attribute filters (checkbox `Select`), chips, "Clear all filters". Primary
-  create action lives in the heading (§3). Pagination only when the list is paged.
-- Table: composable PF `Table` `variant="compact"` (OCP lists are compact), sortable `Th`, kebab `ActionsColumn`.
+- OCP lists are `ConsoleDataView` (`packages/console-app/src/components/data-view/ConsoleDataView.tsx`, PF
+  `@patternfly/react-data-view`): `DataViewToolbar` with `DataViewFilters` (category select "Name"/"Label"/attribute,
+  hidden when only one filter; text filter "Filter by name" with the `/` hint), then plain icon buttons "Manage
+  columns" (modal) and "Reset column widths", compact `Pagination` top in the toolbar and compact bottom under the table.
+  Primary create action and favourite star live in the heading (§3).
+- Table: `DataViewTable variant="compact" isResizable`, sortable headers, Name column sticky with right border and
+  `nowrap`, kebab column sticky with left border (`useConsoleDataViewColumns.ts`).
   Column headers are **never truncated** at 1280; low-priority columns hide below `2xl` (1450px) with `visibility`
   (`LOW_PRIORITY_COLUMN`; OCP column `props.className`/`visibility` pattern) instead of squeezing or overflowing.
 - Names: `ResourceLink` = kind badge + link (OCP `ResourceLink`). Times: relative, absolute in a tooltip.
-- Status cells: **icon + text**, not a filled label (`packages/console-dynamic-plugin-sdk/src/app/components/status/
-  StatusIconAndText.tsx`): green check (Running, Active, Valid, Passed), red exclamation (Failed, CrashLoopBackOff,
-  Expired), yellow triangle (warnings, Expires soon), grey/neutral icon or plain text (Pending, Unknown, Disabled).
+- Kind badge = OCP `co-m-resource-icon` (`public/components/_resource.scss`): filled pill, white text, radius 20px,
+  `padding: 1px 4px`, `min-width: 18px`, `line-height: 16px`; colour per kind from `public/style/_vars.scss` (Pod
+  `#009596`, workloads `#004080`, Namespace/Project `#1e4f18`, ConfigMap `#40199a`, Secret `#c46100`, Service
+  `#6ca100`, default `#2b9af3`). Fleet kinds use the default colour and OCP's abbreviation rule (capitals of the kind).
+- Status cells: **icon + text**, not a filled label, mapped exactly as OCP `.../status/Status.tsx`: sync icon, no colour
+  (Running, Updating, In Progress); green check (Active, Ready, Succeeded, Completed, Enabled, Up to date, Valid,
+  Passed); red exclamation (Failed, Error, CrashLoopBackOff, ImagePullBackOff); in-progress icon (Pending); ban icon
+  (Terminating, Expired, Not Ready, Cancelled; use it for Disabled/Deactivated); yellow triangle (Warning, Expires soon);
+  unknown icon (Unknown).
 - `Label`s are for categories only: environment, role, access mode, Read only, groups, Kubernetes labels.
-- Empty list: `EmptyState` (`variant="sm"`) "No <plural> found" (OCP `EmptyBox`); filtered to nothing: "No results
-  match the filter criteria" + "Clear all filters".
+- Empty list: a table row with centred "No <plural> found" (`ConsoleDataView` `BodyEmpty`, `Bullseye`); filtered to
+  nothing: the same row, toolbar "Clear all filters".
 
 ## 6. Details pages
 - `public/components/deployment.tsx:DeploymentDetails`, `public/components/utils/details-page.tsx:ResourceSummary`,
@@ -78,16 +101,29 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
   Created, Owner); right: kind-specific fields. Further sections (Containers, Conditions, Credentials…) follow, each
   with its own `SectionHeading`.
 - Never a horizontal `DescriptionList` with a narrow term column (terms wrap into 3 lines).
-- Labels in details: `LabelGroup` of `key=value` labels (OCP `LabelList`); annotations as "N annotations" link/toggle.
+- Labels in details: `LabelGroup numLabels={20} defaultIsOpen` of filled `key=value` `Label`s linking to search (OCP
+  `public/components/utils/label-list.tsx`), inside a bordered box (`co-editable-label-group`, `_label.scss`); "No
+  labels" in subtle text. Annotations as "N annotations" link/toggle. Metadata term is "Created at" (`details-page.tsx`).
+
+## 6a. Events
+- Events page and Events tab are OCP's event stream (`public/components/events.tsx`), not a table: pause/play
+  toggle + "Streaming events..." + "Showing N events", then one card per event (involved object `ResourceLink`, its
+  namespace badge, "Generated from <source>", time and "N times in the last <duration>", message) on a timeline;
+  "No events" when empty. Events page toolbar: "Resources" select, "All types" select, "Filter Events by name or message".
 
 ## 7. YAML tab
-- PF `CodeEditor` full height of the content area, toolbar copy/download; `Save` / `Reload` / `Cancel` below the
-  editor (OCP `public/components/edit-yaml.tsx`). "Show managed fields" switch stays above the editor.
+- PF `CodeEditor` full height of the content area (OCP `public/components/edit-yaml.tsx`,
+  `packages/console-shared/src/components/editor/CodeEditorToolbar.tsx`): toolbar copy, settings, fullscreen, right
+  "Shortcuts". Below: `ActionGroup` Save (primary), Reload (secondary), Cancel (secondary), Download (secondary, right).
+- `metadata.managedFields` is shown but auto-folded (`yaml-editor-utils.ts:registerAutoFold`); no switch.
 
 ## 8. Forms
-- Full-page forms (register/edit cluster): `Form isWidthLimited` (PF `--pf-v6-c-form--m-limit-width--MaxWidth` 55rem); OCP forms are never full width.
+- Full-page forms (register/edit cluster): field column max-width **650px** at >768px (OCP `public/style/_forms.scss`
+  `.co-m-pane__form`); OCP forms are never full width. Buttons in a sticky footer (`console-shared/.../form-utils/
+  FormFooter.tsx`: `PageSection stickyBase="bottom"`, shadow `--pf-t--global--box-shadow--sm--top`).
 - `FormSection` per group with `titleElement="h2"`; helper text under fields; required marker by PF.
-- Buttons in an `ActionGroup` at the end: primary (Create / Save) then `link` Cancel. Server errors as an inline
+- Buttons in the sticky footer `ActionGroup`: primary (Create / Save) then `secondary` Cancel (OCP `FormFooter.tsx`;
+  modals keep `link` Cancel). Server errors as an inline
   danger `Alert` above the buttons.
 
 ## 9. Modals and wizards
@@ -103,8 +139,9 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 
 ## 10. Empty, error, not-found
 - `EmptyState` with a PF icon, `titleText` h-level matching the page, body ≤ 2 sentences, one primary action.
-- 404 / not available: page heading with the title ("404: Page not found"), then the empty state (OCP
-  `public/components/error.tsx`).
+- 404 (OCP `public/components/error.tsx:ErrorPage404`): component-groups `ErrorState`, `NotFoundIcon`, `headingLevel h1`,
+  title "404: Page Not Found", body "We couldn't find that page.", link button "Return to homepage". No separate heading.
+  "Cluster not available" (fleet) uses the same layout.
 - Errors: `ErrorState` (danger icon, ProblemDetails `detail`, Retry). Inline `Alert`s keep `--pf-t--global--spacer--md`
   from the toolbar/table below them.
 
