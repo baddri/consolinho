@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP4 — Workloads day-2 (SPEC next) ·
-**Branch:** `main` (CP4 work goes on `cp/4-workloads`)
+**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP3.7 — Fleet foundations (SPEC next) ·
+**Branch:** `main` (CP3.7 work goes on `cp/3.7-fleet-foundations`)
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -15,6 +15,10 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
+- **CP3.7 first (human, 2026-11-23)** — ROADMAP §CP3.7 holds the decided scope (switcher display name/type tag, read-only
+  off the toggle, `Cluster.Distribution` + discovery gating, Fleet perspective, K8s masthead theme, multi-namespace token
+  test, 4 ADRs). SPEC with `ocp-product-owner` + `ux-designer` (theme values). Groups + cache decided for CP4.5, K8s
+  onboarding CP5.5 (ROADMAP). Then CP4 as below.
 0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
    `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
    waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +

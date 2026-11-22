@@ -11,8 +11,11 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 3 | Deploy to OpenShift | done (tag cp-3) |
 | 3.5 | OCP look & feel | done (tag cp-3.5) |
 | 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
-| 4 | Workloads day-2 operations | planned (next) |
+| 3.7 | Fleet foundations | planned (next) |
+| 4 | Workloads day-2 operations | planned |
+| 4.5 | Access at scale (groups + cache) | planned |
 | 5 | Networking, storage, compute & cluster overview | planned |
+| 5.5 | Kubernetes clusters | planned |
 | 6 | Hardening, observability & polish | planned |
 
 ---
@@ -72,6 +75,22 @@ star", UX.md §0). Run by the `ux-designer`, which also writes the spec, so this
 3. Turn the gaps into FE tasks by area, then BUILD with the usual architect + ux reviews.
 Done when every row is `match` (or the human explicitly waives the row) and the PO accepts.
 
+## CP3.7 — Fleet foundations (before CP4)
+Human directive (2026-11-23). Shell and data changes that every CP4/CP5 page builds on, so they land first:
+1. Switcher: display name as the main text (name underneath); cluster-type icon + text tag `OCP`/`K8s` (no
+   OpenShift/Kubernetes logos); "Read only" only in the menu items, not on the toggle (keep it in the toggle's aria-label).
+2. `Cluster.Distribution` (OpenShift | Kubernetes): domain, migration, admin API + form, switcher.
+   Type = presentation only; **capabilities come from API discovery** (registry descriptors declare the API group they
+   need; nav items and kinds hide when the cluster doesn't serve it). No hard-coded "OpenShift" copy on per-cluster screens.
+3. Fleet perspective: a "Fleet management" entry in the cluster switcher (like ACM's "All Clusters") opens `/fleet/...`
+   with its own sidebar holding Fleet administration (later the CP5 fleet view).
+4. Kubernetes theme: on Kubernetes clusters only the masthead (and nav header) turn dark navy with a Kubernetes-blue accent;
+   content area unchanged; colour is never the only cue (the tag from 1). ux-designer sets the values and checks contrast
+   (light + dark).
+5. Token test over several namespaces (bounded, parallel, results per namespace); the namespace list is saved on the
+   credential and reused (also the future namespace-picker fallback for Kubernetes SAs that can't list namespaces).
+6. ADRs: cluster type vs API discovery; Fleet perspective; groups and grant priority (CP4.5); access cache (CP4.5).
+
 ## CP4 — Workloads day-2 operations
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
@@ -84,12 +103,28 @@ conditions, allocatable), MachineSets (read), Projects; cluster overview dashboa
 health, node status, recent warning events); Operators (CSV/Subscription read-only); fleet view: status of all clusters
 on one page.
 
+## CP4.5 — Access at scale
+- Groups (decided 2026-11-23): a grant's subject is a user **or** a host-OpenShift group name (string; membership =
+  `User.Groups` recorded at login, refreshed with session revalidation). FleetConsole-local groups optional later.
+  Precedence: a direct user grant beats group grants; among group grants the highest admin-set priority wins (ties refused
+  at save; read-only wins if one slips through); the user's read-only flag always applies. No `system:*` groups. Admin group
+  picker lists host `Group` objects via FleetConsole's SA (read-only role). "Effective access" admin view (user × cluster:
+  which grant wins and why).
+- Access cache: FusionCache behind `HybridCache` — memory L1 + Redis L2 + Redis backplane; tags per user/cluster/credential/
+  group, invalidated from the existing domain events after commit; short TTL backstop; **fail-safe off** for authorization;
+  the decrypted token never leaves L1 (Redis holds the encrypted one). Redis in the AppHost and the OpenShift manifests.
+
+## CP5.5 — Kubernetes clusters
+Onboard plain Kubernetes clusters on the CP3.7 prep: namespaces vs Projects (namespace picker fallback from the credential's
+saved namespaces), per-distribution sidebar from discovery, Kubernetes-only kinds where needed, local kind cluster on podman
+for dev and e2e.
+
 ## CP6 — Hardening, observability & polish
-Caching (`CachingBehavior` for access resolution + discovery), rate limiting, security review pass, OpenTelemetry
+Caching of discovery (access caching moved to CP4.5), rate limiting, security review pass, OpenTelemetry
 dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 
 ## Backlog / ideas (product owner adds here)
-- OIDC/SSO login; groups for grants.
+- OIDC/SSO login (groups for grants → CP4.5).
 - Fleet-wide search ("where is image X running?").
 - Change windows policy (block mutations on prod outside business hours).
 - Per-cluster favourites and pinned resources.
