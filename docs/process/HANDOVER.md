@@ -15,6 +15,7 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
+- **Human approval (2026-11-23):** after CP3.7 closes (merge + tag), continue straight into **CP4** without stopping to report; still report CP3.7 delivery in the session summary.
 - **CP3.7 BUILD (2026-11-23):** spec `docs/specs/CP3.7-fleet-foundations.md` (Q1 decided: one-line toggle), ADRs
   0032–0035, UX.md §2a (K8s navy theme), tasks BE T-0139→T-0142 (sequential), FE T-0144…T-0151 (deps in frontmatter;
   T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3), T-0140 (84ca7f2), T-0141 (716b5d7). In progress: T-0142 (backend-engineer), T-0145 (frontend-engineer, fix round 3). Follow-ups filed: T-0152 menu width, T-0153 switcher keyboard nav (design first; before VERIFY).
