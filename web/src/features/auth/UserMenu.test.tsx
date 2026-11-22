@@ -52,7 +52,7 @@ describe('logout (AUTH-10)', () => {
         return undefined; // fall through to the mock backend
       }),
     );
-    const { user, router, queryClient } = renderApp('/admin/users');
+    const { user, router, queryClient } = renderApp('/fleet/admin/users');
 
     await user.click(await screen.findByRole('button', { name: 'Fleet Admin Admin' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Log out' }));

@@ -86,7 +86,7 @@ describe('ClusterDetailPage (T-0035)', () => {
     'CLU-8: header, details, external console link and audit link for prod-eu-1',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
-      renderApp('/admin/clusters/prod-eu-1');
+      renderApp('/fleet/admin/clusters/prod-eu-1');
       const list = await findDetails(COLD_START_TIMEOUT_MS);
 
       expect(screen.getByRole('heading', { name: 'prod-eu-1', level: 1 })).toBeInTheDocument();
@@ -98,7 +98,7 @@ describe('ClusterDetailPage (T-0035)', () => {
       // Header status label + details Status.
       expect(screen.getAllByText('Enabled')).toHaveLength(2);
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-      expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute('href', '/admin/clusters');
+      expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute('href', '/fleet/admin/clusters');
       expect(within(crumbs).getByText('Cluster details')).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { name: 'Cluster details', level: 2 })).toBeInTheDocument();
 
@@ -129,7 +129,7 @@ describe('ClusterDetailPage (T-0035)', () => {
       expect(consoleLink).toHaveAttribute('rel', 'noopener noreferrer');
       expect(screen.getByRole('link', { name: 'View audit entries' })).toHaveAttribute(
         'href',
-        '/admin/audit?cluster=prod-eu-1',
+        '/fleet/admin/audit?cluster=prod-eu-1',
       );
       expect(screen.getByRole('grid', { name: 'CA certificates of prod-eu-1' })).toBeInTheDocument();
     },
@@ -137,7 +137,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
   it('CLU-2: certificates show their expiry labels', async () => {
     server.use(http.get('/api/admin/clusters/{name}', ({ response }) => response(200).json(CERT_CLUSTER)));
-    renderApp('/admin/clusters/certs-1');
+    renderApp('/fleet/admin/clusters/certs-1');
     await findDetails();
 
     const table = screen.getByRole('grid', { name: 'CA certificates of certs-1' });
@@ -153,7 +153,7 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('CLU-2: no bundle uses the system trust store', async () => {
-    renderApp('/admin/clusters/lab-1');
+    renderApp('/fleet/admin/clusters/lab-1');
     await findDetails();
 
     expect(screen.getByText('No CA bundle — the system trust store is used.')).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('CLU-3: skip-TLS shows the header label and a warning instead of the trust-store note', async () => {
-    renderApp('/admin/clusters/staging-eu-1');
+    renderApp('/fleet/admin/clusters/staging-eu-1');
     await findDetails();
 
     const labels = screen.getByRole('list', { name: 'Cluster labels' });
@@ -172,23 +172,23 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('tabs are URL-driven', async () => {
-    const { user, router } = renderApp('/admin/clusters/dev-1/credentials');
+    const { user, router } = renderApp('/fleet/admin/clusters/dev-1/credentials');
 
     expect(await screen.findByRole('tab', { name: 'Credentials' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel', { name: 'Credentials' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Cluster details')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Access' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/dev-1/access'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/dev-1/access'));
     expect(await screen.findByRole('tabpanel', { name: 'Access' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Details' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/dev-1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/dev-1'));
     expect(await findDetails()).toBeInTheDocument();
   });
 
   it('CLU-8: Actions for an enabled cluster — Delete is aria-disabled with the reason', async () => {
-    const { user } = renderApp('/admin/clusters/dev-1');
+    const { user } = renderApp('/fleet/admin/clusters/dev-1');
     await findDetails();
 
     const items = await openActions(user);
@@ -201,7 +201,7 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('CLU-5: enabling dev-2 updates the header from the response and refreshes the switcher', async () => {
-    const { user, queryClient } = renderApp('/admin/clusters/dev-2');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/dev-2');
     await findDetails();
     // Header status label + details Status.
     expect(screen.getAllByText('Disabled')).toHaveLength(2);
@@ -222,7 +222,7 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('CLU-6: deleting dev-2 returns to the list', async () => {
-    const { user, router } = renderApp('/admin/clusters/dev-2');
+    const { user, router } = renderApp('/fleet/admin/clusters/dev-2');
     await findDetails();
 
     await openActions(user);
@@ -233,13 +233,13 @@ describe('ClusterDetailPage (T-0035)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
     expect(await screen.findByText('Cluster dev-2 deleted')).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters'));
     expect(screen.queryByText('Cluster dev-2 no longer exists')).not.toBeInTheDocument();
   });
 
   it('ADM-2: every action is aria-disabled for a read-only admin', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/clusters/dev-2');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2');
     await findDetails();
 
     const items = await openActions(user);
@@ -248,7 +248,7 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('T-0033 review: an action on a cluster deleted meanwhile toasts once and returns to the list', async () => {
-    const { user, router } = renderApp('/admin/clusters/dev-1');
+    const { user, router } = renderApp('/fleet/admin/clusters/dev-1');
     await findDetails();
 
     await openActions(user);
@@ -258,35 +258,35 @@ describe('ClusterDetailPage (T-0035)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Disable' }));
 
     expect(await screen.findByText('Cluster dev-1 no longer exists')).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getAllByText('Cluster dev-1 no longer exists')).toHaveLength(1);
   });
 
   it('T-0033 review: a refetch that finds the cluster deleted returns to the list', async () => {
-    const { router, queryClient } = renderApp('/admin/clusters/dev-1');
+    const { router, queryClient } = renderApp('/fleet/admin/clusters/dev-1');
     await findDetails();
 
     deleteBehindOurBack('dev-1');
     await queryClient.invalidateQueries({ queryKey: adminKeys.cluster('dev-1') });
 
     expect(await screen.findByText('Cluster dev-1 no longer exists')).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters'));
   });
 
   it('QG-3: an unknown cluster shows a not-found state with a way back', async () => {
-    const { user, router } = renderApp('/admin/clusters/nope');
+    const { user, router } = renderApp('/fleet/admin/clusters/nope');
 
     expect(await screen.findByRole('heading', { name: 'Cluster nope not found' })).toBeInTheDocument();
     expect(screen.queryByText(/Loading cluster/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Back to Clusters' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters'));
   });
 
   it('QG-3: other errors show the detail with a working Retry', async () => {
     server.use(http.get('/api/admin/clusters/{name}', () => problem(500, { detail: 'Database unavailable.' })));
-    const { user } = renderApp('/admin/clusters/dev-1');
+    const { user } = renderApp('/fleet/admin/clusters/dev-1');
 
     expect(await screen.findByText('Could not load cluster')).toBeInTheDocument();
     expect(screen.getByText('Database unavailable.')).toBeInTheDocument();

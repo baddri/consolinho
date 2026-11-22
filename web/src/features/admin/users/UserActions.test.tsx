@@ -62,7 +62,7 @@ describe('User actions (T-0031)', () => {
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const commands = recordCommands();
-      const { user, router } = renderApp('/admin/users');
+      const { user, router } = renderApp('/fleet/admin/users');
       await findUsersTable(COLD_START_TIMEOUT_MS);
 
       await user.click(screen.getByRole('button', { name: 'Add user' }));
@@ -74,7 +74,7 @@ describe('User actions (T-0031)', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
       expect(await screen.findByText('User newbie created')).toBeInTheDocument();
-      await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users/newbie'));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users/newbie'));
       expect(commands).toEqual([{ method: 'POST', path: '/api/admin/users', csrf: '1' }]);
       expect(mockDb.users.find((u) => u.username === 'newbie')?.isAdminByAssignment).toBe(true);
     },
@@ -82,7 +82,7 @@ describe('User actions (T-0031)', () => {
 
   it('USR-2: shows client, duplicate (409) and server 400 errors on the username field', async () => {
     const commands = recordCommands();
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     await findUsersTable();
     await user.click(screen.getByRole('button', { name: 'Add user' }));
     const dialog = await screen.findByRole('dialog', { name: 'Add user' });
@@ -111,7 +111,7 @@ describe('User actions (T-0031)', () => {
   });
 
   it('USR-3/ADR-0017/USR-6: offers Promote/Demote by role source', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     expect(await openKebab(user, table, 'admin')).toEqual([
@@ -145,7 +145,7 @@ describe('User actions (T-0031)', () => {
   });
 
   it('ADR-0017: promoting a configuration admin explains why and records the role', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
     await openKebab(user, table, 'admin');
     await user.click(screen.getByRole('menuitem', { name: 'Promote to administrator' }));
@@ -160,7 +160,7 @@ describe('User actions (T-0031)', () => {
   });
 
   it('USR-4: deactivate names user and cluster count; reactivate restores the status', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     await openKebab(user, table, 'alice');
@@ -185,7 +185,7 @@ describe('User actions (T-0031)', () => {
   });
 
   it('USR-4: deactivating a user without grants mentions no clusters or grants', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     await openKebab(user, table, 'bob');
@@ -196,7 +196,7 @@ describe('User actions (T-0031)', () => {
   });
 
   it('USR-5: sets read-only with the explanation', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
     await openKebab(user, table, 'bob');
     await user.click(screen.getByRole('menuitem', { name: 'Set read-only' }));
@@ -219,7 +219,7 @@ describe('User actions (T-0031)', () => {
         }),
       ),
     );
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     await openKebab(user, table, 'carol');
@@ -242,7 +242,7 @@ describe('User actions (T-0031)', () => {
   });
 
   it('ADM-4: a version conflict shows the detail inline and a second confirm succeeds', async () => {
-    const { user, queryClient } = renderApp('/admin/users');
+    const { user, queryClient } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
     bumpVersion('alice');
 
@@ -262,7 +262,7 @@ describe('User actions (T-0031)', () => {
   it('ADM-2: as a read-only admin every action is visible but disabled and sends nothing', async () => {
     setMockUser('ines');
     const commands = recordCommands();
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     const add = screen.getByRole('button', { name: 'Add user' });

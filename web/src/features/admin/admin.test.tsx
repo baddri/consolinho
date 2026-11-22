@@ -29,7 +29,7 @@ describe('admin area access (ADM-3)', () => {
     async () => {
       setMockUser('alice');
       const requests = spyOnRequests();
-      renderApp('/admin/users');
+      renderApp('/fleet/admin/users');
 
       expect(
         await screen.findByRole(
@@ -48,7 +48,7 @@ describe('admin area access (ADM-3)', () => {
 
   it('also hides unknown admin paths behind the no-access page for a non-admin', async () => {
     setMockUser('alice');
-    renderApp('/admin/x/y');
+    renderApp('/fleet/admin/x/y');
 
     expect(
       await screen.findByRole('heading', { name: "You don't have access to Fleet administration" }),
@@ -66,7 +66,7 @@ describe('admin area access (ADM-3)', () => {
   });
 
   it('shows the Fleet administration sidebar section with all admin pages to an admin', async () => {
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
 
     expect(await screen.findByRole('heading', { name: 'Clusters', level: 1 })).toBeInTheDocument();
     const nav = await openSidebar(user);
@@ -76,10 +76,10 @@ describe('admin area access (ADM-3)', () => {
     expect(section.closest('li')).toHaveClass('pf-m-current');
     await expandSection(user, nav, 'Fleet administration');
     const links = {
-      Users: '/admin/users',
-      Clusters: '/admin/clusters',
-      Credentials: '/admin/credentials',
-      'Audit log': '/admin/audit',
+      Users: '/fleet/admin/users',
+      Clusters: '/fleet/admin/clusters',
+      Credentials: '/fleet/admin/credentials',
+      'Audit log': '/fleet/admin/audit',
     };
     for (const [name, href] of Object.entries(links)) {
       expect(within(nav).getByRole('link', { name })).toHaveAttribute('href', href);
@@ -89,7 +89,7 @@ describe('admin area access (ADM-3)', () => {
 
   it('lets a read-only admin into the admin area', async () => {
     setMockUser('ines');
-    renderApp('/admin/audit');
+    renderApp('/fleet/admin/audit');
 
     expect(await screen.findByRole('heading', { name: 'Audit log', level: 1 })).toBeInTheDocument();
   });

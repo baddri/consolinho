@@ -4,9 +4,10 @@ import { KindBadge, PageHeading } from '@/shared/ui';
 import { ADMIN_KIND_ABBR } from '../AdminResourceLink';
 import { UserActionsDropdown } from './UserActionsDropdown';
 import { UserStatusLabel } from './UserStatusLabel';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Breadcrumb of every state of the page (`UX.md` §3): `Users › User details`. */
-const BREADCRUMBS = [{ label: 'Users', to: '/admin/users' }, { label: 'User details' }];
+const BREADCRUMBS = [{ label: 'Users', to: fleetAdminPath('users') }, { label: 'User details' }];
 
 /**
  * The header's category labels (`UX.md` §5): Admin and Read only. Where an admin role comes from is on the Details

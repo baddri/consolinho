@@ -58,7 +58,7 @@ describe('Bulk grant wizard (T-0040)', () => {
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const requests = captureBulk();
-      const { user, queryClient } = renderApp('/admin/users/alice/access');
+      const { user, queryClient } = renderApp('/fleet/admin/users/alice/access');
       const dialog = await openWizard(user, 'alice', COLD_START_TIMEOUT_MS);
 
       // Already granted and credential-less clusters are listed but not selectable.
@@ -73,7 +73,8 @@ describe('Bulk grant wizard (T-0040)', () => {
       expect(within(dialog).getByRole('radio', { name: /Read only/ })).toBeChecked();
       await footer(user, dialog, 'Next');
 
-      // Table (name) order, not click order; single-credential clusters pre-filled, prod-us-1 (two credentials, no preferred name) empty.
+      // Table (name) order, not click order; single-credential clusters pre-filled, prod-us-1 (two credentials, no
+      // preferred name) empty.
       const rows = reviewRows(dialog);
       expect(rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent)).toEqual([
         'dev-1',
@@ -127,7 +128,7 @@ describe('Bulk grant wizard (T-0040)', () => {
   );
 
   it('has exactly one close control (the wizard header X) and closes on Escape', async () => {
-    const { user } = renderApp('/admin/users/bob/access');
+    const { user } = renderApp('/fleet/admin/users/bob/access');
     const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);
 
     expect(within(dialog).getAllByRole('button', { name: /close/i })).toHaveLength(1);
@@ -136,7 +137,7 @@ describe('Bulk grant wizard (T-0040)', () => {
   });
 
   it('GRANT-4: highlights production rows and warns about read write on them', async () => {
-    const { user } = renderApp('/admin/users/bob/access');
+    const { user } = renderApp('/fleet/admin/users/bob/access');
     const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);
 
     // Keyboard: the per-cluster checkboxes are labelled and toggle with Space.
@@ -167,7 +168,7 @@ describe('Bulk grant wizard (T-0040)', () => {
       ),
     );
     const grantsBefore = mockDb.grants.length;
-    const { user } = renderApp('/admin/users/alice/access');
+    const { user } = renderApp('/fleet/admin/users/alice/access');
     const dialog = await openWizard(user, 'alice', COLD_START_TIMEOUT_MS);
     for (const cluster of ['dev-1', 'dev-2']) await user.click(checkboxOf(dialog, cluster));
     await footer(user, dialog, 'Next');
@@ -192,7 +193,7 @@ describe('Bulk grant wizard (T-0040)', () => {
   });
 
   it('USR-2: "Create and grant access" opens the wizard for the new user', async () => {
-    const { user, router } = renderApp('/admin/users');
+    const { user, router } = renderApp('/fleet/admin/users');
     const [add] = await screen.findAllByRole('button', { name: 'Add user' }, { timeout: COLD_START_TIMEOUT_MS });
     if (!add) throw new Error('no Add user');
     await user.click(add);
@@ -202,7 +203,7 @@ describe('Bulk grant wizard (T-0040)', () => {
     await user.click(within(create).getByRole('button', { name: 'Create and grant access' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Grant newbie access to clusters' });
-    expect(router.state.location.pathname).toBe('/admin/users/newbie/access');
+    expect(router.state.location.pathname).toBe('/fleet/admin/users/newbie/access');
     expect(router.state.location.state).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -210,7 +211,7 @@ describe('Bulk grant wizard (T-0040)', () => {
 
   it('ADM-2: a read-only admin sees every entry point disabled', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/users/bob/access');
+    const { user } = renderApp('/fleet/admin/users/bob/access');
     await screen.findByText('No cluster access yet', {}, { timeout: COLD_START_TIMEOUT_MS });
     // The toolbar's button and the empty state's; the Actions menu has no grant item (T-0118 #9).
     const buttons = screen.getAllByRole('button', { name: 'Grant access' });

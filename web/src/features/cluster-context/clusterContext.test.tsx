@@ -107,7 +107,7 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         return HttpResponse.json([]);
       }),
     );
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     expect(await findSwitcher(user, 'Loading clusters')).toBeDisabled();
   });
@@ -118,7 +118,7 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         once: true,
       }),
     );
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     await user.click(await findSwitcher(user, 'Clusters unavailable — retry'));
 
@@ -199,7 +199,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
   it('shows and selects the preferred cluster on a non-cluster page', async () => {
     grantAllClusters();
     localStorage.setItem(LAST_CLUSTER_KEY, 'staging-eu-1');
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     const options = await openSwitcher(user, 'Cluster staging-eu-1 (staging), switch cluster');
     const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
@@ -262,7 +262,7 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
   it('hides recent clusters that are no longer granted', async () => {
     setMockUser('alice');
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1', 'staging-eu-1']));
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
     const recent = screen.getByRole('listbox', { name: 'Recent clusters' });
@@ -289,7 +289,7 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
 
   it('has no Recent group for a fresh user', async () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1']));
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
@@ -314,7 +314,7 @@ describe('ClusterSwitcher keeps context (SW-9)', () => {
 
   it('goes to the cluster root from a non-cluster page', async () => {
     grantAllClusters();
-    const { user, router } = renderApp('/admin/users');
+    const { user, router } = renderApp('/fleet/admin/users');
 
     const options = await openSwitcher(user, /switch cluster$/);
     await user.click(optionOf(options, 'dev-2'));
@@ -377,14 +377,14 @@ describe('landing on / (SW-3/SW-4)', () => {
     expect(screen.getByText(/You are logged in as/)).toHaveTextContent('You are logged in as admin,');
     expect(screen.getByRole('link', { name: 'Go to Fleet administration' })).toHaveAttribute(
       'href',
-      '/admin/users',
+      '/fleet/admin/users',
     );
     expect(screen.getByText(/Admins need a grant too/)).toHaveTextContent(
       'Admins need a grant too: grant yourself access from your user page.',
     );
     expect(screen.getByRole('link', { name: 'grant yourself access from your user page' })).toHaveAttribute(
       'href',
-      '/admin/users/admin/access',
+      '/fleet/admin/users/admin/access',
     );
   });
 
@@ -396,7 +396,7 @@ describe('landing on / (SW-3/SW-4)', () => {
     expect(await screen.findByRole('heading', { name: 'No clusters assigned yet' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Go to Fleet administration' })).toHaveAttribute(
       'href',
-      '/admin/users',
+      '/fleet/admin/users',
     );
     expect(
       screen.getByText('Admins need a grant too: ask another administrator to grant you access.'),
@@ -448,7 +448,7 @@ describe('sidebar cluster links', () => {
     setMockUser('carol');
     // carol: prod-eu-1 granted (dev-2 is disabled); stale names fall back to it.
     localStorage.setItem(LAST_CLUSTER_KEY, 'dev-2');
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     const nav = await openSidebar(user);
     await expandSection(user, nav, 'Home');

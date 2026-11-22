@@ -79,7 +79,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     'CRED-3/4: prod-us-1 shows SA identity, opaque warning, expired/unknown expiry and test results',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
-      const { user } = renderApp('/admin/clusters/prod-us-1/credentials');
+      const { user } = renderApp('/fleet/admin/clusters/prod-us-1/credentials');
       const table = await findTable('prod-us-1', COLD_START_TIMEOUT_MS);
 
       const view = rowOf(table, 'fleet-view');
@@ -106,13 +106,13 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   );
 
   it('CRED-4: valid, expiring-soon, no-expiry and stale-test variants', async () => {
-    renderApp('/admin/clusters/prod-eu-1/credentials');
+    renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     let table = await findTable('prod-eu-1');
     expect(cellText(rowOf(table, 'fleet-view'), 'Expiry')).toMatch(/^Validin /);
     expect(cellText(rowOf(table, 'fleet-view'), 'Last test')).toMatch(/^Passed · Cluster-wide view/);
     expect(cellText(rowOf(table, 'fleet-edit'), 'Expiry')).toMatch(/^Expires soonin \d+ days$/);
 
-    renderApp('/admin/clusters/staging-eu-1/credentials');
+    renderApp('/fleet/admin/clusters/staging-eu-1/credentials');
     table = await findTable('staging-eu-1');
     const admin = rowOf(table, 'fleet-admin');
     expect(cellText(admin, 'Expiry')).toBe('No expiry');
@@ -121,7 +121,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('QG-3: empty state offers Add credential and the oc command', async () => {
-    renderApp('/admin/clusters/lab-1/credentials');
+    renderApp('/fleet/admin/clusters/lab-1/credentials');
     expect(await screen.findByRole('heading', { name: 'No credentials' })).toBeInTheDocument();
     expect(screen.getByText(/Users can't be granted access until you add a ServiceAccount token/)).toBeInTheDocument();
     expect(screen.getByDisplayValue('oc create token <service-account> -n <namespace> --duration=8760h')).toBeVisible();
@@ -134,7 +134,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
         problem(500, { code: 'Internal', detail: 'Database unavailable.' }),
       ),
     );
-    renderApp('/admin/clusters/prod-eu-1/credentials');
+    renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     expect(await screen.findByText('Could not load credentials')).toBeInTheDocument();
     expect(screen.getByText('Database unavailable.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
   it('ADM-2: a read-only admin sees Add, Rotate and Delete disabled', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
     expect(screen.getByRole('button', { name: 'Add credential' })).toHaveAttribute('aria-disabled', 'true');
     await user.click(within(rowOf(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }));
@@ -153,7 +153,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
   it('CRED-1/2: add trims the token, sends CSRF, toasts and forgets the token', async () => {
     const writes = captureCredentialWrites();
-    const { user, queryClient } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
 
     await user.click(screen.getByRole('button', { name: 'Add credential' }));
@@ -182,7 +182,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
   it('CRED-1: whitespace inside the token is a client error; nothing is sent', async () => {
     const writes = captureCredentialWrites();
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     await findTable('prod-eu-1');
     await user.click(screen.getByRole('button', { name: 'Add credential' }));
     const dialog = await screen.findByRole('dialog', { name: /Add credential/ });
@@ -195,7 +195,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('CRED-1: NameTaken lands on the name field; server field errors on their fields', async () => {
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     await findTable('prod-eu-1');
     await user.click(screen.getByRole('button', { name: 'Add credential' }));
     const dialog = await screen.findByRole('dialog', { name: /Add credential/ });
@@ -222,7 +222,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('Q10: adding an opaque token shows the warning toast', async () => {
-    const { user, queryClient } = renderApp('/admin/clusters/lab-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/lab-1/credentials');
     await screen.findByRole('heading', { name: 'No credentials' });
     await user.click(screen.getAllByRole('button', { name: 'Add credential' })[0] ?? document.body);
     const dialog = await screen.findByRole('dialog', { name: /Add credential to lab-1/ });
@@ -238,7 +238,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
   it('CRED-5/2: rotate shows fingerprint and affected users, sends version, forgets the token', async () => {
     const writes = captureCredentialWrites();
-    const { user, queryClient } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
     const before = mockDb.credentials.find((c) => c.id === credentialIds.prodEuView);
 
@@ -261,7 +261,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('ADM-4: a stale version shows ConflictAlert and keeps the typed token', async () => {
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
     await rowAction(user, table, 'fleet-edit', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit/ });
@@ -292,7 +292,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
         return undefined;
       }),
     );
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
     await rowAction(user, table, 'fleet-view', 'Delete');
 
@@ -308,7 +308,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('CRED-6: an unused credential deletes after confirmation; a race shows the in-use view', async () => {
-    const { user } = renderApp('/admin/clusters/prod-us-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-us-1/credentials');
     const table = await findTable('prod-us-1');
 
     await rowAction(user, table, 'legacy-token', 'Delete');
@@ -334,7 +334,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('404: rotating a credential deleted meanwhile closes the dialog with a warning toast', async () => {
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
     await rowAction(user, table, 'fleet-edit', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
@@ -350,7 +350,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('404: deleting a credential deleted meanwhile closes the dialog with a warning toast', async () => {
-    const { user } = renderApp('/admin/clusters/prod-us-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-us-1/credentials');
     const table = await findTable('prod-us-1');
     await rowAction(user, table, 'legacy-token', 'Delete');
     const dialog = await screen.findByRole('dialog', { name: /^Delete credential\?/ });

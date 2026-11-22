@@ -13,12 +13,13 @@ import {
 import { CaCertificatesTable } from './CaCertificatesTable';
 import { ClusterStatusLabel } from './ClusterStatusLabel';
 import { TlsModeLabel } from './TlsModeLabel';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Placeholder for missing values, as elsewhere in the console. */
 const EMPTY = '—';
 
 /** Link target of "View audit entries": the audit log filtered to the cluster (CLU-8, AUD-4). */
-export const clusterAuditPath = (name: string) => `/admin/audit?${new URLSearchParams({ cluster: name })}`;
+export const clusterAuditPath = (name: string) => fleetAdminPath(`audit?${new URLSearchParams({ cluster: name })}`);
 
 /** The cluster's own web console, opened in a new tab (it lives on another origin). */
 function WebConsoleLink({ url }: { url: string }) {
@@ -36,8 +37,8 @@ export interface ClusterDetailsTabProps {
 
 /**
  * Details tab of the cluster detail page (CLU-8, `UX.md` §6): "Cluster details" h2 over two vertical columns — what
- * the cluster is (name, display name, environment, description, status, web console link) left, how it is reached and its
- * history (API URL with copy, TLS mode, counts, change times, audit link) right — followed by the CA certificates
+ * the cluster is (name, display name, environment, description, status, web console link) left, how it is reached and
+ * its history (API URL with copy, TLS mode, counts, change times, audit link) right — followed by the CA certificates
  * ({@link CaCertificatesTable}, CLU-2). Purely presentational; the page loads the `ClusterDetail`.
  */
 export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {

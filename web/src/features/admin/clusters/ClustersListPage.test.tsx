@@ -44,14 +44,14 @@ describe('ClustersListPage (CLU-7)', () => {
   beforeAll(() => preloadLazyRoutes([adminRoute]));
 
   it('renders every column from the fixtures', { timeout: COLD_START_TEST_TIMEOUT_MS }, async () => {
-    renderApp('/admin/clusters');
+    renderApp('/fleet/admin/clusters');
 
     const table = await findClustersTable(COLD_START_TIMEOUT_MS);
     expect(visibleClusters(table)).toEqual(ALL_CLUSTERS);
     expect(screen.getByRole('heading', { name: 'Clusters', level: 1 })).toBeInTheDocument();
     expect(within(table).getByRole('link', { name: 'prod-eu-1' })).toHaveAttribute(
       'href',
-      '/admin/clusters/prod-eu-1',
+      '/fleet/admin/clusters/prod-eu-1',
     );
 
     const prodEu = rowOf(table, 'prod-eu-1');
@@ -87,7 +87,7 @@ describe('ClustersListPage (CLU-7)', () => {
   });
 
   it('explains the worst credential expiry in a tooltip', async () => {
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     await user.hover(within(rowOf(table, 'prod-eu-1')).getByText('Expires soon'));
@@ -95,7 +95,7 @@ describe('ClustersListPage (CLU-7)', () => {
   });
 
   it('filters by text and environment and keeps the filters in the URL', async () => {
-    const { user, router } = renderApp('/admin/clusters');
+    const { user, router } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     await user.click(screen.getByRole('textbox', { name: 'Filter by name' }));
@@ -116,7 +116,7 @@ describe('ClustersListPage (CLU-7)', () => {
   });
 
   it('pre-filters from a ?env=production deep link', async () => {
-    renderApp('/admin/clusters?env=production');
+    renderApp('/fleet/admin/clusters?env=production');
     const table = await findClustersTable();
 
     await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-us-1']));
@@ -124,7 +124,7 @@ describe('ClustersListPage (CLU-7)', () => {
   });
 
   it('shows the OCP no-match row with "Clear filters" when nothing matches', async () => {
-    const { user } = renderApp('/admin/clusters?q=nothing-like-this');
+    const { user } = renderApp('/fleet/admin/clusters?q=nothing-like-this');
     const table = await screen.findByRole('grid', { name: 'Clusters' });
 
     expect(await within(table).findByText('No Clusters found')).toBeInTheDocument();
@@ -134,7 +134,7 @@ describe('ClustersListPage (CLU-7)', () => {
 
   it('shows the empty state with Register cluster when no cluster exists', async () => {
     mockDb.clusters = [];
-    const { user, router } = renderApp('/admin/clusters');
+    const { user, router } = renderApp('/fleet/admin/clusters');
 
     expect(await screen.findByRole('heading', { name: 'No Clusters found' })).toBeInTheDocument();
     expect(
@@ -144,7 +144,7 @@ describe('ClustersListPage (CLU-7)', () => {
     const [, emptyStateRegister] = screen.getAllByRole('button', { name: 'Register cluster' });
     if (!emptyStateRegister) throw new Error('no Register cluster in the empty state');
     await user.click(emptyStateRegister);
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/new'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/new'));
   });
 
   it('shows skeleton rows while loading', async () => {
@@ -153,7 +153,7 @@ describe('ClustersListPage (CLU-7)', () => {
         await delay('infinite');
       }),
     );
-    renderApp('/admin/clusters');
+    renderApp('/fleet/admin/clusters');
 
     const table = await screen.findByRole('grid', { name: 'Clusters' });
     expect(within(table).getByText('Loading')).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe('ClustersListPage (CLU-7)', () => {
         { once: true },
       ),
     );
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
 
     expect(await screen.findByText('Could not load clusters')).toBeInTheDocument();
     expect(screen.getByText('The cluster store is unavailable.')).toBeInTheDocument();
@@ -186,7 +186,7 @@ describe('ClustersListPage (CLU-7)', () => {
         displayName: `Bulk ${i}`,
       });
     }
-    renderApp('/admin/clusters');
+    renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     expect(visibleClusters(table)).toHaveLength(ALL_CLUSTERS.length + 40);
@@ -194,7 +194,7 @@ describe('ClustersListPage (CLU-7)', () => {
 
   it('keeps Register cluster visible but aria-disabled for a read-only admin (ADM-2)', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     expect(visibleClusters(table)).toEqual(ALL_CLUSTERS);

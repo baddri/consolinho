@@ -16,8 +16,8 @@ function HomeLink(props: Omit<LinkProps, 'to'>) {
 }
 
 /**
- * Shown instead of any `/admin/...` page to signed-in users who are not admins (ADM-3): an explanation rather than a
- * blank screen or a raw 403.
+ * Shown instead of any `/fleet/admin/...` page to signed-in users who are not admins (ADM-3): an explanation rather
+ * than a blank screen or a raw 403.
  */
 export function AdminNoAccessPage() {
   return (

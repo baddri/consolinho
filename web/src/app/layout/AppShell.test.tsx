@@ -210,7 +210,7 @@ describe('AppShell', () => {
 
     it.each([
       ['a development cluster', 'admin', '/c/dev-1/overview'],
-      ['an admin page', 'alice', '/admin/users'],
+      ['an admin page', 'alice', '/fleet/admin/users'],
     ])('is absent on %s', async (_case, username, path) => {
       setMockUser(username);
       const { user } = renderApp(path);

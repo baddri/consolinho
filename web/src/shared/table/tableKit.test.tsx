@@ -119,9 +119,9 @@ function DemoList({ rows }: { rows?: DemoCluster[] }) {
   );
 }
 
-function renderDemo(url = '/admin/clusters', { loading = false } = {}) {
+function renderDemo(url = '/fleet/admin/clusters', { loading = false } = {}) {
   const element = <DemoList rows={loading ? undefined : ROWS} />;
-  const router = createMemoryRouter([{ path: '/admin/clusters', element }], {
+  const router = createMemoryRouter([{ path: '/fleet/admin/clusters', element }], {
     initialEntries: [url],
   });
   const result = render(<RouterProvider router={router} />);
@@ -159,7 +159,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('filters while typing and writes ?q= without adding history entries', async () => {
-    const { user, router } = renderDemo('/admin/clusters?keep=1');
+    const { user, router } = renderDemo('/fleet/admin/clusters?keep=1');
 
     await user.type(screen.getByRole('textbox', { name: 'Search clusters' }), 'DEV');
 
@@ -192,7 +192,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('removes a whole filter category via its label group', async () => {
-    const { user, router } = renderDemo('/admin/clusters?env=production&env=staging&q=e');
+    const { user, router } = renderDemo('/fleet/admin/clusters?env=production&env=staging&q=e');
 
     await user.click(screen.getByRole('button', { name: /close label group/i }));
 
@@ -201,14 +201,14 @@ describe('admin list kit (demo list)', () => {
 
   it('shows a filter count instead of labels on narrow screens', () => {
     mockViewportWidth(1024);
-    renderDemo('/admin/clusters?env=production&env=staging');
+    renderDemo('/fleet/admin/clusters?env=production&env=staging');
 
     expect(screen.getByText('2 filters applied')).toBeInTheDocument();
     expect(screen.queryByRole('list', { name: 'Environment' })).not.toBeInTheDocument();
   });
 
   it('labels a page-supplied filterItems filter and clears it with "Clear all filters"', async () => {
-    const { user, router } = renderDemo('/admin/clusters?keep=1');
+    const { user, router } = renderDemo('/fleet/admin/clusters?keep=1');
 
     await user.click(screen.getByRole('button', { name: 'Filter by Status' }));
     await user.click(screen.getByRole('option', { name: 'Disabled' }));
@@ -225,7 +225,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('single-select filter: picking the selected option again clears it', async () => {
-    const { user, router } = renderDemo('/admin/clusters?status=enabled');
+    const { user, router } = renderDemo('/fleet/admin/clusters?status=enabled');
 
     expect(within(filterLabels('Status')).getByText('Enabled')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Filter by Status' }));
@@ -236,7 +236,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('"Clear all filters" resets every declared filter and keeps other params', async () => {
-    const { user, router } = renderDemo('/admin/clusters?q=prod&env=production&keep=1');
+    const { user, router } = renderDemo('/fleet/admin/clusters?q=prod&env=production&keep=1');
 
     await user.click(screen.getByRole('button', { name: 'Clear all filters' }));
 
@@ -264,7 +264,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('ignores unknown URL values and drops them on the next write', async () => {
-    const { user, router } = renderDemo('/admin/clusters?env=bogus&env=staging&status=weird&keep=1');
+    const { user, router } = renderDemo('/fleet/admin/clusters?env=bogus&env=staging&status=weird&keep=1');
 
     expect(visibleNames()).toEqual(['stage-1']);
     expect(screen.getByText('Active filters: 1')).toBeInTheDocument();
@@ -276,7 +276,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('shows the no-match row with "Clear all filters"', async () => {
-    const { user, router } = renderDemo('/admin/clusters?q=nothing-matches');
+    const { user, router } = renderDemo('/fleet/admin/clusters?q=nothing-matches');
 
     expect(screen.getByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
     const table = screen.getByRole('grid', { name: 'Clusters' });
@@ -287,7 +287,7 @@ describe('admin list kit (demo list)', () => {
   });
 
   it('renders skeleton rows while loading, announced once', () => {
-    renderDemo('/admin/clusters', { loading: true });
+    renderDemo('/fleet/admin/clusters', { loading: true });
 
     expect(screen.getAllByRole('row')).toHaveLength(4); // header + 3 skeleton rows
     expect(screen.getAllByText('Loading')).toHaveLength(1);

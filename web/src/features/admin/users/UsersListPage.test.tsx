@@ -50,7 +50,7 @@ describe('UsersListPage (USR-1)', () => {
   it('renders every column from the fixtures', { timeout: COLD_START_TEST_TIMEOUT_MS }, async () => {
     const alice = mockDb.users.find((u) => u.username === 'alice');
     if (alice) alice.groups = ['sre', 'oncall', 'platform', 'dba', 'network'];
-    renderApp('/admin/users');
+    renderApp('/fleet/admin/users');
 
     const table = await findUsersTable(COLD_START_TIMEOUT_MS);
     expect(visibleUsernames(table)).toEqual(ALL_USERS);
@@ -66,7 +66,7 @@ describe('UsersListPage (USR-1)', () => {
     expect(within(rowOf(table, 'admin')).getByText('U')).toHaveAttribute('title', 'User');
     expect(within(table).getByRole('link', { name: 'pending-paul' })).toHaveAttribute(
       'href',
-      '/admin/users/pending-paul',
+      '/fleet/admin/users/pending-paul',
     );
 
     const admin = within(rowOf(table, 'admin'));
@@ -99,7 +99,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('explains pending users in a tooltip', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     await user.hover(within(rowOf(table, 'pending-paul')).getByText('Pending'));
@@ -107,7 +107,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('filters by text over groups and keeps the filter in the URL', async () => {
-    const { user, router } = renderApp('/admin/users');
+    const { user, router } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     // Paste, not type: every keystroke re-renders the table and updates the URL, which under load pushed this test
@@ -123,7 +123,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('filters by role and status chips and clears all filters', async () => {
-    const { user, router } = renderApp('/admin/users');
+    const { user, router } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     await checkFilterOption(user, 'Role', 'Admin');
@@ -144,7 +144,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('pre-filters from a ?status=deactivated deep link', async () => {
-    renderApp('/admin/users?status=deactivated');
+    renderApp('/fleet/admin/users?status=deactivated');
     const table = await screen.findByRole('grid', { name: 'Users' });
 
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['dave']));
@@ -152,7 +152,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('filters by the read-only flag', async () => {
-    const { user, router } = renderApp('/admin/users');
+    const { user, router } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
 
     await checkFilterOption(user, 'Read only', 'Yes');
@@ -166,7 +166,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('shows the OCP no-match row with "Clear filters" when nothing matches', async () => {
-    const { user, router } = renderApp('/admin/users?q=nobody-like-this');
+    const { user, router } = renderApp('/fleet/admin/users?q=nobody-like-this');
     const table = await screen.findByRole('grid', { name: 'Users' });
 
     expect(await within(table).findByText('No Users found')).toBeInTheDocument();
@@ -176,7 +176,7 @@ describe('UsersListPage (USR-1)', () => {
   });
 
   it('sorts by last login in both directions with never-logged-in users last', async () => {
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
     const table = await findUsersTable();
     const header = within(table).getByRole('button', { name: 'Last login' });
 
@@ -212,7 +212,7 @@ describe('UsersListPage (USR-1)', () => {
         await delay('infinite');
       }),
     );
-    renderApp('/admin/users');
+    renderApp('/fleet/admin/users');
 
     const table = await screen.findByRole('grid', { name: 'Users' });
     expect(within(table).getByText('Loading')).toBeInTheDocument();
@@ -226,7 +226,7 @@ describe('UsersListPage (USR-1)', () => {
         { once: true },
       ),
     );
-    const { user } = renderApp('/admin/users');
+    const { user } = renderApp('/fleet/admin/users');
 
     expect(await screen.findByText('Could not load users')).toBeInTheDocument();
     expect(screen.getByText('The user store is unavailable.')).toBeInTheDocument();
@@ -239,7 +239,7 @@ describe('UsersListPage (USR-1)', () => {
 
   it('works for a read-only admin (ADM-2, AUD-5)', async () => {
     setMockUser('ines');
-    renderApp('/admin/users');
+    renderApp('/fleet/admin/users');
 
     const table = await findUsersTable();
     expect(visibleUsernames(table)).toEqual(ALL_USERS);

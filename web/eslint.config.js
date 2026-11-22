@@ -53,6 +53,20 @@ const documentAllowedFiles = [
   'src/test/**',
 ];
 
+/**
+ * Admin URLs are built by `fleetAdminPath()` only (ADR-0033 §3, FLEET-7): a string or template head starting with
+ * `/admin` is a pre-CP3.7 path. The legacy redirect and its test are the exceptions (see below).
+ */
+const legacyAdminPathMessage = 'Use fleetAdminPath() (ADR-0033).';
+const noLegacyAdminPaths = [
+  'error',
+  { selector: 'Literal[value=/^\\/admin(\\/|$)/]', message: legacyAdminPathMessage },
+  {
+    selector: 'TemplateLiteral > TemplateElement:first-child[value.raw=/^\\/admin(\\/|$)/]',
+    message: legacyAdminPathMessage,
+  },
+];
+
 /** Allows importing another feature only through its public entry point. */
 const featurePublicApi = { to: { element: { type: 'feature', fileInternalPath: 'index.ts' } } };
 
@@ -81,6 +95,7 @@ export default tseslint.config(
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
       // `onClick={() => setOpen(false)}` is idiomatic React; braces add noise without catching bugs.
       '@typescript-eslint/no-confusing-void-expression': ['error', { ignoreArrowShorthand: true }],
+      'no-restricted-syntax': noLegacyAdminPaths,
     },
   },
   {
@@ -141,6 +156,11 @@ export default tseslint.config(
       'no-restricted-globals': 'off',
       'no-restricted-properties': ['error', ...domLookupBans],
     },
+  },
+  {
+    // The legacy `/admin` → `/fleet/admin` redirect has to name the old prefix (ADR-0033 §2).
+    files: ['src/features/admin/LegacyAdminRedirect.tsx', 'src/features/admin/LegacyAdminRedirect.test.tsx'],
+    rules: { 'no-restricted-syntax': 'off' },
   },
   {
     // main.tsx mounts React into index.html's #root — the only place a DOM lookup is legitimate.

@@ -1,4 +1,5 @@
-import { Navigate, type RouteObject } from 'react-router';
+import type { RouteObject } from 'react-router';
+import { RedirectKeepingQuery } from '@/shared/routing';
 import { NotFoundPage } from '@/shared/ui';
 import type { AdminTabHandle, ClusterDetailTab, UserDetailTab } from './adminTabs';
 import { AdminPageSpinner } from './AdminPageSpinner';
@@ -8,7 +9,8 @@ import { RequireAdmin } from './RequireAdmin';
 const tab = (id: UserDetailTab | ClusterDetailTab): AdminTabHandle => ({ tab: id });
 
 /**
- * Every admin route (FRONTEND.md "Routing"), mounted by the app under the shell at `/admin`.
+ * Every admin route (FRONTEND.md "Routing"), mounted by the app under the shell at `/fleet/admin` (inside the `fleet`
+ * route, ADR-0033).
  *
  * **Code splitting convention:** each page is a separate module that exports a named component, loaded with React
  * Router's `lazy` as `lazy: () => import('./area/XPage').then((m) => ({ Component: m.XPage }))`. Keep the import
@@ -26,7 +28,7 @@ export const adminRoute: RouteObject = {
   element: <RequireAdmin />,
   HydrateFallback: AdminPageSpinner,
   children: [
-    { index: true, element: <Navigate to="users" replace /> },
+    { index: true, element: <RedirectKeepingQuery to="users" /> },
     {
       path: 'users',
       lazy: () => import('./users/UsersListPage').then((m) => ({ Component: m.UsersListPage })),

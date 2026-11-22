@@ -1,7 +1,7 @@
 ---
 id: T-0144
 title: Move admin pages to /fleet/admin/* with legacy /admin redirects
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 3.7
 depends_on: []
@@ -59,17 +59,45 @@ redirect there (replace, query + hash kept). Paths are built in one place so CP5
 - OCP reference: none (URL-only); OCP uses top-level prefixes per area (`/k8s/cluster/...`, `/settings/cluster`).
 
 ## Acceptance criteria
-- [ ] `/fleet` → `/fleet/admin/users`; every admin page renders at `/fleet/admin/<rest>` (router tests).
-- [ ] `/admin`, `/admin/clusters/prod-eu-1/credentials?x=1#y` → `/fleet/admin/...` with same search + hash, history
+- [x] `/fleet` → `/fleet/admin/users`; every admin page renders at `/fleet/admin/<rest>` (router tests).
+- [x] `/admin`, `/admin/clusters/prod-eu-1/credentials?x=1#y` → `/fleet/admin/...` with same search + hash, history
       replaced; `/admin/nope` → admin 404; login `returnUrl=/admin/users` ends on `/fleet/admin/users` (FLEET-6).
-- [ ] Non-admin on `/fleet/admin/users` gets today's forbidden page (FLEET-8).
-- [ ] No `/admin` literal outside the redirect + its test; ESLint rule fails on a new one (FLEET-7).
-- [ ] `perspectiveOf` unit tests (`/fleet`, `/fleet/admin/x`, `/fleetx`, `/c/a`, `/`).
-- [ ] FRONTEND.md Routing updated. Build, lint and tests green (CLAUDE.md rule 4).
-- [ ] Probe pages: none (no visual change); ux-designer smoke-checks `/fleet/admin/users` and `/fleet/admin/clusters/prod-eu-1`.
+- [x] Non-admin on `/fleet/admin/users` gets today's forbidden page (FLEET-8).
+- [x] No `/admin` literal outside the redirect + its test; ESLint rule fails on a new one (FLEET-7).
+- [x] `perspectiveOf` unit tests (`/fleet`, `/fleet/admin/x`, `/fleetx`, `/c/a`, `/`).
+- [x] FRONTEND.md Routing updated. Build, lint and tests green (CLAUDE.md rule 4).
+- [x] Probe pages: none (no visual change); ux-designer smoke-checks `/fleet/admin/users` and `/fleet/admin/clusters/prod-eu-1`.
 
 ## Work log
+- 2026-11-23 frontend-engineer: `shared/routing` (perspective helpers + tests), `fleet` route + `legacyAdminRoute`,
+  production literals → `fleetAdminPath`, tests rewritten by sed (52 files), ESLint guard, FRONTEND.md Routing.
+  `scripts/check-fe.sh` green (826 tests). No probe run: URL-only change.
+- 2026-11-23 fix round 1: index redirects (`/fleet`, `/fleet/admin`) dropped query/hash; new `shared/routing` `RedirectKeepingQuery` used for both; tests for `/admin?mockUser=admin`, `/admin?x=1#h`, `/admin/clusters?x=1`, `/fleet[/admin]?x=1#h`.
 
 ## Review
+- ux (round 1): APPROVE. Probe + Playwright text check on mock UI, light @1280, no images opened.
+  - `/fleet/admin/users` — h1 "Users" 24px/600, margin-bottom 8px; nav item current — unchanged — OK.
+  - `/fleet/admin/clusters/prod-eu-1` — h1 "prod-eu-1" 24px/600; breadcrumb "Clusters > Cluster details" 14px, link → `/fleet/admin/clusters` — OK.
+  - `/admin/users?x=1#y` → `/fleet/admin/users?x=1#y`; `/admin/clusters/prod-eu-1` → `/fleet/...`; `/admin`, `/fleet` → `/fleet/admin/users` — OK.
+  - alice on `/fleet/admin/users` — "You don't have access to Fleet administration" — OK.
+  - Non-blocking (FE/QA): bare `/admin?mockUser=admin` lands on `/fleet/admin/users` without the search (index redirect hop drops it); AC says "same search" — check with a test if it matters.
+- 2026-11-23 frontend-architect, round 1: **APPROVE**. `scripts/check-fe.sh` green (75 files / 826 tests, build ok).
+  Contract matches ADR-0033 §1–4: `shared/routing` API as specified, `fleet` route (index → `admin/users`, `*` 404),
+  `legacyAdminRoute` outside `RequireAdmin` with search/hash + REPLACE tested, all production literals → `fleetAdminPath`;
+  grep finds no `'/admin` literal outside the redirect (comments only). ESLint selectors also cover JSX `to="/admin…"`.
+- Nit (optional): `fleetAdminPath` also carries queries (`'audit?user=…'`); fine and documented, but CP5 may want a
+  `{ pathname, search }` overload if more query-bearing helpers appear.
 
 ## Handover notes
+- New: `web/src/shared/routing/{index,perspective,perspective.test}.ts`, `features/admin/LegacyAdminRedirect{,.test}.tsx`
+  (`legacyAdminRoute` exported from `features/admin/index.ts`); `app/router.tsx` mounts `fleet` > {index → admin/users,
+  `adminRoute`, `*` 404} and `legacyAdminRoute` after it.
+- ESLint `no-restricted-syntax`: `Literal` matching `^/admin(/|$)` and the *head* template element only
+  (`TemplateLiteral > TemplateElement:first-child`) so `${FLEET_PATH}/admin` in `fleetAdminPath` is allowed; off for
+  `LegacyAdminRedirect{,.test}.tsx`. Verified it flags `'/admin'`, `'/admin/x'`, `` `/admin/${x}` ``, not `/api/admin`.
+- FLEET-8 is covered by the existing `admin.test.tsx` non-admin tests, now on `/fleet/admin/...`.
+- e2e had no `/admin` literals. The comment re-wrap to 120 cols touched a few neighbouring pre-existing long comment
+  lines in edited files (text unchanged).
+- Index redirects use `RedirectKeepingQuery` (keeps search + hash); legacy `/admin` cases live in the exempt
+  `LegacyAdminRedirect.test.tsx` because the lint rule bans `/admin` literals in `router.test.tsx`.
+- `buildAdminNav` keeps its name (T-0145 renames/moves it). ux-designer smoke check still pending.

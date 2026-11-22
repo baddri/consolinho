@@ -11,15 +11,16 @@ import { CubesIcon } from '@patternfly/react-icons';
 import { Link, type LinkProps } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
 import { PRODUCT_NAME } from '@/shared/branding';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Router link to the admin users list that PatternFly's `Button` can render as. */
 function AdminUsersLink(props: Omit<LinkProps, 'to'>) {
-  return <Link {...props} to="/admin/users" />;
+  return <Link {...props} to={fleetAdminPath('users')} />;
 }
 
 /**
- * Landing page for a signed-in user without any cluster (SW-4). Admins additionally get a way into Fleet administration and
- * the reminder that the Admin role alone grants no cluster access (GRANT-6), with a link to their own access tab —
+ * Landing page for a signed-in user without any cluster (SW-4). Admins additionally get a way into Fleet administration
+ * and the reminder that the Admin role alone grants no cluster access (GRANT-6), with a link to their own access tab —
  * or, for a read-only admin who cannot grant, the advice to ask another administrator.
  * Rendered inside `RequireSession`, so `me` is loaded.
  */
@@ -50,7 +51,7 @@ export function NoClustersPage() {
             ) : (
               <Content component="p">
                 Admins need a grant too:{' '}
-                <Link to={`/admin/users/${encodeURIComponent(username)}/access`}>
+                <Link to={fleetAdminPath(`users/${encodeURIComponent(username)}/access`)}>
                   grant yourself access from your user page
                 </Link>
                 .

@@ -5,7 +5,7 @@ const ENVIRONMENTS: readonly ClusterEnvironment[] = ['production', 'staging', 'd
 const STATUSES = ['enabled', 'disabled'] as const;
 
 /**
- * URL filters of `/admin/clusters` (`?q=&env=&status=`): `q` searches name, display name and API URL; `env` and
+ * URL filters of `/fleet/admin/clusters` (`?q=&env=&status=`): `q` searches name, display name and API URL; `env` and
  * `status` are multi-selects, so `?env=production` deep-links to the production clusters.
  */
 export const CLUSTER_FILTERS = {

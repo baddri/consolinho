@@ -89,7 +89,7 @@ describe('Connection test (T-0038)', () => {
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const requests = captureTests();
-      const { user } = renderApp('/admin/clusters/prod-eu-1');
+      const { user } = renderApp('/fleet/admin/clusters/prod-eu-1');
       await user.click(await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }));
       await user.click(await screen.findByRole('menuitem', { name: 'Test connection' }));
       const dialog = await screen.findByRole('dialog', { name: /Test connection to prod-eu-1/ });
@@ -119,7 +119,7 @@ describe('Connection test (T-0038)', () => {
   );
 
   it('TEST-1/5: disabled dev-2 — credential kebab "Test" pre-selects it, notes the disabled cluster (T-0052) and the Last test cell updates', async () => {
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     expect(within(credentialRow(table, 'fleet-view')).getByText('Never tested')).toBeInTheDocument();
 
@@ -137,7 +137,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('TEST-1: the disabled-cluster note and a failing stored test (TLS) from the list kebab', async () => {
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const link = await screen.findByRole('link', { name: 'dev-2' });
     const row = link.closest('tr');
     if (!row) throw new Error('no dev-2 row');
@@ -162,7 +162,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('TEST-1: a cluster without credentials has the action aria-disabled with the reason', async () => {
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const row = (await screen.findByRole('link', { name: 'lab-1' })).closest('tr');
     if (!row) throw new Error('no lab-1 row');
     await user.click(within(row).getByRole('button', { name: 'Kebab toggle' }));
@@ -173,7 +173,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('TEST-3: inspect namespace — invalid input is a field error; the server error lands on the field too', async () => {
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
@@ -196,7 +196,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('TEST-3: inspecting a namespace shows its rules', async () => {
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
@@ -208,7 +208,7 @@ describe('Connection test (T-0038)', () => {
 
   it('TEST-1: "Cancel test" aborts a slow test, announces it, and nothing is shown or retried', async () => {
     const signals = holdRequests('/api/admin/clusters/{name}/credentials/{credentialId}/test');
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
@@ -228,7 +228,7 @@ describe('Connection test (T-0038)', () => {
 
   it('CRED-5: the rotate dialog\'s "Cancel test" aborts test-token and keeps the typed token', async () => {
     const signals = holdRequests('/api/admin/clusters/{name}/test-token');
-    const { user, queryClient } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await credentialAction(user, table, 'fleet-edit', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
@@ -249,7 +249,7 @@ describe('Connection test (T-0038)', () => {
 
   it('ADM-2: test actions are aria-disabled for a read-only admin', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await user.click(within(credentialRow(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }));
     expect(await screen.findByRole('menuitem', { name: 'Test' })).toHaveAttribute('aria-disabled', 'true');
@@ -260,7 +260,7 @@ describe('Connection test (T-0038)', () => {
 
   it('CRED-5/2: "Test new token" posts test-token; a failure turns Rotate into "Save anyway"; edits reset it', async () => {
     const requests = captureTests();
-    const { user, queryClient } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await credentialAction(user, table, 'fleet-edit', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
@@ -305,7 +305,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('CRED-5: "Save anyway" rotates the token whose test failed', async () => {
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await credentialAction(user, table, 'fleet-view', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-view on prod-eu-1/ });

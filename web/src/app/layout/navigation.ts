@@ -1,5 +1,6 @@
 import { ADMIN_SECTIONS } from '@/features/admin';
 import type { NavSection } from '@/features/resources';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Sidebar types are owned by `features/resources` (its `useClusterNav` builds the cluster sections). */
 export type { NavLinkItem, NavSection } from '@/features/resources';
@@ -11,9 +12,9 @@ export function buildAdminNav(): NavSection {
     title: 'Fleet administration',
     items: ADMIN_SECTIONS.map((section) => ({
       label: section.title,
-      to: `/admin/${section.id}`,
+      to: fleetAdminPath(section.id),
       isActive: (pathname: string) =>
-        pathname === `/admin/${section.id}` || pathname.startsWith(`/admin/${section.id}/`),
+        pathname === fleetAdminPath(section.id) || pathname.startsWith(`${fleetAdminPath(section.id)}/`),
     })),
   };
 }

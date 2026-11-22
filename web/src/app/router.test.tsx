@@ -71,21 +71,34 @@ describe('routes', () => {
     expect(router.state.location.search).toBe(search);
   });
 
-  it('redirects /admin to the users list', async () => {
-    const { router } = renderApp('/admin');
+  it.each(['/fleet', '/fleet/admin'])('redirects %s to the users list', async (path) => {
+    const { router } = renderApp(path);
 
     expect(await screen.findByRole('heading', { name: 'Users', level: 1 })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe('/admin/users');
+    expect(router.state.location.pathname).toBe('/fleet/admin/users');
+  });
+
+  // Index redirects keep query and hash (legacy `/admin` cases: LegacyAdminRedirect.test.tsx).
+  it.each([
+    ['/fleet?x=1#h', '/fleet/admin/users', '?x=1', '#h'],
+    ['/fleet/admin?x=1#h', '/fleet/admin/users', '?x=1', '#h'],
+  ])('redirects %s to %s keeping search and hash', async (path, pathname, search, hash) => {
+    const { router } = renderApp(path);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(pathname));
+    expect(router.state.location.search).toBe(search);
+    expect(router.state.location.hash).toBe(hash);
+    expect(router.state.historyAction).toBe('REPLACE');
   });
 
   // Every admin route resolves to its lazily loaded page module (placeholders until the page tasks land).
   it.each([
-    ['/admin/users', 'Users', {}],
-    ['/admin/clusters', 'Clusters', {}],
-    ['/admin/clusters/new', 'Register cluster', {}],
-    ['/admin/clusters/dev-1/edit', 'Edit dev-1', {}],
-    ['/admin/credentials', 'Credentials', {}],
-    ['/admin/audit', 'Audit log', {}],
+    ['/fleet/admin/users', 'Users', {}],
+    ['/fleet/admin/clusters', 'Clusters', {}],
+    ['/fleet/admin/clusters/new', 'Register cluster', {}],
+    ['/fleet/admin/clusters/dev-1/edit', 'Edit dev-1', {}],
+    ['/fleet/admin/credentials', 'Credentials', {}],
+    ['/fleet/admin/audit', 'Audit log', {}],
   ])('renders %s', async (path, title, params) => {
     renderApp(path);
 
@@ -100,12 +113,12 @@ describe('routes', () => {
   // The user (T-0032) and cluster (T-0035) detail pages title themselves with the decoded route name, also for an
   // unknown one (404 state); tab selection is covered by their page tests.
   it.each([
-    ['/admin/users/alice', 'alice'],
-    ['/admin/users/alice/access', 'alice'],
-    ['/admin/users/kube%3Aadmin', 'kube:admin'],
-    ['/admin/clusters/dev-1', 'dev-1'],
-    ['/admin/clusters/dev-1/credentials', 'dev-1'],
-    ['/admin/clusters/dev-1/access', 'dev-1'],
+    ['/fleet/admin/users/alice', 'alice'],
+    ['/fleet/admin/users/alice/access', 'alice'],
+    ['/fleet/admin/users/kube%3Aadmin', 'kube:admin'],
+    ['/fleet/admin/clusters/dev-1', 'dev-1'],
+    ['/fleet/admin/clusters/dev-1/credentials', 'dev-1'],
+    ['/fleet/admin/clusters/dev-1/access', 'dev-1'],
   ])('renders %s', async (path, title) => {
     renderApp(path);
 
@@ -121,10 +134,11 @@ describe('routes', () => {
 
   it.each([
     '/nope',
-    '/admin/unknown',
-    '/admin/x/y',
-    '/admin/users/alice/unknown-tab',
-    '/admin/clusters/dev-1/credentials/extra',
+    '/fleet/unknown',
+    '/fleet/admin/unknown',
+    '/fleet/admin/x/y',
+    '/fleet/admin/users/alice/unknown-tab',
+    '/fleet/admin/clusters/dev-1/credentials/extra',
     '/c/dev-1/k8s/ns/default/pods/web-1/extra/deep',
     '/c/dev-1/ns/default/pods',
   ])('renders 404 for %s', async (path) => {

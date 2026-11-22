@@ -7,9 +7,10 @@ import { AdminResourceLink } from '../AdminResourceLink';
 import { UserRoleLabels } from './UserRoleLabels';
 import { USER_STATUS_TEXT, UserStatusLabel } from './UserStatusLabel';
 import { useUserActions } from './useUserActions';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Path of a user's detail page; usernames may contain characters that need encoding (`:`, `@`, …). */
-export const userDetailPath = (username: string) => `/admin/users/${encodeURIComponent(username)}`;
+export const userDetailPath = (username: string) => fleetAdminPath(`users/${encodeURIComponent(username)}`);
 
 /** Placeholder for missing values, as elsewhere in the console. */
 const EMPTY = '—';

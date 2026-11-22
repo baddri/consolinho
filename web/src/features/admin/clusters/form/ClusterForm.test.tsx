@@ -61,7 +61,7 @@ describe('Register cluster (CLU-1..3)', () => {
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const commands = recordCommands();
-      const { user, router, queryClient } = renderApp('/admin/clusters/new');
+      const { user, router, queryClient } = renderApp('/fleet/admin/clusters/new');
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
       await screen.findByRole(
         'heading',
@@ -75,7 +75,7 @@ describe('Register cluster (CLU-1..3)', () => {
       await fillRequired(user);
       await user.click(screen.getByRole('button', { name: 'Register' }));
 
-      await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/lab-2/credentials'));
+      await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/lab-2/credentials'));
       expect(await screen.findByText('Cluster lab-2 registered')).toBeInTheDocument();
       expect(await commands()).toEqual([
         {
@@ -101,7 +101,7 @@ describe('Register cluster (CLU-1..3)', () => {
 
   it('CLU-1: shows inline client errors and sends nothing', async () => {
     const commands = recordCommands();
-    const { user } = renderApp('/admin/clusters/new');
+    const { user } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await user.click(field('Name'));
@@ -130,7 +130,7 @@ describe('Register cluster (CLU-1..3)', () => {
   });
 
   it('CLU-2: an invalid CA bundle from the server lands on the CA bundle field', async () => {
-    const { user } = renderApp('/admin/clusters/new');
+    const { user } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await fillRequired(user);
@@ -155,7 +155,7 @@ describe('Register cluster (CLU-1..3)', () => {
         }),
       ),
     );
-    const { user } = renderApp('/admin/clusters/new');
+    const { user } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await fillRequired(user);
@@ -167,7 +167,7 @@ describe('Register cluster (CLU-1..3)', () => {
 
   it('CLU-2: a CA bundle over 256 KiB is rejected client-side', async () => {
     const commands = recordCommands();
-    const { user } = renderApp('/admin/clusters/new');
+    const { user } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await fillRequired(user);
@@ -180,7 +180,7 @@ describe('Register cluster (CLU-1..3)', () => {
   });
 
   it('CLU-1: 409 Clusters.NameTaken shows on the name', async () => {
-    const { user } = renderApp('/admin/clusters/new');
+    const { user } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await fillRequired(user, 'dev-1');
@@ -191,7 +191,7 @@ describe('Register cluster (CLU-1..3)', () => {
 
   it('CLU-3: Skip TLS warns, conflicts with a CA bundle and needs confirmation on production', async () => {
     const commands = recordCommands();
-    const { user, router } = renderApp('/admin/clusters/new');
+    const { user, router } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     await fillRequired(user, 'prod-ap-1');
@@ -222,7 +222,7 @@ describe('Register cluster (CLU-1..3)', () => {
     await user.click(screen.getByRole('button', { name: 'Register' }));
     dialog = await screen.findByRole('dialog', { name: /Save without TLS verification/ });
     await user.click(within(dialog).getByRole('button', { name: 'Save without TLS verification' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/prod-ap-1/credentials'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/prod-ap-1/credentials'));
     const sent = await commands();
     expect(sent).toHaveLength(1);
     expect(sent[0]?.body).toMatchObject({ environment: 'production', skipTlsVerify: true, caBundle: null });
@@ -231,7 +231,7 @@ describe('Register cluster (CLU-1..3)', () => {
   it('ADM-2: Register is aria-disabled with the reason for a read-only admin', async () => {
     setMockUser('ines');
     const commands = recordCommands();
-    const { user } = renderApp('/admin/clusters/new');
+    const { user } = renderApp('/fleet/admin/clusters/new');
     await screen.findByRole('heading', { name: 'Register cluster', level: 1 });
 
     const register = screen.getByRole('button', { name: 'Register' });
@@ -249,7 +249,7 @@ describe('Edit cluster (CLU-4, ADM-4)', () => {
 
   it('CLU-4: hides name and enabled, sends the version and returns to the detail page', async () => {
     const commands = recordCommands();
-    const { user, router, queryClient } = renderApp('/admin/clusters/dev-1/edit');
+    const { user, router, queryClient } = renderApp('/fleet/admin/clusters/dev-1/edit');
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     await screen.findByRole('heading', { name: 'Edit dev-1', level: 1 });
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -271,7 +271,7 @@ describe('Edit cluster (CLU-4, ADM-4)', () => {
     await user.paste('Development 1');
     await user.click(screen.getByRole('button', { name: 'Save' }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/dev-1'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/dev-1'));
     expect(await screen.findByText('Cluster dev-1 updated')).toBeInTheDocument();
     const [put] = await commands();
     expect(put).toMatchObject({ method: 'PUT', path: '/api/admin/clusters/dev-1', csrf: '1' });
@@ -282,7 +282,7 @@ describe('Edit cluster (CLU-4, ADM-4)', () => {
   });
 
   it('ADM-4: a conflict keeps typed values; "Reload latest values" resets them', async () => {
-    const { user } = renderApp('/admin/clusters/dev-1/edit');
+    const { user } = renderApp('/fleet/admin/clusters/dev-1/edit');
     const displayName = await screen.findByRole('textbox', { name: 'Display name' });
     const cluster = mockDb.clusters.find((c) => c.name === 'dev-1');
     if (!cluster) throw new Error('fixture dev-1 missing');
@@ -305,17 +305,17 @@ describe('Edit cluster (CLU-4, ADM-4)', () => {
   });
 
   it('shows a not-found state for an unknown cluster', async () => {
-    renderApp('/admin/clusters/nope/edit');
+    renderApp('/fleet/admin/clusters/nope/edit');
 
     expect(await screen.findByRole('heading', { name: 'Cluster nope not found' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to Clusters' })).toHaveAttribute('href', '/admin/clusters');
+    expect(screen.getByRole('link', { name: 'Back to Clusters' })).toHaveAttribute('href', '/fleet/admin/clusters');
   });
 
   it('shows an error state with retry when loading fails', async () => {
     server.use(
       http.get('/api/admin/clusters/{name}', () => problem(500, { detail: 'Database unavailable.' })),
     );
-    renderApp('/admin/clusters/dev-1/edit');
+    renderApp('/fleet/admin/clusters/dev-1/edit');
 
     expect(await screen.findByText('Could not load cluster')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Retry/ })).toBeInTheDocument();

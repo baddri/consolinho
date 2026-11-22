@@ -46,7 +46,7 @@ function ReviewLink(props: ComponentProps<'a'>) {
  * Fleet-wide token expiry warning (CRED-8) shown on the Clusters and Credentials pages before tokens break. Uses the
  * shared fleet credentials query; renders nothing while loading, on error (the pages show their own) or when no
  * credential is expired or expiring soon. Danger when any token has expired, otherwise warning. "Review credentials"
- * opens `/admin/credentials` filtered to both statuses.
+ * opens `/fleet/admin/credentials` filtered to both statuses.
  */
 export function CredentialExpiryAlert() {
   const { data } = useFleetCredentials();

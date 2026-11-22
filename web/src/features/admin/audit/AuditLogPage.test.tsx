@@ -49,7 +49,7 @@ describe('AuditLogPage', () => {
   it('AUD-2: shows time, actor, action, target, cluster and summary; expanding shows details and correlation id', {
     timeout: COLD_START_TEST_TIMEOUT_MS,
   }, async () => {
-    const { user } = renderApp('/admin/audit');
+    const { user } = renderApp('/fleet/admin/audit');
 
     const table = await findAuditTable(COLD_START_TIMEOUT_MS);
     expect(screen.getByRole('heading', { name: 'Audit log', level: 1 })).toBeInTheDocument();
@@ -73,11 +73,11 @@ describe('AuditLogPage', () => {
     expect(within(systemRow).getByText('system')).toBeInTheDocument();
     // User and cluster targets are OCP `ResourceLink`s (kind badge + link), as an event's involved object.
     const target = within(systemRow).getByRole('link', { name: 'admin' });
-    expect(target).toHaveAttribute('href', '/admin/users/admin');
+    expect(target).toHaveAttribute('href', '/fleet/admin/users/admin');
     expect(within(systemRow).getByTitle('User')).toHaveTextContent('U');
 
     const clusterLink = within(table).getAllByRole('link', { name: 'prod-eu-1' })[0];
-    expect(clusterLink).toHaveAttribute('href', '/admin/clusters/prod-eu-1');
+    expect(clusterLink).toHaveAttribute('href', '/fleet/admin/clusters/prod-eu-1');
 
     await user.click(cells.getByRole('button', { name: 'Details' }));
     expect(await within(table).findByText(/"groups": \[/)).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-4: "Load more" appends pages by cursor without duplicates under one query key', async () => {
     const requests = recordAuditRequests();
-    const { user, queryClient } = renderApp('/admin/audit');
+    const { user, queryClient } = renderApp('/fleet/admin/audit');
     const table = await findAuditTable();
 
     expect(screen.getByText('Showing 50 entries')).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-4: ?user= and ?cluster= deep links pre-filter; the user filter shows a removable label', async () => {
     const requests = recordAuditRequests();
-    const { user, router } = renderApp('/admin/audit?user=alice');
+    const { user, router } = renderApp('/fleet/admin/audit?user=alice');
     const table = await findAuditTable();
 
     expect(lastRequest(requests).get('user')).toBe('alice');
@@ -126,7 +126,7 @@ describe('AuditLogPage', () => {
     await waitFor(() => expect(router.state.location.search).toBe(''));
     await waitFor(() => expect(lastRequest(requests).has('user')).toBe(false));
 
-    await router.navigate('/admin/audit?cluster=prod-eu-1');
+    await router.navigate('/fleet/admin/audit?cluster=prod-eu-1');
     await waitFor(() => expect(lastRequest(requests).get('cluster')).toBe('prod-eu-1'));
     // The results remount per filter set: query the screen, not the old table.
     await waitFor(() => expect(screen.queryByText('alice logged in.')).not.toBeInTheDocument());
@@ -137,7 +137,7 @@ describe('AuditLogPage', () => {
   // One filter per test keeps each test short, so none nears Vitest's timeout when suites run in parallel.
   it('AUD-4: the category select writes ?category= and sends it', async () => {
     const requests = recordAuditRequests();
-    const { user, router } = renderApp('/admin/audit');
+    const { user, router } = renderApp('/fleet/admin/audit');
     await findAuditTable();
 
     await checkFilterOption(user, 'Category', 'Users', 'Target');
@@ -147,7 +147,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-4: the actor typeahead applies a clicked suggestion', async () => {
     const requests = recordAuditRequests();
-    const { user, router } = renderApp('/admin/audit');
+    const { user, router } = renderApp('/fleet/admin/audit');
     await findAuditTable();
 
     await chooseFilter(user, 'Actor', 'Target');
@@ -160,7 +160,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-4: the cluster typeahead applies free text with Enter and suggestions with arrow keys', async () => {
     const requests = recordAuditRequests();
-    const { user, router } = renderApp('/admin/audit');
+    const { user, router } = renderApp('/fleet/admin/audit');
     await findAuditTable();
     await chooseFilter(user, 'Cluster', 'Target');
     const cluster = screen.getByRole('combobox', { name: 'Filter by Cluster' });
@@ -183,7 +183,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-4: the target search writes ?target= after the debounce', async () => {
     const requests = recordAuditRequests();
-    const { user, router } = renderApp('/admin/audit');
+    const { user, router } = renderApp('/fleet/admin/audit');
     await findAuditTable();
 
     await user.click(screen.getByRole('textbox', { name: 'Filter by target name' }));
@@ -194,7 +194,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-4: a preset sends from ≈ now − range; custom sends both bounds', async () => {
     const requests = recordAuditRequests();
-    const { user, router } = renderApp('/admin/audit');
+    const { user, router } = renderApp('/fleet/admin/audit');
     await findAuditTable();
 
     await user.click(screen.getByRole('button', { name: 'Filter by Time' }));
@@ -208,7 +208,7 @@ describe('AuditLogPage', () => {
     expect(await screen.findByText('Showing 29 entries')).toBeInTheDocument();
 
     const bounds = '?range=custom&from=2026-01-01T00%3A00%3A00.000Z&to=2026-01-02T00%3A00%3A00.000Z';
-    await router.navigate(`/admin/audit${bounds}`);
+    await router.navigate(`/fleet/admin/audit${bounds}`);
     await waitFor(() => expect(lastRequest(requests).get('to')).toBe('2026-01-02T00:00:00.000Z'));
     expect(lastRequest(requests).get('from')).toBe('2026-01-01T00:00:00.000Z');
 
@@ -231,7 +231,7 @@ describe('AuditLogPage', () => {
 
   it('PAUD-4: proxy entries show the resource and its outcome; Proxy is a category', async () => {
     const requests = recordAuditRequests();
-    const { user } = renderApp('/admin/audit?category=proxy&cluster=dev-1');
+    const { user } = renderApp('/fleet/admin/audit?category=proxy&cluster=dev-1');
     const table = await findAuditTable();
     expect(lastRequest(requests).get('category')).toBe('proxy');
 
@@ -254,7 +254,7 @@ describe('AuditLogPage', () => {
   });
 
   it('400 on a hand-edited filter shows the problem and "Clear all filters"', async () => {
-    const { user, router } = renderApp('/admin/audit?from=yesterday');
+    const { user, router } = renderApp('/fleet/admin/audit?from=yesterday');
 
     expect(await screen.findByText('These filters are not valid')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Filter errors' })).toHaveTextContent('from: Enter an ISO 8601 timestamp.');
@@ -265,7 +265,7 @@ describe('AuditLogPage', () => {
   });
 
   it('shows the no-match state with "Clear all filters"', async () => {
-    const { user } = renderApp('/admin/audit?actor=nobody');
+    const { user } = renderApp('/fleet/admin/audit?actor=nobody');
 
     expect(await screen.findByRole('heading', { name: 'No results match the filter criteria' })).toBeInTheDocument();
     const table = screen.getByRole('grid', { name: 'Audit log' });
@@ -280,7 +280,7 @@ describe('AuditLogPage', () => {
         return new Response(null, { status: 500 });
       }),
     );
-    renderApp('/admin/audit');
+    renderApp('/fleet/admin/audit');
 
     expect(await screen.findByRole('grid', { name: 'Audit log' })).toBeInTheDocument();
     expect(await screen.findByText('Could not load the audit log')).toBeInTheDocument();
@@ -289,7 +289,7 @@ describe('AuditLogPage', () => {
 
   it('AUD-5: works for a read-only admin', async () => {
     setMockUser('ines');
-    renderApp('/admin/audit');
+    renderApp('/fleet/admin/audit');
 
     const table = await findAuditTable();
     expect(entryCount(table)).toBe(50);

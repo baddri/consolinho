@@ -10,6 +10,7 @@ import { useFleetCredentials } from './api';
 import { CREDENTIAL_FILTERS, EXPIRY_OPTIONS, matchesCredentialFilters } from './credentialFilters';
 import { CredentialExpiryAlert } from './CredentialExpiryAlert';
 import { FLEET_CREDENTIAL_COLUMNS } from './fleetCredentialColumns';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Filter elements (OCP `ConsoleDataView`): Name, then the attribute filters. Module-level, so never recreated. */
 const FILTER_NODES = [
@@ -37,7 +38,7 @@ const idOf = (credential: Credential) => credential.id;
 
 /** Router link to the clusters list that PatternFly's `Button` can render as. */
 function ClustersLink(props: Omit<LinkProps, 'to'>) {
-  return <Link {...props} to="/admin/clusters" />;
+  return <Link {...props} to={fleetAdminPath('clusters')} />;
 }
 
 /** No credential anywhere yet: where credentials are added, with a way there (OCP custom list empty state). */
@@ -57,10 +58,10 @@ function NoCredentials() {
 }
 
 /**
- * `/admin/credentials` — every credential of the fleet in one list, soonest expiry first (CRED-7), under the expiry
- * alert (CRED-8), as an OCP list page (`UX.md` §5, `ConsoleDataView`). Filters live in the URL (`?q=&expiry=&env=`;
- * Name searches cluster, credential name and service account) so the alert can link to a pre-filtered view. Rows link
- * to the cluster's Credentials tab, where rotate/delete live. Lazy-loaded by `routes.tsx`.
+ * `/fleet/admin/credentials` — every credential of the fleet in one list, soonest expiry first (CRED-7), under the
+ * expiry alert (CRED-8), as an OCP list page (`UX.md` §5, `ConsoleDataView`). Filters live in the URL
+ * (`?q=&expiry=&env=`; Name searches cluster, credential name and service account) so the alert can link to a
+ * pre-filtered view. Rows link to the cluster's Credentials tab, where rotate/delete live. Lazy-loaded by `routes.tsx`.
  */
 export function CredentialsListPage() {
   const { data, error, isPending, refetch } = useFleetCredentials();

@@ -37,7 +37,7 @@ function useExpandedRows() {
 }
 
 /**
- * `/admin/audit` — the audit log viewer (AUD-2, AUD-4, AUD-5): a filterable, linkable history of admin and auth
+ * `/fleet/admin/audit` — the audit log viewer (AUD-2, AUD-4, AUD-5): a filterable, linkable history of admin and auth
  * events, newest first. Filters live in the URL (`?actor=&user=&category=&cluster=&target=&range=&from=&to=`, see
  * `auditFilters.ts`), so the "View audit entries" links of the user and cluster pages land pre-filtered. The results
  * remount per filter set (fresh `now` for preset ranges, collapsed rows). Read-only: no mutating controls (AUD-3),

@@ -1,4 +1,4 @@
-/** Admin area sections, in sidebar order. `id` is the URL segment under `/admin/`. */
+/** Admin area sections, in sidebar order. `id` is the URL segment under `/fleet/admin/`. */
 export const ADMIN_SECTIONS = [
   { id: 'users', title: 'Users' },
   { id: 'clusters', title: 'Clusters' },

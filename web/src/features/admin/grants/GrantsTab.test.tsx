@@ -100,11 +100,14 @@ describe('Grants tabs (T-0039)', () => {
     'USR-7: the user tab lists the clusters with access mode, credential and granted',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
-      renderApp('/admin/users/alice/access');
+      renderApp('/fleet/admin/users/alice/access');
       const table = await findTable('Cluster access of alice', COLD_START_TIMEOUT_MS);
       expect(within(table).getAllByRole('link').map((link) => link.textContent)).toEqual(['prod-eu-1', 'staging-eu-1']);
       const prod = rowOf(table, 'prod-eu-1');
-      expect(within(prod).getByRole('link', { name: 'prod-eu-1' })).toHaveAttribute('href', '/admin/clusters/prod-eu-1');
+      expect(within(prod).getByRole('link', { name: 'prod-eu-1' })).toHaveAttribute(
+        'href',
+        '/fleet/admin/clusters/prod-eu-1',
+      );
       expect(cellText(prod, 'Access mode')).toBe('Read only');
       expect(cellText(prod, 'Credential')).toMatch(/^fleet-viewValid.*Passed · Cluster-wide view/);
       expect(cellText(prod, 'Granted')).toMatch(/ago by admin$/);
@@ -113,23 +116,23 @@ describe('Grants tabs (T-0039)', () => {
   );
 
   it('GRANT-5: marks disabled clusters, expired credentials and deactivated users', async () => {
-    const { router } = renderApp('/admin/users/carol/access');
+    const { router } = renderApp('/fleet/admin/users/carol/access');
     let table = await findTable('Cluster access of carol');
     expect(rowOf(table, 'dev-2')).toHaveTextContent('Cluster disabled');
     expect(rowOf(table, 'prod-eu-1')).not.toHaveTextContent('Cluster disabled');
 
-    await router.navigate('/admin/users/ines/access');
+    await router.navigate('/fleet/admin/users/ines/access');
     table = await findTable('Cluster access of ines');
     expect(rowOf(table, 'prod-us-1')).toHaveTextContent('Credential expired');
 
-    await router.navigate('/admin/clusters/dev-1/access');
+    await router.navigate('/fleet/admin/clusters/dev-1/access');
     table = await findTable('Access to dev-1');
     expect(rowOf(table, 'dave')).toHaveTextContent('User deactivated');
     expect(rowOf(table, 'admin')).not.toHaveTextContent('User deactivated');
   });
 
   it('CLU-8: the cluster Access tab lists users and filters by text (q in the URL)', async () => {
-    const { user, router } = renderApp('/admin/clusters/prod-eu-1/access');
+    const { user, router } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     expect(firstCells(table).map((text) => text.split(/[A-Z]/)[0])).toEqual(['alice', 'carol', 'pending-paul']);
     expect(cellText(rowOf(table, 'carol'), 'Access mode')).toBe('Read write');
@@ -146,7 +149,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('GRANT-2: a cluster with one credential pre-selects it; ReadOnly is the default', async () => {
     const writes = captureGrantWrites();
-    const { user } = renderApp('/admin/clusters/staging-eu-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/staging-eu-1/access');
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
 
@@ -171,7 +174,7 @@ describe('Grants tabs (T-0039)', () => {
   });
 
   it('GRANT-2/Q7: picker test labels and the production read-write warning', async () => {
-    const { user } = renderApp('/admin/clusters/prod-us-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/prod-us-1/access');
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to prod-us-1/ });
 
@@ -190,7 +193,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('GRANT-2: creates from the cluster page by picking a user and a credential', async () => {
     const writes = captureGrantWrites();
-    const { user } = renderApp('/admin/clusters/prod-eu-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     await findTable('Access to prod-eu-1');
     await user.click(screen.getByRole('button', { name: 'Grant access' }));
     const dialog = await screen.findByRole('dialog', { name: /Grant access to prod-eu-1/ });
@@ -220,7 +223,7 @@ describe('Grants tabs (T-0039)', () => {
       detail: 'bob already has access to dev-1 — change the existing grant instead',
     });
     server.use(http.post('/api/admin/grants', () => answer));
-    const { user } = renderApp('/admin/clusters/dev-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/dev-1/access');
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to dev-1/ });
     await pick(user, 'User', 'bob', 'bob');
@@ -244,7 +247,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('GRANT-3: changes mode and credential with the version, recovering from a conflict', async () => {
     const writes = captureGrantWrites();
-    const { user, queryClient } = renderApp('/admin/users/alice/access');
+    const { user, queryClient } = renderApp('/fleet/admin/users/alice/access');
     const table = await findTable('Cluster access of alice');
     await rowAction(user, table, 'prod-eu-1', 'Change');
     const dialog = await screen.findByRole('dialog', { name: /Change alice's access to prod-eu-1/ });
@@ -285,7 +288,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('GRANT-3: revoke names user, cluster and environment; 204 removes the row', async () => {
     const writes = captureGrantWrites();
-    const { user } = renderApp('/admin/clusters/prod-eu-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
     const dialog = await screen.findByRole('dialog', { name: 'Revoke access? prod' });
@@ -298,7 +301,7 @@ describe('Grants tabs (T-0039)', () => {
   });
 
   it('GRANT-3: revoking a grant revoked meanwhile closes with a warning toast', async () => {
-    const { user } = renderApp('/admin/clusters/prod-eu-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
     await rowAction(user, table, 'carol', 'Revoke');
     const dialog = await screen.findByRole('dialog', { name: /^Revoke access\?/ });
@@ -312,7 +315,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('GRANT-2: the picker says when its options could not load', async () => {
     server.use(http.get('/api/admin/users', () => problem(500, { detail: 'Database unavailable' })));
-    const { user } = renderApp('/admin/clusters/prod-eu-1/access');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     await clickFirst(user, 'Grant access');
     await screen.findByRole('dialog', { name: /Grant access to prod-eu-1/ });
     await user.click(screen.getByRole('combobox', { name: 'User' }));
@@ -321,7 +324,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('GRANT-6: an admin granting themselves a cluster sees it in the switcher without reload', async () => {
     setMockUser('admin');
-    const { user, queryClient } = renderApp('/admin/clusters/staging-eu-1/access');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/staging-eu-1/access');
     await waitFor(() => expect(queryClient.getQueryData(accessibleClustersQueryKey)).toBeDefined());
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
 
@@ -340,7 +343,7 @@ describe('Grants tabs (T-0039)', () => {
   });
 
   it('QG-3: empty and error states per tab', async () => {
-    const { user, router } = renderApp('/admin/clusters/lab-1/access');
+    const { user, router } = renderApp('/fleet/admin/clusters/lab-1/access');
     expect(await screen.findByText('Nobody has access to this cluster')).toBeInTheDocument();
 
     let fail = true;
@@ -349,7 +352,7 @@ describe('Grants tabs (T-0039)', () => {
         fail ? problem(500, { detail: 'Database unavailable' }) : undefined,
       ),
     );
-    await router.navigate('/admin/users/alice/access');
+    await router.navigate('/fleet/admin/users/alice/access');
     expect(await screen.findByText('Could not load grants')).toBeInTheDocument();
     fail = false;
     await user.click(screen.getByRole('button', { name: 'Retry' }));
@@ -358,7 +361,7 @@ describe('Grants tabs (T-0039)', () => {
 
   it('ADM-2: a read-only admin sees create and row actions disabled', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/users/alice/access');
+    const { user } = renderApp('/fleet/admin/users/alice/access');
     const table = await findTable('Cluster access of alice');
     expect(screen.getByRole('button', { name: 'Grant access' })).toHaveAttribute('aria-disabled', 'true');
     await user.click(within(rowOf(table, 'prod-eu-1')).getByRole('button', { name: 'Kebab toggle' }));
