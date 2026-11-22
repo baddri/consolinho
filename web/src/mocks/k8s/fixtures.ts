@@ -7,6 +7,7 @@ import type {
   Namespace,
   Pod,
   Project,
+  ReplicaSet,
   Service,
 } from '@/shared/k8s';
 import { fingerprintOf } from '../fixtures/ids';
@@ -301,7 +302,18 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
       strategy: { type: 'RollingUpdate', rollingUpdate: { maxSurge: '25%', maxUnavailable: '25%' } },
       template: {
         metadata: { labels: { app: 'web' } },
-        spec: { containers: [{ name: 'web', image, ports: [{ containerPort: 8080, protocol: 'TCP' }] }] },
+        spec: {
+          containers: [
+            {
+              name: 'web',
+              image,
+              ports: [{ containerPort: 8080, protocol: 'TCP' }],
+              resources: { limits: { cpu: '500m', memory: '256Mi' } },
+              volumeMounts: [{ name: 'config', mountPath: '/etc/web', readOnly: true }],
+            },
+          ],
+          volumes: [{ name: 'config', configMap: { name: 'web-config' } }],
+        },
       },
     },
     status: {
@@ -430,7 +442,45 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     );
   }
 
-  return [deployment, ...pods, service, webConfig, webAssets, ...events] as K8sResource[];
+  const replicaSet: ReplicaSet = {
+    apiVersion: 'apps/v1',
+    kind: 'ReplicaSet',
+    metadata: {
+      name: WEB_REPLICASET,
+      namespace: 'shop',
+      uid: replicaSetUid,
+      creationTimestamp: minutesBefore(180),
+      labels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) },
+      annotations: { 'deployment.kubernetes.io/revision': '4' },
+      ownerReferences: [
+        {
+          apiVersion: 'apps/v1',
+          kind: 'Deployment',
+          name: 'web',
+          uid: deploymentUid,
+          controller: true,
+          blockOwnerDeletion: true,
+        },
+      ],
+    },
+    spec: {
+      replicas: 3,
+      selector: { matchLabels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) } },
+      template: {
+        metadata: { labels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) } },
+        spec: deployment.spec?.template.spec,
+      },
+    },
+    status: {
+      replicas: 3,
+      readyReplicas: 2,
+      availableReplicas: 2,
+      fullyLabeledReplicas: 3,
+      observedGeneration: 4,
+    },
+  };
+
+  return [deployment, replicaSet, ...pods, service, webConfig, webAssets, ...events] as K8sResource[];
 }
 
 /** The `payments` namespace holds just a config map, so it is not empty. */

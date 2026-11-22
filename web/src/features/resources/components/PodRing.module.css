@@ -1,0 +1,32 @@
+/* OCP `.odc-pod-ring` (`PodRing.scss`): a 130px donut with its label centred in the hole. */
+.ring {
+  height: 130px;
+  margin-bottom: var(--pf-t--global--spacer--md);
+  position: relative;
+  width: 130px;
+}
+
+.empty {
+  fill: none;
+  stroke: var(--pf-t--global--border--color--default);
+}
+
+.label {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  line-height: 1.2;
+  position: absolute;
+  text-align: center;
+}
+
+.title {
+  font-size: var(--pf-t--global--font--size--body--default);
+}
+
+.subtitle {
+  color: var(--pf-t--global--text--color--subtle);
+  font-size: var(--pf-t--global--font--size--body--default);
+}

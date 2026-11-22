@@ -96,7 +96,9 @@ describe('ConsoleDataView (OCP ConsoleDataView)', () => {
 
   it('shows a "No <plural> found" row when filters match nothing', () => {
     renderView({ filteredData: [], isFiltered: true, filterValues: { name: 'zzz' } });
-    expect(within(screen.getByRole('grid', { name: 'Things' })).getByText('No Things found')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('grid', { name: 'Things' })).getByText('No Things found'),
+    ).toBeInTheDocument();
   });
 
   it('shows the error instead of the list', () => {

@@ -1,7 +1,7 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
-import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
+import { OwnerReferences } from '../../components/ObjectReferenceLink';
 import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
-import { PodContainers, PodDetails } from '../../details/sections/PodDetails';
+import { PodDetails, PodSections } from '../../details/sections/PodDetails';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
 
@@ -61,8 +61,10 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
   model: PodModel,
   nav: { section: 'workloads', order: 10 },
   status,
+  // OCP `PodResourceSummary`: node selector and tolerations after the labels.
+  summary: { nodeSelector: (pod) => pod.spec?.nodeSelector, tolerations: (pod) => pod.spec?.tolerations },
   DetailsSection: PodDetailsSection,
-  ExtraSections: PodContainers,
+  ExtraSections: PodSections,
   columns: [
     nameColumn(PodModel),
     namespaceColumn(PodModel),
@@ -88,17 +90,7 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
       visibility: ['hidden', 'visibleOnLg'],
       // With the Namespace column, Owner would push the table into horizontal scroll at 1280.
       allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
-      cell: (pod) => {
-        const owner = pod.metadata.ownerReferences?.[0];
-        return (
-          <ObjectReferenceLink
-            apiVersion={owner?.apiVersion}
-            kind={owner?.kind}
-            name={owner?.name}
-            namespace={pod.metadata.namespace}
-          />
-        );
-      },
+      cell: (pod) => <OwnerReferences obj={pod} />,
       sortValue: (pod) => pod.metadata.ownerReferences?.[0]?.name ?? null,
     },
     // OCP `pod-list.tsx`: Created is the first column to go, so all headers fit untruncated next to the sidebar at 1280.

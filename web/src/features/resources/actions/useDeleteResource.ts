@@ -32,7 +32,11 @@ function isAlreadyGone(error: unknown): boolean {
  * visit doesn't flash it; lists are never refetched — their watch removes the row. Errors are the proxy's
  * ProblemDetails (`Proxy.UserReadOnly`, `Proxy.ReadOnlyGrant`) or the cluster's `Status`; a 404 counts as success.
  */
-export function useDeleteResource(cluster: string, model: K8sModel, { onDeleted }: DeleteResourceOptions = {}) {
+export function useDeleteResource(
+  cluster: string,
+  model: K8sModel,
+  { onDeleted }: DeleteResourceOptions = {},
+) {
   const queryClient = useQueryClient();
   const toast = useToast();
   return useMutation({

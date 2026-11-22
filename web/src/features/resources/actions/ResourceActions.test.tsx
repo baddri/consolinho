@@ -36,7 +36,15 @@ function recordAccessReviews(): string[] {
 }
 
 /** Shows what {@link useResourceAccess} answers, for the reason-order tests. */
-function AccessProbe({ cluster, model, namespace }: { cluster: string; model: K8sModel; namespace?: string }) {
+function AccessProbe({
+  cluster,
+  model,
+  namespace,
+}: {
+  cluster: string;
+  model: K8sModel;
+  namespace?: string;
+}) {
   const { isChecking, disabledReason } = useResourceAccess(cluster, { verb: 'delete', model, namespace });
   return <p>{isChecking ? 'checking' : (disabledReason ?? 'allowed')}</p>;
 }
@@ -66,7 +74,14 @@ function deleteBeforeResponding(status: 200 | 404, ms = 300): void {
       return status === 200
         ? HttpResponse.json({ kind: 'Status', apiVersion: 'v1', status: 'Success', code: 200 })
         : HttpResponse.json(
-            { kind: 'Status', apiVersion: 'v1', status: 'Failure', reason: 'NotFound', code: 404, message: 'gone' },
+            {
+              kind: 'Status',
+              apiVersion: 'v1',
+              status: 'Failure',
+              reason: 'NotFound',
+              code: 404,
+              message: 'gone',
+            },
             { status: 404 },
           );
     }),
@@ -157,7 +172,9 @@ describe('resource actions (UI-8)', () => {
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     const dialog = await screen.findByRole('dialog', { name: 'Delete Pod? dev' });
-    expect(dialog).toHaveTextContent(`Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`);
+    expect(dialog).toHaveTextContent(
+      `Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`,
+    );
     expect(within(dialog).getByText(POD, { selector: 'strong' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
@@ -166,7 +183,7 @@ describe('resource actions (UI-8)', () => {
     expect(mockK8s.get('dev-1', PodModel, 'shop', POD)).toBeUndefined();
   });
 
-  it('shows the server\'s 403 detail in the modal', async () => {
+  it("shows the server's 403 detail in the modal", async () => {
     server.use(
       http.delete(PROXY, () =>
         problem(403, { code: 'Proxy.ReadOnlyGrant', detail: 'Your access to dev-1 is read-only.' }),

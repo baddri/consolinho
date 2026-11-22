@@ -1,32 +1,25 @@
-import { ExpandableSection, Label, LabelGroup, List, ListItem } from '@patternfly/react-core';
+import { ExpandableSection, List, ListItem } from '@patternfly/react-core';
 import { useState } from 'react';
-import type { K8sResource } from '@/shared/k8s';
-import { DetailsItem } from '@/shared/ui';
-import { ObjectReferenceLink } from '../components/ObjectReferenceLink';
-import { ResourceLink } from '../components/ResourceLink';
-import { Timestamp } from '../components/Timestamp';
+import { Link } from 'react-router';
+import { NamespaceModel, type K8sResource } from '@/shared/k8s';
+import { DetailsItem, kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
+import { OwnerReferences } from '../components/ObjectReferenceLink';
+import { BadgedName } from '../components/ResourceLink';
+import { resourcePath } from '../paths';
+import { PodSelectorLink, labelSelectorString } from '../registry/columns';
+import type { ResourceDescriptor } from '../registry/types';
 import { useNamespaceModel } from './useNamespaceModel';
 
-/** Every label as an outlined grey `key=value` label (OCP `LabelList`); "No labels" without any. */
-function Labels({ labels }: { labels: Record<string, string> }) {
-  const entries = Object.entries(labels);
-  if (entries.length === 0) return <>No labels</>;
-  return (
-    <LabelGroup numLabels={entries.length} aria-label="Labels">
-      {entries.map(([key, value]) => (
-        <Label key={key} isCompact variant="outline">
-          {key}={value}
-        </Label>
-      ))}
-    </LabelGroup>
-  );
+/** "1 annotation" / "N annotations" (and tolerations): OCP's `{{count}} annotation` plural. */
+function countText(count: number, noun: string): string {
+  return `${String(count)} ${noun}${count === 1 ? '' : 's'}`;
 }
 
 /** "N annotations", expandable to the `key=value` list (annotations can be long, so collapsed by default). */
 function Annotations({ annotations }: { annotations: Record<string, string> }) {
   const [expanded, setExpanded] = useState(false);
   const entries = Object.entries(annotations);
-  const count = `${entries.length} ${entries.length === 1 ? 'annotation' : 'annotations'}`;
+  const count = countText(entries.length, 'annotation');
   if (entries.length === 0) return <>{count}</>;
   return (
     <ExpandableSection
@@ -45,61 +38,80 @@ function Annotations({ annotations }: { annotations: Record<string, string> }) {
   );
 }
 
+/**
+ * A node selector as plain `key=value` text (no Nodes page yet); "No selector" in subtle text without one, as OCP
+ * `Selector kind="Node"` (`public/components/utils/selector.tsx`).
+ */
+function NodeSelector({ selector }: { selector: Record<string, string> | undefined }) {
+  const text = labelSelectorString(selector);
+  if (text === '') return <div className="pf-v6-u-text-color-subtle">No selector</div>;
+  return <>{text.replace(/,/g, ', ')}</>;
+}
+
 /** Props for {@link MetadataSection}. */
 export interface MetadataSectionProps {
   cluster: string;
+  descriptor: ResourceDescriptor;
   obj: K8sResource;
 }
 
 /**
- * Left column of the Details tab (UI-4, `UX.md` §6): the metadata every kind shares — name, namespace (link to its
- * project/namespace), labels, annotations, created (absolute, relative in a tooltip) and owner references (links for
- * registered kinds, text otherwise). Renders `DetailsItem`s only; the caller supplies the vertical `DescriptionList`.
+ * Left column of the Details tab, OCP `ResourceSummary` (`details-page.tsx`, `UX.md` §6): Name, Namespace (`NS` badge,
+ * linking to the project/namespace), Labels (kind-coloured, each linking to the kind's list filtered by it), the
+ * descriptor's optional Pod selector / Node selector / Tolerations, Annotations, its `Extra` rows, "Created at" and
+ * Owner. Renders `DetailsItem`s only; the caller supplies the vertical `DescriptionList`.
  */
-export function MetadataSection({ cluster, obj }: MetadataSectionProps) {
+export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionProps) {
   const namespaceModel = useNamespaceModel(cluster);
-  const {
-    name,
-    namespace,
-    labels = {},
-    annotations = {},
-    creationTimestamp,
-    ownerReferences = [],
-  } = obj.metadata;
+  const { model, summary } = descriptor;
+  const { name, namespace, labels = {}, annotations = {}, creationTimestamp } = obj.metadata;
   return (
     <>
       <DetailsItem label="Name">{name}</DetailsItem>
       {namespace !== undefined && (
         <DetailsItem label="Namespace">
-          <ResourceLink model={namespaceModel} name={namespace} />
+          <BadgedName badge={NamespaceModel}>
+            <Link to={resourcePath(cluster, namespaceModel, { name: namespace })}>{namespace}</Link>
+          </BadgedName>
         </DetailsItem>
       )}
       <DetailsItem label="Labels">
-        <Labels labels={labels} />
+        <ResourceLabels
+          labels={labels}
+          color={kindLabelColor(model.kind)}
+          linkTo={(key, value) =>
+            resourcePath(cluster, model, {
+              namespace,
+              search: new URLSearchParams({ label: `${key}=${value}` }).toString(),
+            })
+          }
+        />
       </DetailsItem>
+      {summary?.podSelector && (
+        <DetailsItem label="Pod selector">
+          <PodSelectorLink namespace={namespace} matchLabels={summary.podSelector(obj)} />
+        </DetailsItem>
+      )}
+      {summary?.nodeSelector && (
+        <DetailsItem label="Node selector">
+          <NodeSelector selector={summary.nodeSelector(obj)} />
+        </DetailsItem>
+      )}
+      {summary?.tolerations && (
+        <DetailsItem label="Tolerations">
+          {countText(summary.tolerations(obj)?.length ?? 0, 'toleration')}
+        </DetailsItem>
+      )}
       <DetailsItem label="Annotations">
         <Annotations annotations={annotations} />
       </DetailsItem>
-      <DetailsItem label="Created">
+      {/* Rendered as a component (not called) so it may use hooks. */}
+      {summary?.Extra && <summary.Extra obj={obj} />}
+      <DetailsItem label="Created at">
         <Timestamp value={creationTimestamp} />
       </DetailsItem>
       <DetailsItem label="Owner">
-        {ownerReferences.length === 0 ? (
-          'No owner'
-        ) : (
-          <List isPlain>
-            {ownerReferences.map((owner) => (
-              <ListItem key={owner.uid}>
-                <ObjectReferenceLink
-                  apiVersion={owner.apiVersion}
-                  kind={owner.kind}
-                  name={owner.name}
-                  namespace={namespace}
-                />
-              </ListItem>
-            ))}
-          </List>
-        )}
+        <OwnerReferences obj={obj} />
       </DetailsItem>
     </>
   );

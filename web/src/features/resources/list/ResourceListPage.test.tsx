@@ -51,10 +51,11 @@ async function findTable(name: string, timeout?: number): Promise<HTMLElement> {
 }
 
 /** Names of the listed pods (object links; owner and namespace links are filtered out), in row order. */
+/** The name link (first link) of each row, skipping other links such as the Owner column's replica set. */
 function linkNames(table: HTMLElement): string[] {
   return within(table)
-    .queryAllByRole('link')
-    .map((link) => link.textContent)
+    .queryAllByRole('row')
+    .map((row) => within(row).queryAllByRole('link')[0]?.textContent ?? '')
     .filter((name) => /^(?:web|load|extra)-/.test(name));
 }
 
@@ -122,19 +123,22 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['pods', 'Pods', WEB_PODS[0] ?? ''],
     ['configmaps', 'ConfigMaps', 'web-config'],
     ['events', 'Events', 'Back-off restarting failed container web in pod ' + CRASHING_POD],
-  ])('renders %s from the fixtures without a badge or Live label (UX.md §3)', async (plural, title, sample) => {
-    renderApp(`/c/dev-1/k8s/ns/shop/${plural}`);
+  ])(
+    'renders %s from the fixtures without a badge or Live label (UX.md §3)',
+    async (plural, title, sample) => {
+      renderApp(`/c/dev-1/k8s/ns/shop/${plural}`);
 
-    const table = await findTable(title);
-    expect(await within(table).findByText(sample)).toBeInTheDocument();
-    // The h1 is the plural alone: no kind badge before it, no "Live" label after it (CP2 §5 superseded by T-0112).
-    const heading = screen.getByRole('heading', { name: title, level: 1 });
-    expect(heading).toHaveTextContent(new RegExp(`^${title}$`));
-    expect(screen.queryByText('Live')).not.toBeInTheDocument();
-    // The project bar is its own row above the heading (UX.md §2).
-    const projectBar = screen.getByRole('button', { name: 'Project: shop' });
-    expect(projectBar.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
+      const table = await findTable(title);
+      expect(await within(table).findByText(sample)).toBeInTheDocument();
+      // The h1 is the plural alone: no kind badge before it, no "Live" label after it (CP2 §5 superseded by T-0112).
+      const heading = screen.getByRole('heading', { name: title, level: 1 });
+      expect(heading).toHaveTextContent(new RegExp(`^${title}$`));
+      expect(screen.queryByText('Live')).not.toBeInTheDocument();
+      // The project bar is its own row above the heading (UX.md §2).
+      const projectBar = screen.getByRole('button', { name: 'Project: shop' });
+      expect(projectBar.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    },
+  );
 
   it.each([
     ['pods', 'Pods'],
@@ -284,7 +288,9 @@ describe('resource list filters and sorting (UI-3)', () => {
     await user.type(screen.getByRole('textbox', { name: 'Filter by label' }), 'app');
     await user.click(await screen.findByRole('button', { name: 'app=web' }));
 
-    await waitFor(() => expect(new URLSearchParams(router.state.location.search).get('label')).toBe('app=web'));
+    await waitFor(() =>
+      expect(new URLSearchParams(router.state.location.search).get('label')).toBe('app=web'),
+    );
   });
 
   it('filters pods by status and offers Clear filters when nothing matches', async () => {

@@ -32,7 +32,7 @@ export function ResourceHeader({ cluster, model, namespace, name, status, action
         { label: model.labelPlural, to: resourcePath(cluster, model, { namespace }) },
         { label: `${model.label} details` },
       ]}
-      icon={<KindBadge model={model} />}
+      icon={<KindBadge model={model} size="lg" />}
       title={name}
       status={status && <ResourceStatusLabel status={status} asLabel />}
       actions={actions}

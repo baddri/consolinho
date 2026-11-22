@@ -13,7 +13,7 @@ const EXPIRY_LABELS: Record<CredentialExpiryStatus, { text: string; status: Stat
 
 /** Props for {@link CredentialExpiryLabel}. */
 export type CredentialExpiryLabelProps = Pick<Credential, 'expiryStatus' | 'expiresAt'> & {
-  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  /** Read `Badge` around icon + text — details-page headers only (`UX.md` §3). */
   asLabel?: boolean;
 };
 

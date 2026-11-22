@@ -1,8 +1,7 @@
 import { CodeBlock, CodeBlockCode, DescriptionList } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import type { ConfigMap } from '@/shared/k8s';
-import { DetailsItem } from '@/shared/ui';
-import { DetailsSubsection } from './DetailsSubsection';
+import { DetailsItem, DetailsSubsection } from '@/shared/ui';
 
 /** Decoded byte length of a base64 string (`binaryData` values), without decoding it. */
 export function base64Size(value: string): number {

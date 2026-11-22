@@ -1,0 +1,6 @@
+/* OCP's details tabs (`horizontal-nav.tsx`) run on PF 6.6, whose tab links were 8px shorter: their bar is 45px tall,
+   PF 6.7's `--spacer--control--vertical--plain` padding makes ours 53px. Mirror OCP with the xs block padding. */
+.tabs {
+  --pf-v6-c-tabs__link--PaddingBlockStart: var(--pf-t--global--spacer--xs);
+  --pf-v6-c-tabs__link--PaddingBlockEnd: var(--pf-t--global--spacer--xs);
+}

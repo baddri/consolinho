@@ -38,7 +38,9 @@ export interface KindBadgeProps {
  * header), with the kind as a hover title.
  */
 export function KindBadge({ kind, abbr, size = 'md' }: KindBadgeProps) {
-  const classes = [styles.badge, KIND_CLASSES[kind], size === 'lg' ? styles.lg : undefined].filter(Boolean).join(' ');
+  const classes = [styles.badge, KIND_CLASSES[kind], size === 'lg' ? styles.lg : undefined]
+    .filter(Boolean)
+    .join(' ');
   return (
     <span className={classes} title={kind} aria-hidden="true">
       {abbr ?? kindAbbr(kind)}

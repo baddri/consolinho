@@ -44,6 +44,19 @@ export interface RowFilter<T> {
   matches(obj: T, values: string[]): boolean;
 }
 
+/**
+ * Optional rows of the Details tab's common metadata column, in OCP `ResourceSummary` order (`details-page.tsx`):
+ * Pod selector, Node selector and Tolerations after Labels, `Extra` (e.g. a deployment's Status) after Annotations.
+ * A row shows when its getter is declared, even for an empty value. Method syntax keeps them bivariant.
+ */
+export interface SummaryFields<T> {
+  podSelector?(obj: T): Record<string, string> | undefined;
+  nodeSelector?(obj: T): Record<string, string> | undefined;
+  tolerations?(obj: T): readonly unknown[] | undefined;
+  /** `DetailsItem`s between Annotations and "Created at", as OCP `ResourceSummary`'s children. */
+  Extra?(props: { obj: T }): ReactNode;
+}
+
 /** Everything the generic pages need to render one kind. */
 export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   model: K8sModel;
@@ -53,6 +66,12 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   /** Initial sort; defaults to the `name` column ascending. */
   defaultSort?: { columnId: string; direction: 'asc' | 'desc' };
   status?(obj: T): ResourceStatus | undefined;
+  /** No status badge in the details heading (OCP Deployment: status is a "Status" row of the Details tab instead). */
+  hideHeadingStatus?: boolean;
+  /** Extra rows of the common metadata column ({@link SummaryFields}). */
+  summary?: SummaryFields<T>;
+  /** Shown under the "<Kind> details" heading above the grid, e.g. a deployment's pod ring. */
+  DetailsTop?(props: { obj: T }): ReactNode;
   /**
    * Kind-specific fields of the Details tab (T-0075, T-0113): `DetailsItem`s only, rendered as the right column of the
    * "<Kind> details" grid next to the common metadata (`UX.md` §6). A function component
@@ -65,6 +84,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * `DetailsSubsection` with its own heading. Same component shape as {@link DetailsSection}.
    */
   ExtraSections?(props: { obj: T }): ReactNode;
+  /**
+   * Label selector of the object's pods: declaring it adds a Pods tab (OCP workloads' `/pods` tab) listing the pods
+   * that match, and is where the "N of M pods" status links.
+   */
+  podsSelector?(obj: T): Record<string, string> | undefined;
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /** Delete asks to type the name (Namespace, Project). */

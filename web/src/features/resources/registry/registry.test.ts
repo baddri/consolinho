@@ -11,7 +11,9 @@ describe('resource registry', () => {
   it('sorts every list by a sortable column by default', () => {
     for (const descriptor of resourceDescriptors()) {
       const columnId = descriptor.defaultSort?.columnId ?? 'name';
-      expect(descriptor.columns.some((column) => column.id === columnId && column.sortValue !== undefined)).toBe(true);
+      expect(
+        descriptor.columns.some((column) => column.id === columnId && column.sortValue !== undefined),
+      ).toBe(true);
     }
   });
 
@@ -19,7 +21,8 @@ describe('resource registry', () => {
     expect(descriptorForPlural('pods')?.model.kind).toBe('Pod');
     expect(descriptorForPlural('nodes')).toBeUndefined();
     expect(descriptorForKind('v1', 'ConfigMap')?.model.plural).toBe('configmaps');
-    expect(descriptorForKind('apps/v1', 'ReplicaSet')).toBeUndefined();
+    expect(descriptorForKind('apps/v1', 'ReplicaSet')?.model.plural).toBe('replicasets');
+    expect(descriptorForKind('apps/v1', 'StatefulSet')).toBeUndefined();
     expect(descriptorForKind('v2', 'Pod')).toBeUndefined();
   });
 });

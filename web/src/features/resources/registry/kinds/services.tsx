@@ -1,7 +1,6 @@
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { ServiceModel, type K8sResource, type Service } from '@/shared/k8s';
-import { DetailsItem } from '@/shared/ui';
-import { DetailsSubsection } from '../../details/sections/DetailsSubsection';
+import { DetailsItem, DetailsSubsection } from '@/shared/ui';
 import { PodSelectorLink, labelSelectorString, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 

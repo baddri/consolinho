@@ -2,6 +2,7 @@ import {
   Bullseye,
   EmptyState,
   EmptyStateBody,
+  PageGroup,
   PageSection,
   Skeleton,
   Stack,
@@ -24,7 +25,19 @@ import { ResourceHeader } from './ResourceHeader';
 import { RESOURCE_TABS, useResourceTab, type ResourceTab } from './useResourceTab';
 
 /** Tab titles, also the accessible names of their panels. No Logs/Terminal before CP4 (spec §5). */
-const TAB_TITLES: Record<ResourceTab, string> = { details: 'Details', yaml: 'YAML', events: 'Events' };
+const TAB_TITLES: Record<ResourceTab, string> = {
+  details: 'Details',
+  yaml: 'YAML',
+  pods: 'Pods',
+  events: 'Events',
+};
+
+/** Whether `descriptor`'s details page has the tab `tab` (Pods only with a pod selector; Events unless opted out). */
+function hasTab(descriptor: ResourceDescriptor, tab: ResourceTab): boolean {
+  if (tab === 'pods') return descriptor.podsSelector !== undefined;
+  if (tab === 'events') return descriptor.hasEventsTab !== false;
+  return true;
+}
 
 /** Full-page empty state (unsupported or unserved kind). */
 function PageEmptyState({ title, body }: { title: string; body: string }) {
@@ -68,7 +81,7 @@ export function ResourceDetailsPage() {
       />
     );
   }
-  if (tab === 'events' && descriptor.hasEventsTab === false) {
+  if (!hasTab(descriptor, tab)) {
     return <Navigate replace to={resourcePath(cluster, model, { namespace, name })} />;
   }
   if (!discovery.isServed(model)) {
@@ -157,10 +170,15 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
         model={model}
         namespace={namespace}
         name={name}
-        status={obj && descriptor.status?.(obj)}
+        status={obj && !descriptor.hideHeadingStatus ? descriptor.status?.(obj) : undefined}
         actions={
           obj && (
-            <ResourceActionsMenu cluster={cluster} descriptor={descriptor} namespace={namespace} name={name} />
+            <ResourceActionsMenu
+              cluster={cluster}
+              descriptor={descriptor}
+              namespace={namespace}
+              name={name}
+            />
           )
         }
       />
@@ -170,9 +188,9 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 }
 
 /**
- * URL-driven Details · YAML · Events tabs (Events hidden when `hasEventsTab === false`) as `PageTabs` aligned with the
- * heading, then the active tab's content in a `PageBody` labelled by the tab. The YAML body is filled, so the editor
- * reaches the bottom of the content card.
+ * URL-driven Details · YAML · Pods · Events tabs (Pods only with a `podsSelector`, Events unless `hasEventsTab ===
+ * false`) as `PageTabs` aligned with the heading, then the active tab's content labelled by the tab: Details in a
+ * `PageGroup` of its own bordered sections, the others in a `PageBody` (YAML filled, so the editor reaches the bottom).
  */
 function ResourceTabs({
   descriptor,
@@ -183,7 +201,7 @@ function ResourceTabs({
   children,
 }: ResourceDetailsProps & { children: ReactNode }) {
   const { model } = descriptor;
-  const tabs = RESOURCE_TABS.filter((key) => key !== 'events' || descriptor.hasEventsTab !== false).map((key) => ({
+  const tabs = RESOURCE_TABS.filter((key) => hasTab(descriptor, key)).map((key) => ({
     key,
     title: TAB_TITLES[key],
     to: resourcePath(cluster, model, { namespace, name, tab: key === 'details' ? undefined : key }),
@@ -191,9 +209,16 @@ function ResourceTabs({
   return (
     <>
       <PageTabs tabs={tabs} activeKey={tab} aria-label={`${model.label} tabs`} />
-      <PageBody isFilled={tab === 'yaml'} role="tabpanel" aria-label={TAB_TITLES[tab]}>
-        {children}
-      </PageBody>
+      {tab === 'details' ? (
+        // The Details tab renders its own bordered sections (`DetailsSubsection`, OCP `PaneBody`s).
+        <PageGroup role="tabpanel" aria-label={TAB_TITLES[tab]}>
+          {children}
+        </PageGroup>
+      ) : (
+        <PageBody isFilled={tab === 'yaml'} role="tabpanel" aria-label={TAB_TITLES[tab]}>
+          {children}
+        </PageBody>
+      )}
     </>
   );
 }

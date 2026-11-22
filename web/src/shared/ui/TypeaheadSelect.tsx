@@ -181,7 +181,9 @@ export function TypeaheadSelect({
               role="combobox"
               isExpanded={isOpen}
               aria-controls={listId}
-              aria-activedescendant={focused !== undefined && focusedIndex !== null ? optionId(focusedIndex) : undefined}
+              aria-activedescendant={
+                focused !== undefined && focusedIndex !== null ? optionId(focusedIndex) : undefined
+              }
               inputProps={{ autoComplete: 'off', ...inputProps }}
               onClick={() => setIsOpen(true)}
               onChange={(_event, text) => {
@@ -192,7 +194,12 @@ export function TypeaheadSelect({
             />
             {inputValue !== '' && (
               <TextInputGroupUtilities>
-                <Button variant="plain" aria-label={clearAriaLabel} icon={<TimesIcon />} onClick={() => changeInput('')} />
+                <Button
+                  variant="plain"
+                  aria-label={clearAriaLabel}
+                  icon={<TimesIcon />}
+                  onClick={() => changeInput('')}
+                />
               </TextInputGroupUtilities>
             )}
           </TextInputGroup>

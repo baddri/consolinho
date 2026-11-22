@@ -45,7 +45,12 @@ function fuzzyMatch(query: string, text: string): boolean {
  * clicking one adds it as a chip under "Label". Enter applies typed selector terms (`tier!=db`) as well. Escape or
  * a click outside the box hides the suggestions. The value is the terms joined by commas — a Kubernetes label selector.
  */
-export function DataViewLabelFilter({ title, value = '', onChange, showToolbarItem }: DataViewLabelFilterProps) {
+export function DataViewLabelFilter({
+  title,
+  value = '',
+  onChange,
+  showToolbarItem,
+}: DataViewLabelFilterProps) {
   const labels = useContext(LabelSuggestionsContext);
   const [text, setText] = useState('');
   const [isOpen, setIsOpen] = useState(false);

@@ -39,7 +39,8 @@ export function FilterTextInput({
   useEffect(() => {
     if (!isShortcutActive) return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target)) return;
+      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || isTyping(event.target))
+        return;
       event.preventDefault();
       inputRef.current?.focus();
     };

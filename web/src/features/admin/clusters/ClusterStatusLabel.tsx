@@ -3,7 +3,7 @@ import { StatusIconText } from '@/shared/ui';
 /** Props for {@link ClusterStatusLabel}. */
 export interface ClusterStatusLabelProps {
   isEnabled: boolean;
-  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  /** Read `Badge` around icon + text — details-page headers only (`UX.md` §3). */
   asLabel?: boolean;
 }
 

@@ -42,7 +42,12 @@ export function ResourceYamlTab() {
   const { cluster, descriptor, obj } = useResourceDetails();
   const { model } = descriptor;
   const name = obj.metadata.name ?? '';
-  const access = useResourceAccess(cluster, { verb: 'update', model, namespace: obj.metadata.namespace, name });
+  const access = useResourceAccess(cluster, {
+    verb: 'update',
+    model,
+    namespace: obj.metadata.namespace,
+    name,
+  });
   const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
   const update = useUpdateResource(cluster, model);
 
@@ -103,7 +108,12 @@ export function ResourceYamlTab() {
       )}
       {changedOnCluster && !isConflict && (
         <StackItem>
-          <Alert variant="warning" isInline title="This object changed on the cluster" actionLinks={reloadAction}>
+          <Alert
+            variant="warning"
+            isInline
+            title="This object changed on the cluster"
+            actionLinks={reloadAction}
+          >
             Your edits are kept. Reload to discard them and see the latest version.
           </Alert>
         </StackItem>

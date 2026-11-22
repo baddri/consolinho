@@ -63,6 +63,18 @@ export const DeploymentModel: K8sModel = {
   abbr: 'D',
 };
 
+/** Owner of a deployment's pods (pod Owner column and links). */
+export const ReplicaSetModel: K8sModel = {
+  group: 'apps',
+  version: 'v1',
+  kind: 'ReplicaSet',
+  plural: 'replicasets',
+  namespaced: true,
+  label: 'ReplicaSet',
+  labelPlural: 'ReplicaSets',
+  abbr: 'RS',
+};
+
 export const ServiceModel: K8sModel = {
   group: '',
   version: 'v1',
@@ -115,6 +127,7 @@ export const K8S_MODELS: readonly K8sModel[] = [
   NamespaceModel,
   PodModel,
   DeploymentModel,
+  ReplicaSetModel,
   ServiceModel,
   ConfigMapModel,
   EventModel,

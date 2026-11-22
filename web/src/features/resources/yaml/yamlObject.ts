@@ -60,5 +60,8 @@ export function parseEdited(text: string, original: K8sResource): ParseEditedRes
     }
   }
   const obj = withoutManagedFields(value);
-  return { ok: true, obj: { ...obj, metadata: { ...obj.metadata, resourceVersion: original.metadata.resourceVersion } } };
+  return {
+    ok: true,
+    obj: { ...obj, metadata: { ...obj.metadata, resourceVersion: original.metadata.resourceVersion } },
+  };
 }

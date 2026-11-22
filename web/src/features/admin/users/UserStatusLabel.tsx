@@ -18,7 +18,7 @@ const STATUS_KINDS: Record<UserStatus, StatusKind> = {
 /** Props for {@link UserStatusLabel}. */
 export interface UserStatusLabelProps {
   status: UserStatus;
-  /** Outlined compact label instead of icon + text — details-page headers only (`UX.md` §3). */
+  /** Read `Badge` around icon + text — details-page headers only (`UX.md` §3). */
   asLabel?: boolean;
 }
 

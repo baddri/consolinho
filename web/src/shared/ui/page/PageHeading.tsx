@@ -13,6 +13,7 @@ import {
 import { useContext, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { HeadingFavoriteContext } from './headingFavorite';
+import styles from './PageHeading.module.css';
 
 /** One breadcrumb step; a crumb without `to` is the current page (rendered last, `isActive`). */
 export interface BreadcrumbCrumb {
@@ -26,7 +27,7 @@ export interface PageHeadingProps {
   title: ReactNode;
   /** Details pages only (`UX.md` §3): `<Plural> › <Kind> details`. */
   breadcrumbs?: BreadcrumbCrumb[];
-  /** Left of the title, e.g. the feature's kind badge; shared code never knows kinds. */
+  /** Inside the h1 before the title (OCP `co-resource-item`), e.g. the feature's kind badge; shared code never knows kinds. */
   icon?: ReactNode;
   /** Right of the title, e.g. `StatusIconText asLabel`. */
   status?: ReactNode;
@@ -78,7 +79,7 @@ function HeadingBreadcrumb({ crumbs }: { crumbs: BreadcrumbCrumb[] }) {
 
 /**
  * OCP page heading (`console-shared/.../heading/PageHeading.tsx`, `UX.md` §3): breadcrumb → one top-aligned row with
- * [icon] h1 + status + labels on the left and, on the right, an `ActionList` with the favourite star (when the app
+ * h1 ([icon] title) + status + labels on the left and, on the right, an `ActionList` with the favourite star (when the app
  * provides {@link HeadingFavoriteContext}) followed by the actions (wrapping below, never overlapping) → subtitle 8px
  * below the h1 → alert. Every page renders exactly one.
  */
@@ -122,13 +123,20 @@ export function PageHeading({
               flexWrap={{ default: 'wrap' }}
               gap={{ default: 'gapSm' }}
             >
-              {icon && <FlexItem>{icon}</FlexItem>}
               <FlexItem>
-                <Title headingLevel="h1" className={subtitle ? 'pf-v6-u-mb-sm' : undefined}>
+                <Title
+                  headingLevel="h1"
+                  className={
+                    [icon ? styles.title : undefined, subtitle ? 'pf-v6-u-mb-sm' : undefined]
+                      .filter(Boolean)
+                      .join(' ') || undefined
+                  }
+                >
+                  {icon}
                   {title}
                 </Title>
               </FlexItem>
-              {status && <FlexItem>{status}</FlexItem>}
+              {status && <FlexItem className={styles.status}>{status}</FlexItem>}
               {labels && <FlexItem>{labels}</FlexItem>}
             </Flex>
             {hasActionList && (

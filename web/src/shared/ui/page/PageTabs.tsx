@@ -1,5 +1,6 @@
 import { Tab, Tabs, TabTitleText } from '@patternfly/react-core';
 import { useNavigate } from 'react-router';
+import styles from './PageTabs.module.css';
 
 /** One URL-segment tab. */
 export interface PageTab {
@@ -18,7 +19,7 @@ export interface PageTabsProps {
 
 /**
  * OCP horizontal nav (`public/components/utils/horizontal-nav.tsx`, `UX.md` §4): page-inset tabs directly under the
- * heading, so tab text lines up with the h1. Tabs are links; the content is the route `<Outlet/>` below (wrapped in
+ * heading, so tab text lines up with the h1, with OCP's (PF 6.6) 45px bar height. Tabs are links; the content is the route `<Outlet/>` below (wrapped in
  * `PageBody`), never `Tab` children.
  *
  * The router owns history: PF's nav mode (`component="nav"`) would `history.pushState` behind the router's back, so
@@ -31,6 +32,7 @@ export function PageTabs({ tabs, activeKey, 'aria-label': ariaLabel }: PageTabsP
     <nav aria-label={ariaLabel}>
       <Tabs
         usePageInsets
+        className={styles.tabs}
         activeKey={activeKey}
         onSelect={(_event, key) => {
           const next = tabs.find((tab) => tab.key === key);

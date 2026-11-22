@@ -80,7 +80,9 @@ export function useResourceActions({
         if (!isDeleteBlocked) setDeleteOpen(true);
       },
       // While checking: aria-disabled without a tooltip — there is no reason to give yet.
-      ...(deleteAccess.isChecking ? { isAriaDisabled: true } : disabledActionProps(deleteAccess.disabledReason)),
+      ...(deleteAccess.isChecking
+        ? { isAriaDisabled: true }
+        : disabledActionProps(deleteAccess.disabledReason)),
     },
   ];
 

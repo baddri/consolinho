@@ -1,4 +1,4 @@
-import { Flex, FlexItem, Icon, Label } from '@patternfly/react-core';
+import { Badge, Flex, FlexItem, Icon } from '@patternfly/react-core';
 import {
   RhUiBanIcon,
   RhUiCheckCircleFillIcon,
@@ -19,21 +19,13 @@ import type { ComponentType } from 'react';
  * - `neutral` text only.
  */
 export type StatusKind =
-  | 'success'
-  | 'danger'
-  | 'warning'
-  | 'info'
-  | 'pending'
-  | 'progress'
-  | 'ban'
-  | 'unknown'
-  | 'neutral';
+  'success' | 'danger' | 'warning' | 'info' | 'pending' | 'progress' | 'ban' | 'unknown' | 'neutral';
 
 /** Props for {@link StatusIconText}. */
 export interface StatusIconTextProps {
   status: StatusKind;
   text: string;
-  /** Outlined compact `Label` with the icon — only for a details-page title (`UX.md` §3). */
+  /** Inside a read `Badge` — only for a details-page title (`UX.md` §3, OCP `ResourceStatus`). */
   asLabel?: boolean;
 }
 
@@ -72,18 +64,8 @@ function StatusIcon({ status }: { status: StatusKind }) {
   );
 }
 
-/**
- * Status as icon + text (OCP `StatusIconAndText`, `UX.md` §5): the text is always visible, the icon is decorative
- * and hidden from assistive technology. `asLabel` renders the same as an outlined compact label.
- */
-export function StatusIconText({ status, text, asLabel }: StatusIconTextProps) {
-  if (asLabel) {
-    return (
-      <Label variant="outline" isCompact icon={<StatusIcon status={status} />}>
-        {text}
-      </Label>
-    );
-  }
+/** Icon + text, baseline-aligned (OCP `.co-icon-and-text`). */
+function IconAndText({ status, text }: { status: StatusKind; text: string }) {
   return (
     <Flex
       display={{ default: 'inlineFlex' }}
@@ -99,4 +81,20 @@ export function StatusIconText({ status, text, asLabel }: StatusIconTextProps) {
       <FlexItem>{text}</FlexItem>
     </Flex>
   );
+}
+
+/**
+ * Status as icon + text (OCP `StatusIconAndText`, `UX.md` §5): the text is always visible, the icon is decorative
+ * and hidden from assistive technology. `asLabel` wraps the same in a read PF `Badge`, as OCP's details-page heading
+ * (`console-dynamic-plugin-sdk/.../utils/resource-status.tsx`).
+ */
+export function StatusIconText({ status, text, asLabel }: StatusIconTextProps) {
+  if (asLabel) {
+    return (
+      <Badge isRead>
+        <IconAndText status={status} text={text} />
+      </Badge>
+    );
+  }
+  return <IconAndText status={status} text={text} />;
 }

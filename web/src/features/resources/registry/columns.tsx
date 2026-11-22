@@ -2,7 +2,7 @@ import { RhUiSearchIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
 import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
-import { LabelList, RelativeTime } from '@/shared/ui';
+import { LabelList, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
 import type { ColumnDef } from './types';
@@ -35,7 +35,11 @@ function NamespaceListLink({ model, namespace }: { model: K8sModel; namespace: s
   const cluster = useActiveCluster();
   return (
     <BadgedName badge={NamespaceModel}>
-      {cluster === undefined ? namespace : <Link to={resourcePath(cluster, model, { namespace })}>{namespace}</Link>}
+      {cluster === undefined ? (
+        namespace
+      ) : (
+        <Link to={resourcePath(cluster, model, { namespace })}>{namespace}</Link>
+      )}
     </BadgedName>
   );
 }
@@ -57,12 +61,12 @@ export function namespaceColumn<T extends K8sResource>(model: K8sModel): ColumnD
   };
 }
 
-/** "Created" column: relative time with the absolute time in a tooltip; sorts by timestamp. */
+/** "Created" column: OCP `Timestamp` (clock icon + absolute date, relative within 10.5 minutes); sorts by time. */
 export function ageColumn<T extends K8sResource>(): ColumnDef<T> {
   return {
     id: 'created',
     title: 'Created',
-    cell: (obj) => <RelativeTime value={obj.metadata.creationTimestamp ?? null} />,
+    cell: (obj) => <Timestamp value={obj.metadata.creationTimestamp} />,
     sortValue: (obj) => timestampValue(obj.metadata.creationTimestamp),
   };
 }
@@ -97,6 +101,26 @@ export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps
       {selector.replace(/,/g, ', ')}
     </Link>
   );
+}
+
+/** Props for {@link ReplicasCountLink}. */
+export interface ReplicasCountLinkProps {
+  /** The workload's model (Deployment, ReplicaSet); it must have a Pods tab (`podsSelector`). */
+  model: K8sModel;
+  obj: K8sResource;
+  /** "N of M pods". */
+  title: string;
+}
+
+/**
+ * OCP `ReplicasCount` (`workload-table.tsx`): a workload's "N of M pods" as a link to its Pods tab on the active
+ * cluster; plain text outside a cluster.
+ */
+export function ReplicasCountLink({ model, obj, title }: ReplicasCountLinkProps) {
+  const cluster = useActiveCluster();
+  const { namespace, name } = obj.metadata;
+  if (cluster === undefined || namespace === undefined || name === undefined) return <>{title}</>;
+  return <Link to={resourcePath(cluster, model, { namespace, name, tab: 'pods' })}>{title}</Link>;
 }
 
 /** Labels column: normal-size `key=value` labels, collapsed after 20 (OCP `LabelList`). Not sortable. */

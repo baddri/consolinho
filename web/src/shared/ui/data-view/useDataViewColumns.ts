@@ -83,10 +83,12 @@ export function useDataViewColumns<T>(id: string, columns: DataViewColumn<T>[]):
       }),
     ];
     const rest = columns.filter((column) => !ordered.includes(column));
-    return [...ordered, ...rest.filter(isShown), ...rest.filter((column) => !isShown(column))].map((column) => ({
-      column,
-      isShown: isShown(column),
-    }));
+    return [...ordered, ...rest.filter(isShown), ...rest.filter((column) => !isShown(column))].map(
+      (column) => ({
+        column,
+        isShown: isShown(column),
+      }),
+    );
   }, [columns, choice]);
   const shown = useMemo(
     () => managed.filter((entry) => entry.isShown && !entry.column.isHidden).map((entry) => entry.column),
@@ -98,7 +100,10 @@ export function useDataViewColumns<T>(id: string, columns: DataViewColumn<T>[]):
     (next: ColumnChoice) => {
       const mentioned = new Set([...next.shown, ...next.hidden]);
       const keep = (ids: string[] = []) => ids.filter((columnId) => !mentioned.has(columnId));
-      storeChoice({ shown: [...next.shown, ...keep(choice?.shown)], hidden: [...next.hidden, ...keep(choice?.hidden)] });
+      storeChoice({
+        shown: [...next.shown, ...keep(choice?.shown)],
+        hidden: [...next.hidden, ...keep(choice?.hidden)],
+      });
     },
     [choice, storeChoice],
   );

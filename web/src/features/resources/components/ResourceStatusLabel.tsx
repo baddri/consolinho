@@ -4,7 +4,7 @@ import type { ResourceStatus } from '../registry/types';
 /** Props for {@link ResourceStatusLabel}. */
 export interface ResourceStatusLabelProps {
   status: ResourceStatus | undefined;
-  /** Outlined compact label with the icon, for a details-page title (`UX.md` §3); icon + text otherwise. */
+  /** Icon + text in a read `Badge`, for a details-page title (`UX.md` §3); icon + text otherwise. */
   asLabel?: boolean;
 }
 

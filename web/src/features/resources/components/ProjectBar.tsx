@@ -34,7 +34,9 @@ export function ProjectBar({ descriptor, cluster, namespace }: ProjectBarProps) 
           cluster={cluster}
           namespace={selected}
           onSelect={(next) =>
-            void navigate(resourcePath(cluster, descriptor.model, { namespace: next ?? ALL_NAMESPACES, search }))
+            void navigate(
+              resourcePath(cluster, descriptor.model, { namespace: next ?? ALL_NAMESPACES, search }),
+            )
           }
         />
       </PageSection>

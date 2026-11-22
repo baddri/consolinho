@@ -7,13 +7,34 @@ import { StatusIconText, type StatusKind } from './StatusIconText';
 const STATUS_KINDS = new Map<string, StatusKind>(
   (
     [
-      [['Pending', 'pending', 'ContainerCreating', 'UpgradePending', 'PendingUpgrade', 'PendingRollback'], 'pending'],
       [
-        ['In Progress', 'Installing', 'InstallReady', 'Replacing', 'Running', 'Updating', 'Upgrading', 'PendingInstall'],
+        ['Pending', 'pending', 'ContainerCreating', 'UpgradePending', 'PendingUpgrade', 'PendingRollback'],
+        'pending',
+      ],
+      [
+        [
+          'In Progress',
+          'Installing',
+          'InstallReady',
+          'Replacing',
+          'Running',
+          'Updating',
+          'Upgrading',
+          'PendingInstall',
+        ],
         'progress',
       ],
       [
-        ['Cancelled', 'Deleting', 'Expired', 'Not Ready', 'Cancelling', 'Terminating', 'Superseded', 'Uninstalling'],
+        [
+          'Cancelled',
+          'Deleting',
+          'Expired',
+          'Not Ready',
+          'Cancelling',
+          'Terminating',
+          'Superseded',
+          'Uninstalling',
+        ],
         'ban',
       ],
       [['Warning', 'RequiresApproval'], 'warning'],
@@ -75,7 +96,7 @@ export interface StatusProps {
   status: string;
   /** Text to show instead of the status word. */
   title?: string;
-  /** Outlined compact label, for a details-page title (`UX.md` §3). */
+  /** In a read `Badge`, for a details-page title (`UX.md` §3). */
   asLabel?: boolean;
 }
 

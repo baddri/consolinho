@@ -23,6 +23,13 @@ function columnHeaders(table: HTMLElement): string[] {
     .map((header) => header.textContent.replace(/Column \d+ pixels$/, ''));
 }
 
+/** The term texts of a details `DescriptionList`, in order. */
+function terms(list: HTMLElement): string[] {
+  return within(list)
+    .getAllByRole('term')
+    .map((term) => term.textContent);
+}
+
 /** The table row whose name link is `name`. */
 async function findRow(table: HTMLElement, name: string): Promise<HTMLElement> {
   const link = await within(table).findByRole('link', { name });
@@ -69,15 +76,13 @@ describe('deployments (QG-3)', () => {
         { name: 'Deployments' },
         { timeout: COLD_START_TIMEOUT_MS },
       );
-      expect(columnHeaders(table)).toEqual([
-        'Name',
-        'Status',
-        'Labels',
-        'Pod selector',
-        'Actions',
-      ]);
+      expect(columnHeaders(table)).toEqual(['Name', 'Status', 'Labels', 'Pod selector', 'Actions']);
       const row = await findRow(table, 'web');
-      expect(within(row).getByText('2 of 3 pods')).toBeInTheDocument();
+      // OCP `ReplicasCount`: status.replicas of spec.replicas, linking to the deployment's Pods tab.
+      expect(within(row).getByRole('link', { name: '3 of 3 pods' })).toHaveAttribute(
+        'href',
+        '/c/dev-1/k8s/ns/shop/deployments/web/pods',
+      );
       expect(within(row).getByRole('link', { name: 'app=web' })).toHaveAttribute('href', PODS_OF_WEB);
     },
   );
@@ -97,16 +102,56 @@ describe('deployments (QG-3)', () => {
     expect(within(pods).getAllByRole('row')).toHaveLength(WEB_PODS.length + 1);
   });
 
-  it('shows replicas, strategy and conditions on the Details tab', async () => {
+  it('shows the OCP details fields, the pod ring and the conditions on the Details tab', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/deployments/web');
 
-    const summary = await screen.findByLabelText('Deployment details');
+    const properties = await screen.findByLabelText('Deployment properties');
+    expect(terms(properties)).toEqual([
+      'Update strategy',
+      'Max unavailable',
+      'Max surge',
+      'Progress deadline seconds',
+      'Min ready seconds',
+    ]);
+    expect(within(properties).getByText('25% of 3 pods')).toBeInTheDocument();
+    expect(within(properties).getByText('25% greater than 3 pods')).toBeInTheDocument();
+    const metadata = screen.getByLabelText('Metadata');
+    expect(terms(metadata)).toEqual([
+      'Name',
+      'Namespace',
+      'Labels',
+      'Pod selector',
+      'Node selector',
+      'Tolerations',
+      'Annotations',
+      'Status',
+      'Created at',
+      'Owner',
+    ]);
+    // The label links to deployments with that label, the pod selector to the matching pods.
     expect(
-      within(summary).getByText('RollingUpdate (max surge 25%, max unavailable 25%)'),
+      within(metadata)
+        .getAllByRole('link', { name: 'app=web' })
+        .map((link) => link.getAttribute('href')),
+    ).toEqual(['/c/dev-1/k8s/ns/shop/deployments?label=app%3Dweb', PODS_OF_WEB]);
+    // 2 of 3 replicas available: still rolling out.
+    expect(within(metadata).getByText('Updating')).toBeInTheDocument();
+    // OCP counts ready + failed pods: 2 ready + 1 crash-looping.
+    expect(
+      await screen.findByRole('img', { name: '3 Pods 2 Running, 1 CrashLoopBackOff' }),
     ).toBeInTheDocument();
-    expect(within(summary).getByRole('link', { name: 'app=web' })).toHaveAttribute('href', PODS_OF_WEB);
     const conditions = screen.getByRole('grid', { name: 'Conditions' });
     expect(within(conditions).getByText('MinimumReplicasAvailable')).toBeInTheDocument();
+  });
+
+  it('lists only its own pods on the Pods tab', async () => {
+    renderApp('/c/dev-1/k8s/ns/shop/deployments/web/pods');
+
+    const pods = await screen.findByRole('grid', { name: 'Pods' });
+    for (const pod of WEB_PODS)
+      expect(await within(pods).findByRole('link', { name: pod })).toBeInTheDocument();
+    expect(within(pods).getAllByRole('row')).toHaveLength(WEB_PODS.length + 1);
+    expect(screen.getByRole('tab', { name: 'Pods' })).toHaveAttribute('aria-selected', 'true');
   });
 });
 
@@ -127,7 +172,7 @@ describe('services (QG-3)', () => {
 
     const ports = await screen.findByRole('grid', { name: 'Ports' });
     expect(within(ports).getByText('http')).toBeInTheDocument();
-    const summary = screen.getByLabelText('Service details');
+    const summary = screen.getByLabelText('Service properties');
     expect(within(summary).getByText('None')).toBeInTheDocument();
   });
 });
@@ -155,7 +200,7 @@ describe('projects and namespaces (QG-3)', () => {
   it('shows the project details', async () => {
     renderApp('/c/dev-1/k8s/cluster/projects/shop');
 
-    const details = await screen.findByLabelText('Project details');
+    const details = await screen.findByLabelText('Project properties');
     expect(within(details).getByText('Storefront and its configuration.')).toBeInTheDocument();
     expect(within(details).getByText('carol')).toBeInTheDocument();
   });
@@ -167,7 +212,7 @@ describe('projects and namespaces (QG-3)', () => {
     expect(columnHeaders(table)).toEqual(['Name', 'Display name', 'Status', 'Created', 'Actions']);
     await user.click(within(await findRow(table, 'default')).getByRole('link', { name: 'default' }));
 
-    const details = await screen.findByLabelText('Namespace details');
+    const details = await screen.findByLabelText('Namespace properties');
     expect(within(details).queryByText('Requester')).not.toBeInTheDocument();
   });
 
@@ -188,6 +233,7 @@ describe('navigation (UI-2)', () => {
         'Pods',
         'Deployments',
         'ConfigMaps',
+        'ReplicaSets',
         'Services',
         'Namespaces',
       ]),

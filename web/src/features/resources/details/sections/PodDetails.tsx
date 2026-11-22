@@ -1,63 +1,132 @@
+import { List, ListItem } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import type { Pod } from '@/shared/k8s';
-import { DetailsItem } from '@/shared/ui';
+import { DetailsItem, DetailsSubsection, Status, Timestamp } from '@/shared/ui';
+import { ConditionsTable } from '../../components/ConditionsTable';
+import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
 import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
+import { BadgedName } from '../../components/ResourceLink';
+import { VolumesTable } from '../../components/VolumesTable';
 import type { ResourceStatus } from '../../registry/types';
-import { DetailsSubsection } from './DetailsSubsection';
 
 type ContainerStatus = NonNullable<NonNullable<Pod['status']>['containerStatuses']>[number];
 type ContainerState = NonNullable<ContainerStatus['state']>;
 
-/** "Running", "Waiting: CrashLoopBackOff", "Terminated: Completed" — a container state with its reason. */
+/** OCP `getRestartPolicyLabel` (`public/module/k8s/pods.ts`). */
+const RESTART_POLICIES: Readonly<Record<string, string>> = {
+  Always: 'Always restart',
+  OnFailure: 'Restart on failure',
+  Never: 'Never restart',
+};
+
+/** "Running", "Waiting", "Terminated" — OCP `getContainerState` (`_.startCase` of the state key); "Unknown" without. */
 export function containerStateText(state: ContainerState | undefined): string {
   if (state?.running) return 'Running';
-  if (state?.waiting) return state.waiting.reason ? `Waiting: ${state.waiting.reason}` : 'Waiting';
-  if (state?.terminated)
-    return state.terminated.reason ? `Terminated: ${state.terminated.reason}` : 'Terminated';
+  if (state?.waiting) return 'Waiting';
+  if (state?.terminated) return 'Terminated';
   return 'Unknown';
 }
 
-/** Reason and exit code of the container's previous run ("Error, exit code 1"); "—" if it never terminated. */
-function lastTermination(status: ContainerStatus | undefined): string {
-  const terminated = status?.lastState?.terminated;
-  if (!terminated) return '—';
-  return `${terminated.reason ?? 'Terminated'}, exit code ${String(terminated.exitCode)}`;
+/** OCP `ContainerLastState`: "Terminated at <time> with exit code 1 (Error)", "Waiting <reason>"; "-" without. */
+function LastState({ status }: { status: ContainerStatus | undefined }) {
+  const last = status?.lastState;
+  if (last?.waiting) return <>Waiting {last.waiting.reason}</>;
+  if (last?.running) return <>Running</>;
+  if (last?.terminated) {
+    const { exitCode, reason } = last.terminated;
+    return (
+      <>
+        Terminated
+        {exitCode ? ` with exit code ${String(exitCode)}` : ''}
+        {reason ? ` (${reason})` : ''}
+      </>
+    );
+  }
+  return <>-</>;
 }
 
-/** Containers table: spec order, joined with their statuses by name. */
-function ContainersTable({ pod }: { pod: Pod }) {
-  const statuses = new Map((pod.status?.containerStatuses ?? []).map((status) => [status.name, status]));
+type Container = NonNullable<Pod['spec']>['containers'][number];
+
+/** Containers table, as OCP `PodContainerTable` (`pod.tsx`): spec order, joined with their statuses by name. */
+function PodContainersTable({
+  label,
+  containers,
+  containerStatuses,
+}: {
+  label: string;
+  containers: readonly Container[];
+  containerStatuses: readonly ContainerStatus[] | undefined;
+}) {
+  const statuses = new Map((containerStatuses ?? []).map((status) => [status.name, status]));
   return (
-    <Table aria-label="Containers" variant="compact">
+    <Table aria-label={label} gridBreakPoint="">
       <Thead>
         <Tr>
-          <Th>Name</Th>
+          <Th width={20}>Name</Th>
           <Th>Image</Th>
-          <Th>State</Th>
-          <Th>Ready</Th>
-          <Th>Restarts</Th>
-          <Th>Last termination</Th>
+          <Th visibility={['hidden', 'visibleOnMd']}>State</Th>
+          <Th visibility={['hidden', 'visibleOnMd']}>Ready</Th>
+          <Th visibility={['hidden', 'visibleOnXl']}>Last State</Th>
+          <Th visibility={['hidden', 'visibleOnLg']}>Restarts</Th>
+          <Th width={10} visibility={['hidden', 'visibleOnLg']}>
+            Started
+          </Th>
+          <Th width={10} visibility={['hidden', 'visibleOnXl']}>
+            Finished
+          </Th>
+          <Th visibility={['hidden', 'visibleOnXl']}>Exit code</Th>
         </Tr>
       </Thead>
       <Tbody>
-        {(pod.spec?.containers ?? []).map((container) => {
+        {containers.map((container) => {
           const status = statuses.get(container.name);
+          const state = status?.state;
+          const startedAt =
+            state?.running?.startedAt ??
+            state?.terminated?.startedAt ??
+            status?.lastState?.running?.startedAt ??
+            status?.lastState?.terminated?.startedAt;
+          const finishedAt = state?.terminated?.finishedAt ?? status?.lastState?.terminated?.finishedAt;
           return (
             <Tr key={container.name}>
-              <Td dataLabel="Name">{container.name}</Td>
-              <Td dataLabel="Image" modifier="breakWord">
-                {container.image ?? '—'}
+              <Td dataLabel="Name" width={20}>
+                {container.name}
               </Td>
-              <Td dataLabel="State">{containerStateText(status?.state)}</Td>
-              <Td dataLabel="Ready">{status?.ready ? 'Yes' : 'No'}</Td>
-              <Td dataLabel="Restarts">{status?.restartCount ?? 0}</Td>
-              <Td dataLabel="Last termination">{lastTermination(status)}</Td>
+              <Td dataLabel="Image" modifier="truncate">
+                {container.image ?? '-'}
+              </Td>
+              <Td dataLabel="State" visibility={['hidden', 'visibleOnMd']}>
+                <Status status={containerStateText(state)} />
+              </Td>
+              <Td dataLabel="Ready" visibility={['hidden', 'visibleOnMd']}>
+                {status?.ready ? 'Ready' : 'Not ready'}
+              </Td>
+              <Td dataLabel="Last State" visibility={['hidden', 'visibleOnXl']}>
+                <LastState status={status} />
+              </Td>
+              <Td dataLabel="Restarts" visibility={['hidden', 'visibleOnLg']}>
+                {status?.restartCount ?? 0}
+              </Td>
+              <Td dataLabel="Started" width={10} visibility={['hidden', 'visibleOnLg']}>
+                <Timestamp value={startedAt} />
+              </Td>
+              <Td dataLabel="Finished" width={10} visibility={['hidden', 'visibleOnXl']}>
+                <Timestamp value={finishedAt} />
+              </Td>
+              <Td dataLabel="Exit code" visibility={['hidden', 'visibleOnXl']}>
+                {state?.terminated?.exitCode ?? '-'}
+              </Td>
             </Tr>
           );
         })}
       </Tbody>
     </Table>
   );
+}
+
+/** "a, b" of `ips`, or the single `ip`; "" without (OCP shows an empty value). */
+function ipsText(ips: { ip?: string }[] | undefined, ip: string | undefined): string {
+  return ips && ips.length > 1 ? ips.map((entry) => entry.ip).join(', ') : (ip ?? '');
 }
 
 /** Props for {@link PodDetails}. */
@@ -68,31 +137,87 @@ export interface PodDetailsProps {
 }
 
 /**
- * Pod fields of the Details tab's right column (UI-4): status as icon + text (OCP `PodDetailsList`, matching the
- * title, so a crash-looping pod never reads "Running"), node, pod IP(s) and QoS class.
+ * Pod fields of the Details tab's right column, in OCP `PodDetailsList` order (`pod.tsx`): Status (icon + text,
+ * matching the title), Restart policy, Active deadline seconds, Pod IP(s), Host IP(s), Node (hidden while unscheduled;
+ * no Nodes page yet, so plain text with the `N` badge) and Image pull secret(s).
  */
 export function PodDetails({ obj, status }: PodDetailsProps) {
-  const podIPs = obj.status?.podIPs?.map(({ ip }) => ip) ?? (obj.status?.podIP ? [obj.status.podIP] : []);
+  const podIPs = obj.status?.podIPs;
+  const hostIPs = obj.status?.hostIPs;
+  const deadline = obj.spec?.activeDeadlineSeconds;
+  const pullSecrets = obj.spec?.imagePullSecrets ?? [];
   return (
     <>
       <DetailsItem label="Status">
         <ResourceStatusLabel status={status} />
       </DetailsItem>
-      <DetailsItem label="Node">{obj.spec?.nodeName ?? 'Not scheduled'}</DetailsItem>
-      <DetailsItem label={podIPs.length > 1 ? 'Pod IPs' : 'Pod IP'}>{podIPs.join(', ') || '—'}</DetailsItem>
-      <DetailsItem label="QoS class">{obj.status?.qosClass ?? '—'}</DetailsItem>
+      <DetailsItem label="Restart policy">
+        {RESTART_POLICIES[obj.spec?.restartPolicy ?? 'Always'] ?? obj.spec?.restartPolicy}
+      </DetailsItem>
+      <DetailsItem label="Active deadline seconds">
+        {deadline ? `${String(deadline)} ${deadline === 1 ? 'second' : 'seconds'}` : 'Not configured'}
+      </DetailsItem>
+      <DetailsItem label={podIPs && podIPs.length > 1 ? 'Pod IPs' : 'Pod IP'}>
+        {ipsText(podIPs, obj.status?.podIP)}
+      </DetailsItem>
+      <DetailsItem label={hostIPs && hostIPs.length > 1 ? 'Host IPs' : 'Host IP'}>
+        {ipsText(hostIPs, obj.status?.hostIP)}
+      </DetailsItem>
+      {obj.spec?.nodeName && (
+        <DetailsItem label="Node">
+          <BadgedName badge={{ kind: 'Node', abbr: 'N' }}>{obj.spec.nodeName}</BadgedName>
+        </DetailsItem>
+      )}
+      {pullSecrets.length > 0 && (
+        <DetailsItem label="Image pull secret">
+          <List isPlain>
+            {pullSecrets.map((secret) => (
+              <ListItem key={secret.name}>
+                <ObjectReferenceLink
+                  apiVersion="v1"
+                  kind="Secret"
+                  name={secret.name}
+                  namespace={obj.metadata?.namespace}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </DetailsItem>
+      )}
     </>
   );
 }
 
 /**
- * Containers section below the pod's details grid (UI-4): state + reason, restarts and the last termination — what you
- * need to see why a pod crash-loops.
+ * Sections below the pod's details grid (OCP `pod.tsx` `Details`): Init containers (when any), Containers, Volumes,
+ * Conditions.
  */
-export function PodContainers({ obj }: { obj: Pod }) {
+export function PodSections({ obj }: { obj: Pod }) {
+  const initContainers = obj.spec?.initContainers ?? [];
   return (
-    <DetailsSubsection title="Containers">
-      <ContainersTable pod={obj} />
-    </DetailsSubsection>
+    <>
+      {initContainers.length > 0 && (
+        <DetailsSubsection title="Init containers">
+          <PodContainersTable
+            label="Init containers"
+            containers={initContainers}
+            containerStatuses={obj.status?.initContainerStatuses}
+          />
+        </DetailsSubsection>
+      )}
+      <DetailsSubsection title="Containers">
+        <PodContainersTable
+          label="Containers"
+          containers={obj.spec?.containers ?? []}
+          containerStatuses={obj.status?.containerStatuses}
+        />
+      </DetailsSubsection>
+      <DetailsSubsection title="Volumes">
+        <VolumesTable spec={obj.spec} namespace={obj.metadata?.namespace} />
+      </DetailsSubsection>
+      <DetailsSubsection title="Conditions">
+        <ConditionsTable conditions={obj.status?.conditions} />
+      </DetailsSubsection>
+    </>
   );
 }

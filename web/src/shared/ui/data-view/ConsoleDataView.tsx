@@ -177,7 +177,10 @@ export function ConsoleDataView<T>({
     () => [
       ...shown.map((column, index) => ({
         cell: column.title,
-        props: { ...columnProps(column, true), sort: column.sortValue ? sortProps(column.id, index) : undefined },
+        props: {
+          ...columnProps(column, true),
+          sort: column.sortValue ? sortProps(column.id, index) : undefined,
+        },
         resizableProps: {
           isResizable: true,
           width: widths[column.id],
@@ -185,7 +188,9 @@ export function ConsoleDataView<T>({
           resizeButtonAriaLabel: `Resize ${column.title} column`,
         },
       })),
-      ...(rowActions ? [{ cell: undefined, props: { ...ACTIONS_HEADER_PROPS, screenReaderText: 'Actions' } }] : []),
+      ...(rowActions
+        ? [{ cell: undefined, props: { ...ACTIONS_HEADER_PROPS, screenReaderText: 'Actions' } }]
+        : []),
     ],
     [shown, sortProps, widths, setWidth, rowActions],
   );
@@ -203,7 +208,10 @@ export function ConsoleDataView<T>({
         return {
           id: rowId,
           row: rowActions
-            ? [...cells, { cell: <Fragment key={rowId}>{rowActions(obj)}</Fragment>, props: ACTIONS_CELL_PROPS }]
+            ? [
+                ...cells,
+                { cell: <Fragment key={rowId}>{rowActions(obj)}</Fragment>, props: ACTIONS_CELL_PROPS },
+              ]
             : cells,
         };
       }),
@@ -235,7 +243,10 @@ export function ConsoleDataView<T>({
 
   return (
     <LabelSuggestionsContext.Provider value={suggestions}>
-      <DataView activeState={activeState} className={filterNodes.length === 1 ? styles.singleFilter : undefined}>
+      <DataView
+        activeState={activeState}
+        className={filterNodes.length === 1 ? styles.singleFilter : undefined}
+      >
         <DataViewToolbar
           clearAllFilters={onClearAllFilters}
           // Our own "Clear filters", so the button always calls the current callback (PF memoises its default).

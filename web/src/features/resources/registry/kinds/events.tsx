@@ -1,6 +1,6 @@
 import { Label } from '@patternfly/react-core';
 import { EventModel, type Event, type K8sResource } from '@/shared/k8s';
-import { RelativeTime } from '@/shared/ui';
+import { Timestamp } from '@/shared/ui';
 import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
 import { namespaceColumn, timestampValue } from '../columns';
 import type { ColumnDef, ResourceDescriptor } from '../types';
@@ -65,7 +65,7 @@ export function eventColumns({
     {
       id: 'lastSeen',
       title: 'Last seen',
-      cell: (event) => <RelativeTime value={eventLastSeen(event) ?? null} />,
+      cell: (event) => <Timestamp value={eventLastSeen(event)} />,
       sortValue: (event) => timestampValue(eventLastSeen(event)),
     },
   ];

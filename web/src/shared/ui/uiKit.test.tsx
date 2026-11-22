@@ -135,7 +135,9 @@ describe('ConfirmModal', () => {
     const dialog = screen.getByRole('dialog', { name: 'Delete cluster prod-eu-1? prod' });
     expect(dialog).toHaveAccessibleDescription('Users lose access to prod-eu-1.');
     // Danger confirms get OCP's warning icon; the label sits inside the title, not in the header's help slot.
-    const heading = within(dialog).getByRole('heading', { name: /^Warning alert: ?Delete cluster prod-eu-1\? prod$/ });
+    const heading = within(dialog).getByRole('heading', {
+      name: /^Warning alert: ?Delete cluster prod-eu-1\? prod$/,
+    });
     expect(within(heading).getByText('prod')).toBeInTheDocument();
     expect(within(dialog).getAllByRole('button', { name: /close/i })).toHaveLength(1);
 
@@ -168,7 +170,9 @@ describe('ConfirmModal', () => {
         Users lose access to prod-eu-1.
       </ConfirmModal>,
     );
-    expect(screen.getByRole('heading', { name: /^Danger alert: ?Delete cluster prod-eu-1\?$/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /^Danger alert: ?Delete cluster prod-eu-1\?$/ }),
+    ).toBeInTheDocument();
   });
 
   it('keeps confirm disabled until the exact text is typed; Enter then confirms', async () => {

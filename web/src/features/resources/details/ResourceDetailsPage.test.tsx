@@ -86,8 +86,10 @@ describe('pod details (UI-4)', () => {
 
       const containers = await screen.findByRole('grid', { name: 'Containers' });
       const row = within(containers).getByRole('row', { name: /^web/ });
-      expect(within(row).getByText('Waiting: CrashLoopBackOff')).toBeInTheDocument();
-      expect(within(row).getByText('Error, exit code 1')).toBeInTheDocument();
+      // OCP `PodContainerTable`: state, readiness and the last state with exit code and reason.
+      expect(within(row).getByText('Waiting')).toBeInTheDocument();
+      expect(within(row).getByText('Not ready')).toBeInTheDocument();
+      expect(within(row).getByText('Terminated with exit code 1 (Error)')).toBeInTheDocument();
       expect(
         within(row).getByText(
           String(getPod('dev-1', CRASHING_POD).status?.containerStatuses?.[0]?.restartCount),
@@ -95,15 +97,45 @@ describe('pod details (UI-4)', () => {
       ).toBeInTheDocument();
       expect(screen.getByText('worker-1')).toBeInTheDocument();
       expect(screen.getByText('10.128.3.7')).toBeInTheDocument();
-      // Header status label from the descriptor.
-      expect(screen.getAllByText('CrashLoopBackOff').length).toBeGreaterThan(0);
-      // Unregistered owner kind (ReplicaSet): badge + plain name, no link.
-      expect(screen.getByTitle('ReplicaSet')).toBeInTheDocument();
-      expect(screen.getByText('web-7d4b9c8f6d')).toBeInTheDocument();
-      // Namespace link in the metadata column.
+      // Header status badge from the descriptor (OCP `ResourceStatus`: a read PF badge).
+      const heading = screen.getByRole('heading', { name: CRASHING_POD, level: 1 });
       expect(
-        within(screen.getByLabelText('Metadata')).getByRole('link', { name: 'shop' }),
-      ).toHaveAttribute('href', '/c/dev-1/k8s/cluster/projects/shop');
+        heading.closest('.pf-v6-c-page__main-section')?.querySelector('.pf-v6-c-badge.pf-m-read'),
+      ).toHaveTextContent('CrashLoopBackOff');
+      const metadata = screen.getByLabelText('Metadata');
+      // OCP `ResourceSummary` + `PodResourceSummary` order and labels.
+      expect(
+        within(metadata)
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual([
+        'Name',
+        'Namespace',
+        'Labels',
+        'Node selector',
+        'Tolerations',
+        'Annotations',
+        'Created at',
+        'Owner',
+      ]);
+      // OCP `PodDetailsList` order and labels.
+      expect(
+        within(screen.getByLabelText('Pod properties'))
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual(['Status', 'Restart policy', 'Active deadline seconds', 'Pod IP', 'Host IP', 'Node']);
+      // Owner ReplicaSet: kind badge + link to its details page.
+      expect(within(metadata).getByRole('link', { name: 'web-7d4b9c8f6d' })).toHaveAttribute(
+        'href',
+        '/c/dev-1/k8s/ns/shop/replicasets/web-7d4b9c8f6d',
+      );
+      // Namespace link in the metadata column.
+      expect(within(metadata).getByRole('link', { name: 'shop' })).toHaveAttribute(
+        'href',
+        '/c/dev-1/k8s/cluster/projects/shop',
+      );
+      // Namespace shown with the NS badge (OCP), even though it links to the project.
+      expect(within(metadata).getByTitle('Namespace')).toHaveTextContent('NS');
 
       const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
       expect(tabs).toEqual(['Details', 'YAML', 'Events']);
@@ -148,7 +180,7 @@ describe('pod details (UI-4)', () => {
 });
 
 describe('details project bar', () => {
-  it('shows on a pod and opens the picked project\'s list', async () => {
+  it("shows on a pod and opens the picked project's list", async () => {
     const { user, router } = renderApp(POD_PATH);
 
     await user.click(await screen.findByRole('button', { name: 'Project: shop' }));

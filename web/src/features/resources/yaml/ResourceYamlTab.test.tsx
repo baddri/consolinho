@@ -86,7 +86,10 @@ describe('yamlObject', () => {
   });
 
   it('builds the PUT body without managedFields and with the original resourceVersion', () => {
-    const text = toEditorText(cm, { showManagedFields: true }).replace('resourceVersion: "7"', 'resourceVersion: "99"');
+    const text = toEditorText(cm, { showManagedFields: true }).replace(
+      'resourceVersion: "7"',
+      'resourceVersion: "99"',
+    );
     const result = parseEdited(text, cm);
     expect(result).toEqual({
       ok: true,
@@ -98,8 +101,16 @@ describe('yamlObject', () => {
     ['broken YAML', 'kind: [', /^Invalid YAML/],
     ['a list', '- a\n- b', /one object/],
     ['two documents', 'a: 1\n---\nb: 2', /^Invalid YAML/],
-    ['a changed name', stringify({ ...cm, metadata: { ...cm.metadata, name: 'other' } }), /^metadata\.name can't/],
-    ['a changed namespace', stringify({ ...cm, metadata: { ...cm.metadata, namespace: 'x' } }), /namespace can't/],
+    [
+      'a changed name',
+      stringify({ ...cm, metadata: { ...cm.metadata, name: 'other' } }),
+      /^metadata\.name can't/,
+    ],
+    [
+      'a changed namespace',
+      stringify({ ...cm, metadata: { ...cm.metadata, namespace: 'x' } }),
+      /namespace can't/,
+    ],
     ['a changed kind', stringify({ ...cm, kind: 'Secret' }), /^kind can't/],
   ])('rejects %s', (_case, text, message) => {
     const result = parseEdited(text, cm);
@@ -159,7 +170,9 @@ describe('YAML tab save (UI-7, QG-3)', () => {
     expect(puts[0]).toMatchObject({ data: { greeting: 'hello' }, metadata: { resourceVersion: loadedRv } });
     const saved = storedConfigMap();
     expect(saved.data).toEqual({ greeting: 'hello' });
-    await waitFor(() => expect(editor.value).toContain(`resourceVersion: "${saved.metadata.resourceVersion}"`));
+    await waitFor(() =>
+      expect(editor.value).toContain(`resourceVersion: "${saved.metadata.resourceVersion}"`),
+    );
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
@@ -214,7 +227,11 @@ describe('YAML tab save (UI-7, QG-3)', () => {
   });
 
   it.each([
-    ['a changed metadata.name', (text: string) => text.replace('name: web-config', 'name: other'), /metadata\.name/],
+    [
+      'a changed metadata.name',
+      (text: string) => text.replace('name: web-config', 'name: other'),
+      /metadata\.name/,
+    ],
     ['broken YAML', () => 'kind: [', /Invalid YAML/],
   ])('%s: client-side error and no request', async (_case, edit, message) => {
     const puts = recordPuts();
@@ -253,7 +270,9 @@ describe('YAML tab save (UI-7, QG-3)', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Details' }));
     await user.click(await screen.findByRole('button', { name: 'Discard' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'),
+    );
   });
 });
 
@@ -268,5 +287,7 @@ it('never sends a PUT without resourceVersion', async () => {
   await user.click(screen.getByRole('button', { name: 'Save' }));
 
   await waitFor(() => expect(puts).toHaveLength(1));
-  expect(puts[0]).toMatchObject({ metadata: { resourceVersion: storedConfigMap().metadata.resourceVersion } });
+  expect(puts[0]).toMatchObject({
+    metadata: { resourceVersion: storedConfigMap().metadata.resourceVersion },
+  });
 });

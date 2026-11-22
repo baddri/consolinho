@@ -5,6 +5,7 @@ import { eventDescriptor } from './kinds/events';
 import { namespaceDescriptor } from './kinds/namespaces';
 import { podDescriptor } from './kinds/pods';
 import { projectDescriptor } from './kinds/projects';
+import { replicaSetDescriptor } from './kinds/replicasets';
 import { serviceDescriptor } from './kinds/services';
 import type { ResourceDescriptor } from './types';
 
@@ -22,6 +23,7 @@ export function resourceDescriptors(): readonly ResourceDescriptor[] {
     podDescriptor,
     deploymentDescriptor,
     configMapDescriptor,
+    replicaSetDescriptor,
     serviceDescriptor,
     namespaceDescriptor,
   ];

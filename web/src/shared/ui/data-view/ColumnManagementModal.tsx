@@ -21,7 +21,12 @@ export interface ColumnManagementModalProps<T> {
  * select, drag-and-drop order, "Restore default columns"). The Name column can't be hidden; OCP's description shows only the
  * namespace sentence because there is no column limit. Mounted only while open.
  */
-export function ColumnManagementModal<T>({ columns, hasNamespaceHint, onSave, onClose }: ColumnManagementModalProps<T>) {
+export function ColumnManagementModal<T>({
+  columns,
+  hasNamespaceHint,
+  onSave,
+  onClose,
+}: ColumnManagementModalProps<T>) {
   const applied = useMemo<ColumnManagementModalColumn[]>(
     () =>
       columns.map(({ column, isShown }) => ({

@@ -21,7 +21,11 @@ export interface BadgedNameProps {
  */
 export function BadgedName({ badge, children }: BadgedNameProps) {
   return (
-    <Flex gap={{ default: 'gapNone' }} flexWrap={{ default: 'nowrap' }} alignItems={{ default: 'alignItemsBaseline' }}>
+    <Flex
+      gap={{ default: 'gapNone' }}
+      flexWrap={{ default: 'nowrap' }}
+      alignItems={{ default: 'alignItemsBaseline' }}
+    >
       {badge && (
         <FlexItem flex={{ default: 'flexNone' }}>
           <KindBadge model={badge} />
