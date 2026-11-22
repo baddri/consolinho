@@ -161,7 +161,7 @@ public sealed class CredentialCommandHandlerTests
     {
         var endpoint = ApiServerEndpoint.Create($"https://api.{name}.example.com:6443", null, false).Value;
         var cluster = Cluster.Register(
-            ClusterName.Create(name).Value, null, endpoint, ClusterEnvironment.Production, null, null, true, "admin", FixedClock.Now);
+            ClusterName.Create(name).Value, null, endpoint, ClusterEnvironment.Production, ClusterDistribution.OpenShift, null, null, true, "admin", FixedClock.Now);
         cluster.ClearDomainEvents();
         return cluster;
     }

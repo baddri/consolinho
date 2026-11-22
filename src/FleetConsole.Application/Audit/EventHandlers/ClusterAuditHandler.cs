@@ -36,6 +36,7 @@ internal sealed class ClusterAuditHandler(IAuditTrail auditTrail) :
             new
             {
                 environment = domainEvent.Environment,
+                distribution = domainEvent.Distribution,
                 apiUrl = domainEvent.ApiUrl,
                 tlsMode = domainEvent.TlsMode,
                 isEnabled = domainEvent.IsEnabled,

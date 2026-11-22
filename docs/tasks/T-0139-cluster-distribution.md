@@ -1,7 +1,7 @@
 ---
 id: T-0139
 title: Cluster distribution (OpenShift | Kubernetes) — domain, migration, admin + accessible-clusters API
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3.7
 depends_on: []
@@ -109,17 +109,40 @@ JSON enums are camelCase strings; `Dto` suffix is stripped in OpenAPI schema nam
   `UpdateClusterTests.cs`, `ClusterQueriesTests.cs`, `ClusterTestSupport.cs` (request builders: add the field there once).
 
 ## Acceptance criteria
-- [ ] Domain: only defined values accepted; Register stores it; Update with a changed distribution raises `ClusterUpdated`
+- [x] Domain: only defined values accepted; Register stores it; Update with a changed distribution raises `ClusterUpdated`
       with `distribution` and leaves `ConnectionSettingsChangedAt` unchanged (DIST-1, DIST-2).
-- [ ] Migration adds the column; existing rows read back as `OpenShift`.
-- [ ] Register/Update without `distribution` → 400 field error `distribution`; with `"kubernetes"` → stored and returned
+- [x] Migration adds the column; existing rows read back as `OpenShift`.
+- [x] Register/Update without `distribution` → 400 field error `distribution`; with `"kubernetes"` → stored and returned
       by GET detail, list and `GET /api/clusters` (DIST-4). Unknown string (`"rancher"`) → 400.
-- [ ] `cluster.registered` audit details contain `distribution`.
-- [ ] XML docs on new members (they flow to the OpenAPI document / `schema.gen.ts`).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `cluster.registered` audit details contain `distribution`.
+- [x] XML docs on new members (they flow to the OpenAPI document / `schema.gen.ts`).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 backend-engineer: started; implemented §Contract A (enum, aggregate, event/audit, EF + migration
+  `ClusterDistribution` with default `'OpenShift'`, validator rule, DTOs/projections, nullable request field).
+- 2026-11-23: outside `paths` (call-site updates only): `tests/.../Integration/TestData.cs` (+`distribution` param),
+  `Integration/Clusters/ClustersEndpointsTests.cs` (field list + distribution test), `Persistence/*TestData|RoundTrip`,
+  `Domain.Tests/DomainTestData.cs`, `Application.Tests/Audit/ClusterAuditHandlerTests.cs`, `Credentials/*HandlerTests.cs`.
 
 ## Review
+- 2026-11-23 backend-architect, round 1: **APPROVE**. Contract A and ADR-0032 met: enum + domain guard, Register/Update
+  order, `changedFields` order, no staleness move, event/audit, EF mapping, migration default `'OpenShift'` (verified by
+  the information_schema test), nullable request field → validator field error, projections without extra queries.
+  `scripts/check-be.sh` green (326/687/778). Out-of-path test edits are call-site updates only — accepted.
+  Reviewer fix: reworded the `ClusterRequests.cs` header comment (rationale is the DIST-4 field error, not pre-existing rows).
+  Optional nit: the migration's DB-level default is kept after the backfill (harmless; the model always writes the value).
 
 ## Handover notes
+- Contract A implemented as written; no deviations. `scripts/check-be.sh` green (Testcontainers via podman ran).
+- Request `distribution` is `ClusterDistribution?` without `[JsonRequired]` (comment in `ClusterRequests.cs` explains);
+  missing/null → 400 `Validation.Failed` with `errors.distribution` "Choose OpenShift or Kubernetes."; unknown string
+  (`"rancher"`) → 400 binding ProblemDetails (no field key), same as unknown `environment`.
+- `Cluster.Register/Update` take `ClusterDistribution` right after `environment`; `ClusterRegistered` gains
+  `Distribution` (positional, after `Environment`). `changedFields` order: displayName, apiUrl, environment,
+  distribution, webConsoleUrl, description, caBundle, skipTlsVerify. Distribution change never moves
+  `ConnectionSettingsChangedAt`.
+- Migration `20261122173511_ClusterDistribution` (`defaultValue: "OpenShift"`, hand-edited from `""`); covered by an
+  information_schema test in `ClusterQueriesTests`.
+- `TestData.ClusterAsync(..., distribution = OpenShift)` and `ClusterTestSupport` bodies send `"openShift"` — T-0142
+  can seed Kubernetes clusters through that parameter. FE must regenerate `schema.gen.ts` (T-0146).

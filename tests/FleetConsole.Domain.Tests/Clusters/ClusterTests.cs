@@ -20,7 +20,7 @@ public sealed class ClusterTests
         var endpoint = Endpoint(caBundlePem: CertificatePem());
 
         var cluster = Cluster.Register(
-            NameOf("prod-eu-1"), "Prod EU 1", endpoint, ClusterEnvironment.Staging, ConsoleUrl, "Main cluster",
+            NameOf("prod-eu-1"), "Prod EU 1", endpoint, ClusterEnvironment.Staging, ClusterDistribution.Kubernetes, ConsoleUrl, "Main cluster",
             isEnabled: false, "admin", Now);
 
         cluster.Id.Value.ShouldNotBe(Guid.Empty);
@@ -28,6 +28,7 @@ public sealed class ClusterTests
         cluster.DisplayName.ShouldBe("Prod EU 1");
         cluster.Endpoint.ShouldBe(endpoint);
         cluster.Environment.ShouldBe(ClusterEnvironment.Staging);
+        cluster.Distribution.ShouldBe(ClusterDistribution.Kubernetes);
         cluster.WebConsoleUrl.ShouldBe(ConsoleUrl);
         cluster.Description.ShouldBe("Main cluster");
         cluster.IsEnabled.ShouldBeFalse();
@@ -38,7 +39,8 @@ public sealed class ClusterTests
         cluster.UpdatedBy.ShouldBeNull();
         cluster.Version.ShouldBe(0u);
         cluster.DomainEvents.ShouldBe([
-            new ClusterRegistered(cluster.Id, "prod-eu-1", ClusterEnvironment.Staging, ApiUrl, ClusterTlsMode.CaBundle, false),
+            new ClusterRegistered(cluster.Id, "prod-eu-1", ClusterEnvironment.Staging, ClusterDistribution.Kubernetes, ApiUrl, ClusterTlsMode.CaBundle,
+                false),
         ]);
     }
 
@@ -49,7 +51,7 @@ public sealed class ClusterTests
     public void Register_DefaultsDisplayNameToName_AndStoresBlankDescriptionAsNull(string? blank)
     {
         var cluster = Cluster.Register(
-            NameOf("dev-1"), blank, Endpoint(), ClusterEnvironment.Development, null, blank, true, "admin", Now);
+            NameOf("dev-1"), blank, Endpoint(), ClusterEnvironment.Development, ClusterDistribution.OpenShift, null, blank, true, "admin", Now);
 
         cluster.DisplayName.ShouldBe("dev-1");
         cluster.Description.ShouldBeNull();
@@ -62,6 +64,7 @@ public sealed class ClusterTests
         Should.Throw<ArgumentException>(() => Register(actor: " "));
         Should.Throw<ArgumentException>(() => Register(now: default(DateTimeOffset)));
         Should.Throw<ArgumentOutOfRangeException>(() => Register(environment: (ClusterEnvironment)9));
+        Should.Throw<ArgumentOutOfRangeException>(() => Register(distribution: (ClusterDistribution)9));
         Should.Throw<ArgumentOutOfRangeException>(() => Register(displayName: new string('x', Cluster.MaxDisplayNameLength + 1)));
         Should.Throw<ArgumentOutOfRangeException>(() => Register(description: new string('x', Cluster.MaxDescriptionLength + 1)));
         Should.Throw<ArgumentException>(() => Register(webConsoleUrl: new Uri("http://console.example.com")));
@@ -106,7 +109,7 @@ public sealed class ClusterTests
     {
         var cluster = Registered();
 
-        cluster.Update("Prod EU 1", Endpoint(ApiUrl + "/"), ClusterEnvironment.Production, ConsoleUrl, "Main", "bob", Later);
+        cluster.Update("Prod EU 1", Endpoint(ApiUrl + "/"), ClusterEnvironment.Production, ClusterDistribution.OpenShift, ConsoleUrl, "Main", "bob", Later);
 
         cluster.DomainEvents.ShouldBeEmpty();
         cluster.UpdatedAt.ShouldBeNull();
@@ -118,10 +121,10 @@ public sealed class ClusterTests
     public void Update_BlankDisplayNameEqualToName_IsNoChange()
     {
         var cluster = Cluster.Register(
-            NameOf("prod-eu-1"), null, Endpoint(), ClusterEnvironment.Production, null, null, true, "admin", Now);
+            NameOf("prod-eu-1"), null, Endpoint(), ClusterEnvironment.Production, ClusterDistribution.OpenShift, null, null, true, "admin", Now);
         cluster.ClearDomainEvents();
 
-        cluster.Update("  ", Endpoint(), ClusterEnvironment.Production, null, "", "bob", Later);
+        cluster.Update("  ", Endpoint(), ClusterEnvironment.Production, ClusterDistribution.OpenShift, null, "", "bob", Later);
 
         cluster.DomainEvents.ShouldBeEmpty();
     }
@@ -131,6 +134,7 @@ public sealed class ClusterTests
         { "displayName", false },
         { "apiUrl", true },
         { "environment", false },
+        { "distribution", false },
         { "webConsoleUrl", false },
         { "description", false },
         { "caBundle", true },
@@ -145,6 +149,7 @@ public sealed class ClusterTests
         var displayName = "Prod EU 1";
         var endpoint = Endpoint();
         var environment = ClusterEnvironment.Production;
+        var distribution = ClusterDistribution.OpenShift;
         var webConsoleUrl = ConsoleUrl;
         var description = "Main";
         switch (field)
@@ -152,6 +157,7 @@ public sealed class ClusterTests
             case "displayName": displayName = "Production EU"; break;
             case "apiUrl": endpoint = Endpoint("https://api.other.example.com:6443"); break;
             case "environment": environment = ClusterEnvironment.Staging; break;
+            case "distribution": distribution = ClusterDistribution.Kubernetes; break;
             case "webConsoleUrl": webConsoleUrl = new Uri("https://console.other.example.com"); break;
             case "description": description = "Changed"; break;
             case "caBundle": endpoint = Endpoint(caBundlePem: CertificatePem()); break;
@@ -159,7 +165,7 @@ public sealed class ClusterTests
             default: throw new ArgumentOutOfRangeException(nameof(field));
         }
 
-        cluster.Update(displayName, endpoint, environment, webConsoleUrl, description, "bob", Later);
+        cluster.Update(displayName, endpoint, environment, distribution, webConsoleUrl, description, "bob", Later);
 
         var updated = cluster.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<ClusterUpdated>();
         updated.ClusterId.ShouldBe(cluster.Id);
@@ -176,16 +182,17 @@ public sealed class ClusterTests
         var cluster = Registered();
         var endpoint = Endpoint("https://api.new.example.com", CertificatePem());
 
-        cluster.Update(null, endpoint, ClusterEnvironment.Development, null, null, "bob", Later);
+        cluster.Update(null, endpoint, ClusterEnvironment.Development, ClusterDistribution.Kubernetes, null, null, "bob", Later);
 
         cluster.DisplayName.ShouldBe("prod-eu-1");
         cluster.Endpoint.ShouldBe(endpoint);
         cluster.Environment.ShouldBe(ClusterEnvironment.Development);
+        cluster.Distribution.ShouldBe(ClusterDistribution.Kubernetes);
         cluster.WebConsoleUrl.ShouldBeNull();
         cluster.Description.ShouldBeNull();
         cluster.Name.Value.ShouldBe("prod-eu-1");
         cluster.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<ClusterUpdated>().ChangedFields.ShouldBe(
-            ["displayName", "apiUrl", "environment", "webConsoleUrl", "description", "caBundle"]);
+            ["displayName", "apiUrl", "environment", "distribution", "webConsoleUrl", "description", "caBundle"]);
     }
 
     [Fact]
@@ -193,7 +200,7 @@ public sealed class ClusterTests
     {
         var cluster = Registered(Endpoint(caBundlePem: CertificatePem("old")));
 
-        cluster.Update("Prod EU 1", Endpoint(caBundlePem: CertificatePem("new")), ClusterEnvironment.Production,
+        cluster.Update("Prod EU 1", Endpoint(caBundlePem: CertificatePem("new")), ClusterEnvironment.Production, ClusterDistribution.OpenShift,
             ConsoleUrl, "Main", "bob", Later);
 
         cluster.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<ClusterUpdated>().ChangedFields.ShouldBe(["caBundle"]);
@@ -205,7 +212,7 @@ public sealed class ClusterTests
     {
         var cluster = Registered(Endpoint(caBundlePem: CertificatePem()));
 
-        cluster.Update("Prod EU 1", Endpoint(skipTlsVerify: true), ClusterEnvironment.Production, ConsoleUrl, "Main",
+        cluster.Update("Prod EU 1", Endpoint(skipTlsVerify: true), ClusterEnvironment.Production, ClusterDistribution.OpenShift, ConsoleUrl, "Main",
             "bob", Later);
 
         cluster.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<ClusterUpdated>().ChangedFields
@@ -307,7 +314,7 @@ public sealed class ClusterTests
     private static Cluster Registered(ApiServerEndpoint? endpoint = null)
     {
         var cluster = Cluster.Register(
-            NameOf("prod-eu-1"), "Prod EU 1", endpoint ?? Endpoint(), ClusterEnvironment.Production, ConsoleUrl, "Main",
+            NameOf("prod-eu-1"), "Prod EU 1", endpoint ?? Endpoint(), ClusterEnvironment.Production, ClusterDistribution.OpenShift, ConsoleUrl, "Main",
             isEnabled: true, "admin", Now);
         cluster.ClearDomainEvents();
         return cluster;
@@ -316,10 +323,11 @@ public sealed class ClusterTests
     private static Cluster Register(
         string? displayName = null,
         ClusterEnvironment environment = ClusterEnvironment.Production,
+        ClusterDistribution distribution = ClusterDistribution.OpenShift,
         Uri? webConsoleUrl = null,
         string? description = null,
         string actor = "admin",
         DateTimeOffset? now = null) =>
         Cluster.Register(
-            NameOf(), displayName, Endpoint(), environment, webConsoleUrl, description, true, actor, now ?? Now);
+            NameOf(), displayName, Endpoint(), environment, distribution, webConsoleUrl, description, true, actor, now ?? Now);
 }

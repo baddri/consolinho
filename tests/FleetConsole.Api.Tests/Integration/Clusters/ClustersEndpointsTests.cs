@@ -50,7 +50,23 @@ public sealed class ClustersEndpointsTests(ApiFactory factory)
         var cluster = (await ListAsync(client)).ShouldHaveSingleItem();
 
         cluster.EnumerateObject().Select(p => p.Name)
-            .ShouldBe(["name", "displayName", "environment", "accessMode", "webConsoleUrl"], ignoreOrder: true);
+            .ShouldBe(["name", "displayName", "environment", "distribution", "accessMode", "webConsoleUrl"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task Returns_The_Declared_Distribution()
+    {
+        var user = await factory.Data.UserAsync();
+        var suffix = TestData.Unique();
+        var ocp = await GrantedClusterAsync(user.Username, $"a-ocp-{suffix}", ClusterEnvironment.Staging);
+        var k8s = await GrantedClusterAsync(
+            user.Username, $"b-k8s-{suffix}", ClusterEnvironment.Staging, distribution: ClusterDistribution.Kubernetes);
+        using var client = await factory.LoginAsAsync(user.Username);
+
+        var clusters = await ListAsync(client);
+
+        clusters.Select(c => (c.GetProperty("name").GetString(), c.GetProperty("distribution").GetString()))
+            .ShouldBe([(ocp, "openShift"), (k8s, "kubernetes")]);
     }
 
     [Fact]
@@ -108,9 +124,14 @@ public sealed class ClustersEndpointsTests(ApiFactory factory)
 
     // Registers a cluster with a credential and grants it to the user; returns the cluster name.
     private async Task<string> GrantedClusterAsync(
-        string username, string name, ClusterEnvironment environment, AccessMode mode = AccessMode.ReadOnly, bool isEnabled = true)
+        string username,
+        string name,
+        ClusterEnvironment environment,
+        AccessMode mode = AccessMode.ReadOnly,
+        bool isEnabled = true,
+        ClusterDistribution distribution = ClusterDistribution.OpenShift)
     {
-        var cluster = await factory.Data.ClusterAsync(name, isEnabled, environment);
+        var cluster = await factory.Data.ClusterAsync(name, isEnabled, environment, distribution);
         var credential = await factory.Data.CredentialAsync(cluster.Name);
         await factory.Data.GrantAsync(username, cluster.Name, credential.Id, mode);
         return cluster.Name;

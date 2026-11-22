@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FleetConsole.Domain.Clusters;
+using Npgsql;
 using static FleetConsole.Api.Tests.Integration.Admin.Clusters.ClusterTestSupport;
 
 namespace FleetConsole.Api.Tests.Integration.Admin.Clusters;
@@ -34,6 +36,7 @@ public sealed class ClusterQueriesTests(ApiFactory factory)
 
         item.GetProperty("displayName").GetString().ShouldBe(cluster.Name);
         item.GetProperty("environment").GetString().ShouldBe("staging");
+        item.GetProperty("distribution").GetString().ShouldBe("openShift");
         item.GetProperty("apiUrl").GetString().ShouldBe("https://api.test-cluster.example.com:6443");
         item.GetProperty("isEnabled").GetBoolean().ShouldBeTrue();
         item.GetProperty("tlsMode").GetString().ShouldBe("systemTrust");
@@ -102,6 +105,33 @@ public sealed class ClusterQueriesTests(ApiFactory factory)
         certs[1].GetProperty("subject").GetString().ShouldBe("CN=Fleet Short CA");
         certs[1].GetProperty("expiryStatus").GetString().ShouldBe("expiringSoon");
         certs[1].GetProperty("notAfter").GetDateTimeOffset().ShouldBeGreaterThan(DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
+    public async Task Detail_And_List_ReturnTheDeclaredDistribution()
+    {
+        var admin = await factory.AdminClientAsync();
+        var cluster = await factory.Data.ClusterAsync(distribution: ClusterDistribution.Kubernetes);
+
+        (await admin.GetDetailAsync(cluster.Name)).GetProperty("distribution").GetString().ShouldBe("kubernetes");
+        (await admin.GetListItemAsync(cluster.Name)).GetProperty("distribution").GetString().ShouldBe("kubernetes");
+    }
+
+    [Fact]
+    public async Task DistributionColumn_DefaultsRowsFromBeforeTheMigrationToOpenShift()
+    {
+        // The ClusterDistribution migration adds a NOT NULL column; its default is what existing clusters read back as.
+        using var client = factory.CreateApiClient();
+        await using var connection = new NpgsqlConnection(factory.ConnectionString);
+        await connection.OpenAsync(Ct);
+        await using var command = new NpgsqlCommand(
+            "select column_default, is_nullable from information_schema.columns " +
+            "where table_schema = 'public' and table_name = 'clusters' and column_name = 'distribution'", connection);
+        await using var reader = await command.ExecuteReaderAsync(Ct);
+
+        (await reader.ReadAsync(Ct)).ShouldBeTrue();
+        reader.GetString(0).ShouldBe("'OpenShift'::text");
+        reader.GetString(1).ShouldBe("NO");
     }
 
     [Fact]

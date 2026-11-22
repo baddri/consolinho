@@ -21,7 +21,7 @@ internal static class DomainTestData
     public static Cluster NewCluster(string name = "prod-eu-1", bool isEnabled = true)
     {
         var cluster = Cluster.Register(
-            NameOf(name), null, Endpoint(), ClusterEnvironment.Production, null, null, isEnabled, "admin", Now);
+            NameOf(name), null, Endpoint(), ClusterEnvironment.Production, ClusterDistribution.OpenShift, null, null, isEnabled, "admin", Now);
         cluster.ClearDomainEvents();
         return cluster;
     }

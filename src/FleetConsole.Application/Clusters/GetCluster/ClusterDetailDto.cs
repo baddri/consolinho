@@ -9,6 +9,7 @@ namespace FleetConsole.Application.Clusters.GetCluster;
 /// <param name="Name">The cluster name: URL slug, unique and immutable.</param>
 /// <param name="DisplayName">Human-friendly name; equals the name when none was given.</param>
 /// <param name="Environment">Production, staging or development.</param>
+/// <param name="Distribution">The declared distribution (OpenShift or Kubernetes); presentation only.</param>
 /// <param name="ApiUrl">The API server URL (https, host and port, no trailing slash).</param>
 /// <param name="WebConsoleUrl">Link to the cluster's own web console, or null.</param>
 /// <param name="Description">Free-text description, or null.</param>
@@ -29,6 +30,7 @@ public sealed record ClusterDetailDto(
     string Name,
     string DisplayName,
     ClusterEnvironment Environment,
+    ClusterDistribution Distribution,
     string ApiUrl,
     string? WebConsoleUrl,
     string? Description,

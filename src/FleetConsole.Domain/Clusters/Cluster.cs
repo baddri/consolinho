@@ -56,6 +56,12 @@ public sealed class Cluster : AggregateRoot<ClusterId>
     /// <summary>Production, staging or development (Q5).</summary>
     public ClusterEnvironment Environment { get; private set; }
 
+    /// <summary>
+    /// The admin-declared distribution (DIST-1): presentation only (tag and theme in the SPA, ADR-0032); never used to
+    /// decide which features or APIs are available.
+    /// </summary>
+    public ClusterDistribution Distribution { get; private set; }
+
     /// <summary>Optional <c>https://</c> link to the cluster's own web console (link-out only).</summary>
     public Uri? WebConsoleUrl { get; private set; }
 
@@ -88,6 +94,7 @@ public sealed class Cluster : AggregateRoot<ClusterId>
     /// <param name="displayName">Display name; null or blank defaults to <paramref name="name"/>.</param>
     /// <param name="endpoint">The validated connection settings.</param>
     /// <param name="environment">The environment classification.</param>
+    /// <param name="distribution">The admin-declared distribution (presentation only, ADR-0032).</param>
     /// <param name="webConsoleUrl">Optional absolute <c>https://</c> console URL (validated by the request validator).</param>
     /// <param name="description">Optional description; blank is stored as <see langword="null"/>.</param>
     /// <param name="isEnabled">Whether the cluster is immediately visible to granted users.</param>
@@ -99,6 +106,7 @@ public sealed class Cluster : AggregateRoot<ClusterId>
         string? displayName,
         ApiServerEndpoint endpoint,
         ClusterEnvironment environment,
+        ClusterDistribution distribution,
         Uri? webConsoleUrl,
         string? description,
         bool isEnabled,
@@ -115,13 +123,14 @@ public sealed class Cluster : AggregateRoot<ClusterId>
             DisplayName = NormalizeDisplayName(displayName, name),
             Endpoint = endpoint,
             Environment = CheckEnvironment(environment),
+            Distribution = CheckDistribution(distribution),
             WebConsoleUrl = CheckWebConsoleUrl(webConsoleUrl),
             Description = NormalizeDescription(description),
             IsEnabled = isEnabled,
             ConnectionSettingsChangedAt = now,
         };
         cluster.RaiseDomainEvent(new ClusterRegistered(
-            cluster.Id, name.Value, cluster.Environment, endpoint.ToString(), endpoint.TlsMode, isEnabled));
+            cluster.Id, name.Value, cluster.Environment, cluster.Distribution, endpoint.ToString(), endpoint.TlsMode, isEnabled));
         return cluster;
     }
 
@@ -133,6 +142,7 @@ public sealed class Cluster : AggregateRoot<ClusterId>
     /// <param name="displayName">Display name; null or blank defaults to <see cref="Name"/>.</param>
     /// <param name="endpoint">The validated connection settings.</param>
     /// <param name="environment">The environment classification.</param>
+    /// <param name="distribution">The admin-declared distribution; a change does not mark connection tests stale.</param>
     /// <param name="webConsoleUrl">Optional absolute <c>https://</c> console URL.</param>
     /// <param name="description">Optional description; blank is stored as <see langword="null"/>.</param>
     /// <param name="actor">Username of the acting admin.</param>
@@ -141,6 +151,7 @@ public sealed class Cluster : AggregateRoot<ClusterId>
         string? displayName,
         ApiServerEndpoint endpoint,
         ClusterEnvironment environment,
+        ClusterDistribution distribution,
         Uri? webConsoleUrl,
         string? description,
         string actor,
@@ -152,6 +163,7 @@ public sealed class Cluster : AggregateRoot<ClusterId>
 
         var newDisplayName = NormalizeDisplayName(displayName, Name);
         var newEnvironment = CheckEnvironment(environment);
+        var newDistribution = CheckDistribution(distribution);
         var newWebConsoleUrl = CheckWebConsoleUrl(webConsoleUrl);
         var newDescription = NormalizeDescription(description);
 
@@ -172,6 +184,11 @@ public sealed class Cluster : AggregateRoot<ClusterId>
         if (Environment != newEnvironment)
         {
             changedFields.Add("environment");
+        }
+
+        if (Distribution != newDistribution)
+        {
+            changedFields.Add("distribution");
         }
 
         if (!string.Equals(WebConsoleUrl?.ToString(), newWebConsoleUrl?.ToString(), StringComparison.Ordinal))
@@ -207,6 +224,7 @@ public sealed class Cluster : AggregateRoot<ClusterId>
         DisplayName = newDisplayName;
         Endpoint = endpoint;
         Environment = newEnvironment;
+        Distribution = newDistribution;
         WebConsoleUrl = newWebConsoleUrl;
         Description = newDescription;
         Touch(actor, now);
@@ -293,6 +311,11 @@ public sealed class Cluster : AggregateRoot<ClusterId>
         Enum.IsDefined(environment)
             ? environment
             : throw new ArgumentOutOfRangeException(nameof(environment), environment, "Unknown cluster environment.");
+
+    private static ClusterDistribution CheckDistribution(ClusterDistribution distribution) =>
+        Enum.IsDefined(distribution)
+            ? distribution
+            : throw new ArgumentOutOfRangeException(nameof(distribution), distribution, "Unknown cluster distribution.");
 
     private static Uri? CheckWebConsoleUrl(Uri? webConsoleUrl)
     {

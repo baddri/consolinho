@@ -42,6 +42,7 @@ internal static class TestClusters
             displayName: null,
             ApiServerEndpoint.Create("https://api.prod-east.example.com:6443", caBundlePem: null, skipTlsVerify: false).Value,
             ClusterEnvironment.Production,
+            ClusterDistribution.OpenShift,
             webConsoleUrl: null,
             description: null,
             isEnabled,

@@ -37,6 +37,7 @@ internal sealed class ClusterConfiguration : IEntityTypeConfiguration<Cluster>
         });
 
         builder.Property(c => c.Environment).IsRequired();
+        builder.Property(c => c.Distribution).IsRequired();
         builder.Property(c => c.WebConsoleUrl)
             .HasConversion<OriginalUriConverter>()
             .HasMaxLength(Cluster.MaxWebConsoleUrlLength);

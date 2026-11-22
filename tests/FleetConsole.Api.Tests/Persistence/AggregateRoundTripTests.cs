@@ -111,7 +111,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         var cluster = Cluster.Register(
             NewClusterName(), displayName: null,
             ApiServerEndpoint.Create("https://api.skip.example.com", caBundlePem: null, skipTlsVerify: true).Value,
-            ClusterEnvironment.Development, webConsoleUrl: null, description: null, isEnabled: true, Admin, Now);
+            ClusterEnvironment.Development, ClusterDistribution.Kubernetes, webConsoleUrl: null, description: null, isEnabled: true, Admin, Now);
         await SaveAsync(sp => sp.GetRequiredService<IClusterRepository>().Add(cluster));
 
         var loaded = await LoadAsync(sp => sp.GetRequiredService<IClusterRepository>().GetByIdAsync(cluster.Id, Ct));
@@ -124,6 +124,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         loaded.Endpoint.ToString().ShouldBe("https://api.skip.example.com");
         loaded.WebConsoleUrl.ShouldBeNull();
         loaded.Description.ShouldBeNull();
+        loaded.Distribution.ShouldBe(ClusterDistribution.Kubernetes);
         loaded.IsEnabled.ShouldBeTrue();
     }
 

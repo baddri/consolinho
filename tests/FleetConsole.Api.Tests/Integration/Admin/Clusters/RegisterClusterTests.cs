@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
+using System.Text.Json;
 using static FleetConsole.Api.Tests.Integration.Admin.Clusters.ClusterTestSupport;
 
 namespace FleetConsole.Api.Tests.Integration.Admin.Clusters;
@@ -25,6 +26,7 @@ public sealed class RegisterClusterTests(ApiFactory factory)
             b["displayName"] = "  Production East  ";
             b["apiUrl"] = "https://api.east.example.com:6443/";
             b["environment"] = "production";
+            b["distribution"] = "kubernetes";
             b["webConsoleUrl"] = "https://console-openshift-console.apps.east.example.com";
             b["description"] = " Main cluster ";
             b["isEnabled"] = false;
@@ -37,6 +39,7 @@ public sealed class RegisterClusterTests(ApiFactory factory)
         body.GetProperty("displayName").GetString().ShouldBe("Production East");
         body.GetProperty("apiUrl").GetString().ShouldBe("https://api.east.example.com:6443");
         body.GetProperty("environment").GetString().ShouldBe("production");
+        body.GetProperty("distribution").GetString().ShouldBe("kubernetes");
         body.GetProperty("webConsoleUrl").GetString().ShouldBe("https://console-openshift-console.apps.east.example.com");
         body.GetProperty("description").GetString().ShouldBe("Main cluster");
         body.GetProperty("isEnabled").GetBoolean().ShouldBeFalse();
@@ -45,7 +48,48 @@ public sealed class RegisterClusterTests(ApiFactory factory)
         body.GetProperty("version").GetUInt32().ShouldBe(await admin.VersionAsync(name));
 
         var audit = await factory.Data.AuditEntriesAsync(name);
-        audit.ShouldContain(e => e.Action == "cluster.registered");
+        var registered = audit.Single(e => e.Action == "cluster.registered");
+        using var details = JsonDocument.Parse(registered.DetailsJson);
+        details.RootElement.GetProperty("distribution").GetString().ShouldBe("kubernetes");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Register_MissingOrNullDistribution_Returns400OnDistribution(bool missing)
+    {
+        var admin = await factory.AdminClientAsync();
+        var name = $"new-{TestData.Unique()}";
+        var body = RegisterBody(name, b =>
+        {
+            if (missing)
+            {
+                b.Remove("distribution");
+            }
+            else
+            {
+                b["distribution"] = null;
+            }
+        });
+
+        using var response = await admin.PostAsJsonAsync(ClustersPath, body, Ct);
+
+        await response.ShouldBeFieldErrorAsync("distribution");
+        using var check = await admin.GetAsync(new Uri(ClusterPath(name), UriKind.Relative), Ct);
+        check.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Register_UnknownDistribution_Returns400()
+    {
+        var admin = await factory.AdminClientAsync();
+        var name = $"new-{TestData.Unique()}";
+
+        using var response = await admin.PostAsJsonAsync(ClustersPath, RegisterBody(name, b => b["distribution"] = "rancher"), Ct);
+
+        await response.ShouldBeProblemAsync(HttpStatusCode.BadRequest, code: null);
+        using var check = await admin.GetAsync(new Uri(ClusterPath(name), UriKind.Relative), Ct);
+        check.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]

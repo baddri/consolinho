@@ -43,6 +43,7 @@ internal static class PersistenceTestData
             displayName: "Persistence test cluster",
             ApiServerEndpoint.Create("https://API.persistence.example.com:6443/", withCaBundle ? CaBundlePem : null, skipTlsVerify: false).Value,
             ClusterEnvironment.Staging,
+            ClusterDistribution.OpenShift,
             new Uri("https://console.persistence.example.com/dashboards?tab=1"),
             description: "Used by persistence tests",
             isEnabled,

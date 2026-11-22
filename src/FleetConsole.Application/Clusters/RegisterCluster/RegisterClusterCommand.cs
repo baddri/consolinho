@@ -12,6 +12,7 @@ namespace FleetConsole.Application.Clusters.RegisterCluster;
 /// <param name="DisplayName">Optional display name; blank defaults to <paramref name="Name"/>.</param>
 /// <param name="ApiUrl">The API server URL.</param>
 /// <param name="Environment">Production, staging or development.</param>
+/// <param name="Distribution">OpenShift or Kubernetes; required (null is a validation error, DIST-4).</param>
 /// <param name="WebConsoleUrl">Optional <c>https://</c> link to the cluster's web console.</param>
 /// <param name="Description">Optional description.</param>
 /// <param name="CaBundle">Optional PEM CA bundle; blank means system trust.</param>
@@ -22,6 +23,7 @@ public sealed record RegisterClusterCommand(
     string? DisplayName,
     string ApiUrl,
     ClusterEnvironment Environment,
+    ClusterDistribution? Distribution,
     string? WebConsoleUrl,
     string? Description,
     string? CaBundle,

@@ -32,7 +32,7 @@ public sealed class ClusterCommandHandlerTests
         var result = await handler.Handle(
             new RegisterClusterCommand(
                 "prod-west", "  West  ", "https://api.west.example.com:6443/", ClusterEnvironment.Staging,
-                " https://console.west.example.com ", "   ", null, false, IsEnabled: false),
+                ClusterDistribution.Kubernetes,                " https://console.west.example.com ", "   ", null, false, IsEnabled: false),
             Ct);
 
         result.Value.ShouldBe("prod-west");
@@ -41,6 +41,7 @@ public sealed class ClusterCommandHandlerTests
         cluster.Description.ShouldBeNull();
         cluster.WebConsoleUrl!.OriginalString.ShouldBe("https://console.west.example.com");
         cluster.Endpoint.ToString().ShouldBe("https://api.west.example.com:6443");
+        cluster.Distribution.ShouldBe(ClusterDistribution.Kubernetes);
         cluster.IsEnabled.ShouldBeFalse();
         cluster.CreatedBy.ShouldBe("root");
         cluster.CreatedAt.ShouldBe(FixedClock.Now);
@@ -53,7 +54,7 @@ public sealed class ClusterCommandHandlerTests
         var handler = new RegisterClusterHandler(_clusters, _admin, new FixedClock());
 
         var result = await handler.Handle(
-            new RegisterClusterCommand("prod-east", null, "https://api.example.com", ClusterEnvironment.Production, null, null, null, false, true),
+            new RegisterClusterCommand("prod-east", null, "https://api.example.com", ClusterEnvironment.Production, ClusterDistribution.OpenShift, null, null, null, false, true),
             Ct);
 
         result.Error!.Code.ShouldBe("Clusters.NameTaken");
@@ -70,7 +71,8 @@ public sealed class ClusterCommandHandlerTests
 
         var result = await handler.Handle(
             new UpdateClusterCommand(
-                "prod-east", "East", "https://api.prod-east.example.com:6443", ClusterEnvironment.Production, null, null, null,
+                "prod-east", "East", "https://api.prod-east.example.com:6443", ClusterEnvironment.Production,
+                ClusterDistribution.OpenShift, null, null, null,
                 SkipTlsVerify: true, cluster.Version),
             Ct);
 
@@ -92,7 +94,8 @@ public sealed class ClusterCommandHandlerTests
 
         var result = await handler.Handle(
             new UpdateClusterCommand(
-                "prod-east", "East", "https://api.prod-east.example.com:6443", ClusterEnvironment.Production, null, null, null,
+                "prod-east", "East", "https://api.prod-east.example.com:6443", ClusterEnvironment.Production,
+                ClusterDistribution.OpenShift, null, null, null,
                 false, cluster.Version + 1),
             Ct);
 

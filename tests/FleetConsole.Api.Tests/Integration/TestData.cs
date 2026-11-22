@@ -87,6 +87,7 @@ public sealed class TestData(ApiFactory factory)
     /// <param name="name">The cluster name; unique when null.</param>
     /// <param name="isEnabled">Enabled (visible in the switcher once granted).</param>
     /// <param name="environment">The environment.</param>
+    /// <param name="distribution">The declared distribution.</param>
     /// <param name="apiUrl">The API server URL.</param>
     /// <param name="caBundlePem">The CA bundle the cluster's API server certificate chains to (e.g.
     /// <see cref="FakeKubeApiServer.CaBundlePem"/>); none when null.</param>
@@ -96,6 +97,7 @@ public sealed class TestData(ApiFactory factory)
         string? name = null,
         bool isEnabled = true,
         ClusterEnvironment environment = ClusterEnvironment.Staging,
+        ClusterDistribution distribution = ClusterDistribution.OpenShift,
         string apiUrl = "https://api.test-cluster.example.com:6443",
         string? caBundlePem = null,
         bool skipTlsVerify = false)
@@ -108,6 +110,7 @@ public sealed class TestData(ApiFactory factory)
             displayName: null,
             ApiServerEndpoint.Create(apiUrl, caBundlePem, skipTlsVerify).Value,
             environment,
+            distribution,
             webConsoleUrl: null,
             description: "Seeded by TestData",
             isEnabled,

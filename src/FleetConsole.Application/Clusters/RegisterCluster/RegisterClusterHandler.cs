@@ -46,6 +46,7 @@ internal sealed class RegisterClusterHandler(IClusterRepository clusters, ICurre
             ClusterSettingsInput.Text(request.DisplayName),
             endpoint.Value,
             request.Environment,
+            request.Distribution!.Value, // validated by ClusterSettingsRules
             ClusterSettingsInput.WebConsoleUrl(request.WebConsoleUrl),
             ClusterSettingsInput.Text(request.Description),
             request.IsEnabled,

@@ -26,6 +26,7 @@ public sealed class UpdateClusterTests(ApiFactory factory)
         {
             b["displayName"] = "Renamed";
             b["environment"] = "development";
+            b["distribution"] = "kubernetes";
             b["webConsoleUrl"] = "https://console.example.com";
         }));
 
@@ -33,6 +34,7 @@ public sealed class UpdateClusterTests(ApiFactory factory)
         var body = await response.JsonAsync();
         body.GetProperty("displayName").GetString().ShouldBe("Renamed");
         body.GetProperty("environment").GetString().ShouldBe("development");
+        body.GetProperty("distribution").GetString().ShouldBe("kubernetes");
         body.GetProperty("updatedBy").GetString().ShouldNotBeNull();
         var newVersion = body.GetProperty("version").GetUInt32();
         newVersion.ShouldNotBe(version);
@@ -41,7 +43,7 @@ public sealed class UpdateClusterTests(ApiFactory factory)
         var updated = (await factory.Data.AuditEntriesAsync(cluster.Name)).Single(e => e.Action == "cluster.updated");
         using var details = JsonDocument.Parse(updated.DetailsJson);
         details.RootElement.GetProperty("changedFields").EnumerateArray().Select(f => f.GetString())
-            .ShouldBe(["displayName", "environment", "webConsoleUrl"], ignoreOrder: true);
+            .ShouldBe(["displayName", "environment", "distribution", "webConsoleUrl"]);
     }
 
     [Fact]
@@ -83,6 +85,7 @@ public sealed class UpdateClusterTests(ApiFactory factory)
     [InlineData("displayName", "Other name", false)]
     [InlineData("description", "Other description", false)]
     [InlineData("environment", "production", false)]
+    [InlineData("distribution", "kubernetes", false)]
     public async Task Update_OnlyConnectionChanges_MarkLastTestStale(string field, object value, bool stale)
     {
         var admin = await factory.AdminClientAsync();
@@ -147,6 +150,29 @@ public sealed class UpdateClusterTests(ApiFactory factory)
         using var response = await PutAsync(admin, cluster.Name, UpdateBody(await admin.VersionAsync(cluster.Name), b => b.Remove("environment")));
 
         await response.ShouldBeProblemAsync(HttpStatusCode.BadRequest, code: null);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Update_MissingOrNullDistribution_Returns400OnDistribution(bool missing)
+    {
+        var admin = await factory.AdminClientAsync();
+        var cluster = await factory.Data.ClusterAsync();
+
+        using var response = await PutAsync(admin, cluster.Name, UpdateBody(await admin.VersionAsync(cluster.Name), b =>
+        {
+            if (missing)
+            {
+                b.Remove("distribution");
+            }
+            else
+            {
+                b["distribution"] = null;
+            }
+        }));
+
+        await response.ShouldBeFieldErrorAsync("distribution");
     }
 
     [Fact]
