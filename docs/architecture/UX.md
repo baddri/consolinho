@@ -52,6 +52,38 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
 - Environment band (fleet): PF `Banner` (prod `red`, staging `orange`) with centred text, first thing in the main card,
   exactly like OCP's notifier banners (`public/components/kube-admin-notifier.tsx`: `Banner color="blue"`, centred `p`).
 
+### 2a. Cluster type and Kubernetes theme (fleet invention, CP3.7 THEME/SW-3/SW-5/FLEET-1)
+- Baseline: OCP doesn't recolour the PF6 masthead (`public/style/_overrides.scss` only sizes the logo), so it is
+  PF's `--pf-v6-c-masthead--BackgroundColor` = `--pf-t--global--background--color--secondary--default`
+  (#f2f2f2 light, #151515 dark). OpenShift clusters and fleet pages keep exactly that.
+- Kubernetes clusters: a shell attribute (e.g. `data-cluster-type="kubernetes"`) scopes these custom properties.
+  Same values in light and dark (a fixed dark surface, like PF's dark masthead pattern):
+
+  | Property | Value (PF token) | Contrast vs navy |
+  |---|---|---|
+  | `--fc-k8s--bg` | `--pf-t--color--blue--70` #003366 | (vs #f2f2f2 11.3:1; vs #151515 1.45:1, distinct by hue) |
+  | `--fc-k8s--accent` | `--pf-t--color--blue--40` #4394e5, 3px bottom edge (`box-shadow: inset 0 -3px 0`) | 3.97:1 |
+  | `--fc-k8s--text` | `--pf-t--color--white` | 12.6:1 |
+  | `--fc-k8s--icon` | `--pf-t--color--gray--10` | 11.3:1 |
+  | `--fc-k8s--text-subtle` | `--pf-t--color--gray--30` | 7.5:1 |
+  | `--fc-k8s--border` (toggle border) | `--pf-t--color--gray--40` | 5.0:1 |
+  | `--fc-k8s--hover-bg` | `--pf-t--global--dark--background--color--600` (rgba 199,199,199,.15 = #1e4975) | text 9.3:1 |
+  | `--fc-k8s--focus` | `--pf-t--color--blue--30` #92c5f9 | 6.95:1 |
+- Overridden PF variables (component level only, never global `--pf-t--global--text/icon--*`, so nested Labels and
+  menus keep their own surfaces): masthead `--pf-v6-c-masthead--BackgroundColor`; plain buttons
+  `--pf-v6-c-button--m-plain--Color`/`--hover--Color`/`--hover--BackgroundColor`; masthead user toggle and the nav
+  header switcher `--pf-v6-c-menu-toggle--Color`, `--BackgroundColor` (transparent), `--BorderColor`,
+  `--hover--BackgroundColor`, `--expanded--BackgroundColor`, `__icon--Color`, `__toggle-icon--Color`; focus ring
+  `--pf-t--global--focus-ring--color--default` on those toggles/buttons only. The nav header gets `--fc-k8s--bg` + the
+  accent edge; the rest of the sidebar, content and every opened `Menu`/dropdown are untouched (verify with the probe:
+  menu item focus ring must stay PF's default).
+- Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
+  the theme uses no red/orange; the band directly under the navy masthead (red-20 vs navy 8.3:1) stays the dominant cue.
+- Icons (generic PF, `aria-hidden`, distinct shapes): OpenShift `ClusterIcon` (today's icon), Kubernetes `CubesIcon`,
+  Fleet management `GlobeIcon` (round). Not `OpenshiftIcon`/`DharmachakraIcon` (logo look-alikes).
+- Type tag: `<Label isCompact>` default grey, filled (own surface, readable on navy and in menus), text `OCP` / `K8s`.
+  Order (SW-5): menu item `[type] [environment] [Read only]`; toggle `[type] [environment]`.
+
 ## 3. Page heading (every page)
 OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps component-groups `PageHeader`):
 - Order: breadcrumb (details pages only) → row with [icon/badge] title + status/labels on the left and

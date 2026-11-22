@@ -216,6 +216,8 @@ No access cache in CP2 (one indexed query per request); TLS failures are classif
 ## Recipes (keep these working; they are the maintainability contract)
 
 ### Adding a cache later
+Decided for CP4.5 in ADR-0035 (FusionCache as the `HybridCache`, Redis L2 + backplane, tags, fail-safe off for
+authorization, decrypted tokens only in L1); the steps below stay the shape of the change.
 1. Extract the access lookup of `AuthorizeProxyRequestHandler` into its own query and mark it: `public sealed record ResolveClusterAccessQuery(...) : IQuery<ClusterAccess>, ICacheableQuery { string CacheKey => ...; TimeSpan Ttl => ...; }` (policies keep running per request, uncached).
 2. Register `CachingBehavior<,>` (uses `HybridCache`) in the pipeline before the handler.
 3. Invalidate from **post-commit** domain event handlers (`GrantRevoked` → remove key). That stage doesn't exist yet
