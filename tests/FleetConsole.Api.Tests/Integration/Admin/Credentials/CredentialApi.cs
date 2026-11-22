@@ -41,9 +41,12 @@ internal static class CredentialApi
     public static Uri ClusterCredentials(string cluster, string suffix = "") =>
         new($"/api/admin/clusters/{cluster}/credentials{suffix}", UriKind.Relative);
 
-    /// <summary>POSTs an add request.</summary>
-    public static Task<HttpResponseMessage> AddAsync(HttpClient client, string cluster, string name, string token, string? description = null) =>
-        client.PostAsJsonAsync(ClusterCredentials(cluster), new { name, description, token }, Ct);
+    /// <summary>POSTs an add request; <c>inspectNamespaces</c> is omitted from the body when <paramref name="inspectNamespaces"/> is null.</summary>
+    public static Task<HttpResponseMessage> AddAsync(
+        HttpClient client, string cluster, string name, string token, string? description = null, string[]? inspectNamespaces = null) =>
+        inspectNamespaces is null
+            ? client.PostAsJsonAsync(ClusterCredentials(cluster), new { name, description, token }, Ct)
+            : client.PostAsJsonAsync(ClusterCredentials(cluster), new { name, description, token, inspectNamespaces }, Ct);
 
     /// <summary>PUTs a rotate request.</summary>
     public static Task<HttpResponseMessage> RotateAsync(HttpClient client, string cluster, Guid id, string token, uint version) =>

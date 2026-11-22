@@ -76,6 +76,27 @@ public sealed class CredentialValidatorTests
             .Errors.ShouldHaveSingleItem().ErrorMessage.ShouldBe(AddCredentialValidator.DescriptionTooLongMessage);
     }
 
-    private static AddCredentialCommand Add(string name = "fleet-view", string? description = null, string token = ValidToken) =>
-        new("prod-eu-1", name, description, Sensitive(token));
+    [Fact]
+    public void Inspect_namespaces_are_optional_and_valid_lists_pass()
+    {
+        AddValidator.Validate(Add(namespaces: null)).IsValid.ShouldBeTrue();
+        AddValidator.Validate(Add(namespaces: [" team-a ", "team-a", "team-b"])).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Inspect_namespace_errors_are_copied_from_the_domain_with_their_field_keys()
+    {
+        var invalid = AddValidator.Validate(Add(namespaces: ["team-a", "Team_A"])).Errors.ShouldHaveSingleItem();
+        invalid.PropertyName.ShouldBe("inspectNamespaces[1]");
+        invalid.ErrorMessage.ShouldBe(InspectNamespaces.InvalidMessage("Team_A"));
+
+        var tooMany = AddValidator.Validate(Add(namespaces: [.. Enumerable.Range(0, 11).Select(i => $"ns-{i}")]))
+            .Errors.ShouldHaveSingleItem();
+        tooMany.PropertyName.ShouldBe("inspectNamespaces");
+        tooMany.ErrorMessage.ShouldBe("Enter at most 10 namespaces.");
+    }
+
+    private static AddCredentialCommand Add(
+        string name = "fleet-view", string? description = null, string token = ValidToken, IReadOnlyList<string>? namespaces = null) =>
+        new("prod-eu-1", name, description, Sensitive(token), namespaces);
 }

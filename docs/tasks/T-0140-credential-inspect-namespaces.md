@@ -1,7 +1,7 @@
 ---
 id: T-0140
 title: Saved inspect namespaces on the credential — value object, persistence, add-credential API, DTO, audit
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3.7
 depends_on: [T-0139]   # migration ordering only (shared model snapshot); no code dependency
@@ -67,17 +67,44 @@ Contract: **T-0139 §Contract B** (field names, messages, error keys, DTO positi
   `tests/FleetConsole.Api.Tests/Integration/Admin/Credentials/CredentialsEndpointsTests.cs`, `CredentialApi.cs` (builders).
 
 ## Acceptance criteria
-- [ ] VO: trims, dedups keeping first order, rejects blank/invalid entries with `inspectNamespaces[i]` naming the entry,
+- [x] VO: trims, dedups keeping first order, rejects blank/invalid entries with `inspectNamespaces[i]` naming the entry,
       rejects > 10 distinct with `inspectNamespaces`; `Empty` for null/empty input (domain tests).
-- [ ] `Credential.Add` stores the list; `RecordTest` replaces it (empty clears); `Rotate` keeps it.
-- [ ] Add credential with `inspectNamespaces: [" team-a ", "team-a", "team-b"]` → 201, GET returns `["team-a","team-b"]`;
+- [x] `Credential.Add` stores the list; `RecordTest` replaces it (empty clears); `Rotate` keeps it.
+- [x] Add credential with `inspectNamespaces: [" team-a ", "team-a", "team-b"]` → 201, GET returns `["team-a","team-b"]`;
       11 names or `"Team_A"` → 400 with the field key; omitted → `[]`.
-- [ ] Migration: existing credentials read back with `[]`.
-- [ ] `credential.added` audit details contain the names; token-leak sweep still passes.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Migration: existing credentials read back with `[]`.
+- [x] `credential.added` audit details contain the names; token-leak sweep still passes.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 backend-engineer: started; implemented as designed (VO reuses `Domain/Common/DnsLabel`), migration
+  `20261122174659_CredentialInspectNamespaces` (`defaultValueSql: "'{}'"`, hand-fixed from `new string[0]`).
+- 2026-11-23 backend-engineer: EF needs an explicit `InspectNamespacesComparer` (array provider type made EF pick a
+  list comparer that cannot snapshot the VO). Outside `paths`: `Credential.Add`/`RecordTest` call sites in test helpers
+  (`InspectNamespaces.Empty` added). `scripts/check-be.sh` green (Testcontainers via podman ran).
+- 2026-11-23 backend-engineer, fix round 1: HashSet dedup; entry errors capped at `MaxEntryErrors` (=10) with early exit; update round-trip test (replace + clear); check-be green.
 
 ## Review
+**Round 1 — backend-architect, 2026-11-23: CHANGES_REQUESTED.** `scripts/check-be.sh` green (332/690/781). Contract B
+matches (keys, messages, DTO position, `defaultValueSql: "'{}'"` correct for `text[]`; snapshot has no default, so no
+drift migration). Comparer is sound (immutable VO, element-wise `Equals`). Blank message accepted. No token in audit or logs.
+1. `src/FleetConsole.Domain/Credentials/InspectNamespaces.cs:57,70` — dedup uses `List.Contains`, so cost is O(n·distinct) over an
+   unbounded request array (the 30 MB body limit allows millions of unique valid names → quadratic CPU per request) — keep a
+   `HashSet<string>(StringComparer.Ordinal)` of seen names next to the ordered list (O(n)); behaviour and tests unchanged.
+2. `tests/FleetConsole.Api.Tests/Persistence/AggregateRoundTripTests.cs:189` — the converter/comparer are only exercised on insert;
+   the update path the comparer exists for has no test — add one: save, load, `RecordTest` with a different list, save, reload →
+   new list (and, in the same or another test, `RecordTest` with an empty list → `[]`).
+Optional: `InspectNamespaces.Create` adds one error per bad entry with no cap; fine for an admin endpoint, but a cap
+(e.g. stop after `MaxCount` entry errors) would bound the ProblemDetails size.
+Architect doc fix made: BACKEND.md §Persistence notes the converter + comparer convention for list value objects.
 
 ## Handover notes
+- Contract B implemented; no deviations. Blank entry message (not in contract): `Namespace name must not be empty.`
+  (`InspectNamespaces.BlankMessage`); invalid: `InspectNamespaces.InvalidMessage(name)`; too many: `TooManyMessage`.
+- Public API: `InspectNamespacesRules.ValidInspectNamespaces()` (Application/Credentials) for T-0141's test validators;
+  `TestCredentialHandler` still passes `credential.InspectNamespaces` to `RecordTest` (comment marks it for T-0141).
+- Events `CredentialAdded`/`CredentialTested` carry `IReadOnlyList<string>` → record equality is by list reference;
+  tests compare with `vo.Values` (same instance) or by field.
+- Migration test: `AggregateRoundTripTests.Credential_RowWithColumnDefault_ReadsBackWithNoInspectNamespaces` resets
+  the column to DEFAULT and reads `[]` back (stand-in for pre-CP3.7 rows; Postgres backfills ADD COLUMN DEFAULT).
+- FE: `CredentialDto.inspectNamespaces` and `AddCredentialRequest.inspectNamespaces` are new → `npm run gen:api`.

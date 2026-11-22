@@ -2,6 +2,7 @@ using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Common;
 using FleetConsole.Domain.Credentials;
 using FleetConsole.Domain.Users;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace FleetConsole.Infrastructure.Persistence.Converters;
@@ -25,6 +26,23 @@ internal sealed class CredentialNameConverter()
 /// <summary>Stores a <see cref="TokenFingerprint"/> as its 8 hex characters.</summary>
 internal sealed class TokenFingerprintConverter()
     : ValueConverter<TokenFingerprint, string>(fingerprint => fingerprint.Value, value => ValueConverters.Valid(TokenFingerprint.Create(value)));
+
+/// <summary>
+/// Stores <see cref="InspectNamespaces"/> as a <c>text[]</c> of its names in order. Reading re-validates through
+/// <see cref="InspectNamespaces.Create"/>. Always paired with <see cref="InspectNamespacesComparer"/>.
+/// </summary>
+internal sealed class InspectNamespacesConverter()
+    : ValueConverter<InspectNamespaces, string[]>(
+        namespaces => namespaces.Values.ToArray(),
+        values => ValueConverters.Valid(InspectNamespaces.Create(values)));
+
+/// <summary>
+/// Change-tracking comparer for <see cref="InspectNamespaces"/>. Required: with an array provider type EF would otherwise
+/// pick its list-of-strings comparer, which cannot snapshot the value object. The value object is immutable and compares
+/// its names element-wise, so the snapshot is the instance itself and an equal list is not reported as modified.
+/// </summary>
+internal sealed class InspectNamespacesComparer()
+    : ValueComparer<InspectNamespaces>((a, b) => object.Equals(a, b), namespaces => namespaces.GetHashCode(), namespaces => namespaces);
 
 /// <summary>Stores an <see cref="EncryptedToken"/> as its ciphertext bytes (<c>bytea</c>).</summary>
 internal sealed class EncryptedTokenConverter()

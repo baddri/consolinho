@@ -58,6 +58,21 @@ public sealed class CredentialCommandHandlerTests
     }
 
     [Fact]
+    public async Task Add_saves_normalised_inspect_namespaces_and_defaults_to_none()
+    {
+        var added = new List<Credential>();
+        _credentials.Add(Arg.Do<Credential>(added.Add));
+
+        await AddHandler().Handle(
+            new AddCredentialCommand("prod-eu-1", "fleet-view", null, Sensitive(OldToken), [" team-a ", "team-a", "team-b"]), Ct);
+        await AddHandler().Handle(new AddCredentialCommand("prod-eu-1", "fleet-edit", null, Sensitive(OldToken)), Ct);
+
+        added.Count.ShouldBe(2);
+        added[0].InspectNamespaces.Values.ShouldBe(["team-a", "team-b"]);
+        added[1].InspectNamespaces.ShouldBe(InspectNamespaces.Empty);
+    }
+
+    [Fact]
     public async Task Add_with_taken_name_is_NameTaken()
     {
         _credentials.NameExistsAsync(_cluster.Id, Arg.Any<CredentialName>(), Arg.Any<CancellationToken>()).Returns(true);
@@ -176,6 +191,7 @@ public sealed class CredentialCommandHandlerTests
             new EncryptedToken([9]),
             TokenFingerprints.Compute(Sensitive(OldToken)),
             TokenMetadata.Opaque,
+            InspectNamespaces.Empty,
             "admin",
             FixedClock.Now);
         credential.ClearDomainEvents();

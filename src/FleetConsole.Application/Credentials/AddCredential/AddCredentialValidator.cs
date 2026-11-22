@@ -31,5 +31,7 @@ internal sealed class AddCredentialValidator : AbstractValidator<AddCredentialCo
             .WithMessage(DescriptionTooLongMessage);
 
         RuleFor(c => c.Token).ValidToken();
+
+        RuleFor(c => c.InspectNamespaces).ValidInspectNamespaces();
     }
 }

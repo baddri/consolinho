@@ -129,7 +129,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Credential_RoundTrips_WithMetadataAndLastTest()
+    public async Task Credential_RoundTrips_WithMetadataLastTestAndInspectNamespaces()
     {
         var cluster = NewCluster();
         Credential credential = null!;
@@ -139,6 +139,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
             credential = NewCredential(cluster, sp.GetRequiredService<ITokenProtector>());
             credential.RecordTest(
                 new ConnectionTestSummary(Now.AddMinutes(1), Succeeded: false, ConnectionTestStep.OpenShiftVersion, CapabilityLevel.ClusterWideView),
+                InspectNamespaces.Create(["team-b", "team-a"]).Value,
                 cluster.Name.Value);
             sp.GetRequiredService<ICredentialRepository>().Add(credential);
         });
@@ -154,6 +155,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         loaded.Metadata.ShouldBe(credential.Metadata);
         loaded.Metadata.ServiceAccount.ShouldBe("fleet/viewer");
         loaded.LastTest.ShouldBe(new ConnectionTestSummary(Now.AddMinutes(1), false, ConnectionTestStep.OpenShiftVersion, CapabilityLevel.ClusterWideView));
+        loaded.InspectNamespaces.Values.ShouldBe(["team-b", "team-a"]);
         loaded.CreatedAt.ShouldBe(Now);
         loaded.CreatedBy.ShouldBe(Admin);
         loaded.RotatedAt.ShouldBeNull();
@@ -171,7 +173,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
             credential = Credential.Add(
                 cluster, CredentialName.Create("opaque").Value, null,
                 sp.GetRequiredService<ITokenProtector>().Protect(new SensitiveString(FakeToken())),
-                TokenFingerprint.Create("ffff0000").Value, TokenMetadata.Opaque, Admin, Now);
+                TokenFingerprint.Create("ffff0000").Value, TokenMetadata.Opaque, InspectNamespaces.Empty, Admin, Now);
             sp.GetRequiredService<ICredentialRepository>().Add(credential);
         });
 
@@ -181,6 +183,52 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         loaded.LastTest.ShouldBeNull();
         loaded.Metadata.ShouldBe(TokenMetadata.Opaque);
         loaded.Description.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task Credential_InspectNamespaces_UpdateThroughRecordTest_IsPersisted_IncludingClearing()
+    {
+        var cluster = NewCluster();
+        Credential credential = null!;
+        await SaveAsync(sp =>
+        {
+            sp.GetRequiredService<IClusterRepository>().Add(cluster);
+            credential = NewCredential(cluster, sp.GetRequiredService<ITokenProtector>());
+            credential.RecordTest(new ConnectionTestSummary(Now, true, null, null), InspectNamespaces.Create(["team-a"]).Value, cluster.Name.Value);
+            sp.GetRequiredService<ICredentialRepository>().Add(credential);
+        });
+
+        // A tracked, loaded aggregate: the comparer must report the replaced list as modified.
+        await RecordTestOnLoadedAsync(credential.Id, cluster.Name.Value, ["team-b", "team-c"]);
+        (await LoadAsync(sp => sp.GetRequiredService<ICredentialRepository>().GetByIdAsync(credential.Id, Ct)))
+            .ShouldNotBeNull().InspectNamespaces.Values.ShouldBe(["team-b", "team-c"]);
+
+        await RecordTestOnLoadedAsync(credential.Id, cluster.Name.Value, []);
+        (await LoadAsync(sp => sp.GetRequiredService<ICredentialRepository>().GetByIdAsync(credential.Id, Ct)))
+            .ShouldNotBeNull().InspectNamespaces.ShouldBe(InspectNamespaces.Empty);
+    }
+
+    [Fact]
+    public async Task Credential_RowWithColumnDefault_ReadsBackWithNoInspectNamespaces()
+    {
+        // Migration CredentialInspectNamespaces adds the column NOT NULL DEFAULT '{}', which Postgres also writes into
+        // every existing row; resetting a row to DEFAULT reproduces such a pre-CP3.7 credential.
+        var cluster = NewCluster();
+        Credential credential = null!;
+        await SaveAsync(sp =>
+        {
+            sp.GetRequiredService<IClusterRepository>().Add(cluster);
+            credential = NewCredential(cluster, sp.GetRequiredService<ITokenProtector>());
+            credential.RecordTest(new ConnectionTestSummary(Now, true, null, null), InspectNamespaces.Create(["team-a"]).Value, cluster.Name.Value);
+            sp.GetRequiredService<ICredentialRepository>().Add(credential);
+        });
+
+        (await ScalarAsync<int>(
+            "WITH u AS (UPDATE credentials SET inspect_namespaces = DEFAULT WHERE id = @id RETURNING 1) SELECT count(*)::int FROM u",
+            credential.Id.Value)).ShouldBe(1);
+        var loaded = await LoadAsync(sp => sp.GetRequiredService<ICredentialRepository>().GetByIdAsync(credential.Id, Ct));
+
+        loaded.ShouldNotBeNull().InspectNamespaces.ShouldBe(InspectNamespaces.Empty);
     }
 
     [Fact]
@@ -281,6 +329,15 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         reloaded.IsEnabled.ShouldBeTrue();
         reloaded.UpdatedAt.ShouldBe(Now.AddMinutes(1));
         reloaded.UpdatedBy.ShouldBe(Admin);
+    }
+
+    private async Task RecordTestOnLoadedAsync(CredentialId id, string clusterName, string[] namespaces)
+    {
+        await using var scope = factory.Services.CreateSignedInScope();
+        var loaded = await scope.ServiceProvider.GetRequiredService<ICredentialRepository>().GetByIdAsync(id, Ct);
+        loaded.ShouldNotBeNull().RecordTest(
+            new ConnectionTestSummary(Now.AddMinutes(1), true, null, null), InspectNamespaces.Create(namespaces).Value, clusterName);
+        await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
     }
 
     private async Task SaveAsync(Action<IServiceProvider> stage)

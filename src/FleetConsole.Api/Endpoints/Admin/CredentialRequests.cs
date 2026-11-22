@@ -8,7 +8,8 @@ namespace FleetConsole.Api.Endpoints.Admin;
 /// <param name="Name">The credential name, unique within the cluster: 1 to 63 characters, lowercase letters, digits and '-', starting and ending with a letter or digit.</param>
 /// <param name="Description">Optional description, at most 1000 characters.</param>
 /// <param name="Token">The ServiceAccount token. Surrounding whitespace is trimmed; then it must be non-empty, at most 16384 characters, printable ASCII without spaces or line breaks. JWT and opaque tokens are accepted.</param>
-public sealed record AddCredentialRequest(string Name, string? Description, string Token);
+/// <param name="InspectNamespaces">Optional namespaces (up to 10) the connection test lists the token's rules in; saved on the credential.</param>
+public sealed record AddCredentialRequest(string Name, string? Description, string Token, IReadOnlyList<string>? InspectNamespaces = null);
 
 /// <summary>Replaces a credential's token in place; the credential id and its grants are kept.</summary>
 /// <param name="Token">The new ServiceAccount token, with the same rules as when adding a credential.</param>

@@ -243,6 +243,7 @@ public sealed class AuthorizeProxyRequestHandlerTests
             new EncryptedToken([9]),
             TokenFingerprint.Create("0123abcd").Value,
             TokenMetadata.Opaque,
+            InspectNamespaces.Empty,
             "admin",
             FixedClock.Now);
         var grant = Grant.Create(user, cluster, credential, mode, new HashSet<ClusterId>(), "admin", FixedClock.Now).Value;

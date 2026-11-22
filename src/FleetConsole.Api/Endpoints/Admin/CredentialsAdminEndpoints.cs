@@ -89,7 +89,7 @@ public static class CredentialsAdminEndpoints
         ArgumentNullException.ThrowIfNull(request);
 
         var added = await dispatcher.Send(
-            new AddCredentialCommand(name, request.Name, request.Description, ToSensitiveToken(request.Token)),
+            new AddCredentialCommand(name, request.Name, request.Description, ToSensitiveToken(request.Token), request.InspectNamespaces),
             cancellationToken).ConfigureAwait(false);
         if (added.IsFailure)
         {

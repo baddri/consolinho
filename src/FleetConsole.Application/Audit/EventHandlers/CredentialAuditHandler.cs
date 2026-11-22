@@ -36,6 +36,7 @@ internal sealed class CredentialAuditHandler(IAuditTrail auditTrail) :
                 fingerprint = domainEvent.Fingerprint,
                 tokenType = domainEvent.TokenType,
                 serviceAccount = domainEvent.ServiceAccount,
+                inspectNamespaces = domainEvent.InspectNamespaces,
             });
         return Task.CompletedTask;
     }
@@ -79,7 +80,13 @@ internal sealed class CredentialAuditHandler(IAuditTrail auditTrail) :
             domainEvent.Name,
             domainEvent.ClusterName,
             $"Tested credential {domainEvent.Name} on cluster {domainEvent.ClusterName}: {outcome}",
-            new { succeeded = domainEvent.Succeeded, failedStep = domainEvent.FailedStep, headline = domainEvent.Headline });
+            new
+            {
+                succeeded = domainEvent.Succeeded,
+                failedStep = domainEvent.FailedStep,
+                headline = domainEvent.Headline,
+                inspectNamespaces = domainEvent.InspectNamespaces,
+            });
         return Task.CompletedTask;
     }
 

@@ -145,6 +145,7 @@ public sealed class TestData(ApiFactory factory)
             services.GetRequiredService<ITokenProtector>().Protect(new SensitiveString(plaintext)),
             TokenFingerprints.Compute(new SensitiveString(plaintext)),
             TokenInspector.Inspect(new SensitiveString(plaintext)),
+            InspectNamespaces.Empty,
             Actor,
             Now);
         services.GetRequiredService<ICredentialRepository>().Add(credential);

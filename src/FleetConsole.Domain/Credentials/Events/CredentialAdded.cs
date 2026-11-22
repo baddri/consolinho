@@ -11,6 +11,7 @@ namespace FleetConsole.Domain.Credentials.Events;
 /// <param name="Fingerprint">The token fingerprint (never the token).</param>
 /// <param name="TokenType">JWT or opaque.</param>
 /// <param name="ServiceAccount">The <c>&lt;namespace&gt;/&lt;name&gt;</c> of the token's ServiceAccount, if known.</param>
+/// <param name="InspectNamespaces">The namespaces saved on the credential (names only; audited, NST-7).</param>
 public sealed record CredentialAdded(
     CredentialId CredentialId,
     ClusterId ClusterId,
@@ -18,4 +19,5 @@ public sealed record CredentialAdded(
     string Name,
     string Fingerprint,
     TokenType TokenType,
-    string? ServiceAccount) : IDomainEvent;
+    string? ServiceAccount,
+    IReadOnlyList<string> InspectNamespaces) : IDomainEvent;

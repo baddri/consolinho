@@ -72,6 +72,12 @@ public sealed class Credential : AggregateRoot<CredentialId>
     /// </summary>
     public ConnectionTestSummary? LastTest { get; private set; }
 
+    /// <summary>
+    /// The namespaces the connection test lists the token's rules in (NST-5): set when adding, replaced by every stored
+    /// test, kept on rotation. Never <see langword="null"/>; <see cref="InspectNamespaces.Empty"/> when none.
+    /// </summary>
+    public InspectNamespaces InspectNamespaces { get; private set; } = InspectNamespaces.Empty;
+
     /// <summary>Adds a credential to <paramref name="cluster"/> (CRED-1). Raises <see cref="CredentialAdded"/>.</summary>
     /// <remarks>Allowed on disabled clusters: admins set up and test credentials before enabling a cluster.</remarks>
     /// <param name="cluster">The cluster the credential belongs to.</param>
@@ -80,6 +86,7 @@ public sealed class Credential : AggregateRoot<CredentialId>
     /// <param name="token">The encrypted token.</param>
     /// <param name="fingerprint">The fingerprint of the plaintext token.</param>
     /// <param name="metadata">The token's display metadata.</param>
+    /// <param name="inspectNamespaces">The namespaces its connection tests inspect (NST-5); <see cref="InspectNamespaces.Empty"/> for none.</param>
     /// <param name="actor">Username of the acting admin.</param>
     /// <param name="now">Current time (from <c>IClock</c>).</param>
     /// <returns>The new credential.</returns>
@@ -90,6 +97,7 @@ public sealed class Credential : AggregateRoot<CredentialId>
         EncryptedToken token,
         TokenFingerprint fingerprint,
         TokenMetadata metadata,
+        InspectNamespaces inspectNamespaces,
         string actor,
         DateTimeOffset now)
     {
@@ -98,6 +106,7 @@ public sealed class Credential : AggregateRoot<CredentialId>
         Guard.NotNull(token);
         Guard.NotNull(fingerprint);
         Guard.NotNull(metadata);
+        Guard.NotNull(inspectNamespaces);
         Guard.NotNullOrWhiteSpace(actor);
         Guard.NotDefault(now);
 
@@ -107,16 +116,17 @@ public sealed class Credential : AggregateRoot<CredentialId>
             Token = token,
             Fingerprint = fingerprint,
             Metadata = metadata,
+            InspectNamespaces = inspectNamespaces,
         };
         credential.RaiseDomainEvent(new CredentialAdded(
             credential.Id, cluster.Id, cluster.Name.Value, name.Value, fingerprint.Value, metadata.Type,
-            metadata.ServiceAccount));
+            metadata.ServiceAccount, inspectNamespaces.Values));
         return credential;
     }
 
     /// <summary>
-    /// Replaces the token in place (CRED-5): same id, grants unchanged. <see cref="LastTest"/> is cleared because it
-    /// described the old token. Raises <see cref="CredentialRotated"/>.
+    /// Replaces the token in place (CRED-5): same id, grants and <see cref="InspectNamespaces"/> unchanged (NST-5).
+    /// <see cref="LastTest"/> is cleared because it described the old token. Raises <see cref="CredentialRotated"/>.
     /// </summary>
     /// <remarks>
     /// Not idempotent: the Domain cannot compare plaintext tokens (the ciphertext differs on every encryption, and equal
@@ -154,14 +164,17 @@ public sealed class Credential : AggregateRoot<CredentialId>
     }
 
     /// <summary>
-    /// Stores the summary of a connection test of the current token (TEST-5), replacing the previous one. Raises
-    /// <see cref="CredentialTested"/> every time: each test run is audited.
+    /// Stores the summary of a connection test of the current token (TEST-5), replacing the previous one, and saves the
+    /// namespaces the test inspected as <see cref="InspectNamespaces"/> (NST-5, spec Q7: the list last tested is the one
+    /// wanted next time; an empty list clears it). Raises <see cref="CredentialTested"/> every time: each test run is audited.
     /// </summary>
     /// <param name="summary">The test summary; <c>FailedStep</c> must be set exactly when the test failed.</param>
+    /// <param name="inspectNamespaces">The namespaces the test inspected.</param>
     /// <param name="clusterName">The name of the credential's cluster, for the audit entry.</param>
-    public void RecordTest(ConnectionTestSummary summary, string clusterName)
+    public void RecordTest(ConnectionTestSummary summary, InspectNamespaces inspectNamespaces, string clusterName)
     {
         Guard.NotNull(summary);
+        Guard.NotNull(inspectNamespaces);
         Guard.NotNullOrWhiteSpace(clusterName);
         Guard.NotDefault(summary.TestedAt);
         if (summary.Succeeded != (summary.FailedStep is null))
@@ -170,8 +183,10 @@ public sealed class Credential : AggregateRoot<CredentialId>
         }
 
         LastTest = summary;
+        InspectNamespaces = inspectNamespaces;
         RaiseDomainEvent(new CredentialTested(
-            Id, ClusterId, clusterName, Name.Value, summary.Succeeded, summary.FailedStep, summary.Headline));
+            Id, ClusterId, clusterName, Name.Value, summary.Succeeded, summary.FailedStep, summary.Headline,
+            inspectNamespaces.Values));
     }
 
     /// <summary>

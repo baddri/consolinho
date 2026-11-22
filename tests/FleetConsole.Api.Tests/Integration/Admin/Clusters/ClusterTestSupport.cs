@@ -149,6 +149,7 @@ internal static class ClusterTestSupport
             services.GetRequiredService<ITokenProtector>().Protect(new SensitiveString(token)),
             TokenFingerprint.Create(Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)))[..8]).Value,
             new TokenMetadata(TokenType.Jwt, "system:serviceaccount:fleet:console", DateTimeOffset.UtcNow.AddDays(-1), expiresAt),
+            InspectNamespaces.Empty,
             TestData.Actor,
             DateTimeOffset.UtcNow);
         services.GetRequiredService<ICredentialRepository>().Add(credential);
@@ -171,6 +172,7 @@ internal static class ClusterTestSupport
                 succeeded,
                 succeeded ? null : ConnectionTestStep.Authentication,
                 succeeded ? CapabilityLevel.ClusterWideView : null),
+            credential.InspectNamespaces,
             clusterName);
         await services.GetRequiredService<IUnitOfWork>().SaveChangesAsync(Ct);
     }

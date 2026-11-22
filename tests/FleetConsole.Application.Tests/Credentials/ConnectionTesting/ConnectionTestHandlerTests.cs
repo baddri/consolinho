@@ -175,6 +175,7 @@ public sealed class ConnectionTestHandlerTests
             new EncryptedToken([9]),
             TokenFingerprints.Compute(Sensitive(StoredToken)),
             TokenMetadata.Opaque,
+            InspectNamespaces.Empty,
             "admin",
             FixedClock.Now);
         credential.ClearDomainEvents();

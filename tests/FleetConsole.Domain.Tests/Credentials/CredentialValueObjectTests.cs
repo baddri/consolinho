@@ -171,4 +171,73 @@ public sealed class CredentialValueObjectTests
         summary.IsStaleSince(Now).ShouldBeFalse();
         summary.IsStaleSince(Now.AddDays(-1)).ShouldBeFalse();
     }
+
+    // ---- InspectNamespaces (NST-2/5) --------------------------------------------------------------------------------
+
+    [Fact]
+    public void InspectNamespaces_NullOrEmpty_IsEmpty()
+    {
+        InspectNamespaces.Create(null).Value.ShouldBeSameAs(InspectNamespaces.Empty);
+        InspectNamespaces.Create([]).Value.ShouldBeSameAs(InspectNamespaces.Empty);
+        InspectNamespaces.Empty.Values.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void InspectNamespaces_Trims_AndRemovesDuplicates_KeepingFirstOrder()
+    {
+        var result = InspectNamespaces.Create([" team-b ", "team-a", "team-b", "\tteam-a"]);
+
+        result.Value.Values.ShouldBe(["team-b", "team-a"]);
+    }
+
+    [Fact]
+    public void InspectNamespaces_ReportsEveryBadEntry_ByInputIndex()
+    {
+        var result = InspectNamespaces.Create(["ok", "Team_A", " ", "ok", new string('a', 64), null!]);
+
+        var errors = result.Error.ShouldBeOfType<ValidationError>().Errors;
+        errors.Keys.ShouldBe(["inspectNamespaces[1]", "inspectNamespaces[2]", "inspectNamespaces[4]", "inspectNamespaces[5]"], ignoreOrder: true);
+        errors["inspectNamespaces[1]"].ShouldBe([
+            "'Team_A' is not a valid namespace name: at most 63 characters: lowercase letters, digits and '-', starting and ending with a letter or digit.",
+        ]);
+        errors["inspectNamespaces[2]"].ShouldBe([InspectNamespaces.BlankMessage]);
+        errors["inspectNamespaces[5]"].ShouldBe([InspectNamespaces.BlankMessage]);
+    }
+
+    [Fact]
+    public void InspectNamespaces_AcceptsTenDistinct_RejectsEleven_CountingAfterDedup()
+    {
+        var ten = Enumerable.Range(0, 10).Select(i => $"ns-{i}").ToList();
+
+        InspectNamespaces.Create([.. ten, "ns-0"]).Value.Values.Count.ShouldBe(10);
+        InspectNamespaces.Create([new string('a', 63)]).IsSuccess.ShouldBeTrue();
+
+        var errors = InspectNamespaces.Create([.. ten, "ns-10", "Bad!"]).Error.ShouldBeOfType<ValidationError>().Errors;
+        errors["inspectNamespaces"].ShouldBe(["Enter at most 10 namespaces."]);
+        errors.ShouldContainKey("inspectNamespaces[11]");
+    }
+
+    [Fact]
+    public void InspectNamespaces_CapsEntryErrors_ButStillFails()
+    {
+        var input = Enumerable.Range(0, 1000).Select(i => i % 2 == 0 ? $"BAD{i}" : $"ns-{i}").ToList();
+
+        var errors = InspectNamespaces.Create(input).Error.ShouldBeOfType<ValidationError>().Errors;
+
+        errors.Keys.Count(k => k.StartsWith("inspectNamespaces[", StringComparison.Ordinal)).ShouldBe(InspectNamespaces.MaxEntryErrors);
+        errors.ShouldContainKey("inspectNamespaces[0]");
+        errors["inspectNamespaces"].ShouldBe(["Enter at most 10 namespaces."]);
+        InspectNamespaces.Create([.. Enumerable.Range(0, 11).Select(i => $"ns-{i}"), "BAD"]).IsFailure.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void InspectNamespaces_HasValueEquality()
+    {
+        var a = InspectNamespaces.Create(["x", "y"]).Value;
+
+        a.ShouldBe(InspectNamespaces.Create(["x", " y "]).Value);
+        a.GetHashCode().ShouldBe(InspectNamespaces.Create(["x", "y"]).Value.GetHashCode());
+        a.ShouldNotBe(InspectNamespaces.Create(["y", "x"]).Value);
+        a.ShouldNotBe(InspectNamespaces.Empty);
+    }
 }

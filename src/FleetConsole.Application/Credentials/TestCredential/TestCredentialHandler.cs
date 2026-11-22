@@ -51,7 +51,8 @@ internal sealed class TestCredentialHandler(
             grants,
             cancellationToken).ConfigureAwait(false);
 
-        credential.RecordTest(ConnectionTester.SummaryOf(result), cluster.Name.Value);
+        // Keeps the saved list for now; T-0141 passes the namespaces the request inspected instead (NST-5).
+        credential.RecordTest(ConnectionTester.SummaryOf(result), credential.InspectNamespaces, cluster.Name.Value);
         return result;
     }
 }

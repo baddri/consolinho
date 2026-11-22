@@ -30,7 +30,7 @@ internal static class DomainTestData
     {
         var credential = Credential.Add(
             cluster, CredentialName.Create(name).Value, null, Token(1), Fingerprint(fingerprint),
-            JwtMetadata(), "admin", Now);
+            JwtMetadata(), InspectNamespaces.Empty, "admin", Now);
         credential.ClearDomainEvents();
         return credential;
     }

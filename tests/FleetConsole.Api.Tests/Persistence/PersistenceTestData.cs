@@ -58,6 +58,7 @@ internal static class PersistenceTestData
             protector.Protect(new SensitiveString(token ?? FakeToken())),
             TokenFingerprint.Create("0123abcd").Value,
             new TokenMetadata(TokenType.Jwt, "system:serviceaccount:fleet:viewer", Now.AddDays(-1), Now.AddDays(30)),
+            InspectNamespaces.Empty,
             Admin,
             Now);
 
