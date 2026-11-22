@@ -26,7 +26,9 @@ When PatternFly APIs are uncertain, check the PatternFly 6 docs (patternfly.org)
 Review `git diff -- <task paths>` (+ new files) against the task and the frontend checklist in `docs/process/SDLC.md`.
 Use LSP/`grep -n` + ranged reads for surrounding code. Run `scripts/check-fe.sh` once yourself. Write the verdict into
 the task file's **Review** section: `APPROVE` or `CHANGES_REQUESTED` with `path:line — problem — required fix`.
-Request changes only for real issues; list nits as optional.
+Request changes only for real issues; list nits as optional. Follow "Review rounds converge" and, when writing
+tasks, "Task size" (`docs/process/SDLC.md` §Review checklists): round 1 lists everything, round 2+ verifies only the
+listed fixes and regressions.
 
 Do not commit. Return the ≤8-line report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
 

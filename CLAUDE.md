@@ -114,6 +114,11 @@ Everything you read stays in context and is re-sent on every later turn, so read
   changed while iterating (`scripts/check-fe.sh <test path>`, `dotnet test <project> --filter ...`); full gate once at the end.
 - **Writing:** Work log entries ≤ 5 lines, Handover notes ≤ 15 lines, review findings one line each. Task files are
   read by every later agent.
+- **Turns:** every turn re-sends your whole context, so cost ≈ turns × context. Put independent reads/greps/LSP calls
+  in **one turn as parallel tool calls**; chain dependent shell steps into one command (`a && b && c`).
+- **Screenshots** stay in context for the rest of the session (~1.5k tokens each, re-sent every turn). Clip to the
+  element being judged, 1280 wide; dark theme only when colours/tokens changed. Measure with the style probe
+  (`scripts/ui-probe.mjs`, T-0138) first and open images only for what text can't settle. The orchestrator never opens images.
 
 ## How work runs here (summary — full detail in `docs/process/SDLC.md`)
 

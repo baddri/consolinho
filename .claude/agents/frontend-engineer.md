@@ -25,7 +25,9 @@ and copy, in our own code (never copy-paste it). Set the task `status: in_progre
 
 ## Before finishing
 While iterating run only affected tests (`scripts/check-fe.sh <test path>`). Finish with `scripts/check-fe.sh`; all
-must pass. Tick acceptance
+must pass. For UI tasks, run the style probe (`scripts/ui-probe.mjs`, T-0138) on the changed screens against the OCP
+reference before handing off, and fix any mismatches it reports. Don't write ad-hoc Playwright scripts, and don't
+start or kill dev servers by hand: the probe reuses one server. Tick acceptance
 criteria, set `status: in_review`, write **Handover notes**. Do not commit; do not edit HANDOVER.md/ROADMAP.md.
 Return the ≤8-line report format from `docs/process/SDLC.md`.
 

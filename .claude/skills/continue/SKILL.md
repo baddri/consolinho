@@ -19,6 +19,11 @@ You are the **orchestrator**. Follow `docs/process/SDLC.md` exactly.
      findings + task file.
    - Keep your own context lean too: read agent reports, not their diffs, unless committing needs it. Ask every agent
      for the ≤8-line report (SDLC.md delegation contract §5); the details belong in the task file.
+   - Session budget: the session auto-compacts at 150k (SDLC.md §Session boundaries), which is lossless only if
+     HANDOVER and task files are current after every task. Never open screenshots yourself, and don't manage dev
+     servers or stray processes: agents use `scripts/ui-probe.mjs` (T-0138), which reuses one server.
+   - Reviews follow "Review rounds converge" (SDLC.md §Review checklists): round 2+ verifies the listed fixes only;
+     pass the round-1 findings list to the re-reviewer so it doesn't re-audit from scratch.
    - After each engineer task: architect review → fix rounds (max 2) → commit `<type>(<scope>): <summary> [T-nnnn]` →
      set task `status: done` → update HANDOVER.md.
 4. Keep going without asking the human until the checkpoint closes (merge to main, tag `cp-<n>`) or a "Needs human"

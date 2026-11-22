@@ -107,7 +107,7 @@ is warm and cached); start a new agent only across sessions, with the findings l
   is clean or the WIP is described, HANDOVER "Next actions" lists concrete first steps.
 - To resume (`/continue` skill): read HANDOVER → verify git state matches → continue the loop at the recorded step.
 - **Orchestrator session budget:** the orchestrator's context is re-sent on every turn (CP1 sessions reached 350–530k
-  without ever compacting). `.claude/settings.json` sets `CLAUDE_CODE_AUTO_COMPACT_WINDOW=250000`, so long sessions
+  without ever compacting). `.claude/settings.json` sets `CLAUDE_CODE_AUTO_COMPACT_WINDOW=150000`, so long sessions
   auto-compact instead; that is safe only because HANDOVER and task files are always current — keep them so.
 - **LSP staleness:** csharp-ls only knows files that existed when it started, and `/clear` does not restart it. Files
   created later by agents get false CS0246/CS0103 diagnostics. Treat diagnostics on files you didn't edit as possibly
@@ -122,3 +122,12 @@ accurate; no secrets logged; tests cover happy path + main failures; migrations 
 **Frontend review** (frontend-architect): feature boundaries; data via shared/k8s or shared/api only; query keys include
 cluster; loading/error/empty states; no `any`, no DOM selectors; PatternFly components used idiomatically; a11y labels;
 tests with MSW; TSDoc on components/hooks.
+
+**Review rounds converge** (all reviewers). Round 1 is complete: list *every* finding you can see; don't hold any back
+for later rounds. Round 2+ verifies only the listed fixes and checks the touched screens/code for regressions. A new
+finding in round 2+ is a follow-up task (note its id in NOTES), unless it is a regression introduced by the fix, a
+bug, a security issue or a failed acceptance criterion. Prefer one combined fix round over several partial ones.
+
+**Task size** (task writers: architects, ux-designer). A task touches at most ~3 screens or one shared component and
+fits one engineer session (≈ 60 turns). Bigger work is split into ordered tasks with `depends_on`. Late turns of a long
+session carry twice the context of early ones.

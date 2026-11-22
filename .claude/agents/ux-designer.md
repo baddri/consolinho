@@ -40,13 +40,18 @@ States: loading, empty, error. Accessibility: focus order, labels, contrast.
    <scratchpad>`; if it isn't up, ask the orchestrator to start `scripts/ocp-ref/run-console.sh`; see `docs/dev/OCP-REFERENCE.md`).
    Compare the pairs side by side, plus the clone's source. Only browse it, never click actions.
 3. Write findings as one line each: `screen — problem — OCP reference — fix`. Group them into task files in
-   `docs/tasks/` (`_TEMPLATE.md`, next free T-number) by area, so each task is reviewable on its own. Fill each
-   task's Context pack with the files, PF components and OCP source paths you found.
+   `docs/tasks/` (`_TEMPLATE.md`, next free T-number) by area, so each task is reviewable on its own (SDLC.md "Task
+   size": ≤ ~3 screens or one shared component). Fill each task's Context pack with the files, PF components and OCP
+   source paths you found, and the **OCP CSS values** you measured (gaps, sizes, weights, padding), so the engineer
+   can check them with the probe instead of rediscovering them.
 
 ## Review mode
-Run the changed screens in the mock UI, screenshot them in both themes, and compare them with the task and
-`docs/architecture/UX.md`. Write the verdict into the task's **Review** section (`APPROVE` / `CHANGES_REQUESTED`,
-one line per finding). Code-level review is the frontend architect's job, not yours.
+Run the changed screens in the mock UI and compare them with the task and `docs/architecture/UX.md`. Measure first
+with the style probe (`scripts/ui-probe.mjs`, T-0138) against the reference console. Then look at clipped screenshots
+(CLAUDE.md "Screenshots") for what numbers can't show. Write the verdict into the task's **Review** section (`APPROVE` /
+`CHANGES_REQUESTED`, one line per finding). Follow "Review rounds converge" (SDLC.md §Review checklists): round 1
+lists everything, round 2+ re-checks only the listed findings and regressions. Code-level review is the frontend
+architect's job, not yours.
 
 Do not commit. Return the ≤8-line report format from `docs/process/SDLC.md` with the verdict or task list on the first
 line of NOTES.
