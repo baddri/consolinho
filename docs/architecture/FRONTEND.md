@@ -6,7 +6,7 @@ engineer can find the code for what they see on screen within a minute.
 ## Stack
 
 React + TypeScript (strict) + Vite, **PatternFly 6** (`@patternfly/react-core`, `react-table`, `react-icons`,
-`react-code-editor` for YAML, `react-log-viewer` for logs), React Router (data router), TanStack Query,
+`react-data-view` for lists, `react-code-editor` for YAML, `react-log-viewer` for logs), React Router (data router), TanStack Query,
 react-hook-form + zod, `yaml`, `kubernetes-types` (TS types only), xterm.js for exec (later),
 `openapi-typescript` + `openapi-fetch` for the admin/auth API. Pin exact versions; use the React major that PatternFly 6 officially supports.
 
@@ -187,9 +187,18 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
   tabs, `Tabs component="nav" usePageInsets`) where the page has tabs, then `PageBody`. Details tabs use
   `SectionHeading` + `DetailsGrid`/`DetailsColumn`/`DetailsItem` (two columns, vertical terms; never horizontal
   `DescriptionList`). Namespaced resource pages show the project bar above the heading. `Page isContentFilled`.
-- **Status = icon + text** via `StatusIconText` (`asLabel` only in a details title); each feature maps its enum to
-  `StatusKind` in one adapter component. `Label` is for categories only (environment, role, Read only, groups, k8s labels).
-- Tables: composable PF `Table variant="compact"`; headers never truncate; low-priority columns use
+- **Status = icon + text** via `StatusIconText` (`asLabel` only in a details title). Kubernetes status words go through
+  the shared `Status` (`shared/ui/Status.tsx`, OCP's `Status.tsx` word lists); other enums map to `StatusKind` in one
+  adapter component. `Label` is for categories only (environment, role, Read only, groups, k8s labels).
+- **Lists = `ConsoleDataView`** (`shared/ui/data-view`, T-0121): our port of OCP `ConsoleDataView` on PF
+  `@patternfly/react-data-view` — the library OCP itself uses, chosen for OCP parity (category filter select, chips,
+  resizable sticky columns, column management) instead of a hand-rolled toolbar. Generic over `T` with
+  `DataViewColumn<T>`; filter values come from the caller (URL), sorting/paging (50, client-side over the full list)
+  and column choice/widths (localStorage `fleetconsole.dataView.{columns,columnWidths}.<id>`) live inside. Its
+  dependencies (`react-component-groups`, `react-jss`) inject `<style>` at runtime — covered by the existing
+  `style-src 'unsafe-inline'` (SECURITY.md). Memoise filter elements (PF resets the category when their props change).
+  Admin lists move to it in T-0126; the events tab's `ResourceTable` in T-0124.
+- Other tables: composable PF `Table variant="compact"`; headers never truncate; low-priority columns use
   `visibility={LOW_PRIORITY_COLUMN}` (`shared/table`: `['hidden', 'visibleOn2Xl']`, hidden below 1450px; PF `xl` is
   already on at 1280) on `Th` and every `Td` (and `TableSkeletonRows columnVisibility`) instead of squeezing or
   truncating.

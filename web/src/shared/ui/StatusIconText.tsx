@@ -1,15 +1,33 @@
 import { Flex, FlexItem, Icon, Label } from '@patternfly/react-core';
 import {
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  HourglassHalfIcon,
-  InfoCircleIcon,
+  RhUiBanIcon,
+  RhUiCheckCircleFillIcon,
+  RhUiErrorFillIcon,
+  RhUiInformationFillIcon,
+  RhUiInProgressIcon,
+  RhUiSyncIcon,
+  RhUiUnknownIcon,
+  RhUiWarningFillIcon,
 } from '@patternfly/react-icons';
 import type { ComponentType } from 'react';
 
-/** Feature-free status vocabulary; each feature maps its own enum to it in one adapter. */
-export type StatusKind = 'success' | 'danger' | 'warning' | 'info' | 'pending' | 'neutral';
+/**
+ * Feature-free status vocabulary (OCP `console-dynamic-plugin-sdk/.../status/Status.tsx` icon families); each feature
+ * maps its own enum to it in one adapter, k8s status words go through {@link statusKindOf}.
+ * - `success` green check, `danger` red exclamation, `warning` yellow triangle, `info` blue info;
+ * - `pending` in-progress icon, `progress` sync icon, `ban` ban icon, `unknown` unknown icon (all uncoloured);
+ * - `neutral` text only.
+ */
+export type StatusKind =
+  | 'success'
+  | 'danger'
+  | 'warning'
+  | 'info'
+  | 'pending'
+  | 'progress'
+  | 'ban'
+  | 'unknown'
+  | 'neutral';
 
 /** Props for {@link StatusIconText}. */
 export interface StatusIconTextProps {
@@ -19,16 +37,23 @@ export interface StatusIconTextProps {
   asLabel?: boolean;
 }
 
+/** The `rh-ui-*` icons OCP uses per family (`status/icons.tsx`, `Status.tsx`). */
 const ICONS: Record<StatusKind, ComponentType | null> = {
-  success: CheckCircleIcon,
-  danger: ExclamationCircleIcon,
-  warning: ExclamationTriangleIcon,
-  info: InfoCircleIcon,
-  pending: HourglassHalfIcon,
+  success: RhUiCheckCircleFillIcon,
+  danger: RhUiErrorFillIcon,
+  warning: RhUiWarningFillIcon,
+  info: RhUiInformationFillIcon,
+  pending: RhUiInProgressIcon,
+  progress: RhUiSyncIcon,
+  ban: RhUiBanIcon,
+  unknown: RhUiUnknownIcon,
   neutral: null,
 };
 
-/** `Icon status` takes the PF status tokens (`--pf-t--global--icon--color--status--*`); pending/neutral stay default. */
+/**
+ * `Icon status` takes the PF status tokens (`--pf-t--global--icon--color--status--*`), as OCP `status/icons.scss`;
+ * the other families keep the text colour.
+ */
 const ICON_STATUS: Partial<Record<StatusKind, 'success' | 'danger' | 'warning' | 'info'>> = {
   success: 'success',
   danger: 'danger',
@@ -36,7 +61,7 @@ const ICON_STATUS: Partial<Record<StatusKind, 'success' | 'danger' | 'warning' |
   info: 'info',
 };
 
-/** The coloured, AT-hidden status icon, or `null` for `neutral`. */
+/** The AT-hidden status icon, or `null` for `neutral`. */
 function StatusIcon({ status }: { status: StatusKind }) {
   const Glyph = ICONS[status];
   if (!Glyph) return null;
@@ -63,7 +88,7 @@ export function StatusIconText({ status, text, asLabel }: StatusIconTextProps) {
     <Flex
       display={{ default: 'inlineFlex' }}
       gap={{ default: 'gapXs' }}
-      alignItems={{ default: 'alignItemsCenter' }}
+      alignItems={{ default: 'alignItemsBaseline' }}
       flexWrap={{ default: 'nowrap' }}
     >
       {ICONS[status] && (

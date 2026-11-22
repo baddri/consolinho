@@ -60,7 +60,7 @@ export function eventColumns({
       sortValue: (event) => event.reason ?? null,
     },
     ...(withInvolvedObject ? [involvedObject] : []),
-    { id: 'message', title: 'Message', width: 40, cell: (event) => event.message ?? '' },
+    { id: 'message', title: 'Message', cell: (event) => event.message ?? '' },
     { id: 'count', title: 'Count', cell: eventCount, sortValue: eventCount },
     {
       id: 'lastSeen',

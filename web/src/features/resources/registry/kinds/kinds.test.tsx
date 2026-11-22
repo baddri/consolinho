@@ -20,7 +20,7 @@ beforeEach(() => {
 function columnHeaders(table: HTMLElement): string[] {
   return within(table)
     .getAllByRole('columnheader')
-    .map((header) => header.textContent);
+    .map((header) => header.textContent.replace(/Column \d+ pixels$/, ''));
 }
 
 /** The table row whose name link is `name`. */
@@ -74,7 +74,6 @@ describe('deployments (QG-3)', () => {
         'Status',
         'Labels',
         'Pod selector',
-        'Created',
         'Actions',
       ]);
       const row = await findRow(table, 'web');

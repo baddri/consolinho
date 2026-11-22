@@ -13,6 +13,15 @@ configure({ asyncUtilTimeout: 3000 });
 // so no test — including those preloading every lazy route — ever imports Monaco.
 vi.mock('@/features/resources/yaml/YamlEditor');
 
+// jsdom has no IntersectionObserver; PF data-view's resizable headers (`DataViewTh`) observe their resize button.
+class NoopIntersectionObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn(() => []);
+}
+vi.stubGlobal('IntersectionObserver', NoopIntersectionObserver);
+
 // Any request without a handler fails the test, so tests can never silently hit a real network.
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
 afterEach(() => {

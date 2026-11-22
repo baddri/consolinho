@@ -2,7 +2,7 @@ import { PROJECT_ANNOTATIONS, ProjectModel, type Project } from '@/shared/k8s';
 import { ageColumn, nameColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 import { NamespaceDetails } from './NamespaceDetails';
-import { namespaceLikeColumns, phaseStatus } from './namespaces';
+import { namespaceLikeColumns, phaseStatus, Placeholder } from './namespaces';
 
 function requester(project: Project): string | undefined {
   return project.metadata.annotations?.[PROJECT_ANNOTATIONS.requester];
@@ -24,7 +24,7 @@ export const projectDescriptor: ResourceDescriptor<Project> = {
     {
       id: 'requester',
       title: 'Requester',
-      cell: (project) => requester(project) ?? '—',
+      cell: (project) => requester(project) ?? <Placeholder text="No requester" />,
       sortValue: (project) => requester(project) ?? null,
     },
     ageColumn(),

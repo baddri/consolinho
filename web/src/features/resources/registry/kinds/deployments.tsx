@@ -4,7 +4,6 @@ import { DetailsItem, RelativeTime } from '@/shared/ui';
 import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
 import {
   PodSelectorLink,
-  ageColumn,
   labelSelectorString,
   labelsColumn,
   nameColumn,
@@ -26,14 +25,11 @@ function ready(deployment: Deployment): number {
 }
 
 /**
- * "`ready` of `desired` pods": red when the `Available` condition is False, green when all desired pods are ready,
- * orange while the rollout is still progressing.
+ * "`ready` of `desired` pods", shown as plain text like OCP's workload Status column (`workload-table.tsx`
+ * `ReplicasCount`): no status icon.
  */
 export function deploymentStatus(deployment: Deployment): ResourceStatus {
-  const title = `${ready(deployment)} of ${desired(deployment)} pods`;
-  const available = deployment.status?.conditions?.find((condition) => condition.type === 'Available');
-  if (available?.status === 'False') return { title, color: 'red' };
-  return { title, color: ready(deployment) === desired(deployment) ? 'green' : 'orange' };
+  return { title: `${ready(deployment)} of ${desired(deployment)} pods` };
 }
 
 /** "RollingUpdate (max surge 25%, max unavailable 25%)" or just the strategy type. */
@@ -104,7 +100,7 @@ function DeploymentConditions({ obj }: { obj: DeploymentResource }) {
   );
 }
 
-/** Deployments (UI-3): Name, Namespace, Status, Labels, Pod selector, Created. */
+/** Deployments (UI-3, OCP `workload-table.tsx`): Name, Namespace, Status, Labels, Pod selector. */
 export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   model: DeploymentModel,
   nav: { section: 'workloads', order: 20 },
@@ -132,6 +128,5 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
       ),
       sortValue: (deployment) => labelSelectorString(deployment.spec?.selector.matchLabels),
     },
-    ageColumn(),
   ],
 };

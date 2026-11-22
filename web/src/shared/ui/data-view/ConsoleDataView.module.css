@@ -1,0 +1,58 @@
+/*
+ * OCP `ConsoleDataView.scss`: hide the filter category select when there is only one filter. PatternFly's
+ * `DataViewFilters` has no prop for it, so OCP (and we) hide the first item of the filter group.
+ */
+.singleFilter :global(.pf-v6-c-toolbar__group.pf-m-filter-group) > *:first-child {
+  display: none;
+}
+
+/* OCP `.co-text-filter` (`public/style/_forms.scss`): the input with the "/" shortcut hint inside its right edge. */
+.textFilter {
+  position: relative;
+  width: 100%;
+}
+
+/* OCP `.co-text-filter__text-input > input`: room for the hint. */
+.textFilter :global(.pf-v6-c-form-control) {
+  --pf-v6-c-form-control--PaddingInlineEnd: 30px;
+}
+
+/* OCP `.co-text-filter__feedback`. */
+.feedback {
+  display: block;
+  pointer-events: none;
+  position: absolute;
+  right: 7px;
+  text-align: center;
+  top: 8px;
+  z-index: 2;
+}
+
+/* OCP `.co-kbd.co-kbd__filter-input` (`_forms.scss`). */
+.kbd {
+  border: var(--pf-t--global--border--width--regular) solid var(--pf-t--global--border--color--default);
+  border-radius: 3px;
+  color: var(--pf-t--global--text--color--subtle);
+  font-family: inherit;
+  font-size: var(--pf-t--global--font--size--sm);
+  padding: 3px 2px;
+}
+
+/* OCP `.co-suggestion-box` (`public/components/_autocomplete.scss`). */
+.suggestionBox {
+  position: relative;
+  width: 100%;
+  z-index: var(--pf-t--global--z-index--sm);
+}
+
+/* OCP `.co-suggestion-box__suggestions` + `--shadowed` (only rendered while it has suggestions). */
+.suggestions {
+  background-color: var(--pf-t--global--background--color--floating--default);
+  box-shadow: var(--pf-t--global--box-shadow--md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-t--global--spacer--gap--group--vertical);
+  padding: var(--pf-t--global--spacer--sm);
+  position: absolute;
+  width: 100%;
+}

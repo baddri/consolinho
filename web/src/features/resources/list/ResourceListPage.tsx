@@ -1,18 +1,16 @@
-import {
-  Bullseye,
-  Button,
-  EmptyState,
-  EmptyStateBody,
-  PageSection,
-  Pagination,
-  type PerPageOptions,
-} from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
-import { useDeferredValue, useMemo, useState } from 'react';
+import { Bullseye, EmptyState, EmptyStateBody, PageSection } from '@patternfly/react-core';
+import { DataViewCheckboxFilter } from '@patternfly/react-data-view';
+import { useCallback, useDeferredValue, useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { apiVersionOf, useK8sDiscovery, useK8sList, type K8sResource } from '@/shared/k8s';
-import { TableEmptyRow, useClientSort, type SortValue } from '@/shared/table';
-import { PageBody, PageHeading } from '@/shared/ui';
+import {
+  ConsoleDataView,
+  DataViewLabelFilter,
+  DataViewTextFilter,
+  PageBody,
+  PageHeading,
+  type DataViewFilterValue,
+} from '@/shared/ui';
 import { ResourceRowActions } from '../actions/ResourceRowActions';
 import { ProjectBar } from '../components/ProjectBar';
 import { ResourceErrorState } from '../components/ResourceErrorState';
@@ -22,29 +20,17 @@ import { descriptorForPlural } from '../registry/registry';
 import type { ResourceDescriptor } from '../registry/types';
 import { useResourceRoute, type ListScope } from '../resourceRoute';
 import { LiveIndicator } from './LiveIndicator';
-import { ResourceListToolbar } from './ResourceListToolbar';
-import { ResourceTable } from './ResourceTable';
 import { useFilteredRows, useResourceFilters } from './useResourceFilters';
 
-const DEFAULT_PER_PAGE = 50;
-const PER_PAGE_OPTIONS: PerPageOptions[] = [20, 50, 100].map((value) => ({ title: String(value), value }));
 const NO_ROWS: K8sResource[] = [];
 
-type SortAccessors = Record<string, (obj: K8sResource) => SortValue>;
+/** Stable React key of a listed object. */
+function rowId(obj: K8sResource): string {
+  return obj.metadata.uid ?? `${obj.metadata.namespace ?? ''}/${obj.metadata.name ?? ''}`;
+}
 
-/** `useClientSort` wants stable accessors; derive them once per (module-level) descriptor. */
-const sortAccessorsCache = new WeakMap<ResourceDescriptor, SortAccessors>();
-
-function sortAccessors(descriptor: ResourceDescriptor): SortAccessors {
-  let accessors = sortAccessorsCache.get(descriptor);
-  if (!accessors) {
-    accessors = {};
-    for (const column of descriptor.columns) {
-      if (column.sortValue) accessors[column.id] = (obj) => column.sortValue?.(obj) ?? null;
-    }
-    sortAccessorsCache.set(descriptor, accessors);
-  }
-  return accessors;
+function objectLabels(obj: K8sResource): Record<string, string> | undefined {
+  return obj.metadata.labels;
 }
 
 /** Full-page empty state (unsupported or unserved kind). */
@@ -115,8 +101,31 @@ interface ResourceListProps {
 }
 
 /**
- * Project bar, heading, toolbar, table and pagination of one live list (or the `EmptyBox`-style empty state); data
- * from `useK8sList`, filters from the URL.
+ * The filter elements of a kind's list (OCP `ConsoleDataView`): Name, Label, then the descriptor's checkbox filters.
+ * Memoised per descriptor: `DataViewFilters` resets the selected category when the elements' props change.
+ */
+function useFilterNodes(descriptor: ResourceDescriptor) {
+  return useMemo(
+    () => [
+      <DataViewTextFilter key="name" filterId="name" title="Name" placeholder="Filter by name" />,
+      <DataViewLabelFilter key="label" filterId="label" title="Label" />,
+      ...(descriptor.filters ?? []).map((filter) => (
+        <DataViewCheckboxFilter
+          key={filter.id}
+          filterId={filter.id}
+          title={filter.title}
+          placeholder={`Filter by ${filter.title.toLowerCase()}`}
+          options={filter.options.map((option) => ({ value: option.value, label: option.label }))}
+        />
+      )),
+    ],
+    [descriptor],
+  );
+}
+
+/**
+ * Project bar, heading and the shared `ConsoleDataView` of one live list; data from `useK8sList`, filters from the
+ * URL (`?name=` client-side, `?label=` sent as `labelSelector`, descriptor filters such as `?status=`).
  */
 function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListProps) {
   const { model } = descriptor;
@@ -128,23 +137,19 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
 
   const deferredName = useDeferredValue(filters.name);
   const filtered = useFilteredRows(descriptor, list.data ?? NO_ROWS, deferredName, filters.selected);
-  const defaultSort = descriptor.defaultSort ?? { columnId: 'name', direction: 'asc' };
-  const { sorted, sortProps } = useClientSort(filtered, sortAccessors(descriptor), {
-    by: defaultSort.columnId,
-    direction: defaultSort.direction,
-  });
-
-  const [perPage, setPerPage] = useState(DEFAULT_PER_PAGE);
-  // Back to page 1 whenever the filters change (the namespace remounts the whole list).
-  const filterKey = JSON.stringify([deferredName, filters.labelSelector, filters.selected]);
-  const [paging, setPaging] = useState({ page: 1, filterKey });
-  const page = paging.filterKey === filterKey ? paging.page : 1;
-  const setPage = (next: number) => setPaging({ page: next, filterKey });
-  const lastPage = Math.max(1, Math.ceil(sorted.length / perPage));
-  const currentPage = Math.min(page, lastPage);
-  const pageRows = useMemo(
-    () => sorted.slice((currentPage - 1) * perPage, currentPage * perPage),
-    [sorted, currentPage, perPage],
+  const filterNodes = useFilterNodes(descriptor);
+  const filterValues = useMemo(
+    () => ({ name: filters.name, label: filters.labelSelector ?? '', ...filters.selected }),
+    [filters.name, filters.labelSelector, filters.selected],
+  );
+  const { setName, setLabelSelector, setSelected } = filters;
+  const onFilterChange = useCallback(
+    (filterId: string, value: DataViewFilterValue) => {
+      if (filterId === 'name') setName(typeof value === 'string' ? value : '');
+      else if (filterId === 'label') setLabelSelector(typeof value === 'string' ? value : '');
+      else setSelected(filterId, Array.isArray(value) ? value : []);
+    },
+    [setName, setLabelSelector, setSelected],
   );
 
   const columns = useMemo(
@@ -153,29 +158,15 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
         ? descriptor.columns.map((column) =>
             column.allNamespacesVisibility ? { ...column, visibility: column.allNamespacesVisibility } : column,
           )
-        : descriptor.columns.filter((column) => !column.allNamespacesOnly),
+        : // Still listed in "Manage columns", as OCP does, but only rendered for all projects.
+          descriptor.columns.map((column) => (column.allNamespacesOnly ? { ...column, isHidden: true } : column)),
     [descriptor, scope],
   );
-
-  // Nothing in the list and no filter: OCP's `EmptyBox` alone — no headers, no "0 - 0 of 0" pagination.
-  const isEmpty = !list.isPending && !list.error && sorted.length === 0 && !filters.isFiltered;
-
-  const pagination = (variant: 'top' | 'bottom') => (
-    <Pagination
-      variant={variant}
-      isCompact={variant === 'top'}
-      itemCount={sorted.length}
-      perPage={perPage}
-      page={currentPage}
-      perPageOptions={PER_PAGE_OPTIONS}
-      onSetPage={(_event, next) => setPage(next)}
-      onPerPageSelect={(_event, next) => {
-        setPerPage(next);
-        setPage(1);
-      }}
-      titles={{ paginationAriaLabel: `${model.labelPlural} pagination (${variant})` }}
-    />
+  const rowActions = useCallback(
+    (obj: K8sResource) => <ResourceRowActions cluster={cluster} descriptor={descriptor} obj={obj} />,
+    [cluster, descriptor],
   );
+  const defaultSort = descriptor.defaultSort ?? { columnId: 'name', direction: 'asc' };
 
   return (
     <>
@@ -185,56 +176,36 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
         status={list.liveStatus === 'paused' ? <LiveIndicator status={list.liveStatus} /> : undefined}
       />
       <PageBody>
-        <ResourceListToolbar
-          descriptor={descriptor}
-          filters={filters}
-          actions={isEmpty ? undefined : pagination('top')}
+        <ConsoleDataView
+          id={model.plural}
+          label={model.labelPlural}
+          data={list.data}
+          filteredData={filtered}
+          loaded={!list.isPending}
+          error={
+            list.error && (
+              <ResourceErrorState
+                error={list.error}
+                cluster={cluster}
+                model={model}
+                namespace={namespace}
+                onRetry={() => list.refetch()}
+              />
+            )
+          }
+          columns={columns}
+          getRowId={rowId}
+          defaultSort={{ by: defaultSort.columnId, direction: defaultSort.direction }}
+          filterNodes={filterNodes}
+          filterValues={filterValues}
+          onFilterChange={onFilterChange}
+          onClearAllFilters={filters.clearAll}
+          isFiltered={filters.isFiltered}
+          getLabels={objectLabels}
+          rowActions={rowActions}
+          hasNamespaceHint={model.namespaced}
         />
-        {list.error ? (
-          <ResourceErrorState
-            error={list.error}
-            cluster={cluster}
-            model={model}
-            namespace={namespace}
-            onRetry={() => list.refetch()}
-          />
-        ) : isEmpty ? (
-          <EmptyState variant="sm" titleText={`No ${model.labelPlural} found`} headingLevel="h2" />
-        ) : (
-          <>
-            <ResourceTable
-              ariaLabel={model.labelPlural}
-              columns={columns}
-              rows={pageRows}
-              sortProps={sortProps}
-              isPending={list.isPending}
-              rowActions={(obj) => <ResourceRowActions cluster={cluster} descriptor={descriptor} obj={obj} />}
-              emptyRow={
-                sorted.length === 0 && (
-                  <FilteredEmptyRow colSpan={columns.length + 1} onClearFilters={filters.clearAll} />
-                )
-              }
-            />
-            {sorted.length > 0 && pagination('bottom')}
-          </>
-        )}
       </PageBody>
     </>
-  );
-}
-
-/** Filters matched nothing (OCP copy): "No results match the filter criteria" + Clear all filters, under the headers. */
-function FilteredEmptyRow({ colSpan, onClearFilters }: { colSpan: number; onClearFilters: () => void }) {
-  return (
-    <TableEmptyRow
-      colSpan={colSpan}
-      title="No results match the filter criteria"
-      icon={SearchIcon}
-      actions={
-        <Button variant="link" onClick={onClearFilters}>
-          Clear all filters
-        </Button>
-      }
-    />
   );
 }

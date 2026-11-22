@@ -1,4 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import type { UserEvent } from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
 import { PodModel, setWatchTimingForTests, type K8sResource, type Pod } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
@@ -57,10 +58,19 @@ function linkNames(table: HTMLElement): string[] {
     .filter((name) => /^(?:web|load|extra)-/.test(name));
 }
 
+/** Header texts without the resizable columns' screen-reader width text ("Column 0 pixels"). */
 function columnHeaders(table: HTMLElement): string[] {
   return within(table)
     .getAllByRole('columnheader')
-    .map((header) => header.textContent);
+    .map((header) => header.textContent.replace(/Column \d+ pixels$/, ''));
+}
+
+/** Picks a filter category in the toolbar's category select (the first "Name" button; the table's comes later). */
+async function chooseFilter(user: UserEvent, category: string): Promise<void> {
+  const [toggle] = screen.getAllByRole('button', { name: 'Name' });
+  if (!toggle) throw new Error('category select not found');
+  await user.click(toggle);
+  await user.click(await screen.findByRole('menuitem', { name: category }));
 }
 
 /** A pod for `shop` built from a fixture pod. */
@@ -252,19 +262,29 @@ describe('resource list filters and sorting (UI-3)', () => {
     await waitFor(() => expect(linkNames(table)).toEqual([CRASHING_POD]));
   });
 
-  it('sends the label filter as labelSelector on Enter', async () => {
+  it('sends typed label terms as labelSelector on Enter, one chip per term', async () => {
     const selectors = recordLabelSelectors();
     const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/pods');
     await within(await findTable('Pods')).findByText(CRASHING_POD);
 
-    await user.type(
-      screen.getByRole('textbox', { name: 'Filter by label selector' }),
-      'app=web,tier!=db{Enter}',
-    );
+    await chooseFilter(user, 'Label');
+    await user.type(screen.getByRole('textbox', { name: 'Filter by label' }), 'app=web,tier!=db{Enter}');
 
     await waitFor(() => expect(selectors).toContain('app=web,tier!=db'));
     expect(new URLSearchParams(router.state.location.search).get('label')).toBe('app=web,tier!=db');
     expect(await within(await findTable('Pods')).findByText(CRASHING_POD)).toBeInTheDocument();
+    expect(screen.getByText('tier!=db')).toBeInTheDocument();
+  });
+
+  it('suggests the listed labels and applies a picked one', async () => {
+    const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/pods');
+    await within(await findTable('Pods')).findByText(CRASHING_POD);
+
+    await chooseFilter(user, 'Label');
+    await user.type(screen.getByRole('textbox', { name: 'Filter by label' }), 'app');
+    await user.click(await screen.findByRole('button', { name: 'app=web' }));
+
+    await waitFor(() => expect(new URLSearchParams(router.state.location.search).get('label')).toBe('app=web'));
   });
 
   it('filters pods by status and offers Clear filters when nothing matches', async () => {
@@ -272,17 +292,17 @@ describe('resource list filters and sorting (UI-3)', () => {
     const table = await findTable('Pods');
     await within(table).findByText(CRASHING_POD);
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Status' }));
+    await chooseFilter(user, 'Status');
+    await user.click(screen.getByRole('button', { name: 'Filter by status' }));
     await user.click(await screen.findByRole('checkbox', { name: 'CrashLoopBackOff' }));
     await waitFor(() => expect(linkNames(table)).toEqual([CRASHING_POD]));
     expect(router.state.location.search).toBe('?status=CrashLoopBackOff');
 
     await user.click(screen.getByRole('checkbox', { name: 'CrashLoopBackOff' }));
     await user.click(screen.getByRole('checkbox', { name: 'Failed' }));
-    expect(
-      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
-    ).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
+    // OCP `BodyEmpty`: one centred row under the headers; the toolbar offers "Clear filters".
+    expect(await within(table).findByText('No Pods found')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(linkNames(table)).toEqual(WEB_PODS));
     expect(router.state.location.search).toBe('');
   });
@@ -292,9 +312,7 @@ describe('resource list filters and sorting (UI-3)', () => {
     const table = await findTable('Events');
     const reason = await within(table).findByText('BackOff');
 
-    const headers = within(table)
-      .getAllByRole('columnheader')
-      .map((header) => header.textContent);
+    const headers = columnHeaders(table);
     for (const name of ['Type', 'Reason', 'Involved object', 'Message', 'Count', 'Last seen']) {
       expect(headers).toContain(name);
     }
@@ -319,7 +337,8 @@ describe('resource list filters and sorting (UI-3)', () => {
     // The Warning happened 2 minutes ago, the Normal ones hours ago.
     expect(reasons()[0]).toBe('BackOff');
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Type' }));
+    await chooseFilter(user, 'Type');
+    await user.click(screen.getByRole('button', { name: 'Filter by type' }));
     await user.click(await screen.findByRole('checkbox', { name: 'Normal' }));
 
     await waitFor(() => expect(reasons()).toEqual(['Started', 'Started', 'Started']));
@@ -354,6 +373,23 @@ describe('resource list filters and sorting (UI-3)', () => {
       'href',
       '/c/dev-1/k8s/ns/shop/pods',
     );
+  });
+
+  it('lists Namespace under Name in Manage columns even in one namespace, with OCP copy', async () => {
+    const { user } = renderApp('/c/dev-1/k8s/ns/shop/pods');
+    const table = await findTable('Pods');
+    await within(table).findByText(CRASHING_POD);
+    expect(columnHeaders(table)).not.toContain('Namespace');
+
+    await user.click(screen.getByRole('button', { name: 'Column management' }));
+    const dialog = await screen.findByRole('dialog');
+    const names = within(dialog)
+      .getAllByRole('checkbox')
+      .map((box) => box.closest('li')?.textContent ?? box.getAttribute('aria-label') ?? '');
+    expect(names.findIndex((name) => name.includes('Namespace'))).toBe(
+      names.findIndex((name) => name.includes('Name') && !name.includes('Namespace')) + 1,
+    );
+    expect(within(dialog).getByRole('button', { name: 'Restore default columns' })).toBeInTheDocument();
   });
 
   it('has no Namespace column in one namespace', async () => {

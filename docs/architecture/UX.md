@@ -80,7 +80,8 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
   `nowrap`, kebab column sticky with left border (`useConsoleDataViewColumns.ts`).
   Column headers are **never truncated** at 1280; low-priority columns hide below `2xl` (1450px) with `visibility`
   (`LOW_PRIORITY_COLUMN`; OCP column `props.className`/`visibility` pattern) instead of squeezing or overflowing.
-- Names: `ResourceLink` = kind badge + link (OCP `ResourceLink`). Times: relative, absolute in a tooltip.
+- Names: `ResourceLink` = kind badge + link (OCP `ResourceLink`). Times: OCP `Timestamp` (`console-shared/src/components/datetime/Timestamp.tsx`, `utils/datetime.ts:timestampFor`):
+  `RhUiClockIcon` + absolute date ("Nov 17, 2026, 9:54 PM"), relative ("5 minutes ago") only within 10.5 minutes.
 - Kind badge = OCP `co-m-resource-icon` (`public/components/_resource.scss`): filled pill, white text, radius 20px,
   `padding: 1px 4px`, `min-width: 18px`, `line-height: 16px`; colour per kind from `public/style/_vars.scss` (Pod
   `#009596`, workloads `#004080`, Namespace/Project `#1e4f18`, ConfigMap `#40199a`, Secret `#c46100`, Service

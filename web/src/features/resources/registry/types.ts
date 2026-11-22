@@ -1,8 +1,8 @@
-import type { LabelProps } from '@patternfly/react-core';
 import type { ThProps } from '@patternfly/react-table';
 import type { ReactNode } from 'react';
 import type { K8sModel, K8sResource } from '@/shared/k8s';
-import type { FilterOption, SortValue } from '@/shared/table';
+import type { FilterOption } from '@/shared/table';
+import type { DataViewColumn } from '@/shared/ui';
 
 /**
  * Descriptor shape of the resource registry (ADR-0023 §3).
@@ -16,29 +16,21 @@ import type { FilterOption, SortValue } from '@/shared/table';
 export type NavSectionId = 'home' | 'workloads' | 'networking' | 'administration';
 
 /**
- * Status of an object; `ResourceStatusLabel` maps `color` to a status icon + text (red danger, orange pending, green
- * success, else neutral) in the list's Status cell and the details header.
+ * Status of an object: a Kubernetes status word (`Running`, `Active`) or a phrase (`1 of 3 pods`).
+ * `ResourceStatusLabel` renders it with the OCP icon for that word (shared `Status`, `UX.md` §5) in the list's Status
+ * cell and the details header; phrases OCP doesn't know render as text only.
  */
 export interface ResourceStatus {
   title: string;
-  color: NonNullable<LabelProps['color']>;
 }
 
-/** One list column. Only columns with `sortValue` are sortable. */
-export interface ColumnDef<T> {
-  /** Stable id, also the sort key (`'name'`, `'created'`). */
-  id: string;
-  title: string;
-  cell(obj: T): ReactNode;
-  sortValue?(obj: T): SortValue;
+/**
+ * One list column: a shared `DataViewColumn` (`id` is the sort and column-management key, `type: 'name'` sticky,
+ * `visibility` for low-priority columns, `defaultVisible: false` for additional columns) plus all-namespaces options.
+ */
+export interface ColumnDef<T> extends DataViewColumn<T> {
   /** Shown only in all-namespaces mode (the Namespace column). */
   allNamespacesOnly?: boolean;
-  width?: 10 | 15 | 20 | 25 | 30 | 40;
-  /**
-   * PF responsive visibility of the header and cells (OCP's column `className`): low-priority columns use
-   * `['hidden', 'visibleOnXl']` (or `…OnLg`) so narrow screens drop them instead of truncating headers.
-   */
-  visibility?: ThProps['visibility'];
   /** `visibility` in all-namespaces mode, where the Namespace column takes the room (Pods' Owner goes first). */
   allNamespacesVisibility?: ThProps['visibility'];
 }

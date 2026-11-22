@@ -11,7 +11,7 @@ function keyCount(configMap: ConfigMap): number {
   return Object.keys(configMap.data ?? {}).length + Object.keys(configMap.binaryData ?? {}).length;
 }
 
-/** ConfigMaps (UI-3): Name, Namespace, Keys, Created. */
+/** ConfigMaps (UI-3, OCP `configmap.tsx`): Name, Namespace, Size (number of keys), Created. */
 export const configMapDescriptor: ResourceDescriptor<ConfigMapResource> = {
   model: ConfigMapModel,
   nav: { section: 'workloads', order: 30 },
@@ -19,7 +19,7 @@ export const configMapDescriptor: ResourceDescriptor<ConfigMapResource> = {
   columns: [
     nameColumn(ConfigMapModel),
     namespaceColumn(ConfigMapModel),
-    { id: 'keys', title: 'Keys', cell: keyCount, sortValue: keyCount },
+    { id: 'keys', title: 'Size', cell: keyCount, sortValue: keyCount },
     ageColumn(),
   ],
 };

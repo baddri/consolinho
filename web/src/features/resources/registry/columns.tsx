@@ -1,3 +1,4 @@
+import { RhUiSearchIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
 import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
@@ -14,14 +15,14 @@ export function timestampValue(value: string | undefined): number | null {
 }
 
 /**
- * Name column: kind badge + link to the object's details page. Sort key `name`. A quarter of the table, so generated
- * pod names (`web-7d4b9c8f6d-2xkqp`) stay on one line next to badge at 1280 instead of breaking at every hyphen.
+ * Name column (`type: 'name'`): kind badge + link to the object's details page, sticky and `nowrap` like OCP, so
+ * generated pod names (`web-7d4b9c8f6d-2xkqp`) stay on one line. Sort key `name`.
  */
 export function nameColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T> {
   return {
     id: 'name',
     title: 'Name',
-    width: 25,
+    type: 'name',
     cell: (obj) => (
       <ResourceLink model={model} name={obj.metadata.name ?? ''} namespace={obj.metadata.namespace} />
     ),
@@ -44,6 +45,7 @@ export function namespaceColumn<T extends K8sResource>(model: K8sModel): ColumnD
   return {
     id: 'namespace',
     title: 'Namespace',
+    type: 'namespace',
     allNamespacesOnly: true,
     cell: (obj) =>
       obj.metadata.namespace === undefined ? (
@@ -80,8 +82,8 @@ export interface PodSelectorLinkProps {
 }
 
 /**
- * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2); "—" without a selector,
- * plain text outside a cluster or namespace.
+ * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2), with OCP `Selector`'s
+ * search icon and ", "-joined terms; "—" without a selector, plain text outside a cluster or namespace.
  */
 export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps) {
   const cluster = useActiveCluster();
@@ -89,10 +91,15 @@ export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps
   if (selector === '') return <>—</>;
   if (cluster === undefined || namespace === undefined) return <>{selector}</>;
   const search = new URLSearchParams({ label: selector }).toString();
-  return <Link to={resourcePath(cluster, PodModel, { namespace, search })}>{selector}</Link>;
+  return (
+    <Link to={resourcePath(cluster, PodModel, { namespace, search })}>
+      <RhUiSearchIcon className="pf-v6-u-mr-xs" />
+      {selector.replace(/,/g, ', ')}
+    </Link>
+  );
 }
 
-/** Labels column: `key=value` labels, collapsed after three. Not sortable. */
+/** Labels column: normal-size `key=value` labels, collapsed after 20 (OCP `LabelList`). Not sortable. */
 export function labelsColumn<T extends K8sResource>(): ColumnDef<T> {
   return {
     id: 'labels',
@@ -100,6 +107,8 @@ export function labelsColumn<T extends K8sResource>(): ColumnDef<T> {
     cell: (obj) => (
       <LabelList
         aria-label="Labels"
+        max={20}
+        isCompact={false}
         labels={Object.entries(obj.metadata.labels ?? {}).map(([key, value]) => `${key}=${value}`)}
       />
     ),

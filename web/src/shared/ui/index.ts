@@ -15,6 +15,14 @@ export {
   type InlineLabelTitleProps,
 } from './ConfirmModal';
 export {
+  ConsoleDataView,
+  type ConsoleDataViewProps,
+  type DataViewFilterValue,
+} from './data-view/ConsoleDataView';
+export { DataViewLabelFilter, type DataViewLabelFilterProps } from './data-view/DataViewLabelFilter';
+export { DataViewTextFilter, type DataViewTextFilterProps } from './data-view/DataViewTextFilter';
+export type { DataViewColumn, DataViewColumnType } from './data-view/types';
+export {
   DetailsColumn,
   DetailsGrid,
   DetailsItem,
@@ -29,6 +37,7 @@ export {
 } from './EnvironmentLabel';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
 export { formatAbsoluteTime, formatRelativeTime } from './formatRelativeTime';
+export { KindBadge, kindAbbr, type KindBadgeProps } from './kind-badge/KindBadge';
 export { LabelList, type LabelListProps } from './LabelList';
 export { NotFoundPage } from './NotFoundPage';
 export { PageBody, type PageBodyProps } from './page/PageBody';
@@ -42,6 +51,7 @@ export { PageTabs, type PageTab, type PageTabsProps } from './page/PageTabs';
 export { PlaceholderPage, type PlaceholderPageProps } from './PlaceholderPage';
 export { RelativeTime, type RelativeTimeProps } from './RelativeTime';
 export { SectionHeading, type SectionHeadingProps } from './page/SectionHeading';
+export { Status, statusKindOf, type StatusProps } from './Status';
 export { StatusIconText, type StatusIconTextProps, type StatusKind } from './StatusIconText';
 export { TOAST_TIMEOUT_MS, ToastProvider } from './ToastProvider';
 export { TypeaheadSelect, type TypeaheadItem, type TypeaheadSelectProps } from './TypeaheadSelect';

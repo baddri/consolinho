@@ -1,6 +1,6 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
 import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
-import { ResourceStatusLabel, statusColor } from '../../components/ResourceStatusLabel';
+import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
 import { PodContainers, PodDetails } from '../../details/sections/PodDetails';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
@@ -45,8 +45,7 @@ function restarts(pod: Pod): number {
 }
 
 function status(pod: PodResource): ResourceStatus {
-  const title = podStatus(pod);
-  return { title, color: statusColor(title) };
+  return { title: podStatus(pod) };
 }
 
 /** The Details tab's pod fields with the same status as the title. */
