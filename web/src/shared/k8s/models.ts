@@ -1,3 +1,6 @@
+/** How the API server treats an object's dependents on delete (`DeleteOptions.propagationPolicy`). */
+export type PropagationPolicy = 'Foreground' | 'Background' | 'Orphan';
+
 /**
  * Model descriptors of the Kubernetes kinds the console knows (ADR-0022 §1, FRONTEND.md "Kubernetes resources").
  * Generic list/detail/YAML pages, URL building, query keys and access checks are all driven by these; a new kind is a
@@ -17,6 +20,11 @@ export interface K8sModel {
   readonly labelPlural: string;
   /** Badge abbreviation shown next to names, as in the OpenShift console. */
   readonly abbr: string;
+  /**
+   * Cascade policy for deleting dependents (OCP `K8sKind.propagationPolicy`, `public/models/index.ts`). When set, the
+   * delete dialog offers "Delete dependent objects of this resource"; unchecked sends `Orphan`.
+   */
+  readonly propagationPolicy?: Exclude<PropagationPolicy, 'Orphan'>;
 }
 
 export const ProjectModel: K8sModel = {
@@ -61,6 +69,7 @@ export const DeploymentModel: K8sModel = {
   label: 'Deployment',
   labelPlural: 'Deployments',
   abbr: 'D',
+  propagationPolicy: 'Foreground',
 };
 
 /** Owner of a deployment's pods (pod Owner column and links). */
@@ -73,6 +82,7 @@ export const ReplicaSetModel: K8sModel = {
   label: 'ReplicaSet',
   labelPlural: 'ReplicaSets',
   abbr: 'RS',
+  propagationPolicy: 'Foreground',
 };
 
 export const ServiceModel: K8sModel = {

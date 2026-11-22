@@ -1,9 +1,9 @@
-import { EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core';
-import { LockIcon, SearchIcon } from '@patternfly/react-icons';
+import { EmptyState, EmptyStateBody } from '@patternfly/react-core';
+import { LockIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import { ApiError } from '@/shared/api';
 import type { K8sModel } from '@/shared/k8s';
-import { ErrorState } from '@/shared/ui';
+import { LoadError, NotFoundPage } from '@/shared/ui';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
 
 /** Props for {@link ResourceErrorState}. */
@@ -41,9 +41,10 @@ function scopeText(model: K8sModel, namespace: string | undefined): string {
 
 /**
  * Error state of a resource page (UI-10): the API server's 403 becomes "Restricted access" naming the cluster's
- * service account, verb, resource and namespace; a 404 for a named object becomes "not found" with a link to the
- * kind's list (in the object's namespace); anything else (incl. `Proxy.*` 502/504) is an `ErrorState` with the
- * ProblemDetails `detail` and Retry. Never logs out — only a 401 does, through the global handler.
+ * service account, verb, resource and namespace; a 404 for a named object is OCP's `ErrorPage404` (`StatusBox.tsx`:
+ * `NotFoundIcon`, "404: Page Not Found") with a sentence naming kind, name and cluster and a link to the kind's list
+ * (in the object's namespace); anything else (incl. `Proxy.*` 502/504) is OCP's `LoadError` ("Error loading <Kinds>",
+ * the ProblemDetails `detail`, "Try again"). Never logs out — only a 401 does, through the global handler.
  */
 export function ResourceErrorState({
   error,
@@ -57,23 +58,22 @@ export function ResourceErrorState({
   if (name !== undefined && isNotFound(error)) {
     const listPath = resourcePath(cluster, model, { namespace });
     return (
-      <EmptyState
-        titleText={`${model.label} ${name} not found on ${cluster}`}
+      <NotFoundPage
+        documentTitle={`${model.label} not found (404)`}
         headingLevel="h2"
-        icon={SearchIcon}
-      >
-        <EmptyStateBody>
-          It may have been deleted, or it exists on another cluster or in another project.
-        </EmptyStateBody>
-        <EmptyStateFooter>
-          <EmptyStateActions>
-            <Link to={listPath}>
-              View {model.labelPlural}
-              {model.namespaced && namespace !== undefined ? ` in ${namespace}` : ''}
-            </Link>
-          </EmptyStateActions>
-        </EmptyStateFooter>
-      </EmptyState>
+        body={
+          <>
+            {model.label} {name} was not found on {cluster}. It may have been deleted, or it exists on another
+            cluster or in another project.
+          </>
+        }
+        footer={
+          <Link to={listPath}>
+            View {model.labelPlural}
+            {model.namespaced && namespace !== undefined ? ` in ${namespace}` : ''}
+          </Link>
+        }
+      />
     );
   }
   if (isForbidden(error)) {
@@ -86,5 +86,5 @@ export function ResourceErrorState({
       </EmptyState>
     );
   }
-  return <ErrorState error={error} title={`Could not load ${model.labelPlural}`} onRetry={onRetry} />;
+  return <LoadError label={model.labelPlural} error={error} onRetry={onRetry} />;
 }

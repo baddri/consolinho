@@ -21,7 +21,12 @@ interface WatchTiming {
   minStreamMs: number;
 }
 
-const DEFAULT_TIMING: WatchTiming = { flushMs: WATCH_FLUSH_MS, initialBackoffMs: 1_000, maxBackoffMs: 30_000, minStreamMs: 1_000 };
+const DEFAULT_TIMING: WatchTiming = {
+  flushMs: WATCH_FLUSH_MS,
+  initialBackoffMs: 1_000,
+  maxBackoffMs: 30_000,
+  minStreamMs: 1_000,
+};
 
 let timing: WatchTiming = DEFAULT_TIMING;
 

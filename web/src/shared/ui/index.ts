@@ -38,11 +38,13 @@ export {
 } from './EnvironmentLabel';
 export { DetailsSubsection, type DetailsSubsectionProps } from './page/DetailsSubsection';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
+export { FlexForm, FormBody, FormFooter, type FlexFormProps } from './form-page/FormPage';
 export { formatAbsoluteTime, formatRelativeTime } from './formatRelativeTime';
 export { KindBadge, kindAbbr, type KindBadgeProps } from './kind-badge/KindBadge';
 export { kindLabelColor } from './kind-badge/kindLabelColor';
 export { LabelList, type LabelListProps } from './LabelList';
-export { NotFoundPage } from './NotFoundPage';
+export { LoadError, type LoadErrorProps } from './LoadError';
+export { NotFoundPage, ReturnToHomepageButton, type NotFoundPageProps } from './NotFoundPage';
 export { PageBody, type PageBodyProps } from './page/PageBody';
 export {
   HeadingFavoriteContext,

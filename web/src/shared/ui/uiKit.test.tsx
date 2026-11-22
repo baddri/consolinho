@@ -255,16 +255,17 @@ describe('ConfirmModal', () => {
 });
 
 describe('NotFoundPage', () => {
-  it('shows the 404 page heading as h1 above an empty state that links home', () => {
+  it("shows OCP's 404: h1, one sentence and a link home", () => {
     render(
       <MemoryRouter>
         <NotFoundPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', { level: 1, name: '404: Page not found' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'This page does not exist' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('heading', { level: 1, name: '404: Page Not Found' })).toBeInTheDocument();
+    expect(screen.getAllByRole('heading')).toHaveLength(1);
+    expect(screen.getByText("We couldn't find that page.")).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Return to homepage' })).toHaveAttribute('href', '/');
   });
 });
 

@@ -6,6 +6,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } 
 import { mockK8s, problem, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
+import { deploymentDescriptor } from '../registry/kinds/deployments';
 import { projectDescriptor } from '../registry/kinds/projects';
 import { resourceRoutes } from '../routes';
 import { DeleteResourceModal } from './DeleteResourceModal';
@@ -243,7 +244,7 @@ describe('resource actions (UI-8)', () => {
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
 
     // The watch turns the page "not found" (dropping the Actions menu and its dialog) before the DELETE answers.
-    expect(await screen.findByText(`Pod ${POD} not found on dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(new RegExp(`Pod ${POD} was not found on dev-1\\.`))).toBeInTheDocument();
     expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
@@ -277,5 +278,57 @@ describe('DeleteResourceModal', () => {
     await user.click(within(dialog).getByRole('textbox'));
     await user.paste('shop');
     expect(confirm).toBeEnabled();
+  });
+
+  it.each([
+    ['checked', true, 'Foreground'],
+    ['unchecked', false, 'Orphan'],
+  ])(
+    'deployments: "Delete dependent objects" %s sends propagationPolicy %s (OCP delete-modal)',
+    async (_state, keepChecked, policy) => {
+      const bodies: unknown[] = [];
+      server.use(
+        http.delete(PROXY, async ({ request }) => {
+          bodies.push(await request.json());
+          return HttpResponse.json({ kind: 'Status', status: 'Success' });
+        }),
+      );
+      const onClose = vi.fn();
+      const { user } = renderWithProviders(
+        <DeleteResourceModal
+          cluster="dev-1"
+          descriptor={deploymentDescriptor}
+          namespace="shop"
+          name="web"
+          onClose={onClose}
+        />,
+      );
+
+      const dialog = await screen.findByRole('dialog', { name: /Delete Deployment\?/ });
+      const dependents = within(dialog).getByRole('checkbox', {
+        name: 'Delete dependent objects of this resource',
+      });
+      expect(dependents).toBeChecked();
+      if (!keepChecked) await user.click(dependents);
+      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
+      expect(bodies).toEqual([{ kind: 'DeleteOptions', apiVersion: 'v1', propagationPolicy: policy }]);
+    },
+  );
+
+  it('kinds without a cascade policy (projects) have no dependents checkbox', async () => {
+    renderWithProviders(
+      <DeleteResourceModal
+        cluster="dev-1"
+        descriptor={projectDescriptor}
+        namespace={undefined}
+        name="shop"
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete Project? dev' });
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
   });
 });

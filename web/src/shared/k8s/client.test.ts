@@ -30,9 +30,9 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
 
 describe('resourceApiPath', () => {
   it('builds core, group, namespaced and cluster-scoped paths with the query', () => {
-    expect(resourceApiPath('dev 1', PodModel, { namespace: 'shop', query: { limit: '250', continue: undefined } })).toBe(
-      '/api/clusters/dev%201/k8s/api/v1/namespaces/shop/pods?limit=250',
-    );
+    expect(
+      resourceApiPath('dev 1', PodModel, { namespace: 'shop', query: { limit: '250', continue: undefined } }),
+    ).toBe('/api/clusters/dev%201/k8s/api/v1/namespaces/shop/pods?limit=250');
     expect(resourceApiPath('dev-1', NamespaceModel, { namespace: 'ignored', name: 'shop' })).toBe(
       '/api/clusters/dev-1/k8s/api/v1/namespaces/shop',
     );
@@ -76,7 +76,9 @@ describe('k8s error mapping', () => {
   it('rethrows an abort unchanged', async () => {
     const abort = new AbortController();
     abort.abort();
-    expect(await rejection(k8sGet('dev-1', ConfigMapModel, 'shop', 'web-config', abort.signal))).toMatchObject({
+    expect(
+      await rejection(k8sGet('dev-1', ConfigMapModel, 'shop', 'web-config', abort.signal)),
+    ).toMatchObject({
       name: 'AbortError',
     });
   });

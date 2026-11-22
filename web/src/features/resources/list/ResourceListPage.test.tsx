@@ -202,15 +202,15 @@ describe('resource list states (QG-3, UI-10)', () => {
     ['events', 'Events'],
     ['deployments', 'Deployments'],
     ['services', 'Services'],
-  ])('shows a rejected credential for %s with Retry, without logging out', async (plural, title) => {
+  ])('shows a rejected credential for %s with Try again, without logging out', async (plural, title) => {
     setMockUser('ines');
     const { user, router } = renderApp(`/c/prod-us-1/k8s/ns/shop/${plural}`);
 
     expect(
       await screen.findByText(/rejected the credential assigned to you for prod-us-1/),
     ).toBeInTheDocument();
-    expect(screen.getByText(`Could not load ${title}`)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(screen.getByText(`Error loading ${title}`)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByText(/rejected the credential/)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe(`/c/prod-us-1/k8s/ns/shop/${plural}`);
   });

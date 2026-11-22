@@ -311,7 +311,8 @@ describe('details error states (UI-10)', () => {
   it('shows not found with a link to the list', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/pods/nope');
 
-    expect(await screen.findByRole('heading', { name: 'Pod nope not found on dev-1' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '404: Page Not Found' })).toBeInTheDocument();
+    expect(screen.getByText(/Pod nope was not found on dev-1\./)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View Pods in shop' })).toHaveAttribute(
       'href',
       '/c/dev-1/k8s/ns/shop/pods',
@@ -326,7 +327,7 @@ describe('details error states (UI-10)', () => {
     mockK8s.remove('dev-1', PodModel, 'shop', CRASHING_POD);
 
     expect(
-      await screen.findByRole('heading', { name: `Pod ${CRASHING_POD} not found on dev-1` }),
+      await screen.findByText(new RegExp(`Pod ${CRASHING_POD} was not found on dev-1\\.`)),
     ).toBeInTheDocument();
   });
 
@@ -339,7 +340,7 @@ describe('details error states (UI-10)', () => {
     await router.navigate(`/c/lab-1/k8s/ns/shop/pods/${CRASHING_POD}`);
 
     expect(
-      await screen.findByRole('heading', { name: `Pod ${CRASHING_POD} not found on lab-1` }),
+      await screen.findByText(new RegExp(`Pod ${CRASHING_POD} was not found on lab-1\\.`)),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View Pods in shop' })).toHaveAttribute(
       'href',
@@ -367,13 +368,13 @@ describe('details error states (UI-10)', () => {
     expect(screen.getByText("The service account for dev-1 can't get pods in shop.")).toBeInTheDocument();
   });
 
-  it('shows the proxy error detail with Retry on 502', async () => {
+  it('shows the proxy error detail with Try again on 502', async () => {
     answerGet('pods', CRASHING_POD, () =>
       problem(502, { code: 'Proxy.UpstreamUnavailable', detail: 'upstream down' }),
     );
     renderApp(POD_PATH);
 
     expect(await screen.findByText(/upstream down/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 });

@@ -4,9 +4,7 @@ import { useAccessibleClusters } from './useAccessibleClusters';
 import { useActiveCluster } from './useActiveCluster';
 
 /** Band style and wording per environment; development gets no band. */
-const BANDS: Partial<
-  Record<AccessibleCluster['environment'], { color: 'red' | 'orange'; text: string }>
-> = {
+const BANDS: Partial<Record<AccessibleCluster['environment'], { color: 'red' | 'orange'; text: string }>> = {
   production: { color: 'red', text: 'Production cluster' },
   staging: { color: 'orange', text: 'Staging cluster' },
 };

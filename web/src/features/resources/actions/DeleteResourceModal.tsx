@@ -1,4 +1,5 @@
-import { Content } from '@patternfly/react-core';
+import { Checkbox } from '@patternfly/react-core';
+import { useState } from 'react';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import { ConfirmModal, EnvironmentLabel } from '@/shared/ui';
 import type { ResourceDescriptor } from '../registry/types';
@@ -22,7 +23,9 @@ export interface DeleteResourceModalProps {
 /**
  * UI-8 delete confirmation (ADR-0015 §7, OCP `delete-modal.tsx`): a danger dialog titled "Delete <Kind>?" with the
  * cluster's environment label, a body naming object, namespace and cluster in bold ("in namespace", as OCP says even
- * for projects), and type-to-confirm when the descriptor sets `deleteRequiresName`. A failure (e.g. the proxy's 403
+ * for projects), and type-to-confirm when the descriptor sets `deleteRequiresName`. Kinds with a
+ * `propagationPolicy` (Deployment, ReplicaSet) get OCP's checked "Delete dependent objects of this resource"; unchecked
+ * sends `Orphan`. A failure (e.g. the proxy's 403
  * read-only detail or the cluster's RBAC `Status`) stays inline; success toasts "<name> deleted from <cluster>".
  */
 export function DeleteResourceModal({
@@ -42,7 +45,11 @@ export function DeleteResourceModal({
   });
   const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
   const scope = model.namespaced ? namespace : undefined;
-  const confirm = () => mutation.mutate({ namespace: scope, name });
+  // OCP `delete-modal.tsx`: kinds with a cascade policy offer deleting their dependents (checked); unchecked orphans them.
+  const [deleteDependents, setDeleteDependents] = useState(true);
+  const propagationPolicy =
+    model.propagationPolicy && (deleteDependents ? model.propagationPolicy : 'Orphan');
+  const confirm = () => mutation.mutate({ namespace: scope, name, propagationPolicy });
 
   return (
     <ConfirmModal
@@ -57,7 +64,8 @@ export function DeleteResourceModal({
       onConfirm={confirm}
       onClose={onClose}
     >
-      <Content component="p">
+      {/* A plain block as OCP `delete-modal.tsx`: the checkbox follows without a paragraph margin. */}
+      <div>
         Are you sure you want to delete <strong>{name}</strong>
         {scope !== undefined && (
           <>
@@ -66,7 +74,15 @@ export function DeleteResourceModal({
           </>
         )}{' '}
         on cluster <strong>{cluster}</strong>?
-      </Content>
+      </div>
+      {model.propagationPolicy && (
+        <Checkbox
+          id="delete-dependent-objects"
+          label="Delete dependent objects of this resource"
+          isChecked={deleteDependents}
+          onChange={(_event, checked) => setDeleteDependents(checked)}
+        />
+      )}
     </ConfirmModal>
   );
 }

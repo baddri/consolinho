@@ -1,5 +1,6 @@
 import {
   Button,
+  Flex,
   Form,
   FormGroup,
   Modal,
@@ -171,20 +172,23 @@ function ConfirmModalContent({
         </Stack>
       </ModalBody>
       <ModalFooter>
-        <Button
-          variant={variant}
-          onClick={confirm}
-          // Untyped confirmation text: truly disabled. Pending: aria-disabled, so focus stays on the button.
-          isDisabled={!isConfirmTextTyped}
-          isAriaDisabled={isPending}
-          isLoading={isPending}
-          spinnerAriaValueText={isPending ? 'Working' : undefined}
-        >
-          {confirmLabel}
-        </Button>
-        <Button variant="link" onClick={onClose}>
-          Cancel
-        </Button>
+        {/* OCP `ModalFooterWithAlerts`: buttons 8px apart (`spaceItemsSm`), not PF's default footer gap. */}
+        <Flex spaceItems={{ default: 'spaceItemsSm' }}>
+          <Button
+            variant={variant}
+            onClick={confirm}
+            // Untyped confirmation text: truly disabled. Pending: aria-disabled, so focus stays on the button.
+            isDisabled={!isConfirmTextTyped}
+            isAriaDisabled={isPending}
+            isLoading={isPending}
+            spinnerAriaValueText={isPending ? 'Working' : undefined}
+          >
+            {confirmLabel}
+          </Button>
+          <Button variant="link" onClick={onClose}>
+            Cancel
+          </Button>
+        </Flex>
       </ModalFooter>
     </>
   );

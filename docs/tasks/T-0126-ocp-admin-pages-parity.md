@@ -39,6 +39,8 @@ status icons and details heading as T-0121/T-0122. Absorbs T-0118 items 6–9 an
 8. User details — two grant entry points [T-0118 #9] — toolbar "Grant access" opens the wizard (1..n clusters);
    drop the Actions item.
 9. Rename `WorstExpiryIcon`/`WorstExpiryStatus` to what it renders [T-0118 #10].
+10. Deactivate user modal copy [T-0125 visual review]: the body repeats the title's question and says "lose access to
+    all 1 cluster" — drop the repeated question, pluralise correctly ("1 cluster" / "N clusters").
 
 ## Context pack
 - Docs: `UX.md` §3, §5, §6.

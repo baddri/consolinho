@@ -18,10 +18,11 @@ import {
   Truncate,
 } from '@patternfly/react-core';
 import { ClusterIcon } from '@patternfly/react-icons';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import type { AccessibleCluster } from '@/shared/api';
 import { EnvironmentLabel, environmentLabel } from '@/shared/ui';
+import { useClusterSwitcherOpenRequest } from './clusterSwitcherRequest';
 import { clusterSwitchPath } from './clusterSwitchPath';
 import { NoMatchStatus } from './NoMatchStatus';
 import { useAccessibleClusters } from './useAccessibleClusters';
@@ -143,6 +144,9 @@ export function ClusterSwitcher() {
   const location = useLocation();
   const { data: clusters, error, refetch } = useAccessibleClusters();
   const { recent } = useRecentClusters();
+
+  // "Select a cluster" on the not-available page opens this menu (T-0097).
+  useClusterSwitcherOpenRequest(useCallback(() => setIsOpen(true), []));
 
   // Focus the search box once the popper has rendered the menu (same deferral PF uses for its own open focus).
   useEffect(() => {

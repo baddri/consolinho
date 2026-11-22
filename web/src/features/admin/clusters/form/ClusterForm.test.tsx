@@ -68,9 +68,8 @@ describe('Register cluster (CLU-1..3)', () => {
         { name: 'Register cluster', level: 1 },
         { timeout: COLD_START_TIMEOUT_MS },
       );
-      const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-      expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute('href', '/admin/clusters');
-      expect(within(crumbs).getByText('Register cluster')).toHaveAttribute('aria-current', 'page');
+      // OCP create pages have no breadcrumb.
+      expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
       expect(screen.getByRole('switch', { name: 'Enabled' })).toBeChecked();
 
       await fillRequired(user);

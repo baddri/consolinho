@@ -130,6 +130,6 @@ describe('routes', () => {
   ])('renders 404 for %s', async (path) => {
     renderApp(path);
 
-    expect(await screen.findByRole('heading', { name: '404: Page not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '404: Page Not Found' })).toBeInTheDocument();
   });
 });

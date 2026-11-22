@@ -1,6 +1,6 @@
 import { ApiError, apiErrorFromRejection, withCsrfHeader } from '@/shared/api';
 import { k8sErrorFromResponse } from './errors';
-import { apiVersionOf, type K8sModel } from './models';
+import { apiVersionOf, type K8sModel, type PropagationPolicy } from './models';
 import type { K8sList, K8sResource } from './types';
 import { resourceApiPath } from './url';
 
@@ -132,18 +132,33 @@ export async function k8sGet<T>(
  * throws 409 `Kubernetes.Conflict`. Returns the stored object.
  */
 export async function k8sUpdate<T extends K8sResource>(cluster: string, model: K8sModel, obj: T): Promise<T> {
-  const path = resourceApiPath(cluster, model, { namespace: obj.metadata.namespace, name: obj.metadata.name });
+  const path = resourceApiPath(cluster, model, {
+    namespace: obj.metadata.namespace,
+    name: obj.metadata.name,
+  });
   return readJson<T>(await k8sFetch(path, { method: 'PUT', body: obj }));
 }
 
-/** Deletes an object. Resolves once the API server accepted the deletion (finalizers may still be running). */
+/**
+ * Deletes an object. Resolves once the API server accepted the deletion (finalizers may still be running). With a
+ * `propagationPolicy` the request carries a `DeleteOptions` body, as OCP's delete modal sends; without one the API
+ * server's default for the kind applies.
+ */
 export async function k8sDelete(
   cluster: string,
   model: K8sModel,
   namespace: string | undefined,
   name: string,
+  propagationPolicy?: PropagationPolicy,
 ): Promise<void> {
-  const response = await k8sFetch(resourceApiPath(cluster, model, { namespace, name }), { method: 'DELETE' });
+  const body =
+    propagationPolicy === undefined
+      ? undefined
+      : { kind: 'DeleteOptions', apiVersion: 'v1', propagationPolicy };
+  const response = await k8sFetch(resourceApiPath(cluster, model, { namespace, name }), {
+    method: 'DELETE',
+    body,
+  });
   // The Status body is not needed: cancel it so the connection is released.
   await response.body?.cancel();
 }
@@ -155,5 +170,7 @@ export async function k8sCreate<T>(
   namespace: string | undefined,
   obj: T,
 ): Promise<T> {
-  return readJson<T>(await k8sFetch(resourceApiPath(cluster, model, { namespace }), { method: 'POST', body: obj }));
+  return readJson<T>(
+    await k8sFetch(resourceApiPath(cluster, model, { namespace }), { method: 'POST', body: obj }),
+  );
 }

@@ -1,36 +1,26 @@
-import {
-  Button,
-  EmptyState,
-  EmptyStateActions,
-  EmptyStateBody,
-  EmptyStateFooter,
-  PageSection,
-} from '@patternfly/react-core';
-import { SearchIcon } from '@patternfly/react-icons';
-import { Link, type LinkProps } from 'react-router';
-
-/** Router link to `/` (landing redirect) that PatternFly's `Button` can render as. */
-function HomeLink(props: Omit<LinkProps, 'to'>) {
-  return <Link {...props} to="/" />;
-}
+import { Button, EmptyStateActions } from '@patternfly/react-core';
+import { NotFoundPage, ReturnToHomepageButton } from '@/shared/ui';
+import { requestClusterSwitcherOpen } from './clusterSwitcherRequest';
 
 /**
- * Shown for `/c/<name>/...` when `<name>` is not in the user's cluster list (SW-5). The text is identical for unknown
- * and ungranted clusters, so the page never reveals whether a cluster exists.
+ * Shown for `/c/<name>/...` when `<name>` is not in the user's cluster list (SW-5), in the layout of OCP's 404 page
+ * (`UX.md` §10). The text is identical for unknown and ungranted clusters, so the page never reveals whether a cluster
+ * exists. Next to "Return to homepage" it offers "Select a cluster", which opens the sidebar's switcher (T-0097).
  */
 export function ClusterNotAvailablePage({ cluster }: { cluster: string }) {
   return (
-    <PageSection>
-      <EmptyState titleText={`Cluster ${cluster} is not available`} headingLevel="h1" icon={SearchIcon}>
-        <EmptyStateBody>It does not exist or you don&apos;t have access.</EmptyStateBody>
-        <EmptyStateFooter>
-          <EmptyStateActions>
-            <Button variant="primary" component={HomeLink}>
-              Go to home
-            </Button>
-          </EmptyStateActions>
-        </EmptyStateFooter>
-      </EmptyState>
-    </PageSection>
+    <NotFoundPage
+      title={`Cluster ${cluster} is not available`}
+      body="It does not exist or you don't have access."
+      documentTitle="Cluster not available"
+      footer={
+        <EmptyStateActions>
+          <ReturnToHomepageButton />
+          <Button variant="link" onClick={requestClusterSwitcherOpen}>
+            Select a cluster
+          </Button>
+        </EmptyStateActions>
+      }
+    />
   );
 }
