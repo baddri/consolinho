@@ -2,9 +2,10 @@ import { RhUiSearchIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
 import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
-import { LabelList, Timestamp } from '@/shared/ui';
+import { kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
+import { useResourceRoute } from '../resourceRoute';
 import styles from './columns.module.css';
 import type { ColumnDef } from './types';
 
@@ -127,25 +128,49 @@ export function ReplicasCountLink({ model, obj, title }: ReplicasCountLinkProps)
   return <Link to={resourcePath(cluster, model, { namespace, name, tab: 'pods' })}>{title}</Link>;
 }
 
+/** Props for {@link ListLabels}. */
+interface ListLabelsProps {
+  /** The listed kind: labels take its colour and link to its list. */
+  model: K8sModel;
+  labels: Readonly<Record<string, string>>;
+}
+
 /**
- * Labels column (OCP `LabelList`): normal-size `key=value` labels, collapsed after 20, "No labels" in subtle text
- * without any. Not sortable. Labels wrap inside the cell and truncate when longer than it (`columns.module.css`), so
- * the column never pushes the table past the page. Start width like OCP's `getLabelsColumnWidthStyleProp` (200 px
- * there), 180 px here: the most our Deployments list in all projects leaves at 1280 next to its nowrap headers.
+ * A list row's labels as OCP `LabelList` (`public/components/utils/label-list.tsx`): the shared unboxed
+ * `ResourceLabels` in the kind's colour. OCP links each label to Search; we have no Search page, so each links to this
+ * kind's list in the current scope (namespace or all namespaces) filtered by it (`?label=key=value`, ADR-0023), the
+ * same result for one kind. Plain labels outside a cluster route.
  */
-export function labelsColumn<T extends K8sResource>(): ColumnDef<T> {
+function ListLabels({ model, labels }: ListLabelsProps) {
+  const { cluster, namespace } = useResourceRoute();
+  const linkTo = (key: string, value: string) =>
+    resourcePath(cluster, model, {
+      namespace: model.namespaced ? namespace : undefined,
+      search: new URLSearchParams({ label: `${key}=${value}` }).toString(),
+    });
+  return (
+    <div className={styles.labels}>
+      <ResourceLabels
+        labels={labels}
+        color={kindLabelColor(model.kind)}
+        linkTo={cluster === '' ? undefined : linkTo}
+        isBoxed={false}
+      />
+    </div>
+  );
+}
+
+/**
+ * Labels column of `model`'s list: {@link ListLabels} ("No labels" in subtle text without any). Not sortable. Labels
+ * wrap inside the cell and truncate when longer than it (`columns.module.css`), so the column never pushes the table
+ * past the page. Start width like OCP's `getLabelsColumnWidthStyleProp` (200 px there), 180 px here: the most our
+ * Deployments list in all projects leaves at 1280 next to its nowrap headers.
+ */
+export function labelsColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T> {
   return {
     id: 'labels',
     title: 'Labels',
     width: 180,
-    cell: (obj) => {
-      const labels = Object.entries(obj.metadata.labels ?? {}).map(([key, value]) => `${key}=${value}`);
-      if (labels.length === 0) return <div className="pf-v6-u-text-color-subtle">No labels</div>;
-      return (
-        <div className={styles.labels}>
-          <LabelList aria-label="Labels" max={20} isCompact={false} labels={labels} />
-        </div>
-      );
-    },
+    cell: (obj) => <ListLabels model={model} labels={obj.metadata.labels ?? {}} />,
   };
 }

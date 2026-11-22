@@ -11,40 +11,47 @@ export interface ResourceLabelsProps {
   color?: LabelProps['color'];
   /** Router path a `key=value` label links to (e.g. the kind's list filtered by it); plain labels without. */
   linkTo?: (key: string, value: string) => string;
+  /**
+   * Inside OCP's thin bordered box (default; details pages). List cells pass `false`: OCP's list `LabelList` has no
+   * box.
+   */
+  isBoxed?: boolean;
 }
 
 /**
  * Kubernetes labels of a details page (OCP `public/components/utils/label-list.tsx` in a `co-editable-label-group`
  * box, `UX.md` §6): filled `key=value` labels in the kind's colour, each a router link, all shown (collapsing only after
- * 20, open by default), inside a thin bordered box. "No labels" in subtle text without any.
+ * 20, open by default), inside a thin bordered box unless `isBoxed` is false (list cells). Linked labels are
+ * clickable (`pf-m-clickable`: pointer, hover colours), as OCP's `href` labels. "No labels" in subtle text without any.
  */
-export function ResourceLabels({ labels, color, linkTo }: ResourceLabelsProps) {
+export function ResourceLabels({ labels, color, linkTo, isBoxed = true }: ResourceLabelsProps) {
   const entries = Object.entries(labels);
   if (entries.length === 0) return <div className="pf-v6-u-text-color-subtle">No labels</div>;
-  return (
-    <div className={styles.box}>
-      <LabelGroup numLabels={20} defaultIsOpen aria-label="Labels">
-        {entries.map(([key, value]) => (
-          <Label
-            key={key}
-            color={color}
-            render={
-              linkTo &&
-              (({ className, content, componentRef }) => (
-                <Link
-                  className={className}
-                  to={linkTo(key, value)}
-                  ref={componentRef as Ref<HTMLAnchorElement>}
-                >
-                  {content}
-                </Link>
-              ))
-            }
-          >
-            {key}={value}
-          </Label>
-        ))}
-      </LabelGroup>
-    </div>
+  const group = (
+    <LabelGroup numLabels={20} defaultIsOpen aria-label="Labels">
+      {entries.map(([key, value]) => (
+        <Label
+          key={key}
+          color={color}
+          // `render` doesn't imply clickable as `href` does; OCP's labels are `href` labels.
+          isClickable={linkTo !== undefined}
+          render={
+            linkTo &&
+            (({ className, content, componentRef }) => (
+              <Link
+                className={className}
+                to={linkTo(key, value)}
+                ref={componentRef as Ref<HTMLAnchorElement>}
+              >
+                {content}
+              </Link>
+            ))
+          }
+        >
+          {key}={value}
+        </Label>
+      ))}
+    </LabelGroup>
   );
+  return isBoxed ? <div className={styles.box}>{group}</div> : group;
 }

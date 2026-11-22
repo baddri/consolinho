@@ -38,6 +38,16 @@ async function findRow(table: HTMLElement, name: string): Promise<HTMLElement> {
   return row;
 }
 
+/** The cell of `row` under the column header `column`. */
+function cell(row: HTMLElement, column: string): HTMLElement {
+  const table = row.closest<HTMLElement>('[role="grid"]');
+  if (!table) throw new Error('row outside a grid');
+  const index = columnHeaders(table).indexOf(column);
+  const found = within(row).getAllByRole('cell')[index];
+  if (index < 0 || !found) throw new Error(`no ${column} cell`);
+  return found;
+}
+
 /** Gives `admin` a grant on lab-1 (fixtures grant only dev-1). */
 function grantAdminOnLab1(): void {
   mockDb.credentials.push({
@@ -83,7 +93,14 @@ describe('deployments (QG-3)', () => {
         'href',
         '/c/dev-1/k8s/ns/shop/deployments/web/pods',
       );
-      expect(within(row).getByRole('link', { name: 'app=web' })).toHaveAttribute('href', PODS_OF_WEB);
+      expect(within(cell(row, 'Pod selector')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
+        'href',
+        PODS_OF_WEB,
+      );
+      // OCP `LabelList`: kind-coloured labels, each linking (no Search page) to this kind's list filtered by it.
+      const label = within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' });
+      expect(label).toHaveAttribute('href', '/c/dev-1/k8s/ns/shop/deployments?label=app%3Dweb');
+      expect(label.closest('.pf-v6-c-label')).toHaveClass('pf-m-blue');
     },
   );
 
@@ -91,7 +108,8 @@ describe('deployments (QG-3)', () => {
     const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/deployments');
 
     const table = await screen.findByRole('grid', { name: 'Deployments' });
-    await user.click(within(await findRow(table, 'web')).getByRole('link', { name: 'app=web' }));
+    const row = await findRow(table, 'web');
+    await user.click(within(cell(row, 'Pod selector')).getByRole('link', { name: 'app=web' }));
 
     await waitFor(() =>
       expect(`${router.state.location.pathname}${router.state.location.search}`).toBe(PODS_OF_WEB),
@@ -162,10 +180,26 @@ describe('services (QG-3)', () => {
     const table = await screen.findByRole('grid', { name: 'Services' });
     expect(columnHeaders(table)).toEqual(['Name', 'Labels', 'Pod selector', 'Location', 'Actions']);
     const row = await findRow(table, 'web');
-    expect(within(row).getByText('app=web', { selector: '.pf-v6-c-label__text' })).toBeInTheDocument();
-    expect(within(row).getByRole('link', { name: 'app=web' })).toHaveAttribute('href', PODS_OF_WEB);
+    expect(within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
+      'href',
+      '/c/dev-1/k8s/ns/shop/services?label=app%3Dweb',
+    );
+    expect(within(cell(row, 'Pod selector')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
+      'href',
+      PODS_OF_WEB,
+    );
     // ClusterIP service: `clusterIP:port` per port.
     expect(within(row).getByText(/^172\.30\.\d+\.17:80$/)).toBeInTheDocument();
+  });
+
+  it('links labels to the list in the same scope (all projects)', async () => {
+    renderApp('/c/dev-1/k8s/all-namespaces/services');
+
+    const row = await findRow(await screen.findByRole('grid', { name: 'Services' }), 'web');
+    expect(within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
+      'href',
+      '/c/dev-1/k8s/all-namespaces/services?label=app%3Dweb',
+    );
   });
 
   it('shows the ports table on the Details tab', async () => {

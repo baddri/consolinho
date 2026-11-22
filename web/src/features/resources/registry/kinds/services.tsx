@@ -121,7 +121,7 @@ export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   columns: [
     nameColumn(ServiceModel),
     namespaceColumn(ServiceModel),
-    { ...labelsColumn<ServiceResource>(), visibility: ['hidden', 'visibleOnLg'] },
+    { ...labelsColumn<ServiceResource>(ServiceModel), visibility: ['hidden', 'visibleOnLg'] },
     {
       id: 'selector',
       title: 'Pod selector',

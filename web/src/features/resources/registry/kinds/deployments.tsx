@@ -151,7 +151,7 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
       ),
       sortValue: (deployment) => current(deployment) / Math.max(desired(deployment), 1),
     },
-    labelsColumn(),
+    labelsColumn(DeploymentModel),
     {
       id: 'selector',
       title: 'Pod selector',

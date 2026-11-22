@@ -100,8 +100,14 @@ describe('ResourceLabels', () => {
     );
     const link = screen.getByRole('link', { name: 'app=web' });
     expect(link).toHaveAttribute('href', '/pods?label=app%3Dweb');
-    expect(link.closest('.pf-v6-c-label')).toHaveClass('pf-m-teal');
+    expect(link.closest('.pf-v6-c-label')).toHaveClass('pf-m-teal', 'pf-m-clickable');
     expect(screen.getByRole('link', { name: 'tier=front' })).toBeInTheDocument();
+  });
+
+  it('drops the box with isBoxed false (list cells) and is not clickable without links', () => {
+    const { container } = render(<ResourceLabels labels={{ app: 'web' }} isBoxed={false} />);
+    expect(container.firstElementChild).toHaveClass('pf-v6-c-label-group');
+    expect(screen.getByText('app=web').closest('.pf-v6-c-label')).not.toHaveClass('pf-m-clickable');
   });
 
   it('says "No labels" without any', () => {

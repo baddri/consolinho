@@ -87,7 +87,7 @@ export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
       ),
       sortValue: (replicaSet) => current(replicaSet) / Math.max(desired(replicaSet), 1),
     },
-    labelsColumn(),
+    labelsColumn(ReplicaSetModel),
     {
       id: 'owner',
       title: 'Owner',
