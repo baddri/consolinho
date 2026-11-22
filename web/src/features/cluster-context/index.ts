@@ -14,5 +14,6 @@ export { useLastCluster } from './useLastCluster';
 export { useLastNamespace } from './useLastNamespace';
 export { useIsActiveClusterUnavailable } from './useIsActiveClusterUnavailable';
 export { usePreferredCluster } from './usePreferredCluster';
+export { useShownCluster } from './useShownCluster';
 export { useRecentClusters, type RecentClusters } from './useRecentClusters';
 export { isDefaultProject, useShowDefaultProjects } from './useShowDefaultProjects';

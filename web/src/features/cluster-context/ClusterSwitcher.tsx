@@ -36,8 +36,8 @@ import { clusterSwitchPath } from './clusterSwitchPath';
 import { NoMatchStatus } from './NoMatchStatus';
 import { useAccessibleClusters } from './useAccessibleClusters';
 import { useActiveCluster } from './useActiveCluster';
-import { usePreferredCluster } from './usePreferredCluster';
 import { useRecentClusters } from './useRecentClusters';
+import { useShownCluster } from './useShownCluster';
 import {
   buildSwitcherSections,
   FLEET_ITEM_ID,
@@ -175,7 +175,8 @@ function ClusterItem({
  * that entry is selected; choosing a cluster goes to its root via {@link clusterSwitchPath} (FLEET-5).
  *
  * In the cluster perspective the toggle shows the active cluster (its type icon in PF's `icon` slot); outside a cluster (e.g. Preferences) it shows
- * {@link usePreferredCluster} — the cluster the sidebar links target — and that cluster is marked selected.
+ * {@link usePreferredCluster} — the cluster the sidebar links target — and that cluster is marked selected; both via
+ * {@link useShownCluster}, which the Kubernetes shell theme follows too (THEME-1), so toggle and theme agree.
  *
  * States (cluster perspective): loading → skeleton in a disabled toggle; error without cached data → "Clusters
  * unavailable — retry" toggle whose click refetches; empty → disabled "No clusters" toggle (SW-4). Admins skip the
@@ -191,7 +192,7 @@ export function ClusterSwitcher() {
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const activeCluster = useActiveCluster();
-  const preferredCluster = usePreferredCluster();
+  const shown = useShownCluster();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: clusters, error, refetch } = useAccessibleClusters();
@@ -236,8 +237,6 @@ export function ClusterSwitcher() {
     );
   }
 
-  const shownName = isFleet ? undefined : (activeCluster ?? preferredCluster);
-  const shown = clusters?.find((cluster) => cluster.name === shownName);
   const needle = searchText.trim().toLowerCase();
   const sections = buildSwitcherSections({
     isAdmin,

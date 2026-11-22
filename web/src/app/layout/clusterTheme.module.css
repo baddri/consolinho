@@ -1,0 +1,115 @@
+/*
+ * Kubernetes shell theme (ADR-0033 §7, THEME-1..5, docs/architecture/UX.md §2a). Fleet invention: OCP never recolours
+ * the masthead, so OpenShift clusters and fleet pages keep PF's default. While the shown cluster is Kubernetes,
+ * `AppShell` puts `data-cluster-type="kubernetes"` on the `Page`; only the masthead and the nav header (switcher)
+ * turn navy with a blue bottom edge. Same values in light and dark: a fixed dark surface, which differs from both
+ * baselines in luminance (vs #f2f2f2) or hue (vs #151515), so it never relies on colour alone (plus the K8s tag).
+ *
+ * Only component-level PF variables are overridden, and only on the masthead/nav-header controls themselves
+ * (`:not(.pf-v6-c-menu *)`), so opened menus, their focus rings and nested Labels keep PF's standard surfaces.
+ */
+
+/* UX.md §2a table: the theme's custom properties. */
+.shell[data-cluster-type='kubernetes'] {
+  --fc-k8s--bg: var(--pf-t--color--blue--70);
+  --fc-k8s--accent: var(--pf-t--color--blue--40);
+  --fc-k8s--text: var(--pf-t--color--white);
+  --fc-k8s--icon: var(--pf-t--color--gray--10);
+  --fc-k8s--text-subtle: var(--pf-t--color--gray--30);
+  --fc-k8s--border: var(--pf-t--color--gray--40);
+  --fc-k8s--hover-bg: var(--pf-t--global--dark--background--color--600);
+  --fc-k8s--focus: var(--pf-t--color--blue--30);
+}
+
+/* UX.md §2a: masthead surface and the 3px accent edge. */
+.shell[data-cluster-type='kubernetes'] .masthead {
+  --pf-v6-c-masthead--BackgroundColor: var(--fc-k8s--bg);
+
+  box-shadow: inset 0 -3px 0 var(--fc-k8s--accent);
+}
+
+/*
+ * PF's glass theme (`:where(.pf-v6-theme-glass) .pf-v6-c-masthead`) sets the background, a translucent bottom border
+ * and a drop shadow directly, not via the variable; override them only there and keep its shadow under the edge.
+ */
+:global(.pf-v6-theme-glass) .shell[data-cluster-type='kubernetes'] .masthead {
+  border-block-end-color: var(--fc-k8s--accent);
+  background-color: var(--fc-k8s--bg);
+  box-shadow:
+    inset 0 -3px 0 var(--fc-k8s--accent),
+    var(--pf-t--global--box-shadow--glass--default);
+}
+
+/*
+ * UX.md §2a: the nav header (switcher area) gets the same surface and edge. A small padding, cancelled by equal
+ * negative margins (the bottom one includes the 3px edge), frames the toggle without moving it or the nav below it
+ * from where they sit on OpenShift clusters.
+ */
+.shell[data-cluster-type='kubernetes'] .navHeader {
+  margin: calc(-1 * var(--pf-t--global--spacer--sm));
+  margin-block-end: calc(-1 * (var(--pf-t--global--spacer--sm) + 3px));
+  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--sm) calc(var(--pf-t--global--spacer--sm) + 3px);
+  border-radius: var(--pf-t--global--border--radius--small);
+  background-color: var(--fc-k8s--bg);
+  box-shadow: inset 0 -3px 0 var(--fc-k8s--accent);
+}
+
+/* UX.md §2a: plain buttons in the masthead (navigation toggle). */
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-button):global(.pf-m-plain):not(:global(.pf-v6-c-menu) *) {
+  --pf-v6-c-button--m-plain--Color: var(--fc-k8s--icon);
+  --pf-v6-c-button--m-plain__icon--Color: var(--fc-k8s--icon);
+  --pf-v6-c-button--m-plain--hover--Color: var(--fc-k8s--text);
+  --pf-v6-c-button--m-plain--hover--BackgroundColor: var(--fc-k8s--hover-bg);
+  --pf-v6-c-button--m-plain--m-clicked--Color: var(--fc-k8s--text);
+  --pf-v6-c-button--m-plain--m-clicked--BackgroundColor: var(--fc-k8s--hover-bg);
+}
+
+/* UX.md §2a: masthead menu toggles (help, user) and the nav header switcher toggle. */
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *),
+.shell[data-cluster-type='kubernetes'] .navHeader :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *) {
+  --pf-v6-c-menu-toggle--Color: var(--fc-k8s--text);
+  --pf-v6-c-menu-toggle--hover--Color: var(--fc-k8s--text);
+  --pf-v6-c-menu-toggle--expanded--Color: var(--fc-k8s--text);
+  --pf-v6-c-menu-toggle--m-plain--Color: var(--fc-k8s--icon);
+  --pf-v6-c-menu-toggle--BackgroundColor: transparent;
+  --pf-v6-c-menu-toggle--hover--BackgroundColor: var(--fc-k8s--hover-bg);
+  --pf-v6-c-menu-toggle--expanded--BackgroundColor: var(--fc-k8s--hover-bg);
+  --pf-v6-c-menu-toggle--m-plain--hover--BackgroundColor: var(--fc-k8s--hover-bg);
+  --pf-v6-c-menu-toggle--m-plain--expanded--BackgroundColor: var(--fc-k8s--hover-bg);
+  --pf-v6-c-menu-toggle--BorderColor: var(--fc-k8s--border);
+  --pf-v6-c-menu-toggle--hover--BorderColor: var(--fc-k8s--icon);
+  --pf-v6-c-menu-toggle--expanded--BorderColor: var(--fc-k8s--icon);
+  --pf-v6-c-menu-toggle__icon--Color: var(--fc-k8s--icon);
+  --pf-v6-c-menu-toggle__toggle-icon--Color: var(--fc-k8s--icon);
+  --pf-v6-c-menu-toggle--hover__toggle-icon--Color: var(--fc-k8s--icon);
+  --pf-v6-c-menu-toggle--expanded__toggle-icon--Color: var(--fc-k8s--icon);
+}
+
+/*
+ * The transparent resting background above outranks PF's own state rules, which assign the resolved background from
+ * the hover/expanded variables; restore that hand-off for these toggles.
+ */
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:hover, :focus),
+.shell[data-cluster-type='kubernetes'] .navHeader :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:hover, :focus) {
+  --pf-v6-c-menu-toggle--BackgroundColor: var(--pf-v6-c-menu-toggle--hover--BackgroundColor);
+}
+
+.shell[data-cluster-type='kubernetes']
+  .masthead
+  :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:global(.pf-m-expanded), [aria-expanded='true']),
+.shell[data-cluster-type='kubernetes']
+  .navHeader
+  :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:global(.pf-m-expanded), [aria-expanded='true']) {
+  --pf-v6-c-menu-toggle--BackgroundColor: var(--pf-v6-c-menu-toggle--expanded--BackgroundColor);
+}
+
+/*
+ * UX.md §2a: PF draws these controls' focus ring with the browser outline, which ignores the focus-ring token on a
+ * navy surface; give them the light-blue ring explicitly.
+ */
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-button):global(.pf-m-plain):not(:global(.pf-v6-c-menu) *):focus-visible,
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):focus-visible,
+.shell[data-cluster-type='kubernetes'] .navHeader :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):focus-visible {
+  outline: 2px solid var(--fc-k8s--focus);
+  outline-offset: 2px;
+}

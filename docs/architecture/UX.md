@@ -77,10 +77,18 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   menus keep their own surfaces): masthead `--pf-v6-c-masthead--BackgroundColor`; plain buttons
   `--pf-v6-c-button--m-plain--Color`/`--hover--Color`/`--hover--BackgroundColor`; masthead user toggle and the nav
   header switcher `--pf-v6-c-menu-toggle--Color`, `--BackgroundColor` (transparent), `--BorderColor`,
-  `--hover--BackgroundColor`, `--expanded--BackgroundColor`, `__icon--Color`, `__toggle-icon--Color`; focus ring
-  `--pf-t--global--focus-ring--color--default` on those toggles/buttons only. The nav header gets `--fc-k8s--bg` + the
+  `--hover--BackgroundColor`, `--expanded--BackgroundColor`, `__icon--Color`, `__toggle-icon--Color`; focus ring on
+  those toggles/buttons only: PF6 `MenuToggle`/plain `Button` paint the browser's `outline: auto` (no PF token), so
+  set `:focus-visible { outline: 2px solid var(--fc-k8s--focus); outline-offset: 2px }` there (T-0149 review). The nav header gets `--fc-k8s--bg` + the
   accent edge; the rest of the sidebar, content and every opened `Menu`/dropdown are untouched (verify with the probe:
   menu item focus ring must stay PF's default).
+- PF internals the theme relies on (recheck on every PF upgrade; all in `app/layout/clusterTheme.module.css`):
+  PF classes are matched via `:global()` and limited to `:not(.pf-v6-c-menu *)` so opened menus keep PF surfaces;
+  under `.pf-v6-theme-glass` the masthead `background-color`, `border-block-end` and drop shadow are set directly
+  (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); the menu toggle's resolved `--BackgroundColor` is
+  pinned transparent, so `:hover/:focus` and expanded rules restore it from the hover/expanded variables; the navy
+  masthead uses the dark-theme logo (`LOGO_SRC.dark`); the nav header frame is sm padding cancelled by negative margins
+  (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
 - Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
   the theme uses no red/orange; the band directly under the navy masthead (red-20 vs navy 8.3:1) stays the dominant cue.
 - Icons (generic PF, `aria-hidden`, distinct shapes): OpenShift `ClusterIcon` (today's icon), Kubernetes `CubesIcon`,

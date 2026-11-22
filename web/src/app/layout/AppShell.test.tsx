@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { LOGO_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
@@ -270,6 +270,82 @@ describe('AppShell', () => {
       const nav = await openSidebar(user);
       await within(nav).findByRole('button', { name: /switch cluster$/ });
       expect(screen.queryByText(/^(Production|Staging) cluster /)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('cluster type theme', () => {
+    /** The PF `Page` root, which carries the shell's cluster-type attribute. */
+    const shell = () => screen.getByRole('main').closest('.pf-v6-c-page');
+
+    it('marks the shell of a Kubernetes cluster (THEME-1)', async () => {
+      setMockUser('alice');
+      const { user } = renderApp('/c/lab-1/k8s/ns/default/pods');
+
+      const nav = await openSidebar(user);
+      const toggle = await within(nav).findByRole('button', {
+        name: 'Cluster Lab 1 (lab-1, K8s, dev, read only), switch cluster',
+      });
+      expect(within(toggle).getByText('K8s')).toBeInTheDocument();
+      expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes');
+      // The navy masthead is dark in both themes, so it shows the dark-theme logo (light theme by default here).
+      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+    });
+
+    it.each([
+      ['an OpenShift cluster', 'alice', '/c/prod-eu-1/k8s/ns/default/pods'],
+      // FLEET-9: fleet pages are not about a cluster, even with a Kubernetes preferred cluster.
+      ['a fleet page', 'admin', '/fleet/admin/users'],
+    ])('leaves the shell neutral on %s', async (_case, username, path) => {
+      setMockUser(username);
+      localStorage.setItem('fleetconsole.lastCluster', 'lab-1');
+      const { user } = renderApp(path);
+
+      const nav = await openSidebar(user);
+      await within(nav).findByRole('button', { name: /switch cluster$/ });
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+    });
+
+    it('leaves the shell neutral on the not-available page', async () => {
+      setMockUser('alice');
+      localStorage.setItem('fleetconsole.lastCluster', 'lab-1');
+      renderApp('/c/nope/overview');
+
+      await screen.findByRole('heading', { name: 'Cluster nope is not available' });
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+    });
+
+    it('leaves the shell neutral while the cluster list loads', async () => {
+      server.use(
+        http.get('*/api/clusters', async () => {
+          await delay('infinite');
+          return HttpResponse.json([]);
+        }),
+      );
+      setMockUser('alice');
+      const { user } = renderApp('/c/lab-1/k8s/ns/default/pods');
+
+      const nav = await openSidebar(user);
+      expect(await within(nav).findByRole('button', { name: 'Loading clusters' })).toBeDisabled();
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+    });
+
+    it('follows a cluster switch without a reload (THEME-5)', async () => {
+      setMockUser('alice');
+      const { user, router } = renderApp('/c/lab-1/k8s/ns/default/pods');
+
+      const nav = await openSidebar(user);
+      await user.click(await within(nav).findByRole('button', { name: /^Cluster Lab 1 .*switch cluster$/ }));
+      await user.click(await screen.findByRole('option', { name: /prod-eu-1/ }));
+      await within(nav).findByRole('button', { name: /^Cluster Production EU 1 .*switch cluster$/ });
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+
+      await user.click(within(nav).getByRole('button', { name: /^Cluster Production EU 1 .*switch cluster$/ }));
+      // lab-1 is listed under "Recent" and "All clusters"; either opens it.
+      const [labOption] = await screen.findAllByRole('option', { name: /lab-1/ });
+      if (!labOption) throw new Error('lab-1 is not listed');
+      await user.click(labOption);
+      expect(router.state.location.pathname).toBe('/c/lab-1/k8s/ns/default/pods');
+      await waitFor(() => expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes'));
     });
   });
 });

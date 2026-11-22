@@ -9,6 +9,7 @@ import {
 import { FavoritesNavSection } from '@/features/preferences';
 import { useClusterNav } from '@/features/resources';
 import { usePerspective } from '@/shared/routing';
+import theme from './clusterTheme.module.css';
 import { buildFleetNav, type NavSection } from './navigation';
 
 /**
@@ -91,7 +92,7 @@ export function AppSidebar() {
         <Nav aria-label="Global">
           {/* The Nav is a grid with a row gap, which spaces the switcher and the sections. Min-width 0 keeps a long
               cluster name with labels from widening the grid column; the name truncates instead. */}
-          <div className="pf-v6-u-min-width">
+          <div className={`pf-v6-u-min-width ${theme.navHeader}`}>
             <ClusterSwitcher />
           </div>
           {perspective === 'fleet' ? (
