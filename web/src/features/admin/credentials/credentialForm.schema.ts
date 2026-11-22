@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { dnsLabel } from '@/shared/forms';
+import { inspectNamespacesSchema } from '../connection-test/testConnection.schema';
 
 /** Longest token the Api accepts (CRED-1). */
 export const MAX_TOKEN_LENGTH = 16384;
@@ -29,6 +30,8 @@ export const addCredentialSchema = z.object({
     .max(MAX_DESCRIPTION, `Description must be at most ${MAX_DESCRIPTION} characters.`)
     .transform((value) => (value === '' ? null : value)),
   token: tokenSchema,
+  /** Saved on the credential; its connection tests inspect these namespaces (NST-1/5). */
+  inspectNamespaces: inspectNamespacesSchema,
 });
 
 /** Raw values of the "Add credential" form. */
@@ -38,10 +41,18 @@ export type AddCredentialFormInput = z.input<typeof addCredentialSchema>;
 export type AddCredentialFormValues = z.output<typeof addCredentialSchema>;
 
 /** Defaults of a fresh "Add credential" form (every field needs one, see `applyServerErrors`). */
-export const ADD_CREDENTIAL_DEFAULTS: AddCredentialFormInput = { name: '', description: '', token: '' };
+export const ADD_CREDENTIAL_DEFAULTS: AddCredentialFormInput = {
+  name: '',
+  description: '',
+  token: '',
+  inspectNamespaces: [],
+};
 
-/** "Rotate token" form: only the new token; the `version` comes from the credential being rotated. */
-export const rotateCredentialSchema = z.object({ token: tokenSchema });
+/**
+ * "Rotate token" form: the new token (the `version` comes from the credential being rotated) and the namespaces
+ * "Test new token" inspects. Only the token is sent on rotate; the credential keeps its saved list (NST-5).
+ */
+export const rotateCredentialSchema = z.object({ token: tokenSchema, inspectNamespaces: inspectNamespacesSchema });
 
 /** Raw values of the "Rotate token" form. */
 export type RotateCredentialFormInput = z.input<typeof rotateCredentialSchema>;

@@ -178,7 +178,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it('CRED-1/2: add trims the token, sends CSRF, toasts and forgets the token', async () => {
+  it('CRED-1/2, NST-1: add trims the token, sends the namespaces, CSRF, toasts and forgets the token', async () => {
     const writes = captureCredentialWrites();
     const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
@@ -193,10 +193,26 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     await user.type(within(dialog).getByLabelText(/^Name/), 'fleet-ops');
     await user.click(tokenInput);
     await user.paste(`  ${JWT_TOKEN}\n`);
+    const namespaces = within(dialog).getByRole('textbox', { name: 'Inspect namespaces' });
+    expect(
+      within(dialog).getByText('Optional. Up to 10. Lists what the token may do in each namespace.'),
+    ).toBeInTheDocument();
+    // Text still typed when leaving the field is added too.
+    await user.type(namespaces, 'team-b,team-a');
     await user.click(within(dialog).getByRole('button', { name: 'Add' }));
 
     expect(await screen.findByText('Credential fleet-ops added to prod-eu-1')).toBeInTheDocument();
-    expect(writes).toEqual([{ body: { name: 'fleet-ops', description: null, token: JWT_TOKEN }, csrf: '1' }]);
+    expect(writes).toEqual([
+      {
+        body: {
+          name: 'fleet-ops',
+          description: null,
+          token: JWT_TOKEN,
+          inspectNamespaces: ['team-b', 'team-a'],
+        },
+        csrf: '1',
+      },
+    ]);
     await waitFor(() =>
       expect(cellText(rowOf(table, 'fleet-ops'), 'Service account')).toBe('fleetconsole/fleet-ops'),
     );

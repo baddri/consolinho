@@ -10,8 +10,11 @@ export interface TokenTest {
   isTesting: boolean;
   /** The admin cancelled the latest test ("Test cancelled." is announced); reset by the next run or a token edit. */
   isCancelled: boolean;
-  /** Tests `token`; resolves when done or cancelled, rejects with the `ApiError` of a failed request. */
-  run: (token: string) => Promise<void>;
+  /**
+   * Tests `token`, also listing its rules in `inspectNamespaces` (NST-1; not saved — rotation keeps the credential's
+   * saved list, NST-5). Resolves when done or cancelled, rejects with the `ApiError` of a failed request.
+   */
+  run: (token: string, inspectNamespaces: readonly string[]) => Promise<void>;
   /** Aborts a running test ("Cancel test"); the previous result stays cleared. */
   cancel: () => void;
   /** Forgets the result and aborts a running test — call whenever the typed token changes. */
@@ -31,12 +34,14 @@ export function useTokenTest(clusterName: string, credentialId: string | null): 
   const [isCancelled, setIsCancelled] = useState(false);
 
   const run = useCallback(
-    async (token: string) => {
+    async (token: string, inspectNamespaces: readonly string[]) => {
       setResult(null);
       setIsCancelled(false);
       setIsTesting(true);
       try {
-        setResult(await testToken({ token, credentialId, inspectNamespaces: [], signal: cancellation.start() }));
+        setResult(
+          await testToken({ token, credentialId, inspectNamespaces: [...inspectNamespaces], signal: cancellation.start() }),
+        );
       } catch (error) {
         if (!isAbortError(error)) throw error;
       } finally {

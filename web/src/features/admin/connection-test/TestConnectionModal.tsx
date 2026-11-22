@@ -9,16 +9,19 @@ import {
   ModalFooter,
   Skeleton,
 } from '@patternfly/react-core';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { errorMessage, isAbortError, type ConnectionTestResult, type Credential } from '@/shared/api';
-import { FormProblemAlert, SelectField, TextField, useFormProblem } from '@/shared/forms';
+import { ChipInputField, FormProblemAlert, SelectField, useFormProblem } from '@/shared/forms';
 import { useToast } from '@/shared/ui';
 import { useClusterCredentials } from '../credentials/api';
 import { CredentialModalFrame, type CredentialCluster } from '../credentials/CredentialModalFrame';
 import { useTestCredential } from './api';
 import { ConnectionTestResultView } from './ConnectionTestResultView';
 import {
+  INSPECT_NAMESPACES_HELPER,
+  INSPECT_NAMESPACES_LABEL,
+  MAX_INSPECT_NAMESPACES,
   testConnectionSchema,
   type TestConnectionFormInput,
   type TestConnectionFormValues,
@@ -45,7 +48,8 @@ export interface TestConnectionModalProps {
 
 /**
  * "Test connection" dialog (TEST-1..5): pick one of the cluster's stored credentials (loaded with the shared
- * credentials query), optionally a namespace to inspect, and run the stored test. While it runs the dialog shows the
+ * credentials query), optionally up to 10 namespaces to inspect — prefilled with the selected credential's saved list
+ * and re-prefilled when the selection changes (NST-5/6) — and run the stored test. While it runs the dialog shows the
  * progress text and "Cancel test" (aborts the request); closing aborts too. The result renders below the form
  * ({@link ConnectionTestResultView}), a toast names credential and cluster, and the admin lists refresh so the
  * "Last test" cells update (TEST-5). Works on disabled clusters.
@@ -120,19 +124,31 @@ function TestConnectionForm({
   const preselected = initialCredentialId ?? (credentials.length === 1 ? credentials[0]?.id : undefined);
   const form = useForm<TestConnectionFormInput, unknown, TestConnectionFormValues>({
     resolver: zodResolver(testConnectionSchema),
-    defaultValues: { credentialId: preselected ?? '', inspectNamespace: '' },
+    defaultValues: { credentialId: preselected ?? '', inspectNamespaces: savedNamespaces(credentials, preselected) },
   });
-  // The single field sends a one-entry list until the chip input lands (T-0150): map the list's keys back onto it.
-  const { problem, handleSubmit } = useFormProblem(form, {
-    fieldMap: { inspectNamespaces: 'inspectNamespace', 'inspectNamespaces[0]': 'inspectNamespace' },
-  });
+  const { problem, handleSubmit } = useFormProblem(form, { listFields: ['inspectNamespaces'] });
   const isTesting = form.formState.isSubmitting;
 
-  const submit = handleSubmit(async ({ credentialId, inspectNamespace }) => {
+  // Picking another credential loads its saved list (NST-6). Only a user pick (`type: 'change'`), not a reset.
+  useEffect(
+    () =>
+      form.subscribe({
+        name: 'credentialId',
+        exact: true,
+        formState: { values: true },
+        callback: ({ type, values }) => {
+          if (type !== 'change') return;
+          form.setValue('inspectNamespaces', savedNamespaces(credentials, values.credentialId));
+        },
+      }),
+    [form, credentials],
+  );
+
+  const submit = handleSubmit(async ({ credentialId, inspectNamespaces }) => {
     setResult(null);
     setIsCancelled(false);
     try {
-      const inspectNamespaces = inspectNamespace ? [inspectNamespace] : [];
+      // The stored test saves the list on the credential; `onSettled` refetches the credentials (NST-5).
       const tested = await test.mutateAsync({ credentialId, inspectNamespaces, signal: cancellation.start() });
       setResult(tested);
       const name = credentials.find((credential) => credential.id === credentialId)?.name ?? 'the credential';
@@ -166,12 +182,12 @@ function TestConnectionForm({
             placeholder="Select a credential"
             options={credentials.map((credential) => ({ value: credential.id, label: credential.name }))}
           />
-          <TextField
+          <ChipInputField
             control={form.control}
-            name="inspectNamespace"
-            label="Inspect namespace"
-            helperText="Optional. Also lists what the credential may do in this namespace."
-            spellCheck={false}
+            name="inspectNamespaces"
+            label={INSPECT_NAMESPACES_LABEL}
+            helperText={INSPECT_NAMESPACES_HELPER}
+            maxItems={MAX_INSPECT_NAMESPACES}
           />
         </Form>
         {/* Always mounted, so "Testing…" and "Test cancelled." are announced when they appear. */}
@@ -207,4 +223,9 @@ function TestConnectionForm({
       </ModalFooter>
     </>
   );
+}
+
+/** The saved `inspectNamespaces` of credential `id` (a copy, so editing the chips never touches the cache). */
+function savedNamespaces(credentials: readonly Credential[], id: string | undefined): string[] {
+  return [...(credentials.find((credential) => credential.id === id)?.inspectNamespaces ?? [])];
 }

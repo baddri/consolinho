@@ -15,12 +15,19 @@ import { useForm } from 'react-hook-form';
 import type { Credential } from '@/shared/api';
 import {
   applyServerErrors,
+  ChipInputField,
   ConflictAlert,
   FormProblemAlert,
   TextField,
   useFormProblem,
   type FormProblem,
 } from '@/shared/forms';
+import {
+  INSPECT_NAMESPACES_HELPER,
+  INSPECT_NAMESPACES_LABEL,
+  inspectNamespacesSchema,
+  MAX_INSPECT_NAMESPACES,
+} from '../connection-test/testConnection.schema';
 import { TestProgress } from '../connection-test/TestProgress';
 import { TokenTestResult } from '../connection-test/TokenTestResult';
 import { useTokenTest } from '../connection-test/useTokenTest';
@@ -48,7 +55,7 @@ export interface RotateCredentialModalProps {
 /**
  * "Rotate token" dialog (CRED-5): names credential and cluster, shows the current fingerprint and how many users are
  * affected, and replaces the token in place with the credential's `version`. "Test new token" runs `test-token` with
- * the typed token (T-0038); if that test failed, the primary button turns into a danger "Save anyway", and editing
+ * the typed token (T-0038) and the namespaces to inspect, prefilled with the credential's saved list (NST-5); if that test failed, the primary button turns into a danger "Save anyway", and editing
  * the token forgets the result. A stale version (409, e.g. after a connection test) shows `ConflictAlert` and keeps
  * the typed token; "Reload latest values" refetches the credential. The token never leaves this form's state and the
  * request bodies (CRED-2).
@@ -76,9 +83,9 @@ function RotateCredentialForm({ cluster, credential, onClose }: RotateCredential
   const notifyGone = useCredentialGoneToast();
   const form = useForm<RotateCredentialFormInput, unknown, RotateCredentialFormValues>({
     resolver: zodResolver(rotateCredentialSchema),
-    defaultValues: { token: '' },
+    defaultValues: { token: '', inspectNamespaces: [...credential.inspectNamespaces] },
   });
-  const { problem, handleSubmit, clearProblem } = useFormProblem(form);
+  const { problem, handleSubmit, clearProblem } = useFormProblem(form, { listFields: ['inspectNamespaces'] });
   const tokenTest = useTokenTest(cluster.name, credential.id);
   const { clear: clearTokenTest } = tokenTest;
   const [testProblem, setTestProblem] = useState<FormProblem | null>(null);
@@ -104,20 +111,21 @@ function RotateCredentialForm({ cluster, credential, onClose }: RotateCredential
 
   const testNewToken = async () => {
     setTestProblem(null);
-    if (!(await form.trigger('token'))) return;
-    const parsed = tokenSchema.safeParse(form.getValues('token'));
-    if (!parsed.success) return;
+    if (!(await form.trigger(['token', 'inspectNamespaces']))) return;
+    const token = tokenSchema.safeParse(form.getValues('token'));
+    const namespaces = inspectNamespacesSchema.safeParse(form.getValues('inspectNamespaces'));
+    if (!token.success || !namespaces.success) return;
     try {
-      await tokenTest.run(parsed.data);
+      await tokenTest.run(token.data, namespaces.data);
     } catch (error) {
-      setTestProblem(applyServerErrors(error, form));
+      setTestProblem(applyServerErrors(error, form, { listFields: ['inspectNamespaces'] }));
     }
   };
 
   const submit = handleSubmit(async ({ token }) => {
     try {
       const rotated = await rotate({ credentialId: credential.id, token, version: credential.version });
-      form.reset({ token: '' });
+      form.reset({ token: '', inspectNamespaces: [...credential.inspectNamespaces] });
       notifySaved(rotated, `Token of ${rotated.name} on ${cluster.name} rotated`);
       onClose();
     } catch (error) {
@@ -156,6 +164,13 @@ function RotateCredentialForm({ cluster, credential, onClose }: RotateCredential
             isRequired
             helperText={TOKEN_HELPER_TEXT}
             spellCheck={false}
+          />
+          <ChipInputField
+            control={form.control}
+            name="inspectNamespaces"
+            label={INSPECT_NAMESPACES_LABEL}
+            helperText={INSPECT_NAMESPACES_HELPER}
+            maxItems={MAX_INSPECT_NAMESPACES}
           />
         </Form>
         <div className="pf-v6-u-mt-md" aria-live="polite">

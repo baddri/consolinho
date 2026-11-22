@@ -1,7 +1,7 @@
 ---
 id: T-0150
 title: "Inspect namespaces" chip input in the test, add and rotate credential dialogs
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 3.7
 depends_on: [T-0146]
@@ -56,19 +56,48 @@ stored-credential and rotate tests are prefilled from the credential's saved `in
   (labels-as-chips input of Edit labels; OCP uses react-tagsinput — we use PF `TextInputGroup` + `LabelGroup` per spec §5).
 
 ## Acceptance criteria
-- [ ] All three dialogs show "Inspect namespaces" with the NST-1 helper text; Enter/comma add, chip remove buttons
+- [x] All three dialogs show "Inspect namespaces" with the NST-1 helper text; Enter/comma add, chip remove buttons
       `aria-label="Remove team-a"`, "3 of 10" counter (NST-1, spec §5).
-- [ ] 11 entries or an invalid name ⇒ field error naming the entry, no request sent; whitespace trimmed, duplicates dropped (NST-2).
-- [ ] Stored test dialog prefills the selected credential's saved list; rotate's token test prefills it too (NST-5/6).
-- [ ] Requests carry `inspectNamespaces` in entry order (MSW assertions). Build, lint and tests green (CLAUDE.md rule 4).
-- [ ] Probe pages (ux review): test dialog on `/fleet/admin/clusters/prod-eu-1/credentials` with 3 chips + an error;
+- [x] 11 entries or an invalid name ⇒ field error naming the entry, no request sent; whitespace trimmed, duplicates dropped (NST-2).
+- [x] Stored test dialog prefills the selected credential's saved list; rotate's token test prefills it too (NST-5/6).
+- [x] Requests carry `inspectNamespaces` in entry order (MSW assertions). Build, lint and tests green (CLAUDE.md rule 4).
+- [x] Probe pages (ux review): test dialog on `/fleet/admin/clusters/prod-eu-1/credentials` with 3 chips + an error;
       OCP counterpart: Edit labels modal on any `/k8s/ns/default/deployments/<name>` (label chips spacing).
 
 ## Work log
+- 2026-11-23 frontend-engineer: in_progress → in_review. `ChipInputField` (PF TextInputGroup + LabelGroup), `inspectNamespacesSchema`,
+  `applyServerErrors` `listFields` option (whole-list 400 key lands on the field); wired into test, add and rotate
+  dialogs. `AddCredentialRequest` has `inspectNamespaces`, so Add sends it. Probe not run: it only navigates, so it
+  can't open a modal or type chips (left for the ux review, see AC 5).
 
 ## Review
+- 2026-11-23 ux-designer, round 1: **APPROVE** (mock UI :5231, Playwright script, 1280 light; test + add dialogs, 3 chips + `Bad_NS`, 11 entries).
+  - OK: chips are default PF `Label`s (filled grey), 26px high, 4px gap = OCP `public/components/utils/_label.scss` `.co-tags-input .tags { gap: spacer--xs }`; OCP `utils/selector-input.tsx` renders the same plain `PfLabel` with `onClose`.
+  - OK: invalid entry turns `pf-m-red`, group gets `pf-m-error` + status icon, helper "Not a valid namespace name: Bad_NS." names the entry; 11 entries → "Up to 10 namespaces.", group wraps (75px), no overflow "N more" collapse.
+  - OK: `aria-invalid`, `aria-describedby=field-inspectNamespaces-helper`, Backspace removes the last chip, Shift+Tab from input reaches "Remove <last>"; modal `pf-m-md`, one close control (UX.md §9).
+  - Nit (non-blocking, follow-up if wanted): counter reads as a run-on, "…in each namespace. 2 of 10"; "2 of 10 added." or a second `HelperTextItem` would read better (spec §5 only fixes "3 of 10").
+  - Nit (non-blocking): when the chips wrap, the clear X sits at the top and the error icon at the bottom right (PF `TextInputGroup` default alignment); acceptable, no custom CSS.
+  - Not checked visually: prefill (no mock credential has a saved `inspectNamespaces`; covered by unit tests). OCP reference console not shot (Edit labels modal needs an action click; compared against source instead).
+- 2026-11-23 frontend-architect, round 1: **APPROVE**. `check-fe.sh` green (873 tests). `RadioGroupField.tsx` untouched, so no T-0148 conflict.
+  - Extras accepted: (a) splitting a pasted `a,b` and adding text on blur keeps the "Enter/`,` adds" contract and stops a submit click from dropping typed text; (b) `listFields` is opt-in, default behaviour is unchanged and it is tested in forms.test; (c) an invalid chip blocking Rotate shows a field error, so it is consistent form UX (OCP validates every visible field).
+  - Nit (optional): `TestConnectionModal.tsx` subscribe callback — `setValue` on a credential switch leaves the old list's errors; pass `{ shouldValidate: form.formState.isSubmitted }` or `clearErrors('inspectNamespaces')`.
+  - Nit (optional): `ChipInputField.tsx` `aria-label={label}` on `TextInputGroupMain` repeats the `<label for>`, so drop it if the tests still find the textbox by its label.
+  - Nit (optional): TSDoc lines in `AddCredentialModal.tsx` (component doc) and `RotateCredentialModal.tsx` (component doc) run past 120 columns, so rewrap them.
+  - AC 5 (probe) is left for the ux review as noted.
 
 ## Handover notes
+- `shared/forms/ChipInputField.tsx`: Enter/`,` add, a pasted `a,b` is split, blur adds pending text (so clicking submit never
+  drops it), Backspace on an empty input removes the last chip, clear button `Clear <label>`, chip list `aria-label="<label> entries"`,
+  invalid entries turn red. Errors: `message`, `root` (zod puts the list error there when entries also fail) and
+  numeric entries are joined into one helper line.
+- `applyServerErrors(..., { listFields: ['inspectNamespaces'] })`: explicit opt-in (bulk `items` stays a collection).
+- Shared copy/constants in `connection-test/testConnection.schema.ts` (`INSPECT_NAMESPACES_*`, `MAX_INSPECT_NAMESPACES`).
+- The rotate form validates `inspectNamespaces` too, so an invalid typed chip blocks Rotate with a visible field error.
+  Rotate sends only the token.
+- The test dialog re-prefills when the user picks a credential (`form.subscribe`, `type: 'change'`). The saved list refreshes
+  via the existing `adminKeys.all` invalidation.
+- Counter renders as "<helper> 3 of 10" (hidden while an error replaces the helper).
+- `ConnectionTestResultView`/`NamespaceRulesTable` untouched (T-0151).
 
 ## Orchestrator reconciliation (2026-11-23)
 Backend contract is final in `T-0139` §Contract A/B/C plus `T-0140`/`T-0141`/`T-0142`. Differences from the design brief:

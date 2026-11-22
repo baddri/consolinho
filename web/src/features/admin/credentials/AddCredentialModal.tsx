@@ -2,7 +2,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Form, ModalBody, ModalFooter } from '@patternfly/react-core';
 import { useId } from 'react';
 import { useForm } from 'react-hook-form';
-import { FormProblemAlert, TextAreaField, TextField, useFormProblem } from '@/shared/forms';
+import { ChipInputField, FormProblemAlert, TextAreaField, TextField, useFormProblem } from '@/shared/forms';
+import {
+  INSPECT_NAMESPACES_HELPER,
+  INSPECT_NAMESPACES_LABEL,
+  MAX_INSPECT_NAMESPACES,
+} from '../connection-test/testConnection.schema';
 import { useAddCredential } from './api';
 import {
   ADD_CREDENTIAL_DEFAULTS,
@@ -23,7 +28,7 @@ export interface AddCredentialModalProps {
 
 /**
  * "Add credential" dialog (CRED-1): name, optional description and the ServiceAccount token in a masked password
- * input with a reveal toggle. The token lives only in this form's state (CRED-2): the form mounts only while open and
+ * input with a reveal toggle, plus the optional namespaces its connection tests inspect (saved with it, NST-1/5). The token lives only in this form's state (CRED-2): the form mounts only while open and
  * is reset after success. Server 400s land on their fields, 409 `Credentials.NameTaken` on the name. Success toasts;
  * an opaque token adds the Q10 warning toast.
  */
@@ -50,7 +55,10 @@ function AddCredentialForm({ cluster, onClose }: Omit<AddCredentialModalProps, '
     resolver: zodResolver(addCredentialSchema),
     defaultValues: ADD_CREDENTIAL_DEFAULTS,
   });
-  const { problem, handleSubmit } = useFormProblem(form, { codeToField: { 'Credentials.NameTaken': 'name' } });
+  const { problem, handleSubmit } = useFormProblem(form, {
+    codeToField: { 'Credentials.NameTaken': 'name' },
+    listFields: ['inspectNamespaces'],
+  });
 
   const submit = handleSubmit(async (values) => {
     const credential = await addCredential(values);
@@ -82,6 +90,13 @@ function AddCredentialForm({ cluster, onClose }: Omit<AddCredentialModalProps, '
             isRequired
             helperText={TOKEN_HELPER_TEXT}
             spellCheck={false}
+          />
+          <ChipInputField
+            control={form.control}
+            name="inspectNamespaces"
+            label={INSPECT_NAMESPACES_LABEL}
+            helperText={INSPECT_NAMESPACES_HELPER}
+            maxItems={MAX_INSPECT_NAMESPACES}
           />
         </Form>
       </ModalBody>
