@@ -85,7 +85,7 @@ function ServicePorts({ obj }: { obj: ServiceResource }) {
   );
 }
 
-/** Services (UI-3): Name, Namespace, Type, Cluster IP, Ports, Selector. */
+/** Services (UI-3): Name, Namespace, Type (≥ 2xl in all projects), Cluster IP, Ports, Selector. */
 export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   model: ServiceModel,
   nav: { section: 'networking', order: 10 },
@@ -94,7 +94,15 @@ export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   columns: [
     nameColumn(ServiceModel),
     namespaceColumn(ServiceModel),
-    { id: 'type', title: 'Type', cell: serviceType, sortValue: serviceType },
+    {
+      id: 'type',
+      title: 'Type',
+      // Headers never wrap: with Namespace, the six headers alone are wider than the page at 1280. Type goes first
+      // (OCP's Services list has no Type column; Cluster IP, Ports and Selector make up its Location/Pod selector).
+      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
+      cell: serviceType,
+      sortValue: serviceType,
+    },
     {
       id: 'clusterIP',
       title: 'Cluster IP',

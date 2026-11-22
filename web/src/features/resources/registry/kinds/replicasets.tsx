@@ -58,8 +58,9 @@ function ReplicaSetSections({ obj }: { obj: ReplicaSetResource }) {
 
 /**
  * ReplicaSets (T-0129; OCP `replica-set.tsx`): the owners of a deployment's pods, so pod Owner links resolve. List:
- * Name, Namespace, Status ("N of M pods" → Pods tab), Labels, Owner, Created. Details: metadata with pod/node
- * selector, tolerations and revision; current/desired count; Containers, Volumes; a Pods tab.
+ * Name, Namespace, Status ("N of M pods" → Pods tab), Labels, Owner (≥ lg; ≥ 2xl in all projects), Created (≥ 2xl).
+ * Details: metadata with pod/node selector, tolerations and revision; current/desired count; Containers, Volumes; a
+ * Pods tab.
  */
 export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
   model: ReplicaSetModel,
@@ -86,11 +87,15 @@ export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
       ),
       sortValue: (replicaSet) => current(replicaSet) / Math.max(desired(replicaSet), 1),
     },
-    labelsColumn(),
+    // OCP `getLabelsColumnWidthStyleProp`: Labels starts at a fixed width (rendered 228 px there); its labels don't
+    // wrap, so a width measured from the page would let the longest label push the table past the page.
+    { ...labelsColumn<ReplicaSetResource>(), width: 228 },
     {
       id: 'owner',
       title: 'Owner',
       visibility: ['hidden', 'visibleOnLg'],
+      // As on Pods: next to Namespace and Labels, Owner would push the table into horizontal scroll at 1280.
+      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
       cell: (replicaSet) => <OwnerReferences obj={replicaSet} />,
       sortValue: (replicaSet) => replicaSet.metadata.ownerReferences?.[0]?.name ?? null,
     },
