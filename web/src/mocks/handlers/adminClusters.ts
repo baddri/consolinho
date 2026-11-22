@@ -1,4 +1,4 @@
-import type { ClusterEnvironment } from '@/shared/api';
+import type { ClusterDistribution, ClusterEnvironment } from '@/shared/api';
 import { actorName, findCluster, mockDb, recordAudit } from '../db';
 import type { MockCluster } from '../fixtures';
 import { conflictProblem, problem } from '../problem';
@@ -13,6 +13,7 @@ import {
 } from './representations';
 
 const ENVIRONMENTS: EnumValues<ClusterEnvironment> = ['production', 'staging', 'development'];
+const DISTRIBUTIONS: EnumValues<ClusterDistribution> = ['openShift', 'kubernetes'];
 
 /** 404 `Clusters.NotFound`. */
 export function clusterNotFound(name: string) {
@@ -24,6 +25,7 @@ interface ClusterFields {
   displayName: string | null;
   apiUrl: string;
   environment: ClusterEnvironment;
+  distribution: ClusterDistribution;
   webConsoleUrl: string | null;
   description: string | null;
   caBundle: string | null;
@@ -69,7 +71,10 @@ function bindClusterFields(body: BodyBinder): ClusterFields {
   }
 
   const environment = body.enumValue('environment', 'Environment', ENVIRONMENTS);
-  return { displayName, apiUrl, environment, webConsoleUrl, description, caBundle, skipTlsVerify };
+  // Required on register and update (DIST-4); a missing value has already been recorded as a field error.
+  const distribution =
+    body.requiredNullableEnum('distribution', 'Choose OpenShift or Kubernetes.', DISTRIBUTIONS) ?? 'openShift';
+  return { displayName, apiUrl, environment, distribution, webConsoleUrl, description, caBundle, skipTlsVerify };
 }
 
 /** Resolves the route's cluster and checks the request's `version`: the cluster, or the 404/409 response to send. */
@@ -156,6 +161,7 @@ export const adminClusterHandlers = [
     const detail = toClusterDetail(cluster);
     auditCluster(cluster, 'cluster.registered', `${actor} registered cluster ${name}.`, {
       environment: cluster.environment,
+      distribution: cluster.distribution,
       apiUrl: cluster.apiUrl,
       tlsMode: detail.tlsMode,
       isEnabled,

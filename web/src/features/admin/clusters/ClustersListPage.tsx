@@ -16,9 +16,10 @@ import {
   ENVIRONMENT_OPTIONS,
   matchesClusterFilters,
 } from './clusterFilters';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Path of the register form (T-0034). */
-const REGISTER_PATH = '/admin/clusters/new';
+const REGISTER_PATH = fleetAdminPath('clusters/new');
 
 /** Filter elements (OCP `ConsoleDataView`): Name, then the attribute filters. Module-level, so never recreated. */
 const FILTER_NODES = [
@@ -59,7 +60,7 @@ function NoClusters({ registerButton }: { registerButton: ReactNode }) {
 }
 
 /**
- * `/admin/clusters` — the fleet view of every registered cluster (CLU-7): environment, API URL, status, TLS mode,
+ * `/fleet/admin/clusters` — the fleet view of every registered cluster (CLU-7): environment, API URL, status, TLS mode,
  * credentials with their token expiry, user count and newest connection test, as an OCP list page (`UX.md` §5,
  * `ConsoleDataView`). Filters live in the URL (`?q=&env=&status=`; Name searches name, display name and API URL).
  *

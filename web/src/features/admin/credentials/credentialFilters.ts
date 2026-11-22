@@ -1,11 +1,12 @@
 import type { ClusterEnvironment, Credential, CredentialExpiryStatus } from '@/shared/api';
 import { matchesText, type FilterDefs, type FilterOption, type FilterValues } from '@/shared/table';
+import { fleetAdminPath } from '@/shared/routing';
 
 const ENVIRONMENTS: readonly ClusterEnvironment[] = ['production', 'staging', 'development'];
 const EXPIRY_STATUSES: readonly CredentialExpiryStatus[] = ['expired', 'expiringSoon', 'unknown', 'noExpiry', 'ok'];
 
 /**
- * URL filters of `/admin/credentials` (`?q=&expiry=&env=`): `q` searches cluster, credential name and service
+ * URL filters of `/fleet/admin/credentials` (`?q=&expiry=&env=`): `q` searches cluster, credential name and service
  * account; `expiry` and `env` are multi-selects, so the CRED-8 alert can deep-link to
  * `?expiry=expired&expiry=expiringSoon`.
  */
@@ -28,7 +29,7 @@ export const EXPIRY_OPTIONS: FilterOption[] = [
 ];
 
 /** Fleet credentials page pre-filtered to the credentials that need attention (CRED-8). */
-export const NEEDS_ATTENTION_PATH = '/admin/credentials?expiry=expired&expiry=expiringSoon';
+export const NEEDS_ATTENTION_PATH = fleetAdminPath('credentials?expiry=expired&expiry=expiringSoon');
 
 /** True when `credential` passes every applied filter (an empty multi filter means "any"). */
 export function matchesCredentialFilters(credential: Credential, filters: CredentialFilterValues): boolean {

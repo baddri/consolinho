@@ -31,9 +31,9 @@ describe('mock users API (contract §7.2)', () => {
       isAdminViaConfiguration: true,
       isAdminByAssignment: false,
       adminConfigurationSource: 'group fleetconsole-admins',
-      grantCount: 1,
+      grantCount: 2,
     });
-    expect(users.find((u) => u.username === 'alice')).toMatchObject({ role: 'user', grantCount: 2 });
+    expect(users.find((u) => u.username === 'alice')).toMatchObject({ role: 'user', grantCount: 3 });
   });
 
   it('rejects a stale version with 409 Concurrency.Conflict and changes nothing', async () => {

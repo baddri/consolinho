@@ -19,22 +19,25 @@ public sealed class CredentialAuditHandlerTests
     private CredentialAuditHandler Handler => new(_trail);
 
     [Fact]
-    public async Task CredentialAdded_RecordsFingerprintTokenTypeAndServiceAccount()
+    public async Task CredentialAdded_RecordsFingerprintTokenTypeServiceAccountAndNamespaces()
     {
-        await Handler.Handle(new CredentialAdded(Id, Cluster, "prod-eu-1", "fleet-view", "3fa9c2e1", TokenType.Jwt, "fleet/viewer"), Ct);
+        await Handler.Handle(
+            new CredentialAdded(Id, Cluster, "prod-eu-1", "fleet-view", "3fa9c2e1", TokenType.Jwt, "fleet/viewer", ["team-a", "team-b"]),
+            Ct);
 
         var record = ShouldBeCredentialEntry("credential.added");
         record.Summary.ShouldBe("Added credential fleet-view to cluster prod-eu-1");
-        var details = AuditDetails.Of(record).ShouldHaveExactly("fingerprint", "tokenType", "serviceAccount");
+        var details = AuditDetails.Of(record).ShouldHaveExactly("fingerprint", "tokenType", "serviceAccount", "inspectNamespaces");
         details.Str("fingerprint").ShouldBe("3fa9c2e1");
         details.Str("tokenType").ShouldBe("jwt");
         details.Str("serviceAccount").ShouldBe("fleet/viewer");
+        details.GetProperty("inspectNamespaces").EnumerateArray().Select(e => e.GetString()).ShouldBe(["team-a", "team-b"]);
     }
 
     [Fact]
     public async Task CredentialAdded_OpaqueToken_HasNullServiceAccount()
     {
-        await Handler.Handle(new CredentialAdded(Id, Cluster, "prod-eu-1", "fleet-view", "3fa9c2e1", TokenType.Opaque, null), Ct);
+        await Handler.Handle(new CredentialAdded(Id, Cluster, "prod-eu-1", "fleet-view", "3fa9c2e1", TokenType.Opaque, null, []), Ct);
 
         var details = AuditDetails.Of(ShouldBeCredentialEntry("credential.added"));
         details.Str("tokenType").ShouldBe("opaque");
@@ -63,20 +66,21 @@ public sealed class CredentialAuditHandlerTests
     [Fact]
     public async Task CredentialTested_Success_RecordsOutcomeAndHeadline()
     {
-        await Handler.Handle(new CredentialTested(Id, Cluster, "prod-eu-1", "fleet-view", true, null, CapabilityLevel.ClusterWideView), Ct);
+        await Handler.Handle(new CredentialTested(Id, Cluster, "prod-eu-1", "fleet-view", true, null, CapabilityLevel.ClusterWideView, ["team-a"]), Ct);
 
         var record = ShouldBeCredentialEntry("credential.tested");
         record.Summary.ShouldBe("Tested credential fleet-view on cluster prod-eu-1: succeeded");
-        var details = AuditDetails.Of(record).ShouldHaveExactly("succeeded", "failedStep", "headline");
+        var details = AuditDetails.Of(record).ShouldHaveExactly("succeeded", "failedStep", "headline", "inspectNamespaces");
         details.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
         details.IsNull("failedStep").ShouldBeTrue();
         details.Str("headline").ShouldBe("clusterWideView");
+        details.GetProperty("inspectNamespaces").EnumerateArray().Select(e => e.GetString()).ShouldBe(["team-a"]);
     }
 
     [Fact]
     public async Task CredentialTested_Failure_RecordsTheFailedStep()
     {
-        await Handler.Handle(new CredentialTested(Id, Cluster, "prod-eu-1", "fleet-view", false, ConnectionTestStep.Authentication, null), Ct);
+        await Handler.Handle(new CredentialTested(Id, Cluster, "prod-eu-1", "fleet-view", false, ConnectionTestStep.Authentication, null, []), Ct);
 
         var record = ShouldBeCredentialEntry("credential.tested");
         record.Summary.ShouldContain("failed");

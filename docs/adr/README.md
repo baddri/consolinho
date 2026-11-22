@@ -37,3 +37,7 @@ Never edit an accepted ADR's decision — supersede it.
 | 0029 | HTTP security headers and the Content-Security-Policy | Accepted |
 | 0030 | OpenShift manifests (kustomize), configuration contract and the dev deploy script | Accepted |
 | 0031 | OCP page building blocks composed from react-core, not `@patternfly/react-component-groups` | Accepted |
+| 0032 | Cluster distribution is presentation; capabilities come from API discovery | Accepted |
+| 0033 | Fleet perspective: `/fleet/admin/*` routes, URL-derived perspective, per-distribution shell theme | Accepted |
+| 0034 | Group grants and grant precedence (decision; CP4.5) | Accepted |
+| 0035 | Access cache: FusionCache behind HybridCache, Redis L2 + backplane (decision; CP4.5) | Accepted |

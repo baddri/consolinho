@@ -11,10 +11,11 @@ import { isApiError } from '@/shared/api';
 import { ErrorState, PageBody, PageHeading, type BreadcrumbCrumb } from '@/shared/ui';
 import { useCluster } from './api';
 import { ClusterForm } from './form/ClusterForm';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Router link to the clusters list that PatternFly's `Button` can render as. */
 function ClustersLink(props: Omit<LinkProps, 'to'>) {
-  return <Link {...props} to="/admin/clusters" />;
+  return <Link {...props} to={fleetAdminPath('clusters')} />;
 }
 
 /**
@@ -22,13 +23,13 @@ function ClustersLink(props: Omit<LinkProps, 'to'>) {
  * breadcrumb, so register has none.
  */
 const editCrumbs: BreadcrumbCrumb[] = [
-  { label: 'Clusters', to: '/admin/clusters' },
+  { label: 'Clusters', to: fleetAdminPath('clusters') },
   { label: 'Edit cluster' },
 ];
 
 /**
- * `/admin/clusters/new` (register) and `/admin/clusters/:name/edit` (edit) — one form (T-0034); the mode follows from
- * whether the route has a `:name`. Lazy-loaded by `routes.tsx`.
+ * `/fleet/admin/clusters/new` (register) and `/fleet/admin/clusters/:name/edit` (edit) — one form (T-0034); the mode
+ * follows from whether the route has a `:name`. Lazy-loaded by `routes.tsx`.
  */
 export function ClusterFormPage() {
   const { name } = useParams();

@@ -4,6 +4,7 @@ using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Credentials;
 using FleetConsole.Application.Credentials.ConnectionTesting;
 using FleetConsole.Application.Tests.Audit;
+using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
 using Microsoft.Extensions.Options;
 
@@ -17,6 +18,8 @@ namespace FleetConsole.Application.Tests.Credentials.ConnectionTesting;
 public sealed class ConnectionTesterTests
 {
     private static readonly ClusterConnection Connection = new(new Uri("https://api.prod-eu-1.example.com:6443"), null, false);
+    private static readonly ConnectionTestTarget OpenShiftTarget = new(Connection, ClusterDistribution.OpenShift);
+    private static readonly string[] KubernetesGroups = ["apps", "batch", "networking.k8s.io"];
     private static readonly TokenMetadata JwtMetadata = new(TokenType.Jwt, "system:serviceaccount:fleet:from-token", null, null);
 
     private readonly FakeProbeClient _probes = new();
@@ -35,15 +38,17 @@ public sealed class ConnectionTesterTests
         result.Steps.Select(s => s.Step).ShouldBe(
         [
             ConnectionTestStep.Reachability, ConnectionTestStep.Authentication, ConnectionTestStep.Identity,
-            ConnectionTestStep.OpenShiftVersion, ConnectionTestStep.Capabilities,
+            ConnectionTestStep.Distribution, ConnectionTestStep.OpenShiftVersion, ConnectionTestStep.Capabilities,
         ]);
         result.Steps.ShouldAllBe(s => s.Status == ConnectionTestStepStatus.Passed && s.FailureKind == null);
         result.Steps[0].Message.ShouldBe("Reachable, Kubernetes v1.31.4");
         result.KubernetesVersion.ShouldBe("v1.31.4");
         result.Identity.ShouldBe(new ClusterIdentityDto("system:serviceaccount:fleet:viewer", IdentitySource.SelfSubjectReview));
         result.OpenShiftVersion.ShouldBe(new OpenShiftVersionDto("4.17.3", false));
+        result.DetectedDistribution.ShouldBe(ClusterDistribution.OpenShift);
+        result.Steps[3].Message.ShouldBe(ConnectionTester.OpenShiftAsRegisteredMessage);
         result.Capabilities.ShouldNotBeNull().Checks.Select(c => c.Id).ShouldBe(CapabilityCheckSet.Checks.Select(c => c.Id));
-        result.NamespaceRules.ShouldBeNull();
+        result.NamespaceRules.ShouldBeEmpty();
         result.Hints.ShouldBeEmpty();
         _probes.SessionDisposed.ShouldBeTrue();
         _probes.ReviewedAttributes.ShouldContain(CapabilityCheckSet.ClusterAdmin);
@@ -58,7 +63,7 @@ public sealed class ConnectionTesterTests
         var result = await RunAsync();
 
         result.Capabilities.ShouldNotBeNull().Headline.ShouldBe(CapabilityLevel.ClusterAdmin);
-        result.Steps[4].Message.ShouldStartWith("Cluster-admin");
+        result.Steps[5].Message.ShouldStartWith("Cluster-admin");
     }
 
     [Fact]
@@ -79,7 +84,7 @@ public sealed class ConnectionTesterTests
         var capabilities = result.Capabilities.ShouldNotBeNull();
         capabilities.Headline.ShouldBe(CapabilityLevel.ClusterWideView);
         capabilities.Checks.Where(c => c.Allowed).Select(c => c.Id).ShouldBe(["list-pods", "list-deployments", "list-namespaces"]);
-        result.Steps[4].Message.ShouldBe("Cluster-wide view: 3 of 12 checks allowed");
+        result.Steps[5].Message.ShouldBe("Cluster-wide view: 3 of 12 checks allowed");
     }
 
     [Fact]
@@ -159,11 +164,95 @@ public sealed class ConnectionTesterTests
         var result = await RunAsync();
 
         result.Succeeded.ShouldBeTrue();
-        result.Steps[3].ShouldBe(new ConnectionTestStepResultDto(
+        result.Steps[4].ShouldBe(new ConnectionTestStepResultDto(
             ConnectionTestStep.OpenShiftVersion, ConnectionTestStepStatus.Warning, ConnectionTester.NotVisibleMessage, kind));
         result.OpenShiftVersion.ShouldBeNull();
-        result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
         ConnectionTester.SummaryOf(result).Succeeded.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Kubernetes_declared_but_OpenShift_served_warns_and_still_reads_ClusterVersion()
+    {
+        var result = await RunAsync(distribution: ClusterDistribution.Kubernetes);
+
+        result.Succeeded.ShouldBeTrue();
+        result.Steps[3].ShouldBe(new ConnectionTestStepResultDto(
+            ConnectionTestStep.Distribution, ConnectionTestStepStatus.Warning,
+            "The cluster serves OpenShift APIs but is registered as Kubernetes. Check the distribution.", null));
+        result.DetectedDistribution.ShouldBe(ClusterDistribution.OpenShift);
+        result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        result.OpenShiftVersion.ShouldNotBeNull();
+        _probes.ClusterVersionCalls.ShouldBe(1);
+        ConnectionTester.SummaryOf(result).Succeeded.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task OpenShift_declared_but_not_served_warns_and_ClusterVersion_behaves_as_before()
+    {
+        _probes.ApiGroups = _ => FakeProbeClient.Ok(new ServedApiGroups(KubernetesGroups));
+        _probes.ClusterVersion = _ => FakeProbeClient.Fail<ClusterVersionInfo>(ProbeFailureKind.NotFound);
+
+        var result = await RunAsync();
+
+        result.Succeeded.ShouldBeTrue();
+        result.Steps[3].ShouldBe(new ConnectionTestStepResultDto(
+            ConnectionTestStep.Distribution, ConnectionTestStepStatus.Warning,
+            "The cluster does not serve OpenShift APIs but is registered as OpenShift. Check the distribution.", null));
+        result.DetectedDistribution.ShouldBe(ClusterDistribution.Kubernetes);
+        result.Steps[4].ShouldBe(new ConnectionTestStepResultDto(
+            ConnectionTestStep.OpenShiftVersion, ConnectionTestStepStatus.Warning, ConnectionTester.NotVisibleMessage, ProbeFailureKind.NotFound));
+        _probes.ClusterVersionCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Kubernetes_declared_and_not_served_passes_and_skips_ClusterVersion_without_calling_it()
+    {
+        _probes.ApiGroups = _ => FakeProbeClient.Ok(new ServedApiGroups(KubernetesGroups));
+
+        var result = await RunAsync(distribution: ClusterDistribution.Kubernetes);
+
+        result.Succeeded.ShouldBeTrue();
+        result.Steps[3].ShouldBe(new ConnectionTestStepResultDto(
+            ConnectionTestStep.Distribution, ConnectionTestStepStatus.Passed, ConnectionTester.KubernetesAsRegisteredMessage, null));
+        result.DetectedDistribution.ShouldBe(ClusterDistribution.Kubernetes);
+        result.Steps[4].ShouldBe(new ConnectionTestStepResultDto(
+            ConnectionTestStep.OpenShiftVersion, ConnectionTestStepStatus.Skipped, "Not an OpenShift cluster", null));
+        result.OpenShiftVersion.ShouldBeNull();
+        result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        _probes.ClusterVersionCalls.ShouldBe(0);
+        ConnectionTester.SummaryOf(result).Succeeded.ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData(ClusterDistribution.OpenShift, 1)]
+    [InlineData(ClusterDistribution.Kubernetes, 0)]
+    public async Task Discovery_not_visible_warns_with_the_probe_kind_and_the_test_continues(ClusterDistribution declared, int clusterVersionCalls)
+    {
+        _probes.ApiGroups = _ => FakeProbeClient.Fail<ServedApiGroups>(ProbeFailureKind.Forbidden);
+
+        var result = await RunAsync(distribution: declared);
+
+        result.Succeeded.ShouldBeTrue();
+        result.Steps[3].ShouldBe(new ConnectionTestStepResultDto(
+            ConnectionTestStep.Distribution, ConnectionTestStepStatus.Warning, ConnectionTester.DiscoveryNotVisibleMessage, ProbeFailureKind.Forbidden));
+        result.DetectedDistribution.ShouldBeNull();
+        result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        _probes.ClusterVersionCalls.ShouldBe(clusterVersionCalls);
+    }
+
+    [Fact]
+    public async Task Failure_before_discovery_reports_distribution_as_skipped()
+    {
+        _probes.Version = _ => FakeProbeClient.Fail<KubernetesVersionInfo>(ProbeFailureKind.ConnectionRefused);
+
+        var result = await RunAsync();
+
+        result.Succeeded.ShouldBeFalse();
+        result.Steps.Count.ShouldBe(6);
+        result.Steps[3].Step.ShouldBe(ConnectionTestStep.Distribution);
+        result.Steps[3].Status.ShouldBe(ConnectionTestStepStatus.Skipped);
+        result.DetectedDistribution.ShouldBeNull();
     }
 
     [Fact]
@@ -229,7 +318,7 @@ public sealed class ConnectionTesterTests
         var result = await RunAsync();
 
         result.Succeeded.ShouldBeFalse();
-        result.Steps[4].ShouldBe(new ConnectionTestStepResultDto(
+        result.Steps[5].ShouldBe(new ConnectionTestStepResultDto(
             ConnectionTestStep.Capabilities, ConnectionTestStepStatus.Failed, "HTTP 500", ProbeFailureKind.UnexpectedStatus));
         result.Capabilities.ShouldBeNull();
         ConnectionTester.SummaryOf(result).ShouldBe(new ConnectionTestSummary(FixedClock.Now, false, ConnectionTestStep.Capabilities, null));
@@ -244,9 +333,9 @@ public sealed class ConnectionTesterTests
 
         result.Succeeded.ShouldBeFalse();
         result.Steps[2].Status.ShouldBe(ConnectionTestStepStatus.Passed);
-        result.Steps[3].Status.ShouldBe(ConnectionTestStepStatus.Failed);
-        result.Steps[3].FailureKind.ShouldBe(ProbeFailureKind.Timeout);
-        result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Skipped);
+        result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Failed);
+        result.Steps[4].FailureKind.ShouldBe(ProbeFailureKind.Timeout);
+        result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Skipped);
         _probes.SessionDisposed.ShouldBeTrue();
     }
 
@@ -258,33 +347,134 @@ public sealed class ConnectionTesterTests
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
 
         await Should.ThrowAsync<OperationCanceledException>(() => Tester(TimeSpan.FromMinutes(1))
-            .RunAsync(Connection, new SensitiveString("fake-token"), JwtMetadata, null, null, cts.Token));
+            .RunAsync(OpenShiftTarget, new SensitiveString("fake-token"), JwtMetadata, InspectNamespaces.Empty, null, cts.Token));
     }
 
     [Fact]
     public async Task Namespace_rules_only_when_requested()
     {
         var without = await RunAsync();
-        var with = await RunAsync(inspectNamespace: "team-a");
+        var with = await RunAsync(namespaces: ["team-a"]);
 
-        without.NamespaceRules.ShouldBeNull();
-        var rules = with.NamespaceRules.ShouldNotBeNull();
+        without.NamespaceRules.ShouldBeEmpty();
+        var rules = with.NamespaceRules.ShouldHaveSingleItem();
         rules.Namespace.ShouldBe("team-a");
-        rules.Rules.ShouldHaveSingleItem().Resources.ShouldBe(["pods"]);
-        with.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        rules.Rules.ShouldNotBeNull().ShouldHaveSingleItem().Resources.ShouldBe(["pods"]);
+        rules.Error.ShouldBeNull();
+        rules.FailureKind.ShouldBeNull();
+        with.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        with.Steps[5].Message.ShouldBe(without.Steps[5].Message);
     }
 
     [Fact]
-    public async Task Rules_review_failure_is_a_capabilities_warning()
+    public async Task Rules_review_failure_is_an_entry_and_a_capabilities_warning()
     {
         _probes.RulesReview = (_, _) => FakeProbeClient.Fail<RulesReviewResult>(ProbeFailureKind.Forbidden, "forbidden");
 
-        var result = await RunAsync(inspectNamespace: "team-a");
+        var result = await RunAsync(namespaces: ["team-a"]);
 
         result.Succeeded.ShouldBeTrue();
-        result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Warning);
+        result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Warning);
+        result.Steps[5].Message.ShouldEndWith("; rules reviewed in 0 of 1 namespaces");
+        result.Steps[5].FailureKind.ShouldBe(ProbeFailureKind.Forbidden);
         result.Capabilities.ShouldNotBeNull();
-        result.NamespaceRules.ShouldBeNull();
+        var entry = result.NamespaceRules.ShouldHaveSingleItem();
+        entry.Rules.ShouldBeNull();
+        entry.Error.ShouldBe("forbidden");
+        entry.FailureKind.ShouldBe(ProbeFailureKind.Forbidden);
+        entry.Incomplete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Rejected_token_in_one_namespace_gets_the_token_rejected_text()
+    {
+        _probes.RulesReview = (ns, _) => ns == "team-b"
+            ? FakeProbeClient.Fail<RulesReviewResult>(ProbeFailureKind.Unauthorized, "raw probe text")
+            : FakeProbeClient.Ok(new RulesReviewResult(false, null, []));
+
+        var result = await RunAsync(namespaces: ["team-a", "team-b"]);
+
+        result.Succeeded.ShouldBeTrue();
+        result.NamespaceRules[0].Error.ShouldBeNull();
+        result.NamespaceRules[1].Error.ShouldBe(ConnectionTester.TokenRejectedMessage);
+        result.NamespaceRules[1].FailureKind.ShouldBe(ProbeFailureKind.Unauthorized);
+        result.Steps[5].Message.ShouldEndWith("; rules reviewed in 1 of 2 namespaces");
+        result.Steps[5].FailureKind.ShouldBe(ProbeFailureKind.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Several_namespaces_one_forbidden_one_hanging_until_the_budget_keep_order_and_warn()
+    {
+        _probes.RulesReview = (ns, ct) => ns switch
+        {
+            "team-b" => FakeProbeClient.Fail<RulesReviewResult>(ProbeFailureKind.Forbidden, "namespaces \"team-b\" is forbidden"),
+            "team-c" => FakeProbeClient.Hang<RulesReviewResult>(ct),
+            _ => FakeProbeClient.Ok(new RulesReviewResult(true, "webhook authorizer", [])),
+        };
+
+        var result = await RunAsync(namespaces: ["team-a", "team-b", "team-c"], timeout: TimeSpan.FromMilliseconds(300));
+
+        result.Succeeded.ShouldBeTrue();
+        result.NamespaceRules.Select(r => r.Namespace).ShouldBe(["team-a", "team-b", "team-c"]);
+        result.NamespaceRules[0].Rules.ShouldNotBeNull().ShouldBeEmpty();
+        result.NamespaceRules[0].Incomplete.ShouldBeTrue();
+        result.NamespaceRules[0].EvaluationError.ShouldBe("webhook authorizer");
+        result.NamespaceRules[1].ShouldSatisfyAllConditions(
+            r => r.Rules.ShouldBeNull(),
+            r => r.Error.ShouldBe("namespaces \"team-b\" is forbidden"),
+            r => r.FailureKind.ShouldBe(ProbeFailureKind.Forbidden));
+        result.NamespaceRules[2].ShouldSatisfyAllConditions(
+            r => r.Rules.ShouldBeNull(),
+            r => r.Error.ShouldBe(ConnectionTester.RulesTimeoutMessage),
+            r => r.FailureKind.ShouldBe(ProbeFailureKind.Timeout));
+        var step = result.Steps[5];
+        step.Status.ShouldBe(ConnectionTestStepStatus.Warning);
+        step.Message.ShouldMatch(@"^Limited: 0 of \d+ checks allowed; rules reviewed in 1 of 3 namespaces$");
+        step.FailureKind.ShouldBe(ProbeFailureKind.Forbidden);
+    }
+
+    [Fact]
+    public async Task Rules_reviews_are_bounded_to_four_in_flight()
+    {
+        var inFlight = 0;
+        var maxInFlight = 0;
+        _probes.RulesReview = async (_, ct) =>
+        {
+            var now = Interlocked.Increment(ref inFlight);
+            InterlockedMax(ref maxInFlight, now);
+            await Task.Delay(20, ct);
+            Interlocked.Decrement(ref inFlight);
+            return ProbeResponse<RulesReviewResult>.Ok(new RulesReviewResult(false, null, []));
+        };
+
+        var result = await RunAsync(namespaces: [.. Enumerable.Range(0, 10).Select(i => $"ns-{i}")]);
+
+        result.NamespaceRules.Count.ShouldBe(10);
+        result.NamespaceRules.ShouldAllBe(r => r.Error == null);
+        maxInFlight.ShouldBe(4);
+        result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_during_rules_reviews_propagates()
+    {
+        _probes.RulesReview = (_, ct) => FakeProbeClient.Hang<RulesReviewResult>(ct);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+
+        await Should.ThrowAsync<OperationCanceledException>(() => Tester(TimeSpan.FromMinutes(1))
+            .RunAsync(OpenShiftTarget, new SensitiveString("fake-token"), JwtMetadata, Namespaces("team-a", "team-b"), null, cts.Token));
+    }
+
+    [Fact]
+    public void Namespace_rules_entries_hold_exactly_one_of_rules_and_error()
+    {
+        var reviewed = NamespaceRulesDto.Reviewed("team-a", false, null, []);
+        var failed = NamespaceRulesDto.Failed("team-a", ProbeFailureKind.NotFound, "not found");
+
+        reviewed.ShouldSatisfyAllConditions(r => r.Rules.ShouldNotBeNull(), r => r.Error.ShouldBeNull(), r => r.FailureKind.ShouldBeNull());
+        failed.ShouldSatisfyAllConditions(
+            r => r.Rules.ShouldBeNull(), r => r.Error.ShouldBe("not found"), r => r.FailureKind.ShouldBe(ProbeFailureKind.NotFound));
     }
 
     [Fact]
@@ -328,8 +518,20 @@ public sealed class ConnectionTesterTests
     private ConnectionTester Tester(TimeSpan timeout) =>
         new(_probes, new FixedClock(), Options.Create(new CredentialsOptions { ConnectionTestTimeout = timeout }));
 
+    private static InspectNamespaces Namespaces(params string[] names) => InspectNamespaces.Create(names).Value;
+
+    private static void InterlockedMax(ref int target, int value)
+    {
+        int seen;
+        while (value > (seen = Volatile.Read(ref target)) && Interlocked.CompareExchange(ref target, value, seen) != seen)
+        {
+        }
+    }
+
     private Task<ConnectionTestResultDto> RunAsync(
-        TokenMetadata? metadata = null, string? inspectNamespace = null, GrantModeCounts? grants = null, TimeSpan? timeout = null) =>
-        Tester(timeout ?? TimeSpan.FromSeconds(30))
-            .RunAsync(Connection, new SensitiveString("fake-token"), metadata ?? JwtMetadata, inspectNamespace, grants, Ct);
+        TokenMetadata? metadata = null, string[]? namespaces = null, GrantModeCounts? grants = null, TimeSpan? timeout = null,
+        ClusterDistribution distribution = ClusterDistribution.OpenShift) =>
+        Tester(timeout ?? TimeSpan.FromSeconds(30)).RunAsync(
+            new ConnectionTestTarget(Connection, distribution), new SensitiveString("fake-token"), metadata ?? JwtMetadata,
+            Namespaces(namespaces ?? []), grants, Ct);
 }

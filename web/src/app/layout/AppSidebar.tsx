@@ -8,7 +8,9 @@ import {
 } from '@/features/cluster-context';
 import { FavoritesNavSection } from '@/features/preferences';
 import { useClusterNav } from '@/features/resources';
-import { buildAdminNav, type NavSection } from './navigation';
+import { usePerspective } from '@/shared/routing';
+import theme from './clusterTheme.module.css';
+import { buildFleetNav, type NavSection } from './navigation';
 
 /**
  * Renders one collapsible section. Like OCP (`NavSection.tsx`: `useState(false)`) every section starts collapsed, also
@@ -49,21 +51,40 @@ function ClusterSections({ cluster, pathname }: { cluster: string; pathname: str
 }
 
 /**
+ * The fleet perspective's sections ({@link buildFleetNav}); admins only — a non-admin on `/fleet/...` gets the
+ * forbidden page and an empty sidebar (FLEET-8).
+ */
+function FleetSections({ pathname }: { pathname: string }) {
+  const isAdmin = useCurrentUser().data?.role === 'admin';
+  if (!isAdmin) return null;
+  return (
+    <NavList>
+      {buildFleetNav().map((section) => (
+        <SidebarSection key={section.id} section={section} pathname={pathname} />
+      ))}
+    </NavList>
+  );
+}
+
+/**
  * Left navigation (`packages/console-app/src/components/nav/index.tsx`). Like OCP's perspective switcher, the
  * {@link ClusterSwitcher} is the first child of the `Nav` (full width, no divider below; UX.md §2) — shown on every
- * page, also on admin pages and while the user has no clusters. Then the cluster sections (`useClusterNav`) and the
- * FleetConsole admin section — for admins only (ADM-3). Favorites (starred pages) follow Home and are hidden with the
- * cluster sections. No footer: the version is in Help › About.
+ * page, also while the user has no clusters. The content below depends on the URL's perspective (ADR-0033 §5, like
+ * OCP's `PerspectiveNav`):
  *
- * Cluster links target `usePreferredCluster()` (the active cluster, else the last used or first granted one on
- * non-cluster pages such as admin). The cluster sections are hidden while the user has no clusters and on the
- * "Cluster … is not available" page, where only Fleet administration remains (T-0097).
+ * - `fleet` (`/fleet/...`): only the Fleet sections, for admins (FLEET-3); no Home, Favorites or cluster sections.
+ * - `cluster` (everything else): Home, Favorites (starred pages), then the cluster sections (`useClusterNav`), never
+ *   Fleet administration (FLEET-4). Cluster links target `usePreferredCluster()` (the active cluster, else the last
+ *   used or first granted one on non-cluster pages such as Preferences). Hidden while the user has no clusters and on
+ *   the "Cluster … is not available" page (T-0097).
+ *
+ * No footer: the version is in Help › About.
  */
 export function AppSidebar() {
   const { pathname } = useLocation();
+  const perspective = usePerspective();
   const preferredCluster = usePreferredCluster();
   const cluster = useIsActiveClusterUnavailable() ? undefined : preferredCluster;
-  const isAdmin = useCurrentUser().data?.role === 'admin';
 
   return (
     <PageSidebar>
@@ -71,14 +92,17 @@ export function AppSidebar() {
         <Nav aria-label="Global">
           {/* The Nav is a grid with a row gap, which spaces the switcher and the sections. Min-width 0 keeps a long
               cluster name with labels from widening the grid column; the name truncates instead. */}
-          <div className="pf-v6-u-min-width">
+          <div className={`pf-v6-u-min-width ${theme.navHeader}`}>
             <ClusterSwitcher />
           </div>
-          {(cluster !== undefined || isAdmin) && (
-            <NavList>
-              {cluster !== undefined && <ClusterSections cluster={cluster} pathname={pathname} />}
-              {isAdmin && <SidebarSection section={buildAdminNav()} pathname={pathname} />}
-            </NavList>
+          {perspective === 'fleet' ? (
+            <FleetSections pathname={pathname} />
+          ) : (
+            cluster !== undefined && (
+              <NavList>
+                <ClusterSections cluster={cluster} pathname={pathname} />
+              </NavList>
+            )
           )}
         </Nav>
       </PageSidebarBody>

@@ -6,7 +6,7 @@ const ROLES: readonly UserRole[] = ['admin', 'user'];
 const STATUSES: readonly UserStatus[] = ['active', 'pending', 'deactivated'];
 
 /**
- * URL filters of `/admin/users` (FRONTEND.md "Routing": `?q=&role=&status=&readOnly=`): `q` searches username,
+ * URL filters of `/fleet/admin/users` (FRONTEND.md "Routing": `?q=&role=&status=&readOnly=`): `q` searches username,
  * display name and groups; `role`, `status` and `readOnly` (`yes`/`no`) are multi-selects.
  */
 export const USER_FILTERS = {

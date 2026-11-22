@@ -58,6 +58,8 @@ internal sealed class AddCredentialHandler(
             tokenProtector.Protect(request.Token),
             TokenFingerprints.Compute(request.Token),
             TokenInspector.Inspect(request.Token),
+            // Validated by AddCredentialValidator, so Value cannot throw unless the pipeline was bypassed.
+            InspectNamespaces.Create(request.InspectNamespaces).Value,
             CredentialLookup.Actor(currentUser),
             clock.UtcNow);
         credentials.Add(credential);

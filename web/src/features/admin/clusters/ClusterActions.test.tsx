@@ -55,7 +55,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const commands = recordCommands();
-      const { user, queryClient } = renderApp('/admin/clusters');
+      const { user, queryClient } = renderApp('/fleet/admin/clusters');
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
       const table = await findClustersTable(COLD_START_TIMEOUT_MS);
 
@@ -83,7 +83,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
   it('CLU-5: enables a disabled cluster and refreshes the switcher', async () => {
     const commands = recordCommands();
-    const { user, queryClient } = renderApp('/admin/clusters');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters');
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     const table = await findClustersTable();
 
@@ -104,7 +104,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
   it('CLU-6: Delete is aria-disabled with the reason while the cluster is enabled', async () => {
     const commands = recordCommands();
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     await openKebab(user, table, 'prod-eu-1');
@@ -119,7 +119,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
 
   it('CLU-6: deletes dev-2 after typing its name, with counts and the CSRF header', async () => {
     const commands = recordCommands();
-    const { user, queryClient } = renderApp('/admin/clusters');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters');
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
     const table = await findClustersTable();
 
@@ -152,7 +152,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
         problem(409, { code: 'Clusters.NotDisabled', detail: 'Disable dev-2 before deleting it.' }),
       ),
     );
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     await openKebab(user, table, 'dev-2');
@@ -167,7 +167,7 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
   });
 
   it('T-0033 review: an action on a cluster deleted meanwhile closes the dialog with a toast', async () => {
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     await openKebab(user, table, 'dev-1');
@@ -185,18 +185,18 @@ describe('Cluster actions (CLU-5, CLU-6)', () => {
   });
 
   it('Edit navigates to the edit form', async () => {
-    const { user, router } = renderApp('/admin/clusters');
+    const { user, router } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     await openKebab(user, table, 'dev-1');
     await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/clusters/dev-1/edit'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/clusters/dev-1/edit'));
   });
 
   it('ADM-2: every row action is aria-disabled for a read-only admin', async () => {
     setMockUser('ines');
     const commands = recordCommands();
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const table = await findClustersTable();
 
     const items = await openKebab(user, table, 'dev-2');

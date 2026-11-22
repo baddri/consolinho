@@ -11,6 +11,7 @@ namespace FleetConsole.Application.Clusters.ListClusters;
 /// <param name="Name">The cluster name: URL slug, unique and immutable.</param>
 /// <param name="DisplayName">Human-friendly name; equals the name when none was given.</param>
 /// <param name="Environment">Production, staging or development.</param>
+/// <param name="Distribution">The declared distribution (OpenShift or Kubernetes); presentation only.</param>
 /// <param name="ApiUrl">The API server URL (https, host and port, no trailing slash).</param>
 /// <param name="IsEnabled">Whether granted users see and can use the cluster.</param>
 /// <param name="TlsMode">How the API server's certificate is verified; skipVerify should be flagged.</param>
@@ -24,6 +25,7 @@ public sealed record ClusterListItemDto(
     string Name,
     string DisplayName,
     ClusterEnvironment Environment,
+    ClusterDistribution Distribution,
     string ApiUrl,
     bool IsEnabled,
     ClusterTlsMode TlsMode,

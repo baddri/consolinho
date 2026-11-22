@@ -17,16 +17,19 @@ public sealed class ClusterAuditHandlerTests
     private ClusterAuditHandler Handler => new(_trail);
 
     [Fact]
-    public async Task ClusterRegistered_RecordsEnvironmentUrlTlsModeAndEnabled()
+    public async Task ClusterRegistered_RecordsEnvironmentDistributionUrlTlsModeAndEnabled()
     {
         await Handler.Handle(
-            new ClusterRegistered(Id, "prod-eu-1", ClusterEnvironment.Production, "https://api.prod-eu-1.example.com:6443", ClusterTlsMode.CaBundle, IsEnabled: true),
+            new ClusterRegistered(
+                Id, "prod-eu-1", ClusterEnvironment.Production, ClusterDistribution.Kubernetes,
+                "https://api.prod-eu-1.example.com:6443", ClusterTlsMode.CaBundle, IsEnabled: true),
             Ct);
 
         var record = ShouldBeClusterEntry("cluster.registered");
         record.Summary.ShouldBe("Registered cluster prod-eu-1");
-        var details = AuditDetails.Of(record).ShouldHaveExactly("environment", "apiUrl", "tlsMode", "isEnabled");
+        var details = AuditDetails.Of(record).ShouldHaveExactly("environment", "distribution", "apiUrl", "tlsMode", "isEnabled");
         details.Str("environment").ShouldBe("production");
+        details.Str("distribution").ShouldBe("kubernetes");
         details.Str("apiUrl").ShouldBe("https://api.prod-eu-1.example.com:6443");
         details.Str("tlsMode").ShouldBe("caBundle");
         details.GetProperty("isEnabled").GetBoolean().ShouldBeTrue();

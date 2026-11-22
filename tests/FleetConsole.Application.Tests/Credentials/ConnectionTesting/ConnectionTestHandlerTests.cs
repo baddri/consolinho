@@ -60,6 +60,41 @@ public sealed class ConnectionTestHandlerTests
     }
 
     [Fact]
+    public async Task TestCredential_inspects_the_requested_namespaces_and_replaces_the_saved_list()
+    {
+        var credential = Existing(_cluster, "old-ns");
+        var inspected = new List<string>();
+        _probes.RulesReview = (ns, _) =>
+        {
+            lock (inspected)
+            {
+                inspected.Add(ns);
+            }
+
+            return FakeProbeClient.Ok(new RulesReviewResult(false, null, []));
+        };
+
+        var result = await CredentialHandler().Handle(
+            new TestCredentialCommand("prod-eu-1", credential.Id.Value, [" team-a ", "team-b", "team-a"]), Ct);
+
+        result.Value.NamespaceRules.Select(r => r.Namespace).ShouldBe(["team-a", "team-b"]);
+        inspected.Order(StringComparer.Ordinal).ShouldBe(["team-a", "team-b"]);
+        credential.InspectNamespaces.Values.ShouldBe(["team-a", "team-b"]);
+        credential.DomainEvents.OfType<CredentialTested>().ShouldHaveSingleItem().InspectNamespaces.ShouldBe(["team-a", "team-b"]);
+    }
+
+    [Fact]
+    public async Task TestCredential_without_namespaces_clears_the_saved_list()
+    {
+        var credential = Existing(_cluster, "old-ns");
+
+        var result = await CredentialHandler().Handle(new TestCredentialCommand("prod-eu-1", credential.Id.Value, null), Ct);
+
+        result.Value.NamespaceRules.ShouldBeEmpty();
+        credential.InspectNamespaces.ShouldBe(InspectNamespaces.Empty);
+    }
+
+    [Fact]
     public async Task TestCredential_hints_use_the_grant_counts_of_the_credential()
     {
         var credential = Existing(_cluster);
@@ -131,6 +166,39 @@ public sealed class ConnectionTestHandlerTests
     }
 
     [Fact]
+    public async Task TestToken_audits_the_inspected_namespaces_and_keeps_the_credentials_saved_list()
+    {
+        var credential = Existing(_cluster, "old-ns");
+
+        var result = await TokenHandler().Handle(
+            new TestTokenCommand("prod-eu-1", Sensitive(UnsavedToken), credential.Id.Value, ["team-a", "team-b"]), Ct);
+
+        result.Value.NamespaceRules.Select(r => r.Namespace).ShouldBe(["team-a", "team-b"]);
+        var details = FleetConsole.Application.Audit.AuditTrail.SerializeDetails(_audit.Single.Details);
+        details.ShouldContain("\"inspectNamespaces\":[\"team-a\",\"team-b\"]");
+        details.ShouldNotContain(UnsavedToken);
+        credential.InspectNamespaces.Values.ShouldBe(["old-ns"]);
+        credential.LastTest.ShouldBeNull();
+        credential.DomainEvents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Validators_reject_too_many_or_invalid_namespaces_on_the_field_key()
+    {
+        var tooMany = Enumerable.Range(0, 11).Select(i => $"ns-{i}").ToList();
+        var credentialValidator = new TestCredentialValidator();
+        var tokenValidator = new TestTokenValidator();
+
+        credentialValidator.Validate(new TestCredentialCommand("prod-eu-1", Guid.NewGuid(), tooMany))
+            .Errors.ShouldHaveSingleItem().PropertyName.ShouldBe("inspectNamespaces");
+        credentialValidator.Validate(new TestCredentialCommand("prod-eu-1", Guid.NewGuid(), ["team-a", "Team_A"]))
+            .Errors.ShouldHaveSingleItem().PropertyName.ShouldBe("inspectNamespaces[1]");
+        tokenValidator.Validate(new TestTokenCommand("prod-eu-1", Sensitive(UnsavedToken), null, ["bad name"]))
+            .Errors.ShouldHaveSingleItem().PropertyName.ShouldBe("inspectNamespaces[0]");
+        credentialValidator.Validate(new TestCredentialCommand("prod-eu-1", Guid.NewGuid(), null)).IsValid.ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task TestToken_with_credential_of_another_cluster_is_a_field_error()
     {
         var foreign = Existing(NewCluster("other-cluster"));
@@ -161,12 +229,12 @@ public sealed class ConnectionTestHandlerTests
     {
         var endpoint = ApiServerEndpoint.Create($"https://api.{name}.example.com:6443", null, false).Value;
         var cluster = Cluster.Register(
-            ClusterName.Create(name).Value, null, endpoint, ClusterEnvironment.Production, null, null, true, "admin", FixedClock.Now);
+            ClusterName.Create(name).Value, null, endpoint, ClusterEnvironment.Production, ClusterDistribution.OpenShift, null, null, true, "admin", FixedClock.Now);
         cluster.ClearDomainEvents();
         return cluster;
     }
 
-    private Credential Existing(Cluster cluster)
+    private Credential Existing(Cluster cluster, params string[] savedNamespaces)
     {
         var credential = Credential.Add(
             cluster,
@@ -175,6 +243,7 @@ public sealed class ConnectionTestHandlerTests
             new EncryptedToken([9]),
             TokenFingerprints.Compute(Sensitive(StoredToken)),
             TokenMetadata.Opaque,
+            InspectNamespaces.Create(savedNamespaces).Value,
             "admin",
             FixedClock.Now);
         credential.ClearDomainEvents();

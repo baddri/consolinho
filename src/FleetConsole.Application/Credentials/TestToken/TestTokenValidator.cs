@@ -1,4 +1,3 @@
-using FleetConsole.Application.Credentials.ConnectionTesting;
 using FleetConsole.Application.Credentials.Tokens;
 using FluentValidation;
 
@@ -11,6 +10,6 @@ internal sealed class TestTokenValidator : AbstractValidator<TestTokenCommand>
     public TestTokenValidator()
     {
         RuleFor(c => c.Token).ValidToken();
-        RuleFor(c => c.InspectNamespace).ValidInspectNamespace();
+        RuleFor(c => c.InspectNamespaces).ValidInspectNamespaces();
     }
 }

@@ -96,6 +96,32 @@ export class BodyBinder {
     return match;
   }
 
+  /**
+   * One of `allowed` for a C# nullable enum with no default (e.g. `distribution`, DIST-4): absent or `null` → `message`
+   * as a field error (returns `null`); an unknown string or a non-string → malformed.
+   */
+  requiredNullableEnum<T extends string>(key: string, message: string, allowed: EnumValues<T>): T | null {
+    const value = this.body[key];
+    if (value === undefined || value === null) {
+      this.error(key, message);
+      return null;
+    }
+    const match = allowed.find((candidate) => candidate === value);
+    if (match === undefined) throw new MalformedBodyError();
+    return match;
+  }
+
+  /** Array of strings (`string[]?` in C#): absent/`null` → `[]`; not an array, or a non-string entry → malformed. */
+  stringArray(key: string): string[] {
+    const value = this.body[key];
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value)) throw new MalformedBodyError();
+    return value.map((item: unknown) => {
+      if (typeof item !== 'string') throw new MalformedBodyError();
+      return item;
+    });
+  }
+
   /** `version` (uint32). Absent → "Version is required."; quoted, fractional, negative or too large → malformed. */
   version(): number {
     const value = this.body.version;

@@ -19,7 +19,7 @@ describe('PageHeading', () => {
       <MemoryRouter>
         <PageHeading
           title="alice"
-          breadcrumbs={[{ label: 'Users', to: '/admin/users' }, { label: 'User details' }]}
+          breadcrumbs={[{ label: 'Users', to: '/fleet/admin/users' }, { label: 'User details' }]}
           icon={<span aria-hidden="true">U</span>}
           status={<StatusIconText status="success" text="Active" asLabel />}
           labels={<span>Read only</span>}
@@ -33,7 +33,7 @@ describe('PageHeading', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('heading', { level: 1, name: 'alice' })).toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/admin/users');
+    expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/fleet/admin/users');
     expect(within(crumbs).getByText('User details')).toHaveAttribute('aria-current', 'page');
     expect(within(crumbs).queryByRole('link', { name: 'User details' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Actions' })).toBeInTheDocument();
@@ -56,8 +56,8 @@ describe('PageHeading', () => {
 
 describe('PageTabs', () => {
   const tabs = [
-    { key: 'details', title: 'Details', to: '/admin/users/alice' },
-    { key: 'grants', title: 'Grants', to: '/admin/users/alice/grants' },
+    { key: 'details', title: 'Details', to: '/fleet/admin/users/alice' },
+    { key: 'grants', title: 'Grants', to: '/fleet/admin/users/alice/grants' },
   ];
 
   /** Memory data router at the details tab; its state exposes the location key and last history action. */
@@ -65,15 +65,15 @@ describe('PageTabs', () => {
     const router = createMemoryRouter(
       [
         {
-          path: '/admin/users/alice',
+          path: '/fleet/admin/users/alice',
           element: <PageTabs tabs={tabs} activeKey="details" aria-label="User tabs" />,
         },
         {
-          path: '/admin/users/alice/grants',
+          path: '/fleet/admin/users/alice/grants',
           element: <PageTabs tabs={tabs} activeKey="grants" aria-label="User tabs" />,
         },
       ],
-      { initialEntries: ['/admin/users/alice'] },
+      { initialEntries: ['/fleet/admin/users/alice'] },
     );
     render(<RouterProvider router={router} />);
     return router;
@@ -85,7 +85,7 @@ describe('PageTabs', () => {
     expect(within(nav).getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-current', 'page');
     const grants = within(nav).getByRole('tab', { name: 'Grants' });
     expect(grants).not.toHaveAttribute('aria-current');
-    expect(grants).toHaveAttribute('href', '/admin/users/alice/grants');
+    expect(grants).toHaveAttribute('href', '/fleet/admin/users/alice/grants');
   });
 
   it('pushes the tab route through the router, so Back returns to the previous tab', async () => {
@@ -94,12 +94,12 @@ describe('PageTabs', () => {
 
     await user.click(screen.getByRole('tab', { name: 'Grants' }));
 
-    expect(router.state.location.pathname).toBe('/admin/users/alice/grants');
+    expect(router.state.location.pathname).toBe('/fleet/admin/users/alice/grants');
     expect(router.state.historyAction).toBe('PUSH');
     expect(screen.getByRole('tab', { name: 'Grants' })).toHaveAttribute('aria-current', 'page');
 
     await act(() => router.navigate(-1));
-    expect(router.state.location.pathname).toBe('/admin/users/alice');
+    expect(router.state.location.pathname).toBe('/fleet/admin/users/alice');
     expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-current', 'page');
   });
 

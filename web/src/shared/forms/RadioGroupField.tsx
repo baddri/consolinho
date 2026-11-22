@@ -4,6 +4,9 @@ import { useController, type FieldPathByValue, type FieldValues } from 'react-ho
 import { fieldA11y, FieldHelperText, useWrapperFocusRef } from './fieldA11y';
 import type { FieldBaseProps } from './types';
 
+/** PF's inline group-control classes (the `FormGroup isInline` layout), applied to the radios' own wrapper. */
+const INLINE_CONTROL_CLASS = 'pf-v6-c-form__group-control pf-m-inline';
+
 /** One choice of a {@link RadioGroupField}. */
 export interface RadioGroupFieldOption {
   value: string;
@@ -29,6 +32,10 @@ export type RadioGroupFieldProps<
 /**
  * Mutually exclusive choice among a few options with explanations (access mode, role). Renders a PatternFly
  * `FormGroup role="radiogroup"` labelled by `label`; each radio's id is `<fieldId>-<value>`.
+ *
+ * The radios sit in a wrapper that holds the focus ref (see `useWrapperFocusRef`). Inline mode gives that wrapper PF's
+ * inline group-control layout instead of the `FormGroup`'s, so the radios form one row with PF's group gap and the
+ * helper text goes on its own line below, as in OCP's inline `RadioGroupField`.
  */
 export function RadioGroupField<
   T extends FieldValues,
@@ -54,13 +61,12 @@ export function RadioGroupField<
       label={label}
       isRequired={isRequired}
       fieldId={a11y.fieldId}
-      isInline={isInline}
       isStack={!isInline}
       aria-invalid={a11y.isInvalid}
       aria-required={isRequired || undefined}
       aria-describedby={a11y.describedBy}
     >
-      <div ref={focusRef}>
+      <div ref={focusRef} className={isInline ? INLINE_CONTROL_CLASS : undefined}>
         {options.map((option) => (
           <Radio
             key={option.value}

@@ -258,6 +258,7 @@ public sealed class GrantCommandHandlerTests
             new EncryptedToken([9]),
             TokenFingerprint.Create("0123abcd").Value,
             TokenMetadata.Opaque,
+            InspectNamespaces.Empty,
             "admin",
             FixedClock.Now);
         credential.ClearDomainEvents();

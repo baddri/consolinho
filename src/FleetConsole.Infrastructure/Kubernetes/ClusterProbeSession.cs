@@ -96,6 +96,19 @@ internal sealed partial class ClusterProbeSession : IClusterProbeSession
             cancellationToken);
 
     /// <inheritdoc />
+    public Task<ProbeResponse<ServedApiGroups>> GetServedApiGroupsAsync(CancellationToken cancellationToken) =>
+        SendAsync<ApiGroupListDto, ServedApiGroups>(
+            HttpMethod.Get, "apis", body: null,
+            // Missing or empty groups is a valid (if odd) discovery answer: nothing served, not a parse failure.
+            dto => new ServedApiGroups(
+                (dto.Groups ?? [])
+                    .Select(g => g?.Name)
+                    .OfType<string>()
+                    .Where(name => name.Length > 0)
+                    .ToHashSet(StringComparer.Ordinal)),
+            cancellationToken);
+
+    /// <inheritdoc />
     public Task<ProbeResponse<ClusterVersionInfo>> GetClusterVersionAsync(CancellationToken cancellationToken) =>
         SendAsync<ClusterVersionDto, ClusterVersionInfo>(
             HttpMethod.Get, ClusterVersionPath, body: null,

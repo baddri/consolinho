@@ -14,6 +14,7 @@ namespace FleetConsole.Domain.Credentials.Events;
 /// <param name="Succeeded">Whether no step failed.</param>
 /// <param name="FailedStep">The failed step, if any.</param>
 /// <param name="Headline">The capability headline, if the capabilities step ran.</param>
+/// <param name="InspectNamespaces">The namespaces saved on the credential (names only; audited, NST-7).</param>
 public sealed record CredentialTested(
     CredentialId CredentialId,
     ClusterId ClusterId,
@@ -21,4 +22,5 @@ public sealed record CredentialTested(
     string Name,
     bool Succeeded,
     ConnectionTestStep? FailedStep,
-    CapabilityLevel? Headline) : IDomainEvent;
+    CapabilityLevel? Headline,
+    IReadOnlyList<string> InspectNamespaces) : IDomainEvent;

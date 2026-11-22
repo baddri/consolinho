@@ -23,6 +23,8 @@ namespace FleetConsole.Api.Tests.Integration.Admin;
 [Collection(ApiCollectionDefinition.Name)]
 public sealed class TokenLeakSweepTests(ApiFactory factory)
 {
+    private static readonly string[] InspectedNamespaces = ["team-a", "team-b"];
+
     private const string Subject = "system:serviceaccount:fleet:viewer";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -33,8 +35,10 @@ public sealed class TokenLeakSweepTests(ApiFactory factory)
         await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
         server.MapVersion();
         // Hostile upstream: SelfSubjectReview fails with a body that contains the caller's Authorization header, and
-        // ClusterVersion is forbidden with the same echo. Neither may reach a step message, the stored test or the audit.
+        // ClusterVersion and API discovery are forbidden with the same echo. None may reach a step message, the stored
+        // test or the audit.
         server.Map("POST", FakeKubeApiServer.SelfSubjectReviewsPath, EchoAuthorizationAsync(500));
+        server.Map("GET", "/apis", EchoAuthorizationAsync(403));
         server.Map("GET", FakeKubeApiServer.ClusterVersionPath, EchoAuthorizationAsync(403));
 
         using var admin = await factory.AdminClientAsync();
@@ -73,7 +77,7 @@ public sealed class TokenLeakSweepTests(ApiFactory factory)
             bodies.Add(await grant.Content.ReadAsStringAsync(Ct));
         }
 
-        using (var test = await admin.PostAsJsonAsync(ClusterCredentials(cluster, $"/{credentialId}/test"), new { inspectNamespace = "team-a" }, Ct))
+        using (var test = await admin.PostAsJsonAsync(ClusterCredentials(cluster, $"/{credentialId}/test"), new { inspectNamespaces = InspectedNamespaces }, Ct))
         {
             test.StatusCode.ShouldBe(HttpStatusCode.OK);
             var text = await test.Content.ReadAsStringAsync(Ct);
@@ -84,13 +88,13 @@ public sealed class TokenLeakSweepTests(ApiFactory factory)
         server.Requests.ShouldContain(r => r.Authorization == $"Bearer {rotated}", "the echo must actually have carried the token");
 
         var testTokenUri = new Uri($"/api/admin/clusters/{cluster}/test-token", UriKind.Relative);
-        using (var testToken = await admin.PostAsJsonAsync(testTokenUri, new { token = unsaved, credentialId, inspectNamespace = (string?)null }, Ct))
+        using (var testToken = await admin.PostAsJsonAsync(testTokenUri, new { token = unsaved, credentialId, inspectNamespaces = InspectedNamespaces }, Ct))
         {
             testToken.StatusCode.ShouldBe(HttpStatusCode.OK);
             bodies.Add(await testToken.Content.ReadAsStringAsync(Ct));
         }
 
-        using (var invalid = await admin.PostAsJsonAsync(testTokenUri, new { token = $"{unsaved} {unsaved}", credentialId = (Guid?)null, inspectNamespace = (string?)null }, Ct))
+        using (var invalid = await admin.PostAsJsonAsync(testTokenUri, new { token = $"{unsaved} {unsaved}", credentialId = (Guid?)null, inspectNamespaces = (string[]?)null }, Ct))
         {
             invalid.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
             bodies.Add(await invalid.Content.ReadAsStringAsync(Ct));

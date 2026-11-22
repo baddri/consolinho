@@ -1,6 +1,7 @@
 import type {
   AccessMode,
   CapabilityLevel,
+  ClusterDistribution,
   ClusterEnvironment,
   ConnectionTestStep,
   TokenType,
@@ -32,6 +33,8 @@ export interface MockCluster {
   name: string;
   displayName: string;
   environment: ClusterEnvironment;
+  /** Declared distribution (DIST-1); may disagree with what the mock API server serves (`dev-2`, DIST-5). */
+  distribution: ClusterDistribution;
   apiUrl: string;
   webConsoleUrl: string | null;
   description: string | null;
@@ -66,6 +69,8 @@ export interface MockCredential {
   clusterName: string;
   name: string;
   description: string | null;
+  /** Namespaces the connection test inspects, as last saved (NST-5); `[]` when none. */
+  inspectNamespaces: string[];
   fingerprint: string;
   tokenType: TokenType;
   serviceAccount: string | null;

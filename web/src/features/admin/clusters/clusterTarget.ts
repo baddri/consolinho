@@ -1,4 +1,5 @@
 import type { ClusterDetail, ClusterListItem } from '@/shared/api';
+import { fleetAdminPath } from '@/shared/routing';
 
 /**
  * A cluster as either representation carries it; both have the fields the lifecycle dialogs need (`name`,
@@ -7,7 +8,7 @@ import type { ClusterDetail, ClusterListItem } from '@/shared/api';
 export type ClusterTarget = ClusterListItem | ClusterDetail;
 
 /** Path of a cluster's detail page. Names are DNS labels, but encode anyway like the other admin links. */
-export const clusterDetailPath = (name: string) => `/admin/clusters/${encodeURIComponent(name)}`;
+export const clusterDetailPath = (name: string) => fleetAdminPath(`clusters/${encodeURIComponent(name)}`);
 
 /** Path of a cluster's edit form. */
 export const clusterEditPath = (name: string) => `${clusterDetailPath(name)}/edit`;

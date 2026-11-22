@@ -51,6 +51,7 @@ export default async function globalSetup(config: FullConfig): Promise<() => Pro
         displayName: null,
         apiUrl: fakeApi.url,
         environment: 'development',
+        distribution: 'openShift',
         webConsoleUrl: null,
         description: 'Playwright smoke (T-0054); deleted after the run.',
         caBundle: null,

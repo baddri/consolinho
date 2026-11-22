@@ -6,3 +6,8 @@ export function affectedUsersText(grantCount: number): string {
 /** Toast title when an action hits a credential deleted meanwhile (404). */
 export const credentialGoneTitle = (credential: string, cluster: string) =>
   `Credential ${credential} no longer exists on ${cluster}`;
+
+/** The namespaces a credential's tests inspect (NST-6), comma-separated; `—` when the saved list is empty. */
+export function formatInspectNamespaces(namespaces: readonly string[]): string {
+  return namespaces.length === 0 ? '—' : namespaces.join(', ');
+}

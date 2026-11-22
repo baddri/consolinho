@@ -7,9 +7,14 @@ import {
   TextField,
   type RadioGroupFieldOption,
 } from '@/shared/forms';
-import { EnvironmentLabel } from '@/shared/ui';
+import { clusterTypeText, EnvironmentLabel } from '@/shared/ui';
 import { CaBundleField } from './CaBundleField';
-import { CLUSTER_ENVIRONMENTS, type ClusterFormInput, type ClusterFormValues } from './clusterForm.schema';
+import {
+  CLUSTER_DISTRIBUTIONS,
+  CLUSTER_ENVIRONMENTS,
+  type ClusterFormInput,
+  type ClusterFormValues,
+} from './clusterForm.schema';
 import { PRODUCT_NAME } from '@/shared/branding';
 
 /** The form's `control`, typed with the schema's input and output. */
@@ -38,7 +43,13 @@ const ENVIRONMENT_CHOICES: readonly RadioGroupFieldOption[] = CLUSTER_ENVIRONMEN
   ),
 }));
 
-/** Identity: name (create only; plain text on edit), display name, environment and description. */
+/** Radio choices of the distribution (DIST-2): the full word, as admin screens may name it (DIST-6). */
+const DISTRIBUTION_CHOICES: readonly RadioGroupFieldOption[] = CLUSTER_DISTRIBUTIONS.map((distribution) => ({
+  value: distribution,
+  label: clusterTypeText(distribution).word,
+}));
+
+/** Identity: name (create only; plain text on edit), display name, environment, distribution and description. */
 export function IdentitySection({ control, isEdit }: SectionProps) {
   const name = useWatch({ control, name: 'name' });
   return (
@@ -74,6 +85,15 @@ export function IdentitySection({ control, isEdit }: SectionProps) {
         isRequired
         isInline
         options={ENVIRONMENT_CHOICES}
+      />
+      <RadioGroupField
+        control={control}
+        name="distribution"
+        label="Distribution"
+        isRequired
+        isInline
+        options={DISTRIBUTION_CHOICES}
+        helperText="Changes how the console presents the cluster. Available pages come from the cluster's APIs."
       />
       <TextAreaField control={control} name="description" label="Description" resizeOrientation="vertical" />
     </FormSection>

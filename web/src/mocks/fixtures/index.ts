@@ -7,6 +7,7 @@ export {
   connectionTestPassed,
   connectionTestTlsFailure,
   connectionTestWithNamespaceRules,
+  type ConnectionTestContext,
 } from './connectionTests';
 export { credentialFixtures, credentialIds } from './credentials';
 export { grantFixtures, grantIds } from './grants';

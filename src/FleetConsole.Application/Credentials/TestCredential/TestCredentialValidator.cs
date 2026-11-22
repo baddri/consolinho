@@ -1,4 +1,3 @@
-using FleetConsole.Application.Credentials.ConnectionTesting;
 using FluentValidation;
 
 namespace FleetConsole.Application.Credentials.TestCredential;
@@ -7,5 +6,5 @@ namespace FleetConsole.Application.Credentials.TestCredential;
 internal sealed class TestCredentialValidator : AbstractValidator<TestCredentialCommand>
 {
     /// <summary>Defines the rules.</summary>
-    public TestCredentialValidator() => RuleFor(c => c.InspectNamespace).ValidInspectNamespace();
+    public TestCredentialValidator() => RuleFor(c => c.InspectNamespaces).ValidInspectNamespaces();
 }

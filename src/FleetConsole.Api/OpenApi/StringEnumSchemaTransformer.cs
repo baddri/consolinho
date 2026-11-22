@@ -15,7 +15,9 @@ namespace FleetConsole.Api.OpenApi;
 /// <c>#/components/schemas/&lt;Enum&gt;</c> schema from <see cref="Nullable{T}"/> and appends <c>null</c> to its
 /// <c>enum</c> list, so nullability would leak into every use of the enum (generated TS type <c>"…" | null</c>, T-0047).
 /// The referencing property already carries the nullability as <c>oneOf: [{ "type": "null" }, { "$ref": … }]</c>, so
-/// the component is reduced to the non-null values here and nothing is lost.</para>
+/// the component is reduced to the non-null values here and nothing is lost. That wrapper is only emitted when the
+/// property has a setter (.NET 10 reads its <em>write</em> nullability), so get-only DTO properties of a nullable enum
+/// need a private <c>init</c> (T-0154, <c>NamespaceRulesDto.FailureKind</c>).</para>
 /// <para>Only touches schemas whose non-null values are all strings, so an enum serialized differently (none today)
 /// would keep its generated schema instead of being mislabelled.</para>
 /// </remarks>

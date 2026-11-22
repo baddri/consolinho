@@ -2,12 +2,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Form } from '@patternfly/react-core';
 import { act, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useForm } from 'react-hook-form';
+import { useForm, type UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { ApiError } from '@/shared/api';
 import {
   applyServerErrors,
   CheckboxField,
+  ChipInputField,
   ConflictAlert,
   dnsLabel,
   FormProblemAlert,
@@ -405,5 +406,68 @@ describe('dnsLabel', () => {
   it('uses a custom required message', () => {
     const result = dnsLabel(40, { requiredMessage: 'Name is required.' }).safeParse('');
     expect(result.error?.issues[0]?.message).toBe('Name is required.');
+  });
+});
+
+describe('ChipInputField', () => {
+  const chipSchema = z.object({ tags: z.array(z.string().regex(/^[a-z]+$/, 'Bad tag.')).max(3, 'Up to 3.') });
+  type ChipValues = z.infer<typeof chipSchema>;
+  type ChipSubmit = (values: ChipValues, form: UseFormReturn<ChipValues>) => void;
+
+  /** A form with one chip field prefilled with `alpha`; `submit` gets the values and the form. */
+  function ChipDemo({ submit }: { submit: ChipSubmit }) {
+    const form = useForm<ChipValues>({ resolver: zodResolver(chipSchema), defaultValues: { tags: ['alpha'] } });
+    return (
+      <Form noValidate onSubmit={(event) => void form.handleSubmit((values) => submit(values, form))(event)}>
+        <ChipInputField control={form.control} name="tags" label="Tags" helperText="Some tags." maxItems={3} />
+        <Button type="submit">Save</Button>
+      </Form>
+    );
+  }
+
+  it('links label and helper, splits pastes, removes and clears chips, and never submits on Enter', async () => {
+    const submit = vi.fn<ChipSubmit>();
+    const user = userEvent.setup();
+    render(<ChipDemo submit={submit} />);
+    const input = screen.getByRole('textbox', { name: 'Tags' });
+    expect(input).toHaveAttribute('id', 'field-tags');
+    expect(input).toHaveAttribute('aria-describedby', 'field-tags-helper');
+    expect(screen.getByText('Some tags. 1 of 3').closest('#field-tags-helper')).not.toBeNull();
+
+    await user.click(input);
+    await user.paste('beta, gamma,del');
+    expect(input).toHaveValue('del');
+    await user.keyboard('{Enter}');
+    expect(submit).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Remove alpha' }));
+    expect(screen.getByText('Some tags. 3 of 3')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(submit).toHaveBeenCalledWith({ tags: ['beta', 'gamma', 'del'] }, expect.anything());
+    await user.click(screen.getByRole('button', { name: 'Clear Tags' }));
+    expect(screen.queryByRole('list', { name: 'Tags entries' })).not.toBeInTheDocument();
+    expect(screen.getByText('Some tags.')).toBeInTheDocument();
+  });
+
+  it('shows entry and list errors from zod and from the server (listFields) on the field', async () => {
+    const user = userEvent.setup();
+    const rejectTags: ChipSubmit = (_values, form) => {
+      const error = new ApiError({
+        status: 400,
+        title: 'Validation failed',
+        fieldErrors: { 'tags[0]': ['Unknown tag alpha.'], tags: ['Too many.'] },
+      });
+      expect(applyServerErrors(error, form, { listFields: ['tags'] })).toBeNull();
+    };
+    render(<ChipDemo submit={rejectTags} />);
+    const input = screen.getByRole('textbox', { name: 'Tags' });
+    await user.type(input, 'B2{Enter}');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Bad tag.')).toBeInTheDocument();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+
+    await user.click(screen.getByRole('button', { name: 'Remove B2' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Too many. Unknown tag alpha.')).toBeInTheDocument();
   });
 });

@@ -33,26 +33,27 @@ describe('UserDetailPage (T-0032)', () => {
     'USR-7: shows header, all details and the audit link for alice',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
-      renderApp('/admin/users/alice');
+      renderApp('/fleet/admin/users/alice');
       const list = await findDetails(COLD_START_TIMEOUT_MS);
 
       expect(screen.getByRole('heading', { name: 'alice', level: 1 })).toBeInTheDocument();
       // OCP details heading: large kind badge, name and status; no subtitle (the display name is a details item).
       expect(screen.queryByText('Alice Example', { selector: 'p' })).not.toBeInTheDocument();
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-      expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/admin/users');
+      expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute(
+        'href',
+        '/fleet/admin/users',
+      );
       expect(within(crumbs).getByText('User details')).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { name: 'User details', level: 2 })).toBeInTheDocument();
       // One grant entry point on the page (T-0118 #9): "Grant access" on the Cluster access tab.
       expect(screen.queryByRole('button', { name: /Grant access/ })).not.toBeInTheDocument();
 
-      expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
-        'Username',
-        'Display name',
-        'Role',
-        'Status',
-        'Read only',
-      ]);
+      expect(
+        within(list)
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual(['Username', 'Display name', 'Role', 'Status', 'Read only']);
       const values = details();
       expect(values).toMatchObject({
         Username: 'alice',
@@ -60,7 +61,7 @@ describe('UserDetailPage (T-0032)', () => {
         Status: 'Active',
         'Display name': 'Alice Example',
         'Groups last seen': 'sre',
-        'Cluster grants': '2',
+        'Cluster grants': '3',
       });
       expect(values['Read only']).toBe(
         "NoRead-only users can't change anything on any cluster or in Fleet administration.",
@@ -70,13 +71,13 @@ describe('UserDetailPage (T-0032)', () => {
       expect(document.body.textContent).not.toMatch(INTERNAL_COPY);
       expect(screen.getByRole('link', { name: 'View audit entries' })).toHaveAttribute(
         'href',
-        '/admin/audit?user=alice',
+        '/fleet/admin/audit?user=alice',
       );
     },
   );
 
   it('USR-6: a configuration admin shows where the role comes from, in user language', async () => {
-    renderApp('/admin/users/admin');
+    renderApp('/fleet/admin/users/admin');
     await findDetails();
 
     const labels = screen.getByRole('list', { name: 'User labels' });
@@ -89,7 +90,7 @@ describe('UserDetailPage (T-0032)', () => {
     const ines = mockDb.users.find((u) => u.username === 'ines');
     if (!ines) throw new Error('no ines fixture');
     ines.adminConfigurationSource = 'user list';
-    renderApp('/admin/users/ines');
+    renderApp('/fleet/admin/users/ines');
     await findDetails();
 
     const labels = screen.getByRole('list', { name: 'User labels' });
@@ -99,7 +100,7 @@ describe('UserDetailPage (T-0032)', () => {
   });
 
   it('tabs are URL-driven', async () => {
-    const { user, router } = renderApp('/admin/users/alice/access');
+    const { user, router } = renderApp('/fleet/admin/users/alice/access');
 
     const access = await screen.findByRole('tab', { name: 'Cluster access' });
     expect(access).toHaveAttribute('aria-selected', 'true');
@@ -107,16 +108,16 @@ describe('UserDetailPage (T-0032)', () => {
     expect(screen.queryByLabelText('User details')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Details' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users/alice'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users/alice'));
     expect(await findDetails()).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Cluster access' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users/alice/access'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users/alice/access'));
   });
 
   it('the Actions menu offers the list items with their reasons and opens the dialog', async () => {
     // Signed in as `admin` (configuration admin): own Demote/Deactivate are disabled.
-    const { user } = renderApp('/admin/users/admin');
+    const { user } = renderApp('/fleet/admin/users/admin');
     await findDetails();
 
     await user.click(screen.getByRole('button', { name: 'Actions' }));
@@ -150,7 +151,7 @@ describe('UserDetailPage (T-0032)', () => {
       if (path.startsWith('/api/admin/users/')) paths.push(path);
     });
 
-    renderApp('/admin/users/system%3Asa%40corp');
+    renderApp('/fleet/admin/users/system%3Asa%40corp');
 
     expect(await screen.findByRole('heading', { name: 'system:sa@corp', level: 1 })).toBeInTheDocument();
     expect(await screen.findByText('Encoded Name')).toBeInTheDocument();
@@ -158,18 +159,20 @@ describe('UserDetailPage (T-0032)', () => {
   });
 
   it('QG-3: an unknown user shows a not-found state with a way back', async () => {
-    const { user, router } = renderApp('/admin/users/nobody');
+    const { user, router } = renderApp('/fleet/admin/users/nobody');
 
     expect(await screen.findByRole('heading', { name: 'User nobody not found' })).toBeInTheDocument();
     expect(screen.queryByText(/Loading user/)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Back to Users' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
   });
 
   it('QG-3: other errors show the detail with a working Retry', async () => {
-    server.use(http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })));
-    const { user } = renderApp('/admin/users/alice');
+    server.use(
+      http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })),
+    );
+    const { user } = renderApp('/fleet/admin/users/alice');
 
     expect(await screen.findByText('Could not load user')).toBeInTheDocument();
     expect(screen.getByText('Database unavailable.')).toBeInTheDocument();
@@ -181,10 +184,12 @@ describe('UserDetailPage (T-0032)', () => {
   });
 
   it('T-0051: a failed background refetch keeps the loaded user', async () => {
-    const { queryClient } = renderApp('/admin/users/alice');
+    const { queryClient } = renderApp('/fleet/admin/users/alice');
     await findDetails();
 
-    server.use(http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })));
+    server.use(
+      http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })),
+    );
     await queryClient.invalidateQueries({ queryKey: adminKeys.user('alice') });
 
     await waitFor(() => expect(queryClient.getQueryState(adminKeys.user('alice'))?.status).toBe('error'));
@@ -193,7 +198,7 @@ describe('UserDetailPage (T-0032)', () => {
   });
 
   it('T-0051: a refetch that no longer finds the user toasts once and returns to the list', async () => {
-    const { router, queryClient } = renderApp('/admin/users/alice');
+    const { router, queryClient } = renderApp('/fleet/admin/users/alice');
     await findDetails();
 
     server.use(
@@ -204,7 +209,7 @@ describe('UserDetailPage (T-0032)', () => {
     await queryClient.invalidateQueries({ queryKey: adminKeys.user('alice') });
 
     expect(await screen.findByText('User alice no longer exists')).toBeInTheDocument();
-    await waitFor(() => expect(router.state.location.pathname).toBe('/admin/users'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
     expect(router.state.historyAction).toBe('REPLACE');
     expect(screen.getAllByText('User alice no longer exists')).toHaveLength(1);
   });

@@ -39,6 +39,7 @@ internal sealed class UpdateClusterHandler(IClusterRepository clusters, ICurrent
             ClusterSettingsInput.Text(request.DisplayName),
             endpoint.Value,
             request.Environment,
+            request.Distribution!.Value, // validated by ClusterSettingsRules
             ClusterSettingsInput.WebConsoleUrl(request.WebConsoleUrl),
             ClusterSettingsInput.Text(request.Description),
             ActingAdmin.Username(currentUser),

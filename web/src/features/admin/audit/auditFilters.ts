@@ -15,7 +15,7 @@ export const AUDIT_PAGE_SIZE = 50;
 export const SYSTEM_ACTOR = 'system (config)';
 
 /**
- * URL filters of `/admin/audit` (`?actor=&user=&category=&cluster=&target=&range=&from=&to=`). `actor`, `user`,
+ * URL filters of `/fleet/admin/audit` (`?actor=&user=&category=&cluster=&target=&range=&from=&to=`). `actor`, `user`,
  * `cluster` and `target` are free text (exact match server-side except `target`), so deleted users/clusters stay
  * searchable; `user` is the deep link of the user detail page (USR-7). `from`/`to` are ISO timestamps of a custom
  * range.
@@ -91,9 +91,9 @@ export function effectiveRange(values: AuditFilterValues): TimeRange | undefined
 }
 
 /**
- * URL-backed filter state of the audit log (`useAdminListFilters` over {@link AUDIT_FILTERS}). `setTimeRange` writes `range`
- * and drops `from`/`to` (unless switching to `custom`) in one URL update, which two `useUrlFilters` setters in the
- * same event could not do.
+ * URL-backed filter state of the audit log (`useAdminListFilters` over {@link AUDIT_FILTERS}). `setTimeRange` writes
+ * `range` and drops `from`/`to` (unless switching to `custom`) in one URL update, which two `useUrlFilters` setters in
+ * the same event could not do.
  */
 export function useAuditFilters() {
   const filters = useAdminListFilters(AUDIT_FILTERS);

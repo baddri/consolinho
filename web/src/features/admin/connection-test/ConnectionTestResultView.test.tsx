@@ -24,6 +24,7 @@ describe('ConnectionTestResultView (T-0038)', () => {
       ['Failed', 'Reachability: Certificate signed by unknown authority — add the cluster CA bundle'],
       ['Skipped', 'Authentication: Skipped because an earlier step failed'],
       ['Skipped', 'Identity: Skipped because an earlier step failed'],
+      ['Skipped', 'Distribution: Skipped because an earlier step failed'],
       ['Skipped', 'OpenShift version: Skipped because an earlier step failed'],
       ['Skipped', 'Capabilities: Skipped because an earlier step failed'],
     ]);
@@ -33,7 +34,7 @@ describe('ConnectionTestResultView (T-0038)', () => {
   it('TEST-2/3: a passing result shows the warning step, facts, headline and grouped capabilities', () => {
     render(<ConnectionTestResultView result={connectionTestPassed} />);
     expect(screen.getByText('Connection test passed in 412 ms')).toBeInTheDocument();
-    expect(stepsOf().map(([icon]) => icon)).toEqual(['Passed', 'Passed', 'Passed', 'Warning', 'Passed']);
+    expect(stepsOf().map(([icon]) => icon)).toEqual(['Passed', 'Passed', 'Passed', 'Passed', 'Warning', 'Passed']);
     const facts = screen.getByLabelText('Cluster facts', { selector: 'dl' });
     expect(facts).toHaveTextContent('Kubernetes versionv1.31.4');
     expect(facts).toHaveTextContent('system:serviceaccount:fleetconsole:fleet-view');
@@ -88,24 +89,61 @@ describe('ConnectionTestResultView (T-0038)', () => {
     expect(screen.getByText('This credential can read secrets.')).toBeInTheDocument();
   });
 
-  it('TEST-3 inspect: namespace rules expand into a table; incomplete lists and evaluation errors warn', async () => {
+  it('NST-4: one collapsed section per namespace in entry order; a forbidden one shows its error, not a failed test', async () => {
     const user = userEvent.setup();
-    const rules = connectionTestWithNamespaceRules.namespaceRules;
+    const [rules] = connectionTestWithNamespaceRules.namespaceRules;
     if (!rules) throw new Error('fixture without rules');
     render(
       <ConnectionTestResultView
         result={{
           ...connectionTestWithNamespaceRules,
-          namespaceRules: { ...rules, incomplete: true, evaluationError: 'webhook authorizer timed out' },
+          namespaceRules: [
+            { ...rules, namespace: 'team-a', incomplete: true, evaluationError: 'webhook authorizer timed out' },
+            {
+              namespace: 'forbidden-x',
+              incomplete: false,
+              evaluationError: null,
+              rules: null,
+              error: 'Access denied (403)',
+              failureKind: 'forbidden',
+            },
+            { ...rules, namespace: 'team-b' },
+          ],
         }}
       />,
     );
-    await user.click(screen.getByRole('button', { name: 'Rules in namespace payments' }));
-    const table = screen.getByRole('grid', { name: 'Rules in namespace payments' });
+    expect(screen.getByRole('heading', { level: 3, name: 'Namespace rules' })).toBeInTheDocument();
+    const toggles = screen.getAllByRole('button', { name: /^Rules in namespace / });
+    expect(toggles.map((toggle) => toggle.textContent.trim())).toEqual([
+      'Rules in namespace team-a',
+      'Rules in namespace forbidden-x: could not be reviewed',
+      'Rules in namespace team-b',
+    ]);
+    // The failure shows while collapsed, in the visible text and the accessible name.
+    const failed = screen.getByRole('button', { name: 'Rules in namespace forbidden-x: could not be reviewed' });
+    expect(failed).toBeVisible();
+    expect(screen.getByText('Access denied (403)')).not.toBeVisible();
+    expect(screen.queryByText(/test failed/)).not.toBeInTheDocument();
+
+    await user.click(failed);
+    expect(screen.getByText('Access denied (403)')).toBeVisible();
+    expect(screen.queryByRole('grid', { name: 'Rules in namespace forbidden-x' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Rules in namespace team-a' }));
+    const table = screen.getByRole('grid', { name: 'Rules in namespace team-a' });
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
     expect(rows[0]).toHaveTextContent('get, list, watchcore, appspods, pods/log, deployments, replicasets, eventsAll');
-    expect(screen.getByText('The cluster reported an incomplete rule list.')).toBeInTheDocument();
-    expect(screen.getByText('webhook authorizer timed out')).toBeInTheDocument();
+    expect(screen.getByText('The cluster reported an incomplete rule list.')).toBeVisible();
+    expect(screen.getByText('webhook authorizer timed out')).toBeVisible();
+  });
+
+  it('NST-4: a single namespace has no group heading; an empty list renders no rules section', () => {
+    const { rerender } = render(<ConnectionTestResultView result={connectionTestWithNamespaceRules} />);
+    expect(screen.getAllByRole('button', { name: /^Rules in namespace / })).toHaveLength(1);
+    expect(screen.queryByRole('heading', { name: 'Namespace rules' })).not.toBeInTheDocument();
+
+    rerender(<ConnectionTestResultView result={{ ...connectionTestWithNamespaceRules, namespaceRules: [] }} />);
+    expect(screen.queryByRole('button', { name: /^Rules in namespace / })).not.toBeInTheDocument();
   });
 });

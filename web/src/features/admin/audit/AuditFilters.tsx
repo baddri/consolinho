@@ -45,7 +45,7 @@ export interface AuditFiltersProps {
 }
 
 /**
- * Toolbar of `/admin/audit` (AUD-4) on the OCP list toolbar (shared `ConsoleFilterToolbar`, `UX.md` §5): a
+ * Toolbar of `/fleet/admin/audit` (AUD-4) on the OCP list toolbar (shared `ConsoleFilterToolbar`, `UX.md` §5): a
  * category select over the debounced target search, the actor and cluster typeaheads (suggestions from the admin
  * users/clusters lists, free text allowed) and the category checkboxes (one category at a time); then the time range
  * presets with a custom from/to, and a removable "User" label for the user detail page's `?user=` deep link (USR-7).

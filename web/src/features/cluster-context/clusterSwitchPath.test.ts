@@ -9,7 +9,7 @@ describe('clusterSwitchPath (SW-9)', () => {
     ['/c/dev-1/k8s/ns/shop/pods', '?label=app%3Dweb', '/c/b/k8s/ns/shop/pods?label=app%3Dweb'],
     ['/c/a', '', '/c/b'],
     ['/c/a/', '?q=1', '/c/b'],
-    ['/admin/users', '?page=2', '/c/b'],
+    ['/fleet/admin/users', '?page=2', '/c/b'],
     ['/unknown', '', '/c/b'],
   ])('switching from %s%s goes to %s', (pathname, search, expected) => {
     expect(clusterSwitchPath({ pathname, search }, 'b')).toBe(expected);

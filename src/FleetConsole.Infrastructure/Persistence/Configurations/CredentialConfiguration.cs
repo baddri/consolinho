@@ -1,6 +1,7 @@
 using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
 using FleetConsole.Domain.Users;
+using FleetConsole.Infrastructure.Persistence.Converters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +9,7 @@ namespace FleetConsole.Infrastructure.Persistence.Configurations;
 
 /// <summary>
 /// Maps <see cref="Credential"/> to <c>credentials</c>: the encrypted token as <c>bytea</c>, <see cref="TokenMetadata"/>
-/// flattened into <c>token_*</c> columns and the optional <see cref="ConnectionTestSummary"/> into nullable
+/// flattened into <c>token_*</c> columns, <see cref="InspectNamespaces"/> as a <c>text[]</c> and the optional <see cref="ConnectionTestSummary"/> into nullable
 /// <c>last_test_*</c> columns. Credentials are deleted with their cluster (CLU-6, cascade).
 /// </summary>
 internal sealed class CredentialConfiguration : IEntityTypeConfiguration<Credential>
@@ -27,6 +28,11 @@ internal sealed class CredentialConfiguration : IEntityTypeConfiguration<Credent
         builder.Property(c => c.Description).HasMaxLength(Credential.MaxDescriptionLength);
         builder.Property(c => c.Token).IsRequired();
         builder.Property(c => c.Fingerprint).IsRequired();
+        builder.Property(c => c.InspectNamespaces)
+            .HasColumnName("inspect_namespaces")
+            .HasConversion<InspectNamespacesConverter, InspectNamespacesComparer>()
+            .HasColumnType("text[]")
+            .IsRequired();
 
         builder.ComplexProperty(c => c.Metadata, metadata =>
         {

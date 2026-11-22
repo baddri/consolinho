@@ -48,6 +48,7 @@ public sealed class CredentialsEndpointsTests(ApiFactory factory)
         body.GetProperty("fingerprint").GetString().ShouldBe(TokenFingerprints.Compute(new SensitiveString(token)).Value);
         body.GetProperty("grantCount").GetInt32().ShouldBe(0);
         body.GetProperty("lastTest").ValueKind.ShouldBe(JsonValueKind.Null);
+        body.GetProperty("inspectNamespaces").GetArrayLength().ShouldBe(0);
         body.TryGetProperty("token", out _).ShouldBeFalse();
 
         var audit = (await factory.Data.AuditEntriesAsync(name)).ShouldHaveSingleItem();
@@ -132,6 +133,40 @@ public sealed class CredentialsEndpointsTests(ApiFactory factory)
         var errors = body.GetProperty("errors");
         errors.TryGetProperty("name", out _).ShouldBeTrue();
         errors.TryGetProperty("description", out _).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Add_WithInspectNamespaces_SavesThemNormalised_AndAuditsThem()
+    {
+        var cluster = await factory.Data.ClusterAsync();
+        using var admin = await factory.LoginAsAsync(factory.NewAdminUsername());
+        var name = NewName();
+
+        using var response = await AddAsync(admin, cluster.Name, name, Opaque(), inspectNamespaces: [" team-a ", "team-a", "team-b"]);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var id = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("id").GetGuid();
+        var stored = JsonDocument.Parse(await GetBodyAsync(admin, $"/api/admin/clusters/{cluster.Name}/credentials")).RootElement
+            .EnumerateArray().Single(c => c.GetProperty("id").GetGuid() == id);
+        Names(stored.GetProperty("inspectNamespaces")).ShouldBe(["team-a", "team-b"]);
+        var audit = (await factory.Data.AuditEntriesAsync(name)).ShouldHaveSingleItem();
+        Names(JsonDocument.Parse(audit.DetailsJson).RootElement.GetProperty("inspectNamespaces")).ShouldBe(["team-a", "team-b"]);
+    }
+
+    [Fact]
+    public async Task Add_InvalidInspectNamespaces_Are400_OnTheFieldKey()
+    {
+        var cluster = await factory.Data.ClusterAsync();
+        using var admin = await factory.LoginAsAsync(factory.NewAdminUsername());
+
+        using var invalid = await AddAsync(admin, cluster.Name, NewName(), Opaque(), inspectNamespaces: ["team-a", "Team_A"]);
+        using var tooMany = await AddAsync(
+            admin, cluster.Name, NewName(), Opaque(), inspectNamespaces: [.. Enumerable.Range(0, 11).Select(i => $"ns-{i}")]);
+
+        var invalidErrors = (await ShouldBeProblemAsync(invalid, HttpStatusCode.BadRequest, "Validation.Failed")).GetProperty("errors");
+        invalidErrors.GetProperty("inspectNamespaces[1]")[0].GetString().ShouldStartWith("'Team_A' is not a valid namespace name");
+        var tooManyErrors = (await ShouldBeProblemAsync(tooMany, HttpStatusCode.BadRequest, "Validation.Failed")).GetProperty("errors");
+        tooManyErrors.GetProperty("inspectNamespaces")[0].GetString().ShouldBe("Enter at most 10 namespaces.");
     }
 
     [Fact]
@@ -273,7 +308,8 @@ public sealed class CredentialsEndpointsTests(ApiFactory factory)
         var firstToken = Jwt(exp: DateTimeOffset.UtcNow.AddDays(60));
         var secondToken = Opaque();
 
-        using var addResponse = await AddAsync(admin, cluster.Name, NewName(), firstToken);
+        // With namespaces, so the sweep also covers bodies and audit details that carry them (NST-7).
+        using var addResponse = await AddAsync(admin, cluster.Name, NewName(), firstToken, inspectNamespaces: ["team-a"]);
         var addBody = await addResponse.Content.ReadAsStringAsync(Ct);
         var added = JsonDocument.Parse(addBody).RootElement;
         using var rotateResponse = await RotateAsync(
@@ -333,4 +369,6 @@ public sealed class CredentialsEndpointsTests(ApiFactory factory)
     }
 
     private static Guid Id(JsonElement credential) => credential.GetProperty("id").GetGuid();
+
+    private static string?[] Names(JsonElement array) => [.. array.EnumerateArray().Select(e => e.GetString())];
 }

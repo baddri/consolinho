@@ -1,7 +1,7 @@
 import { useMatches } from 'react-router';
 import type { PageTab } from '@/shared/ui';
 
-/** Tabs of the user detail page, in display order; each is a URL segment (`/admin/users/:username[/access]`). */
+/** Tabs of the user detail page, in display order; each is a URL segment (`/fleet/admin/users/:username[/access]`). */
 export const USER_DETAIL_TABS = ['details', 'access'] as const;
 /** A tab of the user detail page. */
 export type UserDetailTab = (typeof USER_DETAIL_TABS)[number];
@@ -10,7 +10,7 @@ export const USER_DETAIL_TAB_TITLES: Record<UserDetailTab, string> = { details: 
 
 /**
  * Tabs of the cluster detail page, in display order; each is a URL segment
- * (`/admin/clusters/:name[/credentials|/access]`).
+ * (`/fleet/admin/clusters/:name[/credentials|/access]`).
  */
 export const CLUSTER_DETAIL_TABS = ['details', 'credentials', 'access'] as const;
 /** A tab of the cluster detail page. */
@@ -23,8 +23,8 @@ export const CLUSTER_DETAIL_TAB_TITLES: Record<ClusterDetailTab, string> = {
 };
 
 /**
- * `PageTabs` entries of a detail page at `basePath` (e.g. `/admin/users/alice`, already encoded): the first tab is
- * the index route (`basePath` itself), every other one the URL segment named like its key (FRONTEND.md "Routing").
+ * `PageTabs` entries of a detail page at `basePath` (e.g. `/fleet/admin/users/alice`, already encoded): the first tab
+ * is the index route (`basePath` itself), every other one the URL segment named like its key (FRONTEND.md "Routing").
  */
 export function detailPageTabs<T extends string>(
   tabs: readonly [T, ...T[]],

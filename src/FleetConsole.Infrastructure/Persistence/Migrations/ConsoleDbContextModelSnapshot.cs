@@ -196,6 +196,11 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("display_name");
 
+                    b.Property<string>("Distribution")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("distribution");
+
                     b.Property<string>("Environment")
                         .IsRequired()
                         .HasColumnType("text")
@@ -290,6 +295,11 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)")
                         .HasColumnName("fingerprint");
+
+                    b.Property<string[]>("InspectNamespaces")
+                        .IsRequired()
+                        .HasColumnType("text[]")
+                        .HasColumnName("inspect_namespaces");
 
                     b.Property<string>("Name")
                         .IsRequired()

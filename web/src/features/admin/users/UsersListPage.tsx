@@ -33,7 +33,7 @@ const FILTER_NODES = [
 const usernameOf = (user: UserListItem) => user.username;
 
 /**
- * `/admin/users` — every FleetConsole user with role, status, read-only flag, grant count, last login and groups
+ * `/fleet/admin/users` — every FleetConsole user with role, status, read-only flag, grant count, last login and groups
  * (USR-1), as an OCP list page (`UX.md` §5): `ConsoleDataView` with the category filter (Name searches username,
  * display name and groups; Role, Status, Read only), column management and pagination. Filters live in the URL
  * (`?q=&role=&status=&readOnly=`) so filtered views are linkable. Read-only admins see the same page (ADM-2).

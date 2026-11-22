@@ -18,10 +18,11 @@ public sealed class CredentialTests
         var cluster = NewCluster();
         var token = Token(7);
         var metadata = JwtMetadata();
+        var namespaces = Namespaces("team-a", "team-b");
 
         var credential = Credential.Add(
             cluster, CredentialName.Create("fleet-view").Value, "Read-only SA", token, Fingerprint("0badc0de"), metadata,
-            "admin", Now);
+            namespaces, "admin", Now);
 
         credential.Id.Value.ShouldNotBe(Guid.Empty);
         credential.ClusterId.ShouldBe(cluster.Id);
@@ -35,8 +36,10 @@ public sealed class CredentialTests
         credential.RotatedAt.ShouldBeNull();
         credential.RotatedBy.ShouldBeNull();
         credential.LastTest.ShouldBeNull();
+        credential.InspectNamespaces.ShouldBe(namespaces);
         credential.DomainEvents.ShouldBe([
-            new CredentialAdded(credential.Id, cluster.Id, "prod-eu-1", "fleet-view", "0badc0de", TokenType.Jwt, "fleet/viewer"),
+            new CredentialAdded(
+                credential.Id, cluster.Id, "prod-eu-1", "fleet-view", "0badc0de", TokenType.Jwt, "fleet/viewer", namespaces.Values),
         ]);
     }
 
@@ -47,9 +50,10 @@ public sealed class CredentialTests
 
         var credential = Credential.Add(
             cluster, CredentialName.Create("legacy").Value, "  ", Token(1), Fingerprint("12345678"), TokenMetadata.Opaque,
-            "admin", Now);
+            InspectNamespaces.Empty, "admin", Now);
 
         credential.Description.ShouldBeNull();
+        credential.InspectNamespaces.Values.ShouldBeEmpty();
         var added = credential.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<CredentialAdded>();
         added.TokenType.ShouldBe(TokenType.Opaque);
         added.ServiceAccount.ShouldBeNull();
@@ -62,12 +66,14 @@ public sealed class CredentialTests
         var name = CredentialName.Create("x").Value;
 
         Should.Throw<ArgumentException>(() =>
-            Credential.Add(cluster, name, null, Token(1), Fingerprint("12345678"), JwtMetadata(), " ", Now));
+            Credential.Add(cluster, name, null, Token(1), Fingerprint("12345678"), JwtMetadata(), InspectNamespaces.Empty, " ", Now));
         Should.Throw<ArgumentException>(() =>
-            Credential.Add(cluster, name, null, Token(1), Fingerprint("12345678"), JwtMetadata(), "admin", default));
+            Credential.Add(cluster, name, null, Token(1), Fingerprint("12345678"), JwtMetadata(), InspectNamespaces.Empty, "admin", default));
+        Should.Throw<ArgumentNullException>(() =>
+            Credential.Add(cluster, name, null, Token(1), Fingerprint("12345678"), JwtMetadata(), null!, "admin", Now));
         Should.Throw<ArgumentOutOfRangeException>(() =>
             Credential.Add(cluster, name, new string('d', Credential.MaxDescriptionLength + 1), Token(1),
-                Fingerprint("12345678"), JwtMetadata(), "admin", Now));
+                Fingerprint("12345678"), JwtMetadata(), InspectNamespaces.Empty, "admin", Now));
     }
 
     [Fact]
@@ -82,10 +88,11 @@ public sealed class CredentialTests
     // ---- rotate (CRED-5) --------------------------------------------------------------------------------------------
 
     [Fact]
-    public void Rotate_ReplacesToken_ResetsLastTest_AndRaisesCredentialRotated()
+    public void Rotate_ReplacesToken_ResetsLastTest_KeepsNamespaces_AndRaisesCredentialRotated()
     {
         var credential = NewCredential(NewCluster(), fingerprint: "0badc0de");
-        credential.RecordTest(new ConnectionTestSummary(Now, true, null, CapabilityLevel.ClusterWideView), "prod-eu-1");
+        var namespaces = Namespaces("team-a");
+        credential.RecordTest(new ConnectionTestSummary(Now, true, null, CapabilityLevel.ClusterWideView), namespaces, "prod-eu-1");
         credential.ClearDomainEvents();
         var id = credential.Id;
         var newMetadata = new TokenMetadata(TokenType.Jwt, "system:serviceaccount:fleet:viewer2", Later, null);
@@ -99,6 +106,7 @@ public sealed class CredentialTests
         credential.RotatedAt.ShouldBe(Later);
         credential.RotatedBy.ShouldBe("bob");
         credential.LastTest.ShouldBeNull();
+        credential.InspectNamespaces.ShouldBe(namespaces);
         credential.CreatedBy.ShouldBe("admin");
         credential.DomainEvents.ShouldBe([
             new CredentialRotated(id, credential.ClusterId, "prod-eu-1", "fleet-view", "0badc0de", "feedbeef"),
@@ -119,22 +127,39 @@ public sealed class CredentialTests
     // ---- test (TEST-5) ----------------------------------------------------------------------------------------------
 
     [Fact]
-    public void RecordTest_StoresSummary_AndRaisesCredentialTestedEveryTime()
+    public void RecordTest_StoresSummary_ReplacesNamespaces_AndRaisesCredentialTestedEveryTime()
     {
         var credential = NewCredential(NewCluster());
         var failed = new ConnectionTestSummary(Now, false, ConnectionTestStep.Authentication, null);
         var passed = new ConnectionTestSummary(Later, true, null, CapabilityLevel.ClusterAdmin);
+        var first = Namespaces("team-a", "team-b");
+        var second = Namespaces("team-c");
 
-        credential.RecordTest(failed, "prod-eu-1");
-        credential.RecordTest(passed, "prod-eu-1");
-        credential.RecordTest(passed, "prod-eu-1");
+        credential.RecordTest(failed, first, "prod-eu-1");
+        credential.RecordTest(passed, second, "prod-eu-1");
+        credential.RecordTest(passed, second, "prod-eu-1");
 
         credential.LastTest.ShouldBe(passed);
+        credential.InspectNamespaces.ShouldBe(second);
         credential.DomainEvents.Count.ShouldBe(3);
         credential.DomainEvents.First().ShouldBe(new CredentialTested(
-            credential.Id, credential.ClusterId, "prod-eu-1", "fleet-view", false, ConnectionTestStep.Authentication, null));
+            credential.Id, credential.ClusterId, "prod-eu-1", "fleet-view", false, ConnectionTestStep.Authentication, null,
+            first.Values));
         credential.DomainEvents.Last().ShouldBe(new CredentialTested(
-            credential.Id, credential.ClusterId, "prod-eu-1", "fleet-view", true, null, CapabilityLevel.ClusterAdmin));
+            credential.Id, credential.ClusterId, "prod-eu-1", "fleet-view", true, null, CapabilityLevel.ClusterAdmin,
+            second.Values));
+    }
+
+    [Fact]
+    public void RecordTest_WithEmptyList_ClearsSavedNamespaces()
+    {
+        var credential = NewCredential(NewCluster());
+        credential.RecordTest(new ConnectionTestSummary(Now, true, null, null), Namespaces("team-a"), "prod-eu-1");
+
+        credential.RecordTest(new ConnectionTestSummary(Later, true, null, null), InspectNamespaces.Empty, "prod-eu-1");
+
+        credential.InspectNamespaces.Values.ShouldBeEmpty();
+        credential.DomainEvents.Last().ShouldBeOfType<CredentialTested>().InspectNamespaces.ShouldBeEmpty();
     }
 
     [Fact]
@@ -143,11 +168,11 @@ public sealed class CredentialTests
         var credential = NewCredential(NewCluster());
 
         Should.Throw<ArgumentException>(() =>
-            credential.RecordTest(new ConnectionTestSummary(Now, true, ConnectionTestStep.Identity, null), "prod-eu-1"));
+            credential.RecordTest(new ConnectionTestSummary(Now, true, ConnectionTestStep.Identity, null), InspectNamespaces.Empty, "prod-eu-1"));
         Should.Throw<ArgumentException>(() =>
-            credential.RecordTest(new ConnectionTestSummary(Now, false, null, null), "prod-eu-1"));
+            credential.RecordTest(new ConnectionTestSummary(Now, false, null, null), InspectNamespaces.Empty, "prod-eu-1"));
         Should.Throw<ArgumentException>(() =>
-            credential.RecordTest(new ConnectionTestSummary(default, true, null, null), "prod-eu-1"));
+            credential.RecordTest(new ConnectionTestSummary(default, true, null, null), InspectNamespaces.Empty, "prod-eu-1"));
         credential.LastTest.ShouldBeNull();
         credential.DomainEvents.ShouldBeEmpty();
     }
@@ -196,4 +221,6 @@ public sealed class CredentialTests
         CredentialErrors.NameTaken("fleet-view", "prod-eu-1").ShouldBe(new Error(
             "Credentials.NameTaken", "Credential fleet-view already exists on cluster prod-eu-1.", ErrorType.Conflict));
     }
+
+    private static InspectNamespaces Namespaces(params string[] names) => InspectNamespaces.Create(names).Value;
 }

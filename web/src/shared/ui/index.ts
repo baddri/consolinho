@@ -37,6 +37,13 @@ export {
   type EnvironmentLabelProps,
   type EnvironmentLabelStyle,
 } from './EnvironmentLabel';
+export {
+  ClusterTypeIcon,
+  ClusterTypeLabel,
+  clusterTypeText,
+  type ClusterTypeProps,
+  type ClusterTypeText,
+} from './cluster-type/ClusterType';
 export { DetailsSubsection, type DetailsSubsectionProps } from './page/DetailsSubsection';
 export { ErrorState, type ErrorStateProps } from './ErrorState';
 export { FlexForm, FormBody, FormFooter, type FlexFormProps } from './form-page/FormPage';

@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router';
-import { adminRoute } from '@/features/admin';
+import { RedirectKeepingQuery } from '@/shared/routing';
+import { adminRoute, legacyAdminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
@@ -38,8 +39,18 @@ export const routes: RouteObject[] = [
               { path: 'search', element: <SearchPage /> },
             ],
           },
-          // Admin pages are lazy route modules in their own chunks, gated by RequireAdmin (ADM-3).
-          adminRoute,
+          {
+            // Fleet perspective (ADR-0033 §1): admin pages are lazy route modules in their own chunks, gated by
+            // RequireAdmin (ADM-3) at `/fleet/admin/*`. CP5's fleet overview slots in as another child.
+            path: 'fleet',
+            children: [
+              { index: true, element: <RedirectKeepingQuery to="admin/users" /> },
+              adminRoute,
+              { path: '*', element: <NotFoundPage /> },
+            ],
+          },
+          // Pre-CP3.7 `/admin/...` URLs (bookmarks, login returnUrls) → `/fleet/admin/...` (ADR-0033 §2).
+          legacyAdminRoute,
           // Colour scheme and contrast (OCP User preferences); browser-local, not cluster-scoped.
           preferencesRoute,
           { path: '*', element: <NotFoundPage /> },

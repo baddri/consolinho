@@ -36,7 +36,7 @@ internal sealed class ListAccessibleClustersHandler(IReadModel readModel, ICurre
             where !u.IsDeactivated
             join c in readModel.Clusters on g.ClusterId equals c.Id
             where c.IsEnabled
-            select new { c.Name, c.DisplayName, c.Environment, g.AccessMode, UserIsReadOnly = u.IsReadOnly, c.WebConsoleUrl };
+            select new { c.Name, c.DisplayName, c.Environment, c.Distribution, g.AccessMode, UserIsReadOnly = u.IsReadOnly, c.WebConsoleUrl };
         var rows = await readModel.ToListAsync(query, cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<AccessibleClusterDto> clusters =
@@ -48,6 +48,7 @@ internal sealed class ListAccessibleClustersHandler(IReadModel readModel, ICurre
                     r.Name.Value,
                     r.DisplayName,
                     r.Environment,
+                    r.Distribution,
                     r.UserIsReadOnly || currentUser.IsReadOnly ? AccessMode.ReadOnly : r.AccessMode,
                     r.WebConsoleUrl?.OriginalString)),
         ];

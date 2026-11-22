@@ -6,8 +6,8 @@ import { adminKeys } from '../queryKeys';
 /** Variables of {@link useTestCredential}. */
 export interface TestCredentialVariables {
   credentialId: string;
-  /** Namespace whose RBAC rules the test also lists (TEST-3); `null` = none. */
-  inspectNamespace: string | null;
+  /** Namespaces whose RBAC rules the test also lists (NST-1); saved on the credential (NST-5); `[]` = none. */
+  inspectNamespaces: string[];
   /** Aborts the request when the admin cancels or closes the dialog. */
   signal: AbortSignal;
 }
@@ -22,11 +22,11 @@ export interface TestCredentialVariables {
 export function useTestCredential(clusterName: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ credentialId, inspectNamespace, signal }: TestCredentialVariables): Promise<ConnectionTestResult> =>
+    mutationFn: ({ credentialId, inspectNamespaces, signal }: TestCredentialVariables): Promise<ConnectionTestResult> =>
       unwrap(
         apiClient.POST('/api/admin/clusters/{name}/credentials/{credentialId}/test', {
           params: { path: { name: clusterName, credentialId } },
-          body: { inspectNamespace },
+          body: { inspectNamespaces },
           signal,
         }),
       ),
@@ -41,7 +41,8 @@ export interface TestTokenVariables {
   token: string;
   /** The credential being rotated, for grant hints (TEST-4); `null` for a token with no credential yet. */
   credentialId: string | null;
-  inspectNamespace: string | null;
+  /** Namespaces whose RBAC rules the test also lists (NST-1); never saved for an unsaved token. */
+  inspectNamespaces: string[];
   signal: AbortSignal;
 }
 

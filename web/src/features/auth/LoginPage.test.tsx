@@ -20,10 +20,10 @@ describe('LoginPage', () => {
   });
 
   it('keeps a safe return URL and drops an unsafe one', async () => {
-    const { unmount } = renderApp('/login?returnUrl=%2Fadmin%2Fusers%3Fq%3Dal');
+    const { unmount } = renderApp('/login?returnUrl=%2Ffleet%2Fadmin%2Fusers%3Fq%3Dal');
     expect(await screen.findByRole('link', { name: 'Log in with OpenShift' })).toHaveAttribute(
       'href',
-      '/api/auth/login?returnUrl=%2Fadmin%2Fusers%3Fq%3Dal',
+      '/api/auth/login?returnUrl=%2Ffleet%2Fadmin%2Fusers%3Fq%3Dal',
     );
     unmount();
 

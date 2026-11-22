@@ -5,12 +5,13 @@ import { DetailsColumn, DetailsGrid, DetailsItem, LabelList, RelativeTime, Secti
 import { adminSourceText } from './adminSource';
 import { READ_ONLY_EXPLANATION } from './UserActionDialogs';
 import { UserStatusLabel } from './UserStatusLabel';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Placeholder for missing values, as elsewhere in the console. */
 const EMPTY = '—';
 
 /** Link target of "View audit entries": the audit log filtered to the user as actor or target (USR-7, AUD-4). */
-export const userAuditPath = (username: string) => `/admin/audit?${new URLSearchParams({ user: username })}`;
+export const userAuditPath = (username: string) => fleetAdminPath(`audit?${new URLSearchParams({ user: username })}`);
 
 /**
  * Where a user's role comes from (USR-6, ADR-0017), in user language (`adminSourceText`); both sources can apply.

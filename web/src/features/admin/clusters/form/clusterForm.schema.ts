@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type {
   ClusterDetail,
+  ClusterDistribution,
   ClusterEnvironment,
   RegisterClusterRequest,
   UpdateClusterRequest,
@@ -20,6 +21,12 @@ export const CLUSTER_ENVIRONMENTS = [
   'staging',
   'development',
 ] as const satisfies readonly ClusterEnvironment[];
+
+/**
+ * The distributions in the order the form offers them (DIST-2). Presentation only: it is not a connection setting,
+ * so changing it never makes stored connection test results stale.
+ */
+export const CLUSTER_DISTRIBUTIONS = ['openShift', 'kubernetes'] as const satisfies readonly ClusterDistribution[];
 
 /** Client copy of the Api's CLU-3 rule; the server reports it under `skipTlsVerify` too. */
 export const SKIP_TLS_WITH_CA_MESSAGE = 'Skip TLS verification and a CA bundle are mutually exclusive.';
@@ -66,7 +73,8 @@ const apiUrl = z
  * `null` in {@link toRegisterRequest} / {@link toUpdateRequest}.
  *
  * `environment` is a string in the form (no preselection on create, so the admin must choose consciously) and the
- * enum after parsing. `name` is validated in edit mode too, where it holds the existing, immutable name.
+ * enum after parsing; `distribution` is preselected (`openShift`, DIST-2) because most fleet clusters are OpenShift.
+ * `name` is validated in edit mode too, where it holds the existing, immutable name.
  */
 export const clusterFormSchema = z
   .object({
@@ -76,6 +84,7 @@ export const clusterFormSchema = z
       .trim()
       .max(MAX_DISPLAY_NAME, `Display name must be at most ${MAX_DISPLAY_NAME} characters long.`),
     environment: z.string().pipe(z.enum(CLUSTER_ENVIRONMENTS, 'Choose production, staging or development.')),
+    distribution: z.enum(CLUSTER_DISTRIBUTIONS, 'Choose OpenShift or Kubernetes.'),
     description: z
       .string()
       .trim()
@@ -117,6 +126,7 @@ export const REGISTER_CLUSTER_DEFAULTS: ClusterFormInput = {
   name: '',
   displayName: '',
   environment: '',
+  distribution: 'openShift',
   description: '',
   apiUrl: '',
   caBundle: '',
@@ -132,6 +142,7 @@ export function toClusterFormInput(cluster: ClusterDetail): ClusterFormInput {
     name: cluster.name,
     displayName: cluster.displayName,
     environment: cluster.environment,
+    distribution: cluster.distribution,
     description: cluster.description ?? '',
     apiUrl: cluster.apiUrl,
     caBundle: cluster.caBundle ?? '',
@@ -151,6 +162,7 @@ function settingsOf(values: ClusterFormValues) {
     displayName: orNull(values.displayName),
     apiUrl: values.apiUrl,
     environment: values.environment,
+    distribution: values.distribution,
     webConsoleUrl: orNull(values.webConsoleUrl),
     description: orNull(values.description),
     caBundle: orNull(values.caBundle),

@@ -16,6 +16,7 @@ export {
   type FormProblem,
 } from './applyServerErrors';
 export { CheckboxField, type CheckboxFieldProps } from './CheckboxField';
+export { ChipInputField, type ChipInputFieldProps } from './ChipInputField';
 export { ConflictAlert, type ConflictAlertProps } from './ConflictAlert';
 export { dnsLabel, type DnsLabelOptions } from './dnsLabel';
 export { fieldIdFor } from './fieldA11y';

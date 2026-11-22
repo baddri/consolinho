@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import type { QueryClient } from '@tanstack/react-query';
 import { delay } from 'msw';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
-import { credentialIds, http, setMockUser, validationProblem } from '@/test/handlers';
+import { clearClusterAccess, credentialIds, http, setMockUser, validationProblem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
@@ -35,7 +35,8 @@ function captureTests() {
 
 /** Makes `path` hang until aborted; returns the signal of every request it received (to assert cancellation). */
 function holdRequests(
-  path: '/api/admin/clusters/{name}/credentials/{credentialId}/test' | '/api/admin/clusters/{name}/test-token',
+  path:
+    '/api/admin/clusters/{name}/credentials/{credentialId}/test' | '/api/admin/clusters/{name}/test-token',
 ) {
   const signals: AbortSignal[] = [];
   server.use(
@@ -70,6 +71,19 @@ async function credentialAction(user: User, table: HTMLElement, name: string, ac
   await user.click(await screen.findByRole('menuitem', { name: action }));
 }
 
+/** NST-1 helper text under every "Inspect namespaces" field. */
+const INSPECT_HELPER = 'Optional. Up to 10. Lists what the token may do in each namespace.';
+
+/** Texts of the namespace chips in `dialog`, in order. */
+function chipTexts(dialog: HTMLElement): string[] {
+  const list = within(dialog).queryByRole('list', { name: 'Inspect namespaces entries' });
+  return list === null
+    ? []
+    : within(list)
+        .getAllByRole('listitem')
+        .map((item) => item.textContent);
+}
+
 /** Asserts `token` is nowhere: not rendered, not in the query or mutation caches. */
 function expectTokenGone(token: string, queryClient: QueryClient) {
   expect(document.body.textContent).not.toContain(token);
@@ -89,8 +103,10 @@ describe('Connection test (T-0038)', () => {
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const requests = captureTests();
-      const { user } = renderApp('/admin/clusters/prod-eu-1');
-      await user.click(await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }));
+      const { user } = renderApp('/fleet/admin/clusters/prod-eu-1');
+      await user.click(
+        await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
+      );
       await user.click(await screen.findByRole('menuitem', { name: 'Test connection' }));
       const dialog = await screen.findByRole('dialog', { name: /Test connection to prod-eu-1/ });
 
@@ -105,13 +121,17 @@ describe('Connection test (T-0038)', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
       expect(await within(dialog).findByText(/^Connection test passed in/)).toBeInTheDocument();
       expect(
-        within(dialog).getByText('1 users have ReadWrite grants with this credential but it cannot modify workloads'),
+        within(dialog).getByText(
+          '1 users have ReadWrite grants with this credential but it cannot modify workloads',
+        ),
       ).toBeInTheDocument();
-      expect(await screen.findByText('Connection test passed for fleet-view on prod-eu-1')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Connection test passed for fleet-view on prod-eu-1'),
+      ).toBeInTheDocument();
       expect(requests).toEqual([
         {
           path: `/api/admin/clusters/prod-eu-1/credentials/${credentialIds.prodEuView}/test`,
-          body: { inspectNamespace: null },
+          body: { inspectNamespaces: [] },
           csrf: '1',
         },
       ]);
@@ -119,32 +139,38 @@ describe('Connection test (T-0038)', () => {
   );
 
   it('TEST-1/5: disabled dev-2 — credential kebab "Test" pre-selects it, notes the disabled cluster (T-0052) and the Last test cell updates', async () => {
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     expect(within(credentialRow(table, 'fleet-view')).getByText('Never tested')).toBeInTheDocument();
 
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
-    expect(await within(dialog).findByRole('combobox', { name: /Credential/ })).toHaveValue(credentialIds.dev2View);
+    expect(await within(dialog).findByRole('combobox', { name: /Credential/ })).toHaveValue(
+      credentialIds.dev2View,
+    );
     expect(within(dialog).getByText(/dev-2 is disabled\. Connection tests still run/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
     expect(await within(dialog).findByText(/^Connection test passed in/)).toBeInTheDocument();
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) ?? dialog);
 
     await waitFor(() =>
-      expect(within(credentialRow(table, 'fleet-view')).getByText('Passed · Cluster-wide view')).toBeInTheDocument(),
+      expect(
+        within(credentialRow(table, 'fleet-view')).getByText('Passed · Cluster-wide view'),
+      ).toBeInTheDocument(),
     );
   });
 
   it('TEST-1: the disabled-cluster note and a failing stored test (TLS) from the list kebab', async () => {
-    const { user } = renderApp('/admin/clusters');
+    const { user } = renderApp('/fleet/admin/clusters');
     const link = await screen.findByRole('link', { name: 'dev-2' });
     const row = link.closest('tr');
     if (!row) throw new Error('no dev-2 row');
     await user.click(within(row).getByRole('button', { name: 'Kebab toggle' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Test connection' }));
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
-    expect(await within(dialog).findByText(/dev-2 is disabled\. Connection tests still run/)).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(/dev-2 is disabled\. Connection tests still run/),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) ?? dialog);
 
     const dev1 = screen.getByRole('link', { name: 'dev-1' }).closest('tr');
@@ -162,7 +188,8 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('TEST-1: a cluster without credentials has the action aria-disabled with the reason', async () => {
-    const { user } = renderApp('/admin/clusters');
+    clearClusterAccess('lab-1');
+    const { user } = renderApp('/fleet/admin/clusters');
     const row = (await screen.findByRole('link', { name: 'lab-1' })).closest('tr');
     if (!row) throw new Error('no lab-1 row');
     await user.click(within(row).getByRole('button', { name: 'Kebab toggle' }));
@@ -172,35 +199,106 @@ describe('Connection test (T-0038)', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Add a credential first');
   });
 
-  it('TEST-3: inspect namespace — invalid input is a field error; the server error lands on the field too', async () => {
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+  it('NST-1/2: namespaces are chips; invalid or too many entries are field errors naming the entry; nothing is sent', async () => {
+    const requests = captureTests();
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
-    const namespace = await within(dialog).findByRole('textbox', { name: 'Inspect namespace' });
+    const namespaces = await within(dialog).findByRole('textbox', { name: 'Inspect namespaces' });
+    expect(within(dialog).getByText(INSPECT_HELPER)).toBeInTheDocument();
 
-    await user.type(namespace, 'Bad_NS');
+    // Enter and comma add (trimmed); duplicates are dropped; Backspace on an empty input removes the last chip.
+    await user.type(namespaces, '  team-a {Enter}team-b,team-a,Bad_NS,tmp{Enter}{Backspace}');
+    expect(chipTexts(dialog)).toEqual(['team-a', 'team-b', 'Bad_NS']);
+    expect(within(dialog).getByText(`${INSPECT_HELPER} 3 of 10`)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
-    expect(await within(dialog).findByText(/Use lowercase letters, digits and '-' \(max 63\)/)).toBeInTheDocument();
+    expect(await within(dialog).findByText('Not a valid namespace name: Bad_NS.')).toBeInTheDocument();
+    expect(namespaces).toHaveAttribute('aria-invalid', 'true');
+    await user.click(within(dialog).getByRole('button', { name: 'Remove Bad_NS' }));
 
+    // After a submit the field re-validates on change: the entry error goes, the list error comes.
+    expect(within(dialog).queryByText('Not a valid namespace name: Bad_NS.')).not.toBeInTheDocument();
+    await user.type(namespaces, 'ns-3,ns-4,ns-5,ns-6,ns-7,ns-8,ns-9,ns-10,ns-11{Enter}');
+    expect(chipTexts(dialog)).toHaveLength(11);
+    await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
+    expect(await within(dialog).findByText('Up to 10 namespaces.')).toBeInTheDocument();
+    expect(requests).toHaveLength(0);
+  });
+
+  it('NST-2: server errors on an entry and on the whole list land on the field', async () => {
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
+    const table = await findCredentials('dev-2');
+    await credentialAction(user, table, 'fleet-view', 'Test');
+    const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
+    const namespaces = await within(dialog).findByRole('textbox', { name: 'Inspect namespaces' });
     server.use(
       http.post('/api/admin/clusters/{name}/credentials/{credentialId}/test', () =>
-        validationProblem({ inspectNamespace: ['Namespace does not exist.'] }),
+        validationProblem({
+          'inspectNamespaces[1]': ['Not a valid namespace name: shop.'],
+          inspectNamespaces: ['Enter at most 10 namespaces.'],
+        }),
       ),
     );
-    await user.clear(namespace);
-    await user.type(namespace, 'payments');
+    await user.type(namespaces, 'payments,shop{Enter}');
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
-    expect(await within(dialog).findByText('Namespace does not exist.')).toBeInTheDocument();
-    expect(namespace).toHaveAttribute('aria-invalid', 'true');
+    expect(
+      await within(dialog).findByText('Enter at most 10 namespaces. Not a valid namespace name: shop.'),
+    ).toBeInTheDocument();
+    expect(namespaces).toHaveAttribute('aria-invalid', 'true');
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('NST-5/6: the stored test sends the chips in order and saves them; the dialog and rotate prefill the saved list', async () => {
+    const requests = captureTests();
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
+    const table = await findCredentials('prod-eu-1');
+    await credentialAction(user, table, 'fleet-edit', 'Test');
+    let dialog = await screen.findByRole('dialog', { name: /Test connection to prod-eu-1/ });
+    expect(chipTexts(dialog)).toEqual([]);
+    await user.type(
+      await within(dialog).findByRole('textbox', { name: 'Inspect namespaces' }),
+      'shop,payments,',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
+    expect(await within(dialog).findByText(/^Connection test (passed|failed) in/)).toBeInTheDocument();
+    expect(requests[0]?.body).toEqual({ inspectNamespaces: ['shop', 'payments'] });
+
+    // Re-prefilled from the credential picked (NST-6): fleet-view has no saved list, fleet-edit now has one.
+    const picker = within(dialog).getByRole('combobox', { name: /Credential/ });
+    await user.selectOptions(picker, 'fleet-view');
+    expect(chipTexts(dialog)).toEqual([]);
+    await waitFor(async () => {
+      await user.selectOptions(picker, 'fleet-edit');
+      expect(chipTexts(dialog)).toEqual(['shop', 'payments']);
+    });
+    await user.keyboard('{Escape}');
+
+    // Rotate's token test is prefilled too and sends the list with the unsaved token.
+    await credentialAction(user, table, 'fleet-edit', 'Rotate token');
+    dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
+    expect(chipTexts(dialog)).toEqual(['shop', 'payments']);
+    await user.type(within(dialog).getByRole('textbox', { name: 'Inspect namespaces' }), 'team-a{Enter}');
+    await user.click(within(dialog).getByLabelText(/^New token/, { selector: 'input' }));
+    await user.paste(PASSING_TOKEN);
+    await user.click(within(dialog).getByRole('button', { name: 'Test new token' }));
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(requests[1]?.body).toEqual({
+      token: PASSING_TOKEN,
+      credentialId: credentialIds.prodEuEdit,
+      inspectNamespaces: ['shop', 'payments', 'team-a'],
+    });
   });
 
   it('TEST-3: inspecting a namespace shows its rules', async () => {
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
-    await user.type(await within(dialog).findByRole('textbox', { name: 'Inspect namespace' }), 'shop');
+    await user.type(
+      await within(dialog).findByRole('textbox', { name: 'Inspect namespaces' }),
+      'shop{Enter}',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
     await user.click(await within(dialog).findByRole('button', { name: 'Rules in namespace shop' }));
     expect(within(dialog).getByRole('grid', { name: 'Rules in namespace shop' })).toBeInTheDocument();
@@ -208,7 +306,7 @@ describe('Connection test (T-0038)', () => {
 
   it('TEST-1: "Cancel test" aborts a slow test, announces it, and nothing is shown or retried', async () => {
     const signals = holdRequests('/api/admin/clusters/{name}/credentials/{credentialId}/test');
-    const { user } = renderApp('/admin/clusters/dev-2/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/dev-2/credentials');
     const table = await findCredentials('dev-2');
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
@@ -228,7 +326,7 @@ describe('Connection test (T-0038)', () => {
 
   it('CRED-5: the rotate dialog\'s "Cancel test" aborts test-token and keeps the typed token', async () => {
     const signals = holdRequests('/api/admin/clusters/{name}/test-token');
-    const { user, queryClient } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await credentialAction(user, table, 'fleet-edit', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
@@ -241,7 +339,10 @@ describe('Connection test (T-0038)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel test' }));
     await waitFor(() => expect(signals[0]?.aborted).toBe(true));
     expect(await within(dialog).findByText('Test cancelled.')).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Rotate' })).not.toHaveAttribute('aria-disabled', 'true');
+    expect(within(dialog).getByRole('button', { name: 'Rotate' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(token).toHaveValue(PASSING_TOKEN);
     expectTokenGone(PASSING_TOKEN, queryClient);
     expect(signals).toHaveLength(1);
@@ -249,18 +350,23 @@ describe('Connection test (T-0038)', () => {
 
   it('ADM-2: test actions are aria-disabled for a read-only admin', async () => {
     setMockUser('ines');
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
-    await user.click(within(credentialRow(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }));
+    await user.click(
+      within(credentialRow(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }),
+    );
     expect(await screen.findByRole('menuitem', { name: 'Test' })).toHaveAttribute('aria-disabled', 'true');
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Actions' }));
-    expect(await screen.findByRole('menuitem', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByRole('menuitem', { name: 'Test connection' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   it('CRED-5/2: "Test new token" posts test-token; a failure turns Rotate into "Save anyway"; edits reset it', async () => {
     const requests = captureTests();
-    const { user, queryClient } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await credentialAction(user, table, 'fleet-edit', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-edit on prod-eu-1/ });
@@ -277,7 +383,7 @@ describe('Connection test (T-0038)', () => {
     expect(requests).toEqual([
       {
         path: '/api/admin/clusters/prod-eu-1/test-token',
-        body: { token: FAILING_TOKEN, credentialId: credentialIds.prodEuEdit, inspectNamespace: null },
+        body: { token: FAILING_TOKEN, credentialId: credentialIds.prodEuEdit, inspectNamespaces: [] },
         csrf: '1',
       },
     ]);
@@ -305,7 +411,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('CRED-5: "Save anyway" rotates the token whose test failed', async () => {
-    const { user } = renderApp('/admin/clusters/prod-eu-1/credentials');
+    const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
     await credentialAction(user, table, 'fleet-view', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-view on prod-eu-1/ });

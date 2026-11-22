@@ -24,7 +24,7 @@ test('L1: sidebar cluster switcher is keyboard operable and the masthead has no 
   const toggle = sidebar(page).getByRole('button', { name: /switch cluster/i });
   await toggle.focus();
   await page.keyboard.press('Enter');
-  const search = page.getByRole('textbox', { name: 'Search clusters' });
+  const search = page.getByRole('combobox', { name: 'Search clusters' });
   await expect(search).toBeFocused();
 
   await page.keyboard.press('Escape');

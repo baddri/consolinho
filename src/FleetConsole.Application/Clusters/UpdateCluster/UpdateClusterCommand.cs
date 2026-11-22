@@ -13,6 +13,7 @@ namespace FleetConsole.Application.Clusters.UpdateCluster;
 /// <param name="DisplayName">Display name; blank defaults to the name.</param>
 /// <param name="ApiUrl">The API server URL.</param>
 /// <param name="Environment">Production, staging or development.</param>
+/// <param name="Distribution">OpenShift or Kubernetes; required (null is a validation error, DIST-4).</param>
 /// <param name="WebConsoleUrl">Optional <c>https://</c> web console link; blank removes it.</param>
 /// <param name="Description">Optional description; blank removes it.</param>
 /// <param name="CaBundle">Optional PEM CA bundle; blank means system trust.</param>
@@ -23,6 +24,7 @@ public sealed record UpdateClusterCommand(
     string? DisplayName,
     string ApiUrl,
     ClusterEnvironment Environment,
+    ClusterDistribution? Distribution,
     string? WebConsoleUrl,
     string? Description,
     string? CaBundle,

@@ -30,6 +30,12 @@ internal static class ClusterSettingsRules
             .IsInEnum()
             .WithMessage("Choose production, staging or development.");
 
+        validator.RuleFor(x => x.Distribution)
+            .NotNull()
+            .WithMessage("Choose OpenShift or Kubernetes.")
+            .IsInEnum()
+            .WithMessage("Choose OpenShift or Kubernetes.");
+
         validator.RuleFor(x => x.WebConsoleUrl)
             .Must(value => ClusterSettingsInput.TryParseWebConsoleUrl(value, out _))
             .WithMessage($"Web console URL must be an absolute https:// URL of at most {Cluster.MaxWebConsoleUrlLength} characters.");

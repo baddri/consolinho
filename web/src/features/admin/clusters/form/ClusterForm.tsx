@@ -19,9 +19,10 @@ import {
 import { ConnectionSection, IdentitySection, LinksSection, StatusSection } from './ClusterFormSections';
 import { useSaveCluster } from './useSaveCluster';
 import { PRODUCT_NAME } from '@/shared/branding';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Path of the clusters list (Cancel target of the register form). */
-const CLUSTERS_PATH = '/admin/clusters';
+const CLUSTERS_PATH = fleetAdminPath('clusters');
 
 /** Props for {@link ClusterForm}. */
 export interface ClusterFormProps {

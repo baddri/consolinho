@@ -2,7 +2,7 @@ import { Flex, FlexItem } from '@patternfly/react-core';
 import { ActionsColumn } from '@patternfly/react-table';
 import type { ClusterListItem } from '@/shared/api';
 import { LOW_PRIORITY_COLUMN } from '@/shared/table';
-import { EnvironmentLabel, type DataViewColumn } from '@/shared/ui';
+import { ClusterTypeLabel, EnvironmentLabel, type DataViewColumn } from '@/shared/ui';
 import { AdminResourceLink } from '../AdminResourceLink';
 import { ClusterStatusLabel } from './ClusterStatusLabel';
 import { clusterDetailPath } from './clusterTarget';
@@ -12,8 +12,8 @@ import { TlsModeLabel } from './TlsModeLabel';
 import { useClusterActions } from './useClusterActions';
 
 /**
- * Columns of the clusters list (CLU-7) for `ConsoleDataView`: Name (kind badge + link) first; Display name and API URL
- * hide below `2xl` rather than squeezing the table at 1280 (`UX.md` §5); TLS and Users are additional columns
+ * Columns of the clusters list (CLU-7) for `ConsoleDataView`: Name (kind badge + link) first; Display name, API URL and
+ * Last test hide below `2xl` rather than squeezing the table at 1280 (`UX.md` §5); TLS and Users are additional columns
  * ("Manage columns", as OCP's pod Node/IP), so the table fits the page up to 1920 (both are on the details page).
  */
 export const CLUSTER_COLUMNS: DataViewColumn<ClusterListItem>[] = [
@@ -32,6 +32,12 @@ export const CLUSTER_COLUMNS: DataViewColumn<ClusterListItem>[] = [
     visibility: LOW_PRIORITY_COLUMN,
     cell: (cluster) => cluster.displayName,
     sortValue: (cluster) => cluster.displayName,
+  },
+  {
+    id: 'type',
+    title: 'Type',
+    cell: (cluster) => <ClusterTypeLabel distribution={cluster.distribution} />,
+    sortValue: (cluster) => cluster.distribution,
   },
   {
     id: 'environment',
@@ -86,6 +92,8 @@ export const CLUSTER_COLUMNS: DataViewColumn<ClusterListItem>[] = [
   {
     id: 'lastTest',
     title: 'Last test',
+    // Rightmost and widest, so it hides first below 2xl (as OCP hides trailing columns): the table fits at 1280.
+    visibility: LOW_PRIORITY_COLUMN,
     cell: (cluster) => <LastTestCell lastTest={cluster.lastTest} credentialName={cluster.lastTestCredentialName} />,
     sortValue: (cluster) => (cluster.lastTest === null ? null : Date.parse(cluster.lastTest.testedAt)),
   },

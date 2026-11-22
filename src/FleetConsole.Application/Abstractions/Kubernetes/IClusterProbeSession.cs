@@ -24,6 +24,13 @@ public interface IClusterProbeSession : IAsyncDisposable
     /// <returns>The authenticated identity, or why the call failed.</returns>
     Task<ProbeResponse<SelfSubjectReviewInfo>> GetSelfSubjectReviewAsync(CancellationToken cancellationToken);
 
+    /// <summary><c>GET /apis</c> (API discovery): the API groups the cluster serves. The connection test detects the
+    /// distribution from it (<c>config.openshift.io</c> served ⇒ OpenShift, ADR-0032). A server that lists no groups
+    /// answers with an empty set, not a failure.</summary>
+    /// <param name="cancellationToken">Caller cancellation.</param>
+    /// <returns>The served API group names, or why the call failed.</returns>
+    Task<ProbeResponse<ServedApiGroups>> GetServedApiGroupsAsync(CancellationToken cancellationToken);
+
     /// <summary><c>GET /apis/config.openshift.io/v1/clusterversions/version</c>: the OpenShift version. 403/404 are
     /// common (non-OpenShift cluster, or the token may not read it) and are not connection problems.</summary>
     /// <param name="cancellationToken">Caller cancellation.</param>

@@ -67,18 +67,25 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 /c/:cluster/k8s/ns/:namespace/:plural/:name[/yaml|/events]   # details tabs (CP4 adds logs | terminal)
 /c/:cluster/k8s/cluster/:plural[/:name[/yaml|/events]]       # cluster-scoped kinds (projects, namespaces, nodes…)
 /c/:cluster/overview | /c/:cluster/search      # placeholders, not in the nav until CP5
-/admin/users                                   # ?q=&role=&status=&readOnly=
-/admin/users/:username[/access]                # tabs: details (index) | access; username URL-encoded
-/admin/clusters                                # ?q=&env=&status=
-/admin/clusters/new
-/admin/clusters/:name[/credentials|/access]    # tabs: details (index) | credentials | access
-/admin/clusters/:name/edit
-/admin/credentials                             # ?q=&expiry=&env=  (CRED-8 links here pre-filtered)
-/admin/audit                                   # ?actor=&user=&category=&cluster=&target=&range=|from=&to=
+/fleet                                         # → /fleet/admin/users; /fleet/<unknown> → 404  (ADR-0033)
+/fleet/admin/users                             # ?q=&role=&status=&readOnly=
+/fleet/admin/users/:username[/access]          # tabs: details (index) | access; username URL-encoded
+/fleet/admin/clusters                          # ?q=&env=&status=
+/fleet/admin/clusters/new
+/fleet/admin/clusters/:name[/credentials|/access] # tabs: details (index) | credentials | access
+/fleet/admin/clusters/:name/edit
+/fleet/admin/credentials                       # ?q=&expiry=&env=  (CRED-8 links here pre-filtered)
+/fleet/admin/audit                             # ?actor=&user=&category=&cluster=&target=&range=|from=&to=
+/admin[/<rest>]                                # legacy → /fleet/admin[/<rest>] (replace, query + hash kept; until ≥ CP6)
 ```
 
-- `/login` is outside the session guard; everything else is inside `RequireSession`, `/admin/*` inside
+- `/login` is outside the session guard; everything else is inside `RequireSession`, `/fleet/admin/*` inside
   `RequireAdmin` (ADR-0014). Unknown admin paths → 404.
+- **Perspectives** (ADR-0033): `/fleet/...` is the fleet perspective, everything else the cluster perspective;
+  `shared/routing` owns the prefixes (`FLEET_PATH`, `fleetAdminPath(rest)`, `perspectiveOf()`, `usePerspective()`).
+  The perspective is derived from the URL, never stored. Admin path helpers build on `fleetAdminPath`; ESLint rejects
+  `'/admin...'` literals except in `features/admin/LegacyAdminRedirect.tsx`, which sends old `/admin/...` URLs
+  (bookmarks, login `returnUrl`s) to the new ones client-side, outside `RequireAdmin`.
 - `/` → `LandingRedirect` (last used cluster if still granted, else first; zero clusters → "No clusters assigned").
   `/c/:cluster/*` is wrapped in `ClusterGate` (cluster not in the user's list → "not available" page, SW-5).
 - Tabs are URL segments so links (post-create → Credentials tab, audit deep links) and reload work.

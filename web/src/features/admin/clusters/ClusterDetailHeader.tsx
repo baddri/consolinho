@@ -6,9 +6,10 @@ import { ClusterActionsDropdown } from './ClusterActionsDropdown';
 import { ClusterStatusLabel } from './ClusterStatusLabel';
 import type { ClusterActionsOptions } from './useClusterActions';
 import { TLS_MODE_TEXT } from './TlsModeLabel';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Breadcrumb of every state of the page (`UX.md` §3): `Clusters › Cluster details`. */
-const BREADCRUMBS = [{ label: 'Clusters', to: '/admin/clusters' }, { label: 'Cluster details' }];
+const BREADCRUMBS = [{ label: 'Clusters', to: fleetAdminPath('clusters') }, { label: 'Cluster details' }];
 
 /** Compact environment and "TLS not verified" labels; they follow the cached detail. */
 function ClusterHeaderLabels({ cluster }: { cluster: ClusterDetail }) {

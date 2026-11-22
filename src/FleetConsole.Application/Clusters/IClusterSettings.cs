@@ -18,6 +18,12 @@ public interface IClusterSettings
     /// <summary>Production, staging or development.</summary>
     ClusterEnvironment Environment { get; }
 
+    /// <summary>
+    /// OpenShift or Kubernetes (DIST-4). Nullable so a missing value is a field error rather than silently binding to
+    /// the first enum member; handlers read <c>.Value</c> after validation.
+    /// </summary>
+    ClusterDistribution? Distribution { get; }
+
     /// <summary>Optional <c>https://</c> link to the cluster's own web console; blank means none.</summary>
     string? WebConsoleUrl { get; }
 

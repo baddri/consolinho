@@ -89,7 +89,7 @@ public static class CredentialsAdminEndpoints
         ArgumentNullException.ThrowIfNull(request);
 
         var added = await dispatcher.Send(
-            new AddCredentialCommand(name, request.Name, request.Description, ToSensitiveToken(request.Token)),
+            new AddCredentialCommand(name, request.Name, request.Description, ToSensitiveToken(request.Token), request.InspectNamespaces),
             cancellationToken).ConfigureAwait(false);
         if (added.IsFailure)
         {
@@ -162,7 +162,7 @@ public static class CredentialsAdminEndpoints
 
         // The time budget (Credentials:ConnectionTestTimeout) is applied by ConnectionTester on top of this token.
         return (await dispatcher.Send(
-            new TestCredentialCommand(name, credentialId, ToNamespace(request.InspectNamespace)),
+            new TestCredentialCommand(name, credentialId, request.InspectNamespaces),
             cancellationToken).ConfigureAwait(false)).ToHttpResult();
     }
 
@@ -182,13 +182,9 @@ public static class CredentialsAdminEndpoints
         ArgumentNullException.ThrowIfNull(request);
 
         return (await dispatcher.Send(
-            new TestTokenCommand(name, ToSensitiveToken(request.Token), request.CredentialId, ToNamespace(request.InspectNamespace)),
+            new TestTokenCommand(name, ToSensitiveToken(request.Token), request.CredentialId, request.InspectNamespaces),
             cancellationToken).ConfigureAwait(false)).ToHttpResult();
     }
-
-    // A blank inspectNamespace (an empty form field) means "don't inspect"; anything else is validated as given.
-    private static string? ToNamespace(string? inspectNamespace) =>
-        string.IsNullOrWhiteSpace(inspectNamespace) ? null : inspectNamespace.Trim();
 
     // Contract §8.4: the token is trimmed, then validated (TokenValidationRules). A missing JSON property arrives as
     // null and becomes empty, so validation answers "Token is required." instead of a framework error.

@@ -24,9 +24,10 @@ import { ClusterDetailHeader } from './ClusterDetailHeader';
 import { ClusterDetailsTab } from './ClusterDetailsTab';
 import { clusterDetailPath } from './clusterTarget';
 import { CLUSTER_GONE_BODY, clusterGoneTitle, isClusterGone } from './useClusterGone';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Path of the clusters list, the way back from a missing or deleted cluster. */
-const CLUSTERS_PATH = '/admin/clusters';
+const CLUSTERS_PATH = fleetAdminPath('clusters');
 
 /** Router link to the clusters list that PatternFly's `Button` can render as. */
 function ClustersLink(props: Omit<LinkProps, 'to'>) {
@@ -102,11 +103,11 @@ function useLeaveDeletedCluster(name: string) {
 }
 
 /**
- * `/admin/clusters/:name[/credentials|/access]` — the cluster's home in the admin area (CLU-8): `PageHeading` with
- * status, labels and the shared Actions menu, then Details, Credentials and Access tabs whose selection comes from the URL
- * (`useAdminTab`). Loading shows skeletons, an unknown name (`Clusters.NotFound`) an empty state with a way back,
- * other errors `ErrorState` with Retry. A cluster that disappears while shown (404 on refetch or action) sends the
- * admin back to the list with a toast. A failed background refetch keeps showing the loaded data. Lazy-loaded by
+ * `/fleet/admin/clusters/:name[/credentials|/access]` — the cluster's home in the admin area (CLU-8): `PageHeading`
+ * with status, labels and the shared Actions menu, then Details, Credentials and Access tabs whose selection comes from
+ * the URL (`useAdminTab`). Loading shows skeletons, an unknown name (`Clusters.NotFound`) an empty state with a way
+ * back, other errors `ErrorState` with Retry. A cluster that disappears while shown (404 on refetch or action) sends
+ * the admin back to the list with a toast. A failed background refetch keeps showing the loaded data. Lazy-loaded by
  * `routes.tsx`.
  */
 export function ClusterDetailPage() {

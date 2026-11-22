@@ -44,6 +44,12 @@ export interface ApplyServerErrorsOptions<T extends FieldValues> {
   fieldMap?: Record<string, Path<T>>;
   /** Contract `code` → field that shows the error's `detail`, e.g. `{ 'Users.UsernameTaken': 'username' }`. */
   codeToField?: Record<string, Path<T>>;
+  /**
+   * Array-valued fields rendered by one adapter (`ChipInputField`), e.g. `inspectNamespaces`: a whole-list error
+   * (`inspectNamespaces`, "at most 10") lands on the field instead of the alert. Per-entry keys
+   * (`inspectNamespaces[2]`) resolve to a string and are fields anyway.
+   */
+  listFields?: readonly Path<T>[];
 }
 
 /**
@@ -72,7 +78,7 @@ export function toFormPath(jsonPath: string): string {
  * grant `items` ("1–100 entries"), and the hidden `version` go to the alert. This uses no RHF internals and no field
  * lists, so every field of a form **must have a default value** (`''` for text, `false` for booleans). A field
  * without one gets its server errors in the form-level alert instead of under the field. Typed input is never reset
- * here.
+ * here. Arrays of strings bound to one adapter opt in with `listFields`.
  */
 export function applyServerErrors<T extends FieldValues, TTransformed = T>(
   error: unknown,
@@ -84,7 +90,8 @@ export function applyServerErrors<T extends FieldValues, TTransformed = T>(
   }
 
   const values = form.getValues();
-  const isField = (path: string): path is Path<T> => isLeafField(values, path);
+  const isField = (path: string): path is Path<T> =>
+    isLeafField(values, path) || (options.listFields?.some((field) => field === path) ?? false);
   let hasFocused = false;
   const setFieldError = (path: Path<T>, message: string) => {
     form.setError(path, { type: 'server', message }, { shouldFocus: !hasFocused });

@@ -69,6 +69,7 @@ describe('apiClient covers every CP1 contract route', () => {
           displayName: null,
           apiUrl: 'https://api.dev-1.example.com:6443',
           environment: 'development',
+          distribution: 'openShift',
           webConsoleUrl: null,
           description: null,
           caBundle: null,
@@ -82,6 +83,7 @@ describe('apiClient covers every CP1 contract route', () => {
           displayName: 'Prod EU 1',
           apiUrl: 'https://api.prod-eu-1.example.com:6443',
           environment: 'production',
+          distribution: 'openShift',
           webConsoleUrl: null,
           description: null,
           caBundle: null,
@@ -105,11 +107,11 @@ describe('apiClient covers every CP1 contract route', () => {
       apiClient.DELETE('/api/admin/clusters/{name}/credentials/{credentialId}', credential),
       apiClient.POST('/api/admin/clusters/{name}/credentials/{credentialId}/test', {
         ...credential,
-        body: { inspectNamespace: null },
+        body: { inspectNamespaces: null },
       }),
       apiClient.POST('/api/admin/clusters/{name}/test-token', {
         ...cluster,
-        body: { token: 'fake-token-for-tests', credentialId: null, inspectNamespace: 'default' },
+        body: { token: 'fake-token-for-tests', credentialId: null, inspectNamespaces: ['default'] },
       }),
       apiClient.GET('/api/admin/credentials'),
       apiClient.POST('/api/admin/grants', {

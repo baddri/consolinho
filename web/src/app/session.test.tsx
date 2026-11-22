@@ -84,7 +84,8 @@ describe('session handling (ADR-0014)', () => {
     await screen.findByRole('heading', { name: 'Pods', level: 1 });
     expect(queryClient.getQueryData(ME_KEY)).toBeDefined();
 
-    // Not `me`: any Api call answering 401 means the session is gone (the cluster list is always observed by the shell).
+    // Not `me`: any Api call answering 401 means the session is gone (the cluster list is always observed by the
+    // shell).
     server.use(http.get('*/api/clusters', unauthenticated));
     await act(() => queryClient.refetchQueries({ queryKey: ['api', 'clusters'] }));
 
@@ -131,7 +132,7 @@ describe('handleUnauthenticated', () => {
   });
 
   it('redirects only once when several requests fail together', async () => {
-    const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: ['/admin/users'] });
+    const router = createMemoryRouter([{ path: '*', element: null }], { initialEntries: ['/fleet/admin/users'] });
     const navigate = vi.spyOn(router, 'navigate');
     const queryClient = createQueryClient();
     queryClient.setQueryData(ME_KEY, { username: 'admin' });
@@ -140,7 +141,7 @@ describe('handleUnauthenticated', () => {
     handleUnauthenticated(router, queryClient);
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
-    expect(router.state.location.search).toBe('?returnUrl=%2Fadmin%2Fusers&reason=session_ended');
+    expect(router.state.location.search).toBe('?returnUrl=%2Ffleet%2Fadmin%2Fusers&reason=session_ended');
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(queryClient.getQueryCache().getAll()).toEqual([]);
   });

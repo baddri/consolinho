@@ -296,10 +296,10 @@ public sealed class AuthEndpointsTests(ApiFactory factory)
     {
         using var client = await factory.LoginAsAsync(factory.NewUsername());
 
-        using var response = await client.GetAsync(new Uri("/api/auth/login?returnUrl=%2Fadmin%2Fusers", UriKind.Relative), Ct);
+        using var response = await client.GetAsync(new Uri("/api/auth/login?returnUrl=%2Ffleet%2Fadmin%2Fusers", UriKind.Relative), Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Redirect);
-        response.Headers.Location!.OriginalString.ShouldBe("/admin/users");
+        response.Headers.Location!.OriginalString.ShouldBe("/fleet/admin/users");
     }
 
     [Fact]

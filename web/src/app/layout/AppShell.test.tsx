@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { LOGO_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
@@ -56,21 +56,28 @@ describe('AppShell', () => {
       const mastheadButtons = within(masthead)
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label') ?? button.textContent);
-      expect(mastheadButtons).toEqual(['Global navigation', 'Help menu', expect.stringMatching(/Fleet Admin/)]);
+      expect(mastheadButtons).toEqual([
+        'Global navigation',
+        'Help menu',
+        expect.stringMatching(/Fleet Admin/),
+      ]);
 
       const nav = await openSidebar(user);
-      const toggle = await within(nav).findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' });
+      const toggle = await within(nav).findByRole('button', {
+        name: 'Cluster Development 1 (dev-1, OCP, dev), switch cluster',
+      });
       expect(toggle).toHaveTextContent('dev');
       // First child of the nav, before the sections (UX.md §2); one line: labels inline after the name.
       expect(within(nav).getAllByRole('button')[0]).toBe(toggle);
-      expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('dev-1');
+      expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Development 1');
       // No version footer in the sidebar (it moved to Help › About).
       expect(screen.queryByText(/0\.0\.0-test/)).not.toBeInTheDocument();
     },
   );
 
-  // Sections come from the registry (T-0073): only sections with registered kinds are listed, admin last (SW-11).
-  it('renders registry-driven navigation sections and an admin section', async () => {
+  // Sections come from the registry (T-0073): only sections with registered kinds are listed; Fleet administration
+  // lives in the fleet perspective only (FLEET-4).
+  it('renders registry-driven navigation sections and no Fleet administration on cluster pages', async () => {
     const { user } = renderApp('/c/dev-1/k8s/all-namespaces/events');
 
     const nav = await openSidebar(user);
@@ -78,7 +85,7 @@ describe('AppShell', () => {
       .getAllByRole('button')
       .filter((button) => !button.getAttribute('aria-label')?.endsWith('switch cluster'))
       .map((button) => button.textContent);
-    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Administration', 'Fleet administration']);
+    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Administration']);
     await expandSection(user, nav, 'Home');
     const events = within(nav).getByRole('link', { name: 'Events' });
     expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
@@ -90,7 +97,7 @@ describe('AppShell', () => {
     const { user } = renderApp('/c/dev-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
-    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Administration', 'Fleet administration']) {
+    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Administration']) {
       expect(within(nav).getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false');
     }
     expect(within(nav).getByRole('button', { name: 'Workloads' }).closest('li')).toHaveClass('pf-m-current');
@@ -100,19 +107,59 @@ describe('AppShell', () => {
     expect(within(nav).getByRole('link', { name: 'ConfigMaps' })).toBeVisible();
   });
 
+  // ADR-0033 §5: the fleet perspective shows only its own sections, in the same Nav frame under the switcher.
+  it.each(['admin', 'ines'])(
+    'shows only Fleet administration on fleet pages to %s (FLEET-3)',
+    async (username) => {
+      setMockUser(username);
+      const { user } = renderApp('/fleet/admin/users');
+
+      const nav = await openSidebar(user);
+      const toggle = await within(nav).findByRole('button', { name: 'Fleet management, switch cluster' });
+      const buttons = within(nav).getAllByRole('button');
+      expect(buttons[0]).toBe(toggle);
+      expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet administration']);
+      await expandSection(user, nav, 'Fleet administration');
+      expect(
+        within(nav)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual(['Users', 'Clusters', 'Credentials', 'Audit log']);
+    },
+  );
+
+  it('shows no sections on fleet pages to a non-admin (FLEET-8)', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/fleet/admin/users');
+
+    expect(
+      await screen.findByRole('heading', { name: "You don't have access to Fleet administration" }),
+    ).toBeInTheDocument();
+    const nav = await openSidebar(user);
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Fleet management, switch cluster']);
+  });
+
   it('switches cluster while keeping the current page', async () => {
     setMockUser('alice');
     const { user, router } = renderApp('/c/prod-eu-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
     await user.click(
-      await within(nav).findByRole('button', { name: 'Cluster prod-eu-1 (prod, read only), switch cluster' }),
+      await within(nav).findByRole('button', {
+        name: 'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
+      }),
     );
     await user.click(await screen.findByRole('option', { name: /staging-eu-1/ }));
 
     expect(router.state.location.pathname).toBe('/c/staging-eu-1/k8s/ns/default/pods');
     expect(
-      await screen.findByRole('button', { name: 'Cluster staging-eu-1 (staging), switch cluster' }),
+      await screen.findByRole('button', {
+        name: 'Cluster Staging EU 1 (staging-eu-1, OCP, staging), switch cluster',
+      }),
     ).toBeInTheDocument();
   });
 
@@ -154,7 +201,9 @@ describe('AppShell', () => {
       expect(document.documentElement).toHaveClass('pf-v6-theme-glass', 'pf-v6-theme-felt');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-dark');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-high-contrast');
-      expect(within(screen.getByRole('banner')).queryByRole('button', { name: 'Theme' })).not.toBeInTheDocument();
+      expect(
+        within(screen.getByRole('banner')).queryByRole('button', { name: 'Theme' }),
+      ).not.toBeInTheDocument();
     });
 
     it('keeps a stored choice across reloads', async () => {
@@ -210,14 +259,93 @@ describe('AppShell', () => {
 
     it.each([
       ['a development cluster', 'admin', '/c/dev-1/overview'],
-      ['an admin page', 'alice', '/admin/users'],
+      ['an admin page', 'alice', '/fleet/admin/users'],
+      // FLEET-9: the preferred cluster is production, but fleet pages are not about a cluster.
+      ['a fleet page with a production preferred cluster', 'carol', '/fleet/admin/users'],
     ])('is absent on %s', async (_case, username, path) => {
       setMockUser(username);
+      localStorage.setItem('fleetconsole.lastCluster', 'prod-eu-1');
       const { user } = renderApp(path);
 
       const nav = await openSidebar(user);
       await within(nav).findByRole('button', { name: /switch cluster$/ });
       expect(screen.queryByText(/^(Production|Staging) cluster /)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('cluster type theme', () => {
+    /** The PF `Page` root, which carries the shell's cluster-type attribute. */
+    const shell = () => screen.getByRole('main').closest('.pf-v6-c-page');
+
+    it('marks the shell of a Kubernetes cluster (THEME-1)', async () => {
+      setMockUser('alice');
+      const { user } = renderApp('/c/lab-1/k8s/ns/default/pods');
+
+      const nav = await openSidebar(user);
+      const toggle = await within(nav).findByRole('button', {
+        name: 'Cluster Lab 1 (lab-1, K8s, dev, read only), switch cluster',
+      });
+      expect(within(toggle).getByText('K8s')).toBeInTheDocument();
+      expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes');
+      // The navy masthead is dark in both themes, so it shows the dark-theme logo (light theme by default here).
+      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+    });
+
+    it.each([
+      ['an OpenShift cluster', 'alice', '/c/prod-eu-1/k8s/ns/default/pods'],
+      // FLEET-9: fleet pages are not about a cluster, even with a Kubernetes preferred cluster.
+      ['a fleet page', 'admin', '/fleet/admin/users'],
+    ])('leaves the shell neutral on %s', async (_case, username, path) => {
+      setMockUser(username);
+      localStorage.setItem('fleetconsole.lastCluster', 'lab-1');
+      const { user } = renderApp(path);
+
+      const nav = await openSidebar(user);
+      await within(nav).findByRole('button', { name: /switch cluster$/ });
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+    });
+
+    it('leaves the shell neutral on the not-available page', async () => {
+      setMockUser('alice');
+      localStorage.setItem('fleetconsole.lastCluster', 'lab-1');
+      renderApp('/c/nope/overview');
+
+      await screen.findByRole('heading', { name: 'Cluster nope is not available' });
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+    });
+
+    it('leaves the shell neutral while the cluster list loads', async () => {
+      server.use(
+        http.get('*/api/clusters', async () => {
+          await delay('infinite');
+          return HttpResponse.json([]);
+        }),
+      );
+      setMockUser('alice');
+      const { user } = renderApp('/c/lab-1/k8s/ns/default/pods');
+
+      const nav = await openSidebar(user);
+      expect(await within(nav).findByRole('button', { name: 'Loading clusters' })).toBeDisabled();
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+    });
+
+    it('follows a cluster switch without a reload (THEME-5)', async () => {
+      setMockUser('alice');
+      const { user, router } = renderApp('/c/lab-1/k8s/ns/default/pods');
+
+      const nav = await openSidebar(user);
+      await user.click(await within(nav).findByRole('button', { name: /^Cluster Lab 1 .*switch cluster$/ }));
+      await user.click(await screen.findByRole('option', { name: /prod-eu-1/ }));
+      await within(nav).findByRole('button', { name: /^Cluster Production EU 1 .*switch cluster$/ });
+      expect(shell()).not.toHaveAttribute('data-cluster-type');
+
+      await user.click(within(nav).getByRole('button', { name: /^Cluster Production EU 1 .*switch cluster$/ }));
+      // lab-1 is listed under "Recent" and "All clusters"; either opens it.
+      const [labOption] = await screen.findAllByRole('option', { name: /lab-1/ });
+      if (!labOption) throw new Error('lab-1 is not listed');
+      await user.click(labOption);
+      expect(router.state.location.pathname).toBe('/c/lab-1/k8s/ns/default/pods');
+      await waitFor(() => expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes'));
     });
   });
 });

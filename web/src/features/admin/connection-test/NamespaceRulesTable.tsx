@@ -1,6 +1,6 @@
 import { Alert, Stack, StackItem } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import type { NamespaceRules } from '@/shared/api';
+import type { NamespaceRulesResult } from '@/shared/api';
 
 /** Shown when the cluster flagged its rule list as incomplete (TEST-3). */
 export const INCOMPLETE_RULES_TEXT = 'The cluster reported an incomplete rule list.';
@@ -15,7 +15,9 @@ function joined(values: readonly string[], empty = '—'): string {
  * per rule with verbs, API groups (`""` shown as "core"), resources and resource names (empty = all). An incomplete
  * list adds a warning; the cluster's `evaluationError` is shown verbatim.
  */
-export function NamespaceRulesTable({ rules }: { rules: NamespaceRules }) {
+export function NamespaceRulesTable({ rules }: { rules: NamespaceRulesResult }) {
+  // A reviewed entry always has rules; an error entry is rendered by the caller instead (NST-3).
+  const list = rules.rules ?? [];
   return (
     <Stack hasGutter>
       {rules.incomplete && (
@@ -41,12 +43,12 @@ export function NamespaceRulesTable({ rules }: { rules: NamespaceRules }) {
             </Tr>
           </Thead>
           <Tbody>
-            {rules.rules.length === 0 && (
+            {list.length === 0 && (
               <Tr>
                 <Td colSpan={4}>No rules in this namespace.</Td>
               </Tr>
             )}
-            {rules.rules.map((rule, index) => (
+            {list.map((rule, index) => (
               // Rules have no identity; the server's order is stable for one result.
               <Tr key={index}>
                 <Td dataLabel="Verbs">{joined(rule.verbs)}</Td>

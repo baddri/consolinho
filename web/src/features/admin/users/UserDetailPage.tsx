@@ -23,10 +23,11 @@ import { useUser } from './api';
 import { UserDetailHeader } from './UserDetailHeader';
 import { UserDetailsTab } from './UserDetailsTab';
 import { userDetailPath } from './userColumns';
+import { fleetAdminPath } from '@/shared/routing';
 
 /** Router link to the users list that PatternFly's `Button` can render as. */
 function UsersLink(props: Omit<LinkProps, 'to'>) {
-  return <Link {...props} to="/admin/users" />;
+  return <Link {...props} to={fleetAdminPath('users')} />;
 }
 
 /** 404 body: the user doesn't exist (`Users.NotFound`), with a way back to the list. */
@@ -61,7 +62,7 @@ function useLeaveVanishedUser(username: string, vanished: boolean) {
     if (!vanished || left.current) return;
     left.current = true;
     toast.warning(`User ${username} no longer exists`, 'It could not be found when the page refreshed.');
-    void navigate('/admin/users', { replace: true });
+    void navigate(fleetAdminPath('users'), { replace: true });
   }, [vanished, username, navigate, toast]);
 }
 
@@ -123,9 +124,9 @@ function UserTabs({ user, tab, onGrantAccess }: UserTabsProps) {
 }
 
 /**
- * `/admin/users/:username[/access]` — who a user is and what they can do (USR-7): `PageHeading` with labels and the
- * shared Actions menu, then Details and Cluster access tabs whose selection comes from the URL (`useAdminTab`). The router
- * decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
+ * `/fleet/admin/users/:username[/access]` — who a user is and what they can do (USR-7): `PageHeading` with labels and
+ * the shared Actions menu, then Details and Cluster access tabs whose selection comes from the URL (`useAdminTab`). The
+ * router decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
  * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry —
  * both only while nothing is loaded: a failed background refetch keeps the loaded data, and a 404 after load sends
  * the admin back to the list with a toast. "Grant access" (Cluster access tab) or router state

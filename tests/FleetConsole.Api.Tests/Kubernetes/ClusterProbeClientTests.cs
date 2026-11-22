@@ -83,6 +83,46 @@ public sealed class ClusterProbeClientTests
         body.RootElement.GetProperty("apiVersion").GetString().ShouldBe("authentication.k8s.io/v1");
     }
 
+    [Fact]
+    public async Task GetServedApiGroups_ReturnsGroupNames()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.MapApiGroups("apps", "config.openshift.io");
+        await using var session = Open(server);
+
+        var response = await session.GetServedApiGroupsAsync(Ct);
+
+        response.IsSuccess.ShouldBeTrue(response.Failure?.ToString());
+        response.Value.Names.ShouldBe(["apps", "config.openshift.io"], ignoreOrder: true);
+        server.Requests.ShouldHaveSingleItem().Path.ShouldBe("/apis");
+    }
+
+    [Fact]
+    public async Task GetServedApiGroups_EmptyListIsAnEmptySet()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.MapApiGroups();
+        await using var session = Open(server);
+
+        var response = await session.GetServedApiGroupsAsync(Ct);
+
+        response.IsSuccess.ShouldBeTrue(response.Failure?.ToString());
+        response.Value.Names.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task GetServedApiGroups_Forbidden_IsAFailureWithKind()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.Respond("GET", "/apis", 403);
+        await using var session = Open(server);
+
+        var response = await session.GetServedApiGroupsAsync(Ct);
+
+        response.IsSuccess.ShouldBeFalse();
+        response.Failure.Kind.ShouldBe(ProbeFailureKind.Forbidden);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -216,6 +216,8 @@ No access cache in CP2 (one indexed query per request); TLS failures are classif
 ## Recipes (keep these working; they are the maintainability contract)
 
 ### Adding a cache later
+Decided for CP4.5 in ADR-0035 (FusionCache as the `HybridCache`, Redis L2 + backplane, tags, fail-safe off for
+authorization, decrypted tokens only in L1); the steps below stay the shape of the change.
 1. Extract the access lookup of `AuthorizeProxyRequestHandler` into its own query and mark it: `public sealed record ResolveClusterAccessQuery(...) : IQuery<ClusterAccess>, ICacheableQuery { string CacheKey => ...; TimeSpan Ttl => ...; }` (policies keep running per request, uncached).
 2. Register `CachingBehavior<,>` (uses `HybridCache`) in the pipeline before the handler.
 3. Invalidate from **post-commit** domain event handlers (`GrantRevoked` → remove key). That stage doesn't exist yet
@@ -243,6 +245,9 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - `ConsoleDbContext` with `IEntityTypeConfiguration<T>` per aggregate; snake_case naming; strongly typed ID converters.
   Multi-value value objects are complex properties (flattened columns), except where a column needs an index: EF Core
   10 can't index complex-type columns, so `AuditEntry.Actor` is an owned type (same table, `actor_*` columns).
+  List-valued value objects (e.g. `InspectNamespaces`) are a Postgres array column: a `ValueConverter` to `string[]`
+  that re-validates through the VO's `Create`, **plus** an explicit `ValueComparer` (`Converters/ValueObjectConverters.cs`) —
+  without it EF picks an array comparer that cannot snapshot the VO.
 - Migrations live in `Infrastructure/Persistence/Migrations` (treated as generated code by a nested `.editorconfig`);
   applied on startup in Development by `DevelopmentDatabaseMigrator`; in production by the image's `migrate` mode run
   as an init container (ADR-0027). Both use the same migrator; migrations are forward-only.

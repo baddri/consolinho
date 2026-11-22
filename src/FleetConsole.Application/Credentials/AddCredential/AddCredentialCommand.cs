@@ -16,5 +16,11 @@ namespace FleetConsole.Application.Credentials.AddCredential;
 /// <param name="Name">The credential name, unique within the cluster (<c>Credentials.NameTaken</c>).</param>
 /// <param name="Description">Optional description; blank is stored as none.</param>
 /// <param name="Token">The token, already trimmed by the Api (contract §8.4).</param>
-public sealed record AddCredentialCommand(string ClusterName, string Name, string? Description, SensitiveString Token)
+/// <param name="InspectNamespaces">Optional namespaces (up to 10) the connection test inspects, saved on the credential (NST-5); null means none.</param>
+public sealed record AddCredentialCommand(
+    string ClusterName,
+    string Name,
+    string? Description,
+    SensitiveString Token,
+    IReadOnlyList<string>? InspectNamespaces = null)
     : ICommand<Guid>, IAdminRequest, IMutatingCommand;

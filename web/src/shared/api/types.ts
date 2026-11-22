@@ -27,6 +27,11 @@ export type AccessMode = schemas['AccessMode'];
 export type TokenType = schemas['TokenType'];
 /** Credential token expiry; worst-first order expired > expiringSoon > unknown > noExpiry > ok. */
 export type CredentialExpiryStatus = schemas['CredentialExpiryStatus'];
+/**
+ * Declared cluster distribution (CP3.7 DIST-1, ADR-0032): presentation only (OCP/K8s tag, theme); feature availability
+ * still comes from API discovery.
+ */
+export type ClusterDistribution = schemas['ClusterDistribution'];
 /** CA certificate expiry (30-day window, CLU-2). */
 export type CertificateExpiryStatus = schemas['CertificateExpiryStatus'];
 /** Connection test steps, in execution order. */
@@ -105,8 +110,8 @@ export type OpenShiftVersion = schemas['OpenShiftVersion'];
 export type CapabilitySummary = schemas['CapabilitySummary'];
 /** One capability check (render whatever list the Api returns). */
 export type CapabilityCheckResult = schemas['CapabilityCheckResult'];
-/** RBAC rules of the credential in the inspected namespace. */
-export type NamespaceRules = schemas['NamespaceRules'];
+/** One inspected namespace of a connection test (NST-3): exactly one of `rules` / `error` is non-null. */
+export type NamespaceRulesResult = schemas['NamespaceRules'];
 /** One RBAC resource rule. */
 export type ResourceRule = schemas['ResourceRule'];
 /** Advice derived from test result and grants (TEST-4). */

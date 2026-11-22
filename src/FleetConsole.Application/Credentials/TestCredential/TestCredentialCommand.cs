@@ -15,6 +15,7 @@ namespace FleetConsole.Application.Credentials.TestCredential;
 /// </remarks>
 /// <param name="ClusterName">The cluster from the route; unknown → <c>Clusters.NotFound</c>.</param>
 /// <param name="CredentialId">The credential; unknown or of another cluster → <c>Credentials.NotFound</c>.</param>
-/// <param name="InspectNamespace">Optional namespace to list the token's rules in.</param>
-public sealed record TestCredentialCommand(string ClusterName, Guid CredentialId, string? InspectNamespace)
+/// <param name="InspectNamespaces">Namespaces to list the token's rules in (0-10 DNS labels; trimmed and de-duplicated by
+/// <c>InspectNamespaces</c>); null means none.</param>
+public sealed record TestCredentialCommand(string ClusterName, Guid CredentialId, IReadOnlyList<string>? InspectNamespaces)
     : ICommand<ConnectionTestResultDto>, IAdminRequest, IMutatingCommand;

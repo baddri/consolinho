@@ -17,8 +17,14 @@ internal sealed class FakeProbeClient : IClusterProbeClient
     public Func<CancellationToken, Task<ProbeResponse<SelfSubjectReviewInfo>>> SelfSubjectReview { get; set; } =
         _ => Ok(new SelfSubjectReviewInfo("system:serviceaccount:fleet:viewer", ["system:authenticated"]));
 
+    public Func<CancellationToken, Task<ProbeResponse<ServedApiGroups>>> ApiGroups { get; set; } =
+        _ => Ok(new ServedApiGroups(["apps", "config.openshift.io", "route.openshift.io"]));
+
     public Func<CancellationToken, Task<ProbeResponse<ClusterVersionInfo>>> ClusterVersion { get; set; } =
         _ => Ok(new ClusterVersionInfo("4.17.3", false));
+
+    /// <summary>How often the tester read ClusterVersion; DIST-8 says a Kubernetes cluster is not asked at all.</summary>
+    public int ClusterVersionCalls { get; private set; }
 
     public Func<string, CancellationToken, Task<ProbeResponse<RulesReviewResult>>> RulesReview { get; set; } =
         (_, _) => Ok(new RulesReviewResult(false, null, [new KubernetesResourceRule(["get", "list"], [""], ["pods"], [])]));
@@ -70,8 +76,14 @@ internal sealed class FakeProbeClient : IClusterProbeClient
         public Task<ProbeResponse<SelfSubjectReviewInfo>> GetSelfSubjectReviewAsync(CancellationToken cancellationToken) =>
             fake.SelfSubjectReview(cancellationToken);
 
-        public Task<ProbeResponse<ClusterVersionInfo>> GetClusterVersionAsync(CancellationToken cancellationToken) =>
-            fake.ClusterVersion(cancellationToken);
+        public Task<ProbeResponse<ServedApiGroups>> GetServedApiGroupsAsync(CancellationToken cancellationToken) =>
+            fake.ApiGroups(cancellationToken);
+
+        public Task<ProbeResponse<ClusterVersionInfo>> GetClusterVersionAsync(CancellationToken cancellationToken)
+        {
+            fake.ClusterVersionCalls++;
+            return fake.ClusterVersion(cancellationToken);
+        }
 
         public Task<ProbeResponse<AccessReviewResult>> ReviewAccessAsync(ResourceAttributes attributes, CancellationToken cancellationToken)
         {

@@ -17,6 +17,7 @@ namespace FleetConsole.Application.Credentials;
 /// <param name="ClusterIsEnabled">Whether the credential's cluster is enabled.</param>
 /// <param name="Name">The credential name, unique within its cluster.</param>
 /// <param name="Description">Optional description.</param>
+/// <param name="InspectNamespaces">The namespaces the connection test lists the token's access rules in, as last saved (when adding or by the last test); empty when none.</param>
 /// <param name="Fingerprint">Short identifier of the current token: the first 8 lowercase hex characters of its SHA-256.</param>
 /// <param name="TokenType">Whether the token is a JWT (identity and expiry known) or opaque (unknown).</param>
 /// <param name="ServiceAccount">The ServiceAccount as "namespace/name" when the token's subject is a ServiceAccount; otherwise null.</param>
@@ -41,6 +42,7 @@ public sealed record CredentialDto(
     bool ClusterIsEnabled,
     string Name,
     string? Description,
+    IReadOnlyList<string> InspectNamespaces,
     string Fingerprint,
     TokenType TokenType,
     string? ServiceAccount,

@@ -251,6 +251,16 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
             status = new { userInfo = new { username, uid = "4c1f5b0e-0000-4000-8000-000000000001", groups } },
         });
 
+    /// <summary>Scripts API discovery (<c>GET /apis</c>), which the connection test uses to detect the distribution.</summary>
+    /// <param name="names">Served API group names; include <c>config.openshift.io</c> for an OpenShift cluster.</param>
+    public void MapApiGroups(params string[] names) =>
+        Respond("GET", "/apis", 200, new
+        {
+            kind = "APIGroupList",
+            apiVersion = "v1",
+            groups = names.Select(name => new { name, versions = new[] { new { groupVersion = $"{name}/v1", version = "v1" } } }),
+        });
+
     /// <summary>Scripts the OpenShift ClusterVersion.</summary>
     /// <param name="version"><c>status.desired.version</c>.</param>
     /// <param name="progressing">Status of the <c>Progressing</c> condition.</param>

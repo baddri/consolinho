@@ -32,8 +32,8 @@ describe('sanitizeReturnUrl (AUTH-2)', () => {
     '/c/prod-eu-1/overview',
     '/c/prod-eu-1/ns/default/pods?x=1',
     '/c/dev-1/ns/default/pods/web-1#yaml',
-    '/admin/users/alice%40corp',
-    '/admin/audit?actor=alice&range=7d',
+    '/fleet/admin/users/alice%40corp',
+    '/fleet/admin/audit?actor=alice&range=7d',
     '/loginhelp',
   ])('keeps the local path %j', (value) => {
     expect(sanitizeReturnUrl(value)).toBe(value);

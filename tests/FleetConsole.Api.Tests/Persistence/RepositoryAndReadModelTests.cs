@@ -207,7 +207,7 @@ public sealed class RepositoryAndReadModelTests(ApiFactory factory)
             sp.GetRequiredService<IUserRepository>().Add(user);
             sp.GetRequiredService<IClusterRepository>().Add(cluster);
             var credential = NewCredential(cluster, sp.GetRequiredService<ITokenProtector>());
-            credential.RecordTest(new ConnectionTestSummary(Now.AddMinutes(-5), true, null, CapabilityLevel.Limited), cluster.Name.Value);
+            credential.RecordTest(new ConnectionTestSummary(Now.AddMinutes(-5), true, null, CapabilityLevel.Limited), InspectNamespaces.Empty, cluster.Name.Value);
             sp.GetRequiredService<ICredentialRepository>().Add(credential);
             sp.GetRequiredService<IGrantRepository>().Add(NewGrant(user, cluster, credential));
         });

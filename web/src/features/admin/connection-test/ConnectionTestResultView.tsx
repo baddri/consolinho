@@ -5,13 +5,15 @@ import {
   DescriptionListGroup,
   DescriptionListTerm,
   ExpandableSection,
+  Icon,
   Label,
   Stack,
   StackItem,
   Title,
   type LabelProps,
 } from '@patternfly/react-core';
-import type { CapabilityLevel, ConnectionTestResult } from '@/shared/api';
+import { ExclamationTriangleIcon } from '@patternfly/react-icons';
+import type { CapabilityLevel, ConnectionTestResult, NamespaceRulesResult } from '@/shared/api';
 import { CAPABILITY_LABELS } from '../credentials/LastTestLabel';
 import { CapabilityGrid } from './CapabilityGrid';
 import { NamespaceRulesTable } from './NamespaceRulesTable';
@@ -53,7 +55,7 @@ export interface ConnectionTestResultViewProps {
  * Full result of one connection test (TEST-2..4), rendering only what the server sent: the overall outcome with its
  * duration, the steps in order ({@link TestStepList}), the facts (Kubernetes version, identity, OpenShift version),
  * the capability headline and grid ({@link CapabilityGrid}), the server's hints as inline alerts with their severity,
- * and — when a namespace was inspected — its rules ({@link NamespaceRulesTable}) in an expandable section.
+ * and one collapsed section per inspected namespace ({@link NamespaceRulesSections}, NST-4).
  * Missing parts (a failed test has no capabilities) are simply left out.
  */
 export function ConnectionTestResultView({ result }: ConnectionTestResultViewProps) {
@@ -82,13 +84,52 @@ export function ConnectionTestResultView({ result }: ConnectionTestResultViewPro
           <CapabilityGrid checks={capabilities.checks} />
         </StackItem>
       )}
-      {namespaceRules !== null && (
+      {namespaceRules.length > 0 && (
         <StackItem>
-          <ExpandableSection toggleText={`Rules in namespace ${namespaceRules.namespace}`}>
-            <NamespaceRulesTable rules={namespaceRules} />
-          </ExpandableSection>
+          <NamespaceRulesSections entries={namespaceRules} />
         </StackItem>
       )}
+    </Stack>
+  );
+}
+
+/**
+ * One collapsed "Rules in namespace <ns>" section per inspected namespace, in the server's order (= the order the admin
+ * entered them, NST-4): a reviewed namespace shows its {@link NamespaceRulesTable}; a failed one gets a warning icon
+ * and "could not be reviewed" on its toggle and the server's message as a plain inline warning inside, so one namespace failing never reads as a failed test. With more than one namespace the
+ * sections are grouped under a "Namespace rules" heading like "Capabilities"; the "reviewed in n of m" headline is the
+ * server's step, not computed here.
+ */
+function NamespaceRulesSections({ entries }: { entries: readonly NamespaceRulesResult[] }) {
+  return (
+    <Stack hasGutter>
+      {entries.length > 1 && (
+        <Title headingLevel="h3" size="md">
+          Namespace rules
+        </Title>
+      )}
+      {entries.map((entry) => (
+        entry.error === null ? (
+          <ExpandableSection key={entry.namespace} toggleText={`Rules in namespace ${entry.namespace}`}>
+            <NamespaceRulesTable rules={entry} />
+          </ExpandableSection>
+        ) : (
+          // A failed namespace says so while collapsed (icon + text, OCP status pattern), not only once expanded.
+          <ExpandableSection
+            key={entry.namespace}
+            toggleContent={
+              <>
+                <Icon status="warning" isInline>
+                  <ExclamationTriangleIcon />
+                </Icon>{' '}
+                {`Rules in namespace ${entry.namespace}: could not be reviewed`}
+              </>
+            }
+          >
+            <Alert variant="warning" isInline isPlain title={entry.error} />
+          </ExpandableSection>
+        )
+      ))}
     </Stack>
   );
 }
