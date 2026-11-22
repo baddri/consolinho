@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-23 (CP3.7 CLOSED) · **Current checkpoint:** CP4 — Workloads day-2 (SPEC) ·
-**Branch:** `main` (CP4 work goes on `cp/4-workloads`)
+**Last updated:** 2026-11-23 (CP3.7 CLOSED) · **Current checkpoint:** CP4a — Pods + Deployments (DESIGN) ·
+**Branch:** `cp/4-workloads`
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -18,7 +18,8 @@
 - **Human approval (2026-11-23):** after CP3.7 closes (merge + tag), continue straight into **CP4** without stopping to report; still report CP3.7 delivery in the session summary.
 - **CP3.7 DONE** (tag cp-3.7, merged to main): T-0139…T-0154; QA PASS 40/40 (`docs/specs/CP3.7-verify.md`; BE 1830,
   FE 891, e2e 10/10); PO ACCEPT WITH FOLLOW-UPS (`docs/specs/CP3.7-acceptance.md`, in ROADMAP §CP4/§CP5.5).
-- **CP4 next:** SPEC with `ocp-product-owner` on branch `cp/4-workloads` (item 1 below + CP3.7 follow-ups in ROADMAP §CP4).
+- **CP4 SPEC done** (`docs/specs/CP4-workloads.md`, split CP4a/b/c, Q1–Q8 recommendations accepted). Now: CP4a DESIGN —
+  backend-architect (tasks T-0155…T-0169) + frontend-architect (T-0170…T-0189) in parallel. Merge + tag per sub-checkpoint (cp-4a…).
 0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
    `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
    waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +
