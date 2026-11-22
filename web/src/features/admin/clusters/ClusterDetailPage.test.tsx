@@ -55,6 +55,7 @@ const CERT_CLUSTER: ClusterDetail = {
   name: 'certs-1',
   displayName: 'certs-1',
   environment: 'staging',
+  distribution: 'openShift',
   apiUrl: 'https://api.certs-1.example.com:6443',
   webConsoleUrl: null,
   description: null,

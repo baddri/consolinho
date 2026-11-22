@@ -53,7 +53,8 @@ export interface ConnectionTestResultViewProps {
  * Full result of one connection test (TEST-2..4), rendering only what the server sent: the overall outcome with its
  * duration, the steps in order ({@link TestStepList}), the facts (Kubernetes version, identity, OpenShift version),
  * the capability headline and grid ({@link CapabilityGrid}), the server's hints as inline alerts with their severity,
- * and — when a namespace was inspected — its rules ({@link NamespaceRulesTable}) in an expandable section.
+ * and the rules of each inspected namespace ({@link NamespaceRulesTable}) in an expandable section — or, for a
+ * namespace that could not be reviewed, the server's message as a plain inline warning (NST-3).
  * Missing parts (a failed test has no capabilities) are simply left out.
  */
 export function ConnectionTestResultView({ result }: ConnectionTestResultViewProps) {
@@ -82,13 +83,19 @@ export function ConnectionTestResultView({ result }: ConnectionTestResultViewPro
           <CapabilityGrid checks={capabilities.checks} />
         </StackItem>
       )}
-      {namespaceRules !== null && (
-        <StackItem>
-          <ExpandableSection toggleText={`Rules in namespace ${namespaceRules.namespace}`}>
-            <NamespaceRulesTable rules={namespaceRules} />
-          </ExpandableSection>
+      {namespaceRules.map((entry) => (
+        <StackItem key={entry.namespace}>
+          {entry.error === null ? (
+            <ExpandableSection toggleText={`Rules in namespace ${entry.namespace}`}>
+              <NamespaceRulesTable rules={entry} />
+            </ExpandableSection>
+          ) : (
+            <Alert variant="warning" isInline isPlain title={`Rules in namespace ${entry.namespace} could not be reviewed`}>
+              {entry.error}
+            </Alert>
+          )}
         </StackItem>
-      )}
+      ))}
     </Stack>
   );
 }

@@ -122,14 +122,18 @@ function TestConnectionForm({
     resolver: zodResolver(testConnectionSchema),
     defaultValues: { credentialId: preselected ?? '', inspectNamespace: '' },
   });
-  const { problem, handleSubmit } = useFormProblem(form);
+  // The single field sends a one-entry list until the chip input lands (T-0150): map the list's keys back onto it.
+  const { problem, handleSubmit } = useFormProblem(form, {
+    fieldMap: { inspectNamespaces: 'inspectNamespace', 'inspectNamespaces[0]': 'inspectNamespace' },
+  });
   const isTesting = form.formState.isSubmitting;
 
   const submit = handleSubmit(async ({ credentialId, inspectNamespace }) => {
     setResult(null);
     setIsCancelled(false);
     try {
-      const tested = await test.mutateAsync({ credentialId, inspectNamespace, signal: cancellation.start() });
+      const inspectNamespaces = inspectNamespace ? [inspectNamespace] : [];
+      const tested = await test.mutateAsync({ credentialId, inspectNamespaces, signal: cancellation.start() });
       setResult(tested);
       const name = credentials.find((credential) => credential.id === credentialId)?.name ?? 'the credential';
       const outcome = tested.succeeded ? 'passed' : 'failed';

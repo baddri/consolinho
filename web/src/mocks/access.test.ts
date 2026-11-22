@@ -73,7 +73,7 @@ describe('mock access guard (contract §1, §2)', () => {
       unwrap(
         apiClient.POST('/api/admin/clusters/{name}/test-token', {
           params: { path: { name: 'prod-eu-1' } },
-          body: { token: 'abc', credentialId: null, inspectNamespace: null },
+          body: { token: 'abc', credentialId: null, inspectNamespaces: null },
         }),
       ),
     );

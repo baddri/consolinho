@@ -87,6 +87,7 @@ describe('Register cluster (CLU-1..3)', () => {
             displayName: null,
             apiUrl: 'https://api.lab-2.example.com:6443',
             environment: 'staging',
+            distribution: 'openShift',
             webConsoleUrl: null,
             description: null,
             caBundle: null,

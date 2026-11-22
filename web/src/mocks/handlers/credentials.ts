@@ -3,7 +3,9 @@ import { actorName, findCluster, findCredential, mockDb, newMockId, recordAudit 
 import {
   connectionTestFor,
   fingerprintOf,
+  type ConnectionTestContext,
   type ConnectionTestScenario,
+  type MockCluster,
   type MockCredential,
   type MockTestRecord,
 } from '../fixtures';
@@ -13,6 +15,7 @@ import { clusterNotFound } from './adminClusters';
 import { http } from './http';
 import { credentialsOfCluster, ordinal, toCredential } from './representations';
 import { PRODUCT_NAME } from '@/shared/branding';
+import { servesProjects } from '../k8s/fixtures';
 
 /** 404 `Credentials.NotFound` (unknown id, or it belongs to another cluster). */
 function credentialNotFound() {
@@ -27,13 +30,41 @@ function bindToken(body: BodyBinder): string {
   return token;
 }
 
-/** Optional `inspectNamespace` (DNS label, ≤ 63). */
-function bindInspectNamespace(body: BodyBinder): string | null {
-  const namespace = body.optionalString('inspectNamespace');
-  if (namespace !== null && (namespace.length > 63 || !DNS_LABEL.test(namespace))) {
-    body.error('inspectNamespace', 'Enter a valid namespace name.');
+/** Up to 10 namespaces per test (NST-1). */
+const MAX_INSPECT_NAMESPACES = 10;
+/** Most per-entry errors reported for `inspectNamespaces`, as in the Api. */
+const MAX_ENTRY_ERRORS = 10;
+
+/**
+ * Optional `inspectNamespaces` (NST-1/2), normalised like the Api's `InspectNamespaces`: each entry trimmed and a DNS
+ * label ≤ 63 (error on `inspectNamespaces[i]`, i = input index, naming the entry), duplicates dropped (first wins),
+ * then at most 10 (error on `inspectNamespaces`). Absent/`null` → `[]`.
+ */
+function bindInspectNamespaces(body: BodyBinder): string[] {
+  const namespaces: string[] = [];
+  let entryErrors = 0;
+  body.stringArray('inspectNamespaces').forEach((raw, index) => {
+    const namespace = raw.trim();
+    if (namespace.length > 63 || !DNS_LABEL.test(namespace)) {
+      // Like the Api (`InspectNamespaces.MaxEntryErrors`): report at most 10 bad entries.
+      if (++entryErrors > MAX_ENTRY_ERRORS) return;
+      body.error(
+        `inspectNamespaces[${index}]`,
+        `'${namespace}' is not a valid namespace name: at most 63 characters: lowercase letters, digits and '-', starting and ending with a letter or digit.`,
+      );
+    } else if (!namespaces.includes(namespace)) {
+      namespaces.push(namespace);
+    }
+  });
+  if (namespaces.length > MAX_INSPECT_NAMESPACES) {
+    body.error('inspectNamespaces', `Enter at most ${MAX_INSPECT_NAMESPACES} namespaces.`);
   }
-  return namespace;
+  return namespaces;
+}
+
+/** The test context of `cluster`: declared vs. served distribution (DIST-7/8) and the namespaces to inspect. */
+function testContext(cluster: MockCluster, inspectNamespaces: readonly string[]): ConnectionTestContext {
+  return { declared: cluster.distribution, servesOpenShift: servesProjects(cluster.name), inspectNamespaces };
 }
 
 /** Token-derived credential fields, decoding the JWT payload the way the Api does (no signature check). */
@@ -173,10 +204,10 @@ export const credentialHandlers = [
       if (description !== null && description.length > 1000) {
         body.error('description', 'Description must be at most 1000 characters.');
       }
-      return { name, description, token: bindToken(body) };
+      return { name, description, token: bindToken(body), inspectNamespaces: bindInspectNamespaces(body) };
     });
     if (bound.error) return bound.error;
-    const { name, description, token } = bound.value;
+    const { name, description, token, inspectNamespaces } = bound.value;
     if (!findCluster(params.name)) return clusterNotFound(params.name);
     if (mockDb.credentials.some((c) => c.clusterName === params.name && c.name === name)) {
       return problem(409, {
@@ -192,6 +223,7 @@ export const credentialHandlers = [
       clusterName: params.name,
       name,
       description,
+      inspectNamespaces,
       createdAt: now,
       createdBy: actorName(),
       rotatedAt: null,
@@ -209,6 +241,7 @@ export const credentialHandlers = [
         fingerprint: credential.fingerprint,
         tokenType: credential.tokenType,
         serviceAccount: credential.serviceAccount,
+        inspectNamespaces,
       },
     );
     return response(201).json(toCredential(credential), {
@@ -274,16 +307,20 @@ export const credentialHandlers = [
   http.post(
     '/api/admin/clusters/{name}/credentials/{credentialId}/test',
     async ({ params, request, response }) => {
-      const bound = await bindBody(request, (body) => bindInspectNamespace(body));
+      const bound = await bindBody(request, (body) => bindInspectNamespaces(body));
       if (bound.error) return bound.error;
-      const inspectNamespace = bound.value;
-      if (!findCluster(params.name)) return clusterNotFound(params.name);
+      const inspectNamespaces = bound.value;
+      const cluster = findCluster(params.name);
+      if (!cluster) return clusterNotFound(params.name);
       const credential = findCredential(params.credentialId, params.name);
       if (!credential) return credentialNotFound();
 
-      const canned = connectionTestFor(credential.testScenario, credential.serviceAccount, inspectNamespace);
+      const context = testContext(cluster, inspectNamespaces);
+      const canned = connectionTestFor(credential.testScenario, credential.serviceAccount, context);
       const result = { ...canned, hints: hintsFor(canned, credential) };
       credential.lastTest = toTestRecord(result);
+      // NST-5: the tested list replaces the saved one (an empty list clears it), with the test record.
+      credential.inspectNamespaces = inspectNamespaces;
       auditCredential(
         credential,
         'credential.tested',
@@ -292,6 +329,7 @@ export const credentialHandlers = [
           succeeded: result.succeeded,
           failedStep: credential.lastTest.failedStep,
           headline: credential.lastTest.headline,
+          inspectNamespaces,
         },
       );
       return response(200).json(result);
@@ -303,22 +341,26 @@ export const credentialHandlers = [
     // Validation first (the credential must belong to the route's cluster), then the route's 404 — the Api order.
     const bound = await bindBody(request, (body) => {
       const token = bindToken(body);
-      const inspectNamespace = bindInspectNamespace(body);
+      const inspectNamespaces = bindInspectNamespaces(body);
       const credentialId = body.optionalString('credentialId');
       const credential = credentialId === null ? undefined : findCredential(credentialId);
       if (credentialId !== null && !credential) body.error('credentialId', "Credential doesn't exist.");
       if (credential && credential.clusterName !== params.name) {
         body.error('credentialId', 'This credential belongs to another cluster.');
       }
-      return { token, inspectNamespace, credential };
+      return { token, inspectNamespaces, credential };
     });
     if (bound.error) return bound.error;
-    const { token, inspectNamespace, credential } = bound.value;
+    const { token, inspectNamespaces, credential } = bound.value;
     const cluster = findCluster(params.name);
     if (!cluster) return clusterNotFound(params.name);
 
     const facts = inspectToken(token);
-    const canned = connectionTestFor(scenarioForToken(token), facts.serviceAccount, inspectNamespace);
+    const canned = connectionTestFor(
+      scenarioForToken(token),
+      facts.serviceAccount,
+      testContext(cluster, inspectNamespaces),
+    );
     const result = { ...canned, hints: hintsFor(canned, credential) };
     const record = toTestRecord(result);
     recordAudit({
@@ -334,6 +376,7 @@ export const credentialHandlers = [
         failedStep: record.failedStep,
         headline: record.headline,
         fingerprint: facts.fingerprint,
+        inspectNamespaces,
       },
     });
     return response(200).json(result);

@@ -24,6 +24,7 @@ describe('ConnectionTestResultView (T-0038)', () => {
       ['Failed', 'Reachability: Certificate signed by unknown authority — add the cluster CA bundle'],
       ['Skipped', 'Authentication: Skipped because an earlier step failed'],
       ['Skipped', 'Identity: Skipped because an earlier step failed'],
+      ['Skipped', 'Distribution: Skipped because an earlier step failed'],
       ['Skipped', 'OpenShift version: Skipped because an earlier step failed'],
       ['Skipped', 'Capabilities: Skipped because an earlier step failed'],
     ]);
@@ -33,7 +34,7 @@ describe('ConnectionTestResultView (T-0038)', () => {
   it('TEST-2/3: a passing result shows the warning step, facts, headline and grouped capabilities', () => {
     render(<ConnectionTestResultView result={connectionTestPassed} />);
     expect(screen.getByText('Connection test passed in 412 ms')).toBeInTheDocument();
-    expect(stepsOf().map(([icon]) => icon)).toEqual(['Passed', 'Passed', 'Passed', 'Warning', 'Passed']);
+    expect(stepsOf().map(([icon]) => icon)).toEqual(['Passed', 'Passed', 'Passed', 'Passed', 'Warning', 'Passed']);
     const facts = screen.getByLabelText('Cluster facts', { selector: 'dl' });
     expect(facts).toHaveTextContent('Kubernetes versionv1.31.4');
     expect(facts).toHaveTextContent('system:serviceaccount:fleetconsole:fleet-view');
@@ -90,16 +91,28 @@ describe('ConnectionTestResultView (T-0038)', () => {
 
   it('TEST-3 inspect: namespace rules expand into a table; incomplete lists and evaluation errors warn', async () => {
     const user = userEvent.setup();
-    const rules = connectionTestWithNamespaceRules.namespaceRules;
+    const [rules] = connectionTestWithNamespaceRules.namespaceRules;
     if (!rules) throw new Error('fixture without rules');
     render(
       <ConnectionTestResultView
         result={{
           ...connectionTestWithNamespaceRules,
-          namespaceRules: { ...rules, incomplete: true, evaluationError: 'webhook authorizer timed out' },
+          namespaceRules: [
+            { ...rules, incomplete: true, evaluationError: 'webhook authorizer timed out' },
+            {
+              namespace: 'forbidden-ns',
+              incomplete: false,
+              evaluationError: null,
+              rules: null,
+              error: 'Access denied (403)',
+              failureKind: 'forbidden',
+            },
+          ],
         }}
       />,
     );
+    expect(screen.getByText('Rules in namespace forbidden-ns could not be reviewed')).toBeInTheDocument();
+    expect(screen.getByText('Access denied (403)')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Rules in namespace payments' }));
     const table = screen.getByRole('grid', { name: 'Rules in namespace payments' });
     const rows = within(table).getAllByRole('row').slice(1);

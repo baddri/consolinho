@@ -13,6 +13,7 @@ const cluster = (name: string, environment: AccessibleCluster['environment'] = '
   name,
   displayName: name,
   environment,
+  distribution: 'openShift',
   accessMode: 'readWrite',
   webConsoleUrl: null,
 });

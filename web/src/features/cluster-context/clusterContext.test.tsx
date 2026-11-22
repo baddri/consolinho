@@ -14,10 +14,11 @@ const recentKey = (username: string) => `fleetconsole.recentClusters.${username}
 
 /** Grants the current user every fixture cluster (incl. the disabled dev-2), read-write, in fixture order. */
 function grantAllClusters() {
-  const all: AccessibleCluster[] = mockDb.clusters.map(({ name, displayName, environment }) => ({
+  const all: AccessibleCluster[] = mockDb.clusters.map(({ name, displayName, environment, distribution }) => ({
     name,
     displayName,
     environment,
+    distribution,
     accessMode: 'readWrite',
     webConsoleUrl: null,
   }));

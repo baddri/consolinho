@@ -557,6 +557,8 @@ export interface components {
             displayName: string;
             /** @description The environment. */
             environment: components["schemas"]["ClusterEnvironment"];
+            /** @description The declared distribution (OpenShift or Kubernetes): drives the OCP/K8s tag and theme only. */
+            distribution: components["schemas"]["ClusterDistribution"];
             /** @description The effective access mode: readOnly if the grant is read-only or the user is globally read-only. */
             accessMode: components["schemas"]["AccessMode"];
             /** @description The cluster's own web console, if configured. */
@@ -576,6 +578,8 @@ export interface components {
             description: null | string;
             /** @description The ServiceAccount token. Surrounding whitespace is trimmed; then it must be non-empty, at most 16384 characters, printable ASCII without spaces or line breaks. JWT and opaque tokens are accepted. */
             token: string;
+            /** @description Optional namespaces (up to 10) the connection test lists the token's rules in; saved on the credential. */
+            inspectNamespaces?: null | string[];
         };
         /**
          * @description Coarse grouping of audit entries for the audit-log filter (AUD-4). Derived from the action prefix by
@@ -715,6 +719,8 @@ export interface components {
             displayName: string;
             /** @description Production, staging or development. */
             environment: components["schemas"]["ClusterEnvironment"];
+            /** @description The declared distribution (OpenShift or Kubernetes); presentation only. */
+            distribution: components["schemas"]["ClusterDistribution"];
             /** @description The API server URL (https, host and port, no trailing slash). */
             apiUrl: string;
             /** @description Link to the cluster's own web console, or null. */
@@ -767,6 +773,13 @@ export interface components {
             version: number;
         };
         /**
+         * @description The admin-declared Kubernetes distribution of a cluster (CP3.7 DIST-1). Presentation only (ADR-0032): it drives the
+         *     `OCP`/`K8s` tag and the theme in the SPA, while feature availability is still decided by the cluster's own
+         *     API discovery. Serialized as camelCase JSON strings and stored by name.
+         * @enum {string}
+         */
+        ClusterDistribution: "openShift" | "kubernetes";
+        /**
          * @description The fixed environment classification of a cluster (Q5). Drives the coloured environment label in the switcher and
          *     admin pages and the production warnings (CLU-3, GRANT-2). Serialized as camelCase JSON strings.
          * @enum {string}
@@ -787,6 +800,8 @@ export interface components {
             displayName: string;
             /** @description Production, staging or development. */
             environment: components["schemas"]["ClusterEnvironment"];
+            /** @description The declared distribution (OpenShift or Kubernetes); presentation only. */
+            distribution: components["schemas"]["ClusterDistribution"];
             /** @description The API server URL (https, host and port, no trailing slash). */
             apiUrl: string;
             /** @description Whether granted users see and can use the cluster. */
@@ -827,7 +842,7 @@ export interface components {
             message: string;
         };
         /**
-         * @description The full result of one connection test (TEST-2..4, contract §8.5): the five steps in order, what the cluster told us,
+         * @description The full result of one connection test (TEST-2..4, contract §8.5): the six steps in order, what the cluster told us,
          *     the capability summary and the grant-mode hints. Returned by `TestCredential` and `TestToken`; only its
          *     summary (ConnectionTestSummary) is ever stored (TEST-5).
          */
@@ -844,19 +859,25 @@ export interface components {
              * @description How long the test took, in milliseconds.
              */
             durationMs: number;
-            /** @description Always all five steps, in execution order; steps after a failed one are skipped. */
+            /** @description Always all six steps, in execution order; steps after a failed one are skipped. */
             steps: components["schemas"]["ConnectionTestStepResult"][];
             /** @description The API server's gitVersion (e.g. v1.31.4), when the version endpoint answered. */
             kubernetesVersion: null | string;
             identity: null | components["schemas"]["ClusterIdentity"];
             openShiftVersion: null | components["schemas"]["OpenShiftVersion"];
+            detectedDistribution: null | components["schemas"]["ClusterDistribution"];
             capabilities: null | components["schemas"]["CapabilitySummary"];
-            namespaceRules: null | components["schemas"]["NamespaceRules"];
+            /**
+             * @description One entry per requested namespace, in the (normalised) request order (NST-3); each holds
+             *                 either the token's rules there or why they could not be reviewed. Never null: empty when no namespaces were given or
+             *                 the capabilities step did not complete.
+             */
+            namespaceRules: components["schemas"]["NamespaceRules"][];
             /** @description Advice about the credential's grants (TEST-4); empty when there is nothing to say. */
             hints: components["schemas"]["ConnectionTestHint"][];
         };
         /** @enum {string} */
-        ConnectionTestStep: "reachability" | "authentication" | "identity" | "openShiftVersion" | "capabilities";
+        ConnectionTestStep: "reachability" | "authentication" | "identity" | "openShiftVersion" | "capabilities" | "distribution";
         /** @description The outcome of one connection test step. */
         ConnectionTestStepResult: {
             /** @description The step. */
@@ -937,6 +958,8 @@ export interface components {
             name: string;
             /** @description Optional description. */
             description: null | string;
+            /** @description The namespaces the connection test lists the token's access rules in, as last saved (when adding or by the last test); empty when none. */
+            inspectNamespaces: string[];
             /** @description Short identifier of the current token: the first 8 lowercase hex characters of its SHA-256. */
             fingerprint: string;
             /** @description Whether the token is a JWT (identity and expiry known) or opaque (unknown). */
@@ -1105,16 +1128,24 @@ export interface components {
          */
         IdentitySource: "selfSubjectReview" | "tokenSubject";
         JsonElement: unknown;
-        /** @description The token's access rules in one namespace (a SelfSubjectRulesReview). */
+        /**
+         * @description The token's access rules in one inspected namespace (a SelfSubjectRulesReview), or why they could not be reviewed
+         *     (NST-3). <b>Exactly one of IReadOnlyList&lt;ResourceRuleDto&gt;? NamespaceRulesDto.Rules and string? NamespaceRulesDto.Error is non-null</b>; this holds by construction
+         *     because instances are only made through the NamespaceRulesDto NamespaceRulesDto.Reviewed(string @namespace, bool incomplete, string? evaluationError, IReadOnlyList&lt;ResourceRuleDto&gt; rules) and `Failed` factories. One failed namespace never
+         *     fails the others or the test.
+         */
         NamespaceRules: {
             /** @description The inspected namespace. */
             namespace: string;
-            /** @description True when the cluster could not evaluate all rules (e.g. an authorizer that can't list them). */
+            /** @description True when the cluster could not evaluate all rules; always false when string? NamespaceRulesDto.Error is set. */
             incomplete: boolean;
-            /** @description The cluster's explanation when the list is incomplete. */
+            /** @description The cluster's explanation when the list is incomplete; null when string? NamespaceRulesDto.Error is set. */
             evaluationError: null | string;
-            /** @description The resource rules. */
-            rules: components["schemas"]["ResourceRule"][];
+            /** @description The resource rules when the review succeeded; null exactly when string? NamespaceRulesDto.Error is set. */
+            rules: null | components["schemas"]["ResourceRule"][];
+            /** @description Why the rules could not be reviewed, shown verbatim; null exactly when IReadOnlyList&lt;ResourceRuleDto&gt;? NamespaceRulesDto.Rules is set. */
+            error: null | string;
+            failureKind: null | components["schemas"]["ProbeFailureKind"];
         };
         /** @description The cluster's OpenShift version from its ClusterVersion resource. */
         OpenShiftVersion: {
@@ -1147,6 +1178,7 @@ export interface components {
             apiUrl: string;
             /** @description The cluster's environment (required). */
             environment: components["schemas"]["ClusterEnvironment"];
+            distribution: null | components["schemas"]["ClusterDistribution"];
             /** @description Optional absolute https link to the cluster's web console, at most 2048 characters. */
             webConsoleUrl: null | string;
             /** @description Optional description, at most 1000 characters. */
@@ -1201,8 +1233,12 @@ export interface components {
         };
         /** @description Runs a connection test of a stored credential. */
         TestCredentialRequest: {
-            /** @description Optional namespace to list the credential's access rules in (a DNS label, at most 63 characters). Empty means none. */
-            inspectNamespace: null | string;
+            /**
+             * @description Namespaces to list the credential's access rules in: at most 10 DNS labels (at most 63
+             *         characters each); entries are trimmed and duplicates dropped. Null or missing means none. The list replaces the
+             *         credential's saved inspect namespaces (an empty list clears them).
+             */
+            inspectNamespaces: null | string[];
         };
         /** @description Runs a connection test of a token that is not stored. Nothing is saved except an audit entry with the token's fingerprint. */
         TestTokenRequest: {
@@ -1213,8 +1249,11 @@ export interface components {
              * @description Optional: the credential of this cluster whose token is being replaced; its grants produce the access-mode hints.
              */
             credentialId: null | string;
-            /** @description Optional namespace to list the token's access rules in (a DNS label, at most 63 characters). Empty means none. */
-            inspectNamespace: null | string;
+            /**
+             * @description Namespaces to list the token's access rules in: at most 10 DNS labels (at most 63
+             *         characters each); entries are trimmed and duplicates dropped. Null or missing means none. Not saved anywhere.
+             */
+            inspectNamespaces: null | string[];
         };
         /**
          * @description What kind of token a credential holds, as detected when it was added or rotated (CRED-3).
@@ -1229,6 +1268,7 @@ export interface components {
             apiUrl: string;
             /** @description The cluster's environment (required). */
             environment: components["schemas"]["ClusterEnvironment"];
+            distribution: null | components["schemas"]["ClusterDistribution"];
             /** @description Optional absolute https link to the cluster's web console; blank removes it. */
             webConsoleUrl: null | string;
             /** @description Optional description, at most 1000 characters; blank removes it. */

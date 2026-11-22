@@ -111,7 +111,7 @@ describe('Connection test (T-0038)', () => {
       expect(requests).toEqual([
         {
           path: `/api/admin/clusters/prod-eu-1/credentials/${credentialIds.prodEuView}/test`,
-          body: { inspectNamespace: null },
+          body: { inspectNamespaces: [] },
           csrf: '1',
         },
       ]);
@@ -185,7 +185,7 @@ describe('Connection test (T-0038)', () => {
 
     server.use(
       http.post('/api/admin/clusters/{name}/credentials/{credentialId}/test', () =>
-        validationProblem({ inspectNamespace: ['Namespace does not exist.'] }),
+        validationProblem({ 'inspectNamespaces[0]': ['Namespace does not exist.'] }),
       ),
     );
     await user.clear(namespace);
@@ -277,7 +277,7 @@ describe('Connection test (T-0038)', () => {
     expect(requests).toEqual([
       {
         path: '/api/admin/clusters/prod-eu-1/test-token',
-        body: { token: FAILING_TOKEN, credentialId: credentialIds.prodEuEdit, inspectNamespace: null },
+        body: { token: FAILING_TOKEN, credentialId: credentialIds.prodEuEdit, inspectNamespaces: [] },
         csrf: '1',
       },
     ]);

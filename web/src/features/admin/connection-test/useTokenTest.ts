@@ -36,7 +36,7 @@ export function useTokenTest(clusterName: string, credentialId: string | null): 
       setIsCancelled(false);
       setIsTesting(true);
       try {
-        setResult(await testToken({ token, credentialId, inspectNamespace: null, signal: cancellation.start() }));
+        setResult(await testToken({ token, credentialId, inspectNamespaces: [], signal: cancellation.start() }));
       } catch (error) {
         if (!isAbortError(error)) throw error;
       } finally {

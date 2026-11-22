@@ -76,6 +76,8 @@ export const clusterFormSchema = z
       .trim()
       .max(MAX_DISPLAY_NAME, `Display name must be at most ${MAX_DISPLAY_NAME} characters long.`),
     environment: z.string().pipe(z.enum(CLUSTER_ENVIRONMENTS, 'Choose production, staging or development.')),
+    // No field yet: T-0148 adds the "Distribution" radio; until then create sends OpenShift and edit keeps the value.
+    distribution: z.enum(['openShift', 'kubernetes']),
     description: z
       .string()
       .trim()
@@ -117,6 +119,7 @@ export const REGISTER_CLUSTER_DEFAULTS: ClusterFormInput = {
   name: '',
   displayName: '',
   environment: '',
+  distribution: 'openShift',
   description: '',
   apiUrl: '',
   caBundle: '',
@@ -132,6 +135,7 @@ export function toClusterFormInput(cluster: ClusterDetail): ClusterFormInput {
     name: cluster.name,
     displayName: cluster.displayName,
     environment: cluster.environment,
+    distribution: cluster.distribution,
     description: cluster.description ?? '',
     apiUrl: cluster.apiUrl,
     caBundle: cluster.caBundle ?? '',
@@ -151,6 +155,7 @@ function settingsOf(values: ClusterFormValues) {
     displayName: orNull(values.displayName),
     apiUrl: values.apiUrl,
     environment: values.environment,
+    distribution: values.distribution,
     webConsoleUrl: orNull(values.webConsoleUrl),
     description: orNull(values.description),
     caBundle: orNull(values.caBundle),

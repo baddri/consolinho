@@ -7,6 +7,7 @@ export const TEST_STEP_LABELS: Record<ConnectionTestStep, string> = {
   reachability: 'Reachability',
   authentication: 'Authentication',
   identity: 'Identity',
+  distribution: 'Distribution',
   openShiftVersion: 'OpenShift version',
   capabilities: 'Capabilities',
 };

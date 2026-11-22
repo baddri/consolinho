@@ -11,13 +11,16 @@ export const FAKE_CA_BUNDLE = [
 /**
  * Clusters of the mock backend: two production clusters (`prod-eu-1` with a CA bundle, `prod-us-1` on system trust),
  * `staging-eu-1` with skip-TLS (its connection settings changed after the last test → stale summary), `dev-1`,
- * `dev-2` (disabled) and `lab-1` (no credentials yet).
+ * `dev-2` (disabled) and `lab-1` (no credentials yet). `lab-1` is declared Kubernetes and serves no OpenShift APIs
+ * (`k8s/fixtures.ts:VANILLA_CLUSTERS`); `dev-2` is declared Kubernetes but serves OpenShift APIs — the DIST-5 mismatch
+ * demo (discovery wins, ADR-0032).
  */
 export const clusterFixtures: readonly MockCluster[] = [
   {
     name: 'prod-eu-1',
     displayName: 'Production EU 1',
     environment: 'production',
+    distribution: 'openShift',
     apiUrl: 'https://api.prod-eu-1.example.com:6443',
     webConsoleUrl: 'https://console-openshift-console.apps.prod-eu-1.example.com',
     description: 'Customer-facing workloads, Frankfurt.',
@@ -35,6 +38,7 @@ export const clusterFixtures: readonly MockCluster[] = [
     name: 'prod-us-1',
     displayName: 'Production US 1',
     environment: 'production',
+    distribution: 'openShift',
     apiUrl: 'https://api.prod-us-1.example.com:6443',
     webConsoleUrl: 'https://console-openshift-console.apps.prod-us-1.example.com',
     description: null,
@@ -52,6 +56,7 @@ export const clusterFixtures: readonly MockCluster[] = [
     name: 'staging-eu-1',
     displayName: 'Staging EU 1',
     environment: 'staging',
+    distribution: 'openShift',
     apiUrl: 'https://api.staging-eu-1.example.com:6443',
     webConsoleUrl: null,
     description: 'Pre-production; self-signed certificate.',
@@ -69,6 +74,7 @@ export const clusterFixtures: readonly MockCluster[] = [
     name: 'dev-1',
     displayName: 'Development 1',
     environment: 'development',
+    distribution: 'openShift',
     apiUrl: 'https://api.dev-1.example.com:6443',
     webConsoleUrl: 'https://console-openshift-console.apps.dev-1.example.com',
     description: null,
@@ -86,6 +92,7 @@ export const clusterFixtures: readonly MockCluster[] = [
     name: 'dev-2',
     displayName: 'Development 2',
     environment: 'development',
+    distribution: 'kubernetes',
     apiUrl: 'https://api.dev-2.example.com:6443',
     webConsoleUrl: null,
     description: 'Being decommissioned.',
@@ -103,6 +110,7 @@ export const clusterFixtures: readonly MockCluster[] = [
     name: 'lab-1',
     displayName: 'Lab 1',
     environment: 'development',
+    distribution: 'kubernetes',
     apiUrl: 'https://api.lab-1.example.com:6443',
     webConsoleUrl: null,
     description: null,
