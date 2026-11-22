@@ -60,7 +60,7 @@ async function findRow(name: string): Promise<HTMLElement> {
 
 async function openKebab(user: UserEvent, name: string): Promise<HTMLElement> {
   await user.click(within(await findRow(name)).getByRole('button', { name: 'Kebab toggle' }));
-  return screen.findByRole('menuitem', { name: 'Delete' });
+  return screen.findByRole('menuitem', { name: 'Delete Pod' });
 }
 
 /**
@@ -208,7 +208,7 @@ describe('resource actions (UI-8)', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
     );
-    const del = screen.getByRole('menuitem', { name: 'Delete' });
+    const del = screen.getByRole('menuitem', { name: 'Delete Pod' });
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     const dialog = await screen.findByRole('dialog');
@@ -238,7 +238,7 @@ describe('resource actions (UI-8)', () => {
     await user.click(
       await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
     );
-    const del = screen.getByRole('menuitem', { name: 'Delete' });
+    const del = screen.getByRole('menuitem', { name: 'Delete Pod' });
     await waitFor(() => expect(del).not.toHaveAttribute('aria-disabled', 'true'));
     await user.click(del);
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
@@ -249,11 +249,22 @@ describe('resource actions (UI-8)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
-  it('Edit YAML opens the YAML tab', async () => {
+  it('words the items as OCP: "Edit <Kind>", "Delete <Kind>", in order and in normal colour', async () => {
+    const { user } = renderApp(`${POD_LIST}/${POD}`);
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
+    );
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual(['Edit Pod', 'Delete Pod']);
+    for (const item of items) expect(item.closest('li')).not.toHaveClass('pf-m-danger');
+  });
+
+  it('Edit Pod opens the YAML tab', async () => {
     const { user, router } = renderApp(POD_LIST);
 
     await user.click(within(await findRow(POD)).getByRole('button', { name: 'Kebab toggle' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Edit YAML' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit Pod' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`${POD_LIST}/${POD}/yaml`));
   });

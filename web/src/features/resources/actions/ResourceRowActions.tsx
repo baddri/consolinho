@@ -11,8 +11,8 @@ export interface ResourceRowActionsProps {
 }
 
 /**
- * The kebab of a resource list row (UI-8; the list's data view renders the sticky action cell around it): Edit YAML
- * and Delete from `useResourceActions`. The access check is namespace-level (no name), so rows of one namespace share
+ * The kebab of a resource list row (UI-8; the list's data view renders the sticky action cell around it): Edit <Kind>
+ * and Delete <Kind> from `useResourceActions`. The access check is namespace-level (no name), so rows of one namespace share
  * a single SelfSubjectAccessReview, and only rendered (current page) rows mount it. After a delete the list's watch
  * removes the row.
  */

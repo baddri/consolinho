@@ -44,12 +44,11 @@ export function ResourceActionsMenu({ cluster, descriptor, namespace, name }: Re
         )}
       >
         <DropdownList>
-          {items.map(({ itemKey, title, onClick, isDanger, isAriaDisabled, tooltipProps }) => (
+          {items.map(({ itemKey, title, onClick, isAriaDisabled, tooltipProps }) => (
             <DropdownItem
               key={itemKey}
               value={itemKey}
               onClick={onClick}
-              isDanger={isDanger}
               isAriaDisabled={isAriaDisabled}
               tooltipProps={tooltipProps}
             >
