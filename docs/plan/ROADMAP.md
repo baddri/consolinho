@@ -75,7 +75,7 @@ star", UX.md §0). Run by the `ux-designer`, which also writes the spec, so this
 3. Turn the gaps into FE tasks by area, then BUILD with the usual architect + ux reviews.
 Done when every row is `match` (or the human explicitly waives the row) and the PO accepts.
 
-## CP3.7 — Fleet foundations (before CP4)
+## CP3.7 — Fleet foundations (before CP4) — DONE (tag cp-3.7)
 Human directive (2026-11-23). Shell and data changes that every CP4/CP5 page builds on, so they land first:
 1. Switcher: display name as the main text (name underneath); cluster-type icon + text tag `OCP`/`K8s` (no
    OpenShift/Kubernetes logos); "Read only" only in the menu items, not on the toggle (keep it in the toggle's aria-label).
@@ -96,6 +96,9 @@ Pods (logs with follow/container select/download, exec terminal via WebSocket, d
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
 (trigger now, suspend), ConfigMaps/Secrets (reveal with confirm, edit), HPA. Search across kinds by label.
 (CP3.6 ACCEPT) Cluster OpenAPI definitions via the proxy, feeding the YAML schema sidebar and the details field-help popovers (T-0133); Deployment ring scale buttons.
+(CP3.7 ACCEPT, `docs/specs/CP3.7-acceptance.md`) First task: mock `prod-k8s-1` (Kubernetes, production, read-only for alice). F1: switcher
+menu item must not truncate the display name to one letter when 3 labels show. F2: ux-designer checks the production band
+under the navy masthead (light + dark). FE: drop `NamespaceRulesResult` alias + `testResultBody` cast after gen:api (T-0154).
 
 ## CP5 — Networking, storage, compute & cluster overview
 Services, Routes (with link-out), Ingresses, NetworkPolicies; PVCs, PVs, StorageClasses; Nodes (cordon/drain view,
@@ -117,7 +120,7 @@ on one page.
 ## CP5.5 — Kubernetes clusters
 Onboard plain Kubernetes clusters on the CP3.7 prep: namespaces vs Projects (namespace picker fallback from the credential's
 saved namespaces), per-distribution sidebar from discovery, Kubernetes-only kinds where needed, local kind cluster on podman
-for dev and e2e.
+for dev and e2e. (CP3.7 ACCEPT) Connection-test summary hides "OpenShift version" and "List cluster operators" on Kubernetes.
 
 ## CP6 — Hardening, observability & polish
 Caching of discovery (access caching moved to CP4.5), rate limiting, security review pass, OpenTelemetry

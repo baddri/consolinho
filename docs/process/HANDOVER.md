@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP3.7 — Fleet foundations (BUILD) ·
-**Branch:** `main` (CP3.7 work goes on `cp/3.7-fleet-foundations`)
+**Last updated:** 2026-11-23 (CP3.7 CLOSED) · **Current checkpoint:** CP4 — Workloads day-2 (SPEC) ·
+**Branch:** `main` (CP4 work goes on `cp/4-workloads`)
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -16,13 +16,9 @@
 
 ## Next actions (resume here)
 - **Human approval (2026-11-23):** after CP3.7 closes (merge + tag), continue straight into **CP4** without stopping to report; still report CP3.7 delivery in the session summary.
-- **CP3.7 BUILD (2026-11-23):** spec `docs/specs/CP3.7-fleet-foundations.md` (Q1 decided: one-line toggle), ADRs
-  0032–0035, UX.md §2a (K8s navy theme), tasks BE T-0139→T-0142 (sequential), FE T-0144…T-0151 (deps in frontmatter;
-  T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3), T-0140 (84ca7f2), T-0141 (716b5d7), T-0145 (81dc55c), T-0142 (300542f), T-0153 (54ba309), T-0154 (e618e38, OpenAPI nullability), T-0146 (85f4ef6), T-0148 (a92a6b5; shared RadioGroupField inline fix). T-0147 (9f8eadf; adds lab-1 mock credential + grants), T-0150 (5155a3f; ChipInputField, applyServerErrors `listFields`), T-0151 (f82cc62; staging-eu-1 fleet-admin mock has a saved list). T-0149 (19d1aac; navy K8s masthead, UX.md §2a PF-internals list). T-0152 (8d314ee; menu popper width trigger). Next: VERIFY (qa-engineer, incl. e2e H3–H5 with Aspire). Then FE cleanup of T-0154 alias after gen:api. Follow-ups filed: T-0152 menu width, T-0153 switcher keyboard nav (design first; before VERIFY).
-- **CP3.7 scope (human, 2026-11-23)** — ROADMAP §CP3.7 holds the decided scope (switcher display name/type tag, read-only
-  off the toggle, `Cluster.Distribution` + discovery gating, Fleet perspective, K8s masthead theme, multi-namespace token
-  test, 4 ADRs). SPEC with `ocp-product-owner` + `ux-designer` (theme values). Groups + cache decided for CP4.5, K8s
-  onboarding CP5.5 (ROADMAP). Then CP4 as below.
+- **CP3.7 DONE** (tag cp-3.7, merged to main): T-0139…T-0154; QA PASS 40/40 (`docs/specs/CP3.7-verify.md`; BE 1830,
+  FE 891, e2e 10/10); PO ACCEPT WITH FOLLOW-UPS (`docs/specs/CP3.7-acceptance.md`, in ROADMAP §CP4/§CP5.5).
+- **CP4 next:** SPEC with `ocp-product-owner` on branch `cp/4-workloads` (item 1 below + CP3.7 follow-ups in ROADMAP §CP4).
 0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
    `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
    waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +
