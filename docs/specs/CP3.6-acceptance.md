@@ -1,7 +1,9 @@
 # CP3.6 acceptance — OCP parity (product owner, 2026-11-22, branch `cp/3.6-ocp-parity`)
 
 **Verdict: ACCEPT WITH FOLLOW-UPS**, on two conditions: (1) T-0132 lands (in progress) and (2) one new blocker,
-**B1**, is fixed. Then the human records the waivers below. QA input: `docs/specs/CP3.6-verify.md` (PASS WITH FOLLOW-UPS).
+**B1**, is fixed. Then the human records the waivers below.
+
+**Human decision (2026-11-22):** B1 fixed by T-0135, T-0132 and T-0136 landed; **W1–W5 accepted as proposed** (W2 waived for good, W1/W3/W4 → CP4, W5 → CP4/CP5 scope). CP3.6 closed. QA input: `docs/specs/CP3.6-verify.md` (PASS WITH FOLLOW-UPS).
 
 ## Walk-through (mock UI 1280 light vs reference `127.0.0.1:9000`, browse only; delete dialogs opened and cancelled on ours only)
 | Flow | Verdict | Evidence |

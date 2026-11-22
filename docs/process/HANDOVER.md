@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-22 (CP3.6 BUILD done) · **Current checkpoint:** CP3.6 — OCP parity (BUILD; CP4 after it) ·
-**Branch:** `cp/3.6-ocp-parity`
+**Last updated:** 2026-11-22 (CP3.6 CLOSED) · **Current checkpoint:** CP4 — Workloads day-2 (SPEC next) ·
+**Branch:** `main` (CP4 work goes on `cp/4-workloads`)
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -15,17 +15,18 @@
   ADR-0031. Every FE task now gets frontend-architect (code) + ux-designer (visual) review.
 
 ## Next actions (resume here)
-0. **CP3.6 OCP parity** (ROADMAP §CP3.6), branch `cp/3.6-ocp-parity`. Look = OpenShift glass + felt (human, 2026-11-22).
-   Matrix `docs/architecture/ocp-parity.md`; tasks T-0119…T-0127. Done: T-0119 (shell), T-0120 (prefs + favourites),
-   T-0121 (lists: shared `ConsoleDataView` on react-data-view), T-0122 (details) + T-0129 (Timestamp, owner links), T-0123 (YAML), T-0124 (events), T-0125 (forms/errors), T-0126 (admin), T-0127, T-0131.
-   Next: VERIFY (qa-engineer), ACCEPT (ocp-product-owner), CLOSE.
-   Each FE task: engineer → frontend-architect (code) + ux-designer (visual, against `scripts/ocp-ref`) in parallel.
-   Reference console must be running (`scripts/ocp-ref/run-console.sh`, needs live `oc login`). CP4 waits.
-1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0118 (CP3.5 UX
+0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
+   `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
+   waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +
+   ux-designer (visual, against `scripts/ocp-ref`) in parallel; only the architect runs `check-fe.sh`.
+1. CP4 (ROADMAP §CP4): SPEC step with `ocp-product-owner`, branch `cp/4-workloads`. Fold in T-0133 (field-help +
+   ring scale, W3/W4), one cluster-OpenAPI capability (YAML schema sidebar W1 + field help), "Edit <Kind>" form editors,
+   kind-specific actions, Search page (list labels link to it then; today they link to the filtered list),
+   shared `?label=` path helper (T-0136 nit), `itemKey 'edit-yaml'`→`'edit'` (T-0135 nit). Also T-0118 (CP3.5 UX
    follow-ups) and the CP3.5 backlog items in ROADMAP (YAML Cancel/Save, audit labels, structured admin source —
    FE parses strings in `users/adminSource.ts`), plus: `Timestamp`/`DetailsSubsection` → shared/ui + unit test;
    `admin.test.tsx` local `openSidebar` → `web/src/test/sidebar.ts`.
-2. CP6 follow-ups from CP3 acceptance: T-0107, T-0108.
+2. CP6 follow-ups: T-0107, T-0108 (CP3), T-0130 (events cache), T-0134 (Favorites modal focus), T-0128 (unfavourite button).
 3. Still open from CP2: H1–H6 in `docs/specs/CP2-acceptance.md`.
 
 ## How the human can test (current state)

@@ -56,3 +56,8 @@ dark, reference console `http://127.0.0.1:9000` (clone `main`; audited with OKD 
 | `/admin/audit` | `/k8s/ns/openshift-console/events` (stream-like list) | `ConsoleDataView.tsx`, `events.tsx` | match (T-0126): shared `ConsoleFilterToolbar` (Target ▾ category select, chips, Clear filters); Target/Cluster as badge + link (`events.tsx:211` involved object); `Timestamp` times; expand column at toggle width. Accepted: no Manage columns/pagination (keyset "Load more" paging, expandable rows) | T-0126 |
 | `/login` | OAuth server login page (not in console repo) | n/a | match (PF `LoginPage`; OCP login lives in the OAuth server) | — |
 | Landing `/` | `/` → last perspective page | `public/components/app-contents.tsx` | match (redirect to last cluster) | — |
+
+## Human waivers (2026-11-22, CP3.6 close)
+Accepted as proposed in `docs/specs/CP3.6-acceptance.md`: W1 YAML schema sidebar → CP4 (cluster OpenAPI); W2 YAML Lightspeed
+button → waived permanently; W3 details field-help popovers → CP4 (T-0133); W4 Deployment ring scale ▲▼ → CP4 (T-0133);
+W5 missing tabs/actions/nav sections → CP4/CP5 feature scope.

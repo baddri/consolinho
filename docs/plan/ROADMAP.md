@@ -9,8 +9,9 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 1 | Identity & administration | done (tag cp-1) |
 | 2 | Proxy, cluster switcher & generic resource browser (MVP) | done |
 | 3 | Deploy to OpenShift | done (tag cp-3) |
-| 3.6 | OCP parity (mirror the console) | planned (next) |
-| 4 | Workloads day-2 operations | planned (after 3.6) |
+| 3.5 | OCP look & feel | done (tag cp-3.5) |
+| 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
+| 4 | Workloads day-2 operations | planned (next) |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 6 | Hardening, observability & polish | planned |
 
@@ -60,7 +61,7 @@ panel behind it (Modal `onClose` + `WizardHeader` close, modal wider than the wi
 copy ("enforced by the proxy from CP2", "Admin via configuration (user list)") and badly styled tabs; the register
 cluster form is full width.
 
-## CP3.6 — OCP parity: mirror the console (before CP4)
+## CP3.6 — OCP parity: mirror the console (before CP4) — DONE (tag cp-3.6)
 Human directive (2026-11-22): the UI must look and feel exactly like the OCP console ("feels like home"), in our own
 code, before we build more features. Reference = local clone `/home/bad/works/openshift-console` (CLAUDE.md "UI north
 star", UX.md §0). Run by the `ux-designer`, which also writes the spec, so this checkpoint skips the PO SPEC step:
