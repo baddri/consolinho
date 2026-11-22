@@ -23,6 +23,9 @@ export function nameColumn<T extends K8sResource>(model: K8sModel): ColumnDef<T>
     id: 'name',
     title: 'Name',
     type: 'name',
+    // Names don't wrap, so the column starts wide enough for a generated pod name; measured from the page width
+    // while skeleton rows show, it would be too narrow and the rows would push the table past the page.
+    width: 210,
     cell: (obj) => (
       <ResourceLink model={model} name={obj.metadata.name ?? ''} namespace={obj.metadata.namespace} />
     ),

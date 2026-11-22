@@ -10,8 +10,15 @@ interface Row {
   owner: string;
 }
 
+const NAME_COLUMN: DataViewColumn<Row> = {
+  id: 'name',
+  title: 'Name',
+  type: 'name',
+  cell: (row) => row.name,
+  sortValue: (row) => row.name,
+};
 const COLUMNS: DataViewColumn<Row>[] = [
-  { id: 'name', title: 'Name', type: 'name', cell: (row) => row.name, sortValue: (row) => row.name },
+  NAME_COLUMN,
   { id: 'owner', title: 'Owner', cell: (row) => row.owner },
 ];
 const ROWS: Row[] = [
@@ -99,6 +106,25 @@ describe('ConsoleDataView (OCP ConsoleDataView)', () => {
     expect(
       within(screen.getByRole('grid', { name: 'Things' })).getByText('No Things found'),
     ).toBeInTheDocument();
+  });
+
+  it('starts a column at its default width and hides skeleton cells with their headers', () => {
+    const columns: DataViewColumn<Row>[] = [
+      { ...NAME_COLUMN, width: 210 },
+      { id: 'owner', title: 'Owner', visibility: ['hidden', 'visibleOn2Xl'], cell: (row) => row.owner },
+    ];
+    renderView({ columns, loaded: false });
+    const grid = screen.getByRole('grid', { name: 'Things' });
+    const [name, owner] = within(grid).getAllByRole('columnheader', { hidden: true });
+    expect(name).toHaveStyle({ minWidth: '210px' });
+    if (!owner) throw new Error('no Owner header');
+    // Every skeleton row's Owner cell carries the header's responsive classes, so it hides together with it.
+    const ownerClasses = [...owner.classList].filter((c) => c.startsWith('pf-m-hidden') || c.startsWith('pf-m-visible'));
+    expect(ownerClasses).not.toHaveLength(0);
+    for (const row of within(grid).getAllByRole('row', { hidden: true }).slice(1)) {
+      const cell = within(row).getAllByRole('cell', { hidden: true })[1];
+      expect([...(cell?.classList ?? [])]).toEqual(expect.arrayContaining(ownerClasses));
+    }
   });
 
   it('shows the error instead of the list', () => {

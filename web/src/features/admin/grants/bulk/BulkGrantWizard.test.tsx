@@ -10,10 +10,14 @@ import { adminRoute } from '../../routes';
 
 type User = ReturnType<typeof renderApp>['user'];
 
-/** Opens the wizard from the user page's Actions menu and waits for the cluster table. */
+/**
+ * Opens the wizard from the "Grant access" button of the user's Cluster access tab (the page's one grant entry point,
+ * T-0118 #9; an empty tab repeats it in its empty state) and waits for the cluster table.
+ */
 async function openWizard(user: User, username: string, timeout?: number) {
-  await user.click(await screen.findByRole('button', { name: 'Actions' }, { timeout }));
-  await user.click(await screen.findByRole('menuitem', { name: 'Grant access to clusters' }));
+  const [button] = await screen.findAllByRole('button', { name: 'Grant access' }, { timeout });
+  if (!button) throw new Error('no Grant access button');
+  await user.click(button);
   const dialog = await screen.findByRole('dialog', { name: `Grant ${username} access to clusters` });
   await within(dialog).findByRole('grid', { name: 'Clusters to grant' });
   return dialog;
@@ -123,7 +127,7 @@ describe('Bulk grant wizard (T-0040)', () => {
   );
 
   it('has exactly one close control (the wizard header X) and closes on Escape', async () => {
-    const { user } = renderApp('/admin/users/bob');
+    const { user } = renderApp('/admin/users/bob/access');
     const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);
 
     expect(within(dialog).getAllByRole('button', { name: /close/i })).toHaveLength(1);
@@ -132,7 +136,7 @@ describe('Bulk grant wizard (T-0040)', () => {
   });
 
   it('GRANT-4: highlights production rows and warns about read write on them', async () => {
-    const { user } = renderApp('/admin/users/bob');
+    const { user } = renderApp('/admin/users/bob/access');
     const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);
 
     // Keyboard: the per-cluster checkboxes are labelled and toggle with Space.
@@ -208,14 +212,16 @@ describe('Bulk grant wizard (T-0040)', () => {
     setMockUser('ines');
     const { user } = renderApp('/admin/users/bob/access');
     await screen.findByText('No cluster access yet', {}, { timeout: COLD_START_TIMEOUT_MS });
-    // The empty state's button and the Actions menu item (T-0115: the heading has no separate button).
-    const button = screen.getByRole('button', { name: 'Grant access to clusters' });
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-    await user.click(button);
+    // The toolbar's button and the empty state's; the Actions menu has no grant item (T-0118 #9).
+    const buttons = screen.getAllByRole('button', { name: 'Grant access' });
+    expect(buttons).toHaveLength(2);
+    for (const button of buttons) {
+      expect(button).toHaveAttribute('aria-disabled', 'true');
+      await user.click(button);
+    }
     await user.click(screen.getByRole('button', { name: 'Actions' }));
-    const item = await screen.findByRole('menuitem', { name: 'Grant access to clusters' });
-    expect(item).toHaveAttribute('aria-disabled', 'true');
-    await user.click(item);
+    await screen.findByRole('menu');
+    expect(screen.queryByRole('menuitem', { name: 'Grant access to clusters' })).not.toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ export const USER_STATUS_TEXT: Record<UserStatus, string> = {
 const STATUS_KINDS: Record<UserStatus, StatusKind> = {
   active: 'success',
   pending: 'pending',
-  deactivated: 'neutral',
+  deactivated: 'ban',
 };
 
 /** Props for {@link UserStatusLabel}. */
@@ -23,8 +23,8 @@ export interface UserStatusLabelProps {
 }
 
 /**
- * A user's lifecycle status as icon + text (USR-1, `UX.md` §5): Active (green check), Pending (hourglass),
- * Deactivated (plain text). Pending (pre-created, USR-2) carries a "Pending — never logged in" tooltip; its trigger
+ * A user's lifecycle status as icon + text (USR-1, `UX.md` §5): Active (green check), Pending (in-progress icon),
+ * Deactivated (ban icon, as OCP's disabled-like states). Pending (pre-created, USR-2) carries a "Pending — never logged in" tooltip; its trigger
  * is focusable then so keyboard users can open it. Used by the users list, grants and the user detail page.
  */
 export function UserStatusLabel({ status, asLabel }: UserStatusLabelProps) {

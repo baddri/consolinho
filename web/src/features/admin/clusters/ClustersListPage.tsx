@@ -1,62 +1,84 @@
-import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
-import { useMemo } from 'react';
+import { EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core';
+import { DataViewCheckboxFilter } from '@patternfly/react-data-view';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import type { ClusterListItem } from '@/shared/api';
-import {
-  FilterToolbar,
-  LOW_PRIORITY_COLUMN,
-  TableEmptyRow,
-  TableNoMatchRow,
-  TableSkeletonRows,
-  useClientSort,
-  useUrlFilters,
-  type SortValue,
-} from '@/shared/table';
-import { ActionButton, ErrorState, PageBody, PageHeading } from '@/shared/ui';
+import { PRODUCT_NAME } from '@/shared/branding';
+import { ActionButton, ConsoleDataView, DataViewTextFilter, ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { CredentialExpiryAlert } from '../credentials/CredentialExpiryAlert';
 import { useAdminAccess } from '../useAdminAccess';
+import { useAdminListFilters } from '../useAdminListFilters';
 import { useClusters } from './api';
+import { CLUSTER_COLUMNS, ClusterRowActions } from './clusterColumns';
 import {
   CLUSTER_FILTERS,
   CLUSTER_STATUS_OPTIONS,
   ENVIRONMENT_OPTIONS,
   matchesClusterFilters,
 } from './clusterFilters';
-import { CLUSTER_COLUMN_COUNT, CLUSTER_COLUMN_VISIBILITY, ClusterRow } from './ClusterRow';
-import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Path of the register form (T-0034). */
 const REGISTER_PATH = '/admin/clusters/new';
 
-const SORT_ACCESSORS: Record<'name', (cluster: ClusterListItem) => SortValue> = {
-  name: (cluster) => cluster.name,
-};
+/** Filter elements (OCP `ConsoleDataView`): Name, then the attribute filters. Module-level, so never recreated. */
+const FILTER_NODES = [
+  <DataViewTextFilter key="q" filterId="q" title="Name" placeholder="Filter by name" />,
+  <DataViewCheckboxFilter
+    key="env"
+    filterId="env"
+    title="Environment"
+    placeholder="Filter by environment"
+    options={ENVIRONMENT_OPTIONS}
+  />,
+  <DataViewCheckboxFilter
+    key="status"
+    filterId="status"
+    title="Status"
+    placeholder="Filter by status"
+    options={CLUSTER_STATUS_OPTIONS}
+  />,
+];
 
-const NO_CLUSTERS: ClusterListItem[] = [];
+const nameOf = (cluster: ClusterListItem) => cluster.name;
+
+/**
+ * No cluster registered yet: OCP's custom list empty state (`user.tsx` `NoDataEmptyMsg`) with what registering needs
+ * and the register button.
+ */
+function NoClusters({ registerButton }: { registerButton: ReactNode }) {
+  return (
+    <EmptyState titleText="No Clusters found" headingLevel="h2">
+      <EmptyStateBody>
+        You need the cluster&apos;s API URL, its CA bundle (or system trust) and a ServiceAccount token.
+      </EmptyStateBody>
+      <EmptyStateFooter>
+        <EmptyStateActions>{registerButton}</EmptyStateActions>
+      </EmptyStateFooter>
+    </EmptyState>
+  );
+}
 
 /**
  * `/admin/clusters` — the fleet view of every registered cluster (CLU-7): environment, API URL, status, TLS mode,
- * credentials with worst token expiry, user count and newest connection test. Filters live in the URL
- * (`?q=&env=&status=`); sorting by name is client-side (≈40–100 rows, no pagination or virtualization needed).
+ * credentials with their token expiry, user count and newest connection test, as an OCP list page (`UX.md` §5,
+ * `ConsoleDataView`). Filters live in the URL (`?q=&env=&status=`; Name searches name, display name and API URL).
  *
  * The heading's "Register cluster" opens the form (T-0034); each row's kebab offers Edit, Enable/Disable (CLU-5)
  * and Delete (CLU-6). For read-only admins they stay visible but aria-disabled with the reason (ADM-2).
- * TLS and Users hide below `2xl` so the compact table fits 1280 (`UX.md` §5).
- * `CredentialExpiryAlert` above the toolbar warns about expired or soon-expiring tokens (CRED-8).
+ * `CredentialExpiryAlert` above the list warns about expired or soon-expiring tokens (CRED-8).
  * Lazy-loaded by `routes.tsx`.
  */
 export function ClustersListPage() {
   const { data, error, isPending, refetch } = useClusters();
   const { readOnlyReason } = useAdminAccess();
   const navigate = useNavigate();
-  const { values, setText, toggle, clear, clearAll } = useUrlFilters(CLUSTER_FILTERS);
+  const { values, filterValues, onFilterChange, clearAll, isFiltered } = useAdminListFilters(CLUSTER_FILTERS);
 
-  const clusters = data ?? NO_CLUSTERS;
-  const visible = useMemo(
-    () => clusters.filter((cluster) => matchesClusterFilters(cluster, values)),
-    [clusters, values],
+  const filtered = useMemo(
+    () => (data ?? []).filter((cluster) => matchesClusterFilters(cluster, values)),
+    [data, values],
   );
-  const { sorted, sortProps } = useClientSort(visible, SORT_ACCESSORS, { by: 'name', direction: 'asc' });
+  const rowActions = useCallback((cluster: ClusterListItem) => <ClusterRowActions cluster={cluster} />, []);
 
   const registerButton = (
     <ActionButton disabledReason={readOnlyReason} onClick={() => void navigate(REGISTER_PATH)}>
@@ -73,77 +95,29 @@ export function ClustersListPage() {
       />
       <PageBody>
         <CredentialExpiryAlert />
-        {error && <ErrorState error={error} title="Could not load clusters" onRetry={() => void refetch()} />}
-        <FilterToolbar
-          ariaLabel="Clusters toolbar"
-          search={{
-            value: values.q ?? '',
-            onChange: (value) => setText('q', value),
-            placeholder: 'Filter by name, display name or API URL',
-            ariaLabel: 'Search clusters',
-          }}
-          filters={[
-            {
-              key: 'env',
-              label: 'Environment',
-              options: ENVIRONMENT_OPTIONS,
-              selected: values.env,
-              onToggle: (value) => toggle('env', value),
-              onClear: () => clear('env'),
-            },
-            {
-              key: 'status',
-              label: 'Status',
-              options: CLUSTER_STATUS_OPTIONS,
-              selected: values.status,
-              onToggle: (value) => toggle('status', value),
-              onClear: () => clear('status'),
-            },
-          ]}
-          onClearAll={clearAll}
-        />
-        <Table aria-label="Clusters" variant="compact">
-          <Thead>
-            <Tr>
-              <Th modifier="nowrap" sort={sortProps('name', 0)}>
-                Name
-              </Th>
-              <Th modifier="nowrap">Environment</Th>
-              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
-                API URL
-              </Th>
-              <Th modifier="nowrap">Status</Th>
-              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
-                TLS
-              </Th>
-              <Th modifier="nowrap">Credentials</Th>
-              <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
-                Users
-              </Th>
-              <Th modifier="nowrap">Last test</Th>
-              <Th screenReaderText="Actions" />
-            </Tr>
-          </Thead>
-          <Tbody>
-            {isPending && (
-              <TableSkeletonRows columns={CLUSTER_COLUMN_COUNT} columnVisibility={CLUSTER_COLUMN_VISIBILITY} />
-            )}
-            {data?.length === 0 && (
-              <TableEmptyRow
-                colSpan={CLUSTER_COLUMN_COUNT}
-                title="No clusters found"
-                body="You need the cluster's API URL, its CA bundle (or system trust) and a ServiceAccount token."
-                actions={registerButton}
-              />
-            )}
-            {clusters.length > 0 && sorted.length === 0 && (
-              <TableNoMatchRow colSpan={CLUSTER_COLUMN_COUNT} onClearAll={clearAll} />
-            )}
-            {sorted.map((cluster) => (
-              <ClusterRow key={cluster.name} cluster={cluster} />
-            ))}
-          </Tbody>
-        </Table>
+        {data?.length === 0 ? (
+          <NoClusters registerButton={registerButton} />
+        ) : (
+          <ConsoleDataView
+            id="admin-clusters"
+            label="Clusters"
+            data={data}
+            filteredData={filtered}
+            loaded={!isPending}
+            error={
+              error &&
+              !data && <ErrorState error={error} title="Could not load clusters" onRetry={() => void refetch()} />
+            }
+            columns={CLUSTER_COLUMNS}
+            getRowId={nameOf}
+            filterNodes={FILTER_NODES}
+            filterValues={filterValues}
+            onFilterChange={onFilterChange}
+            onClearAllFilters={clearAll}
+            isFiltered={isFiltered}
+            rowActions={rowActions}
+          />
+        )}
       </PageBody>
     </>
   );

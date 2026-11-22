@@ -37,13 +37,14 @@ describe('UserDetailPage (T-0032)', () => {
       const list = await findDetails(COLD_START_TIMEOUT_MS);
 
       expect(screen.getByRole('heading', { name: 'alice', level: 1 })).toBeInTheDocument();
-      expect(screen.getByText('Alice Example', { selector: 'p' })).toBeInTheDocument();
+      // OCP details heading: large kind badge, name and status; no subtitle (the display name is a details item).
+      expect(screen.queryByText('Alice Example', { selector: 'p' })).not.toBeInTheDocument();
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
       expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/admin/users');
       expect(within(crumbs).getByText('User details')).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { name: 'User details', level: 2 })).toBeInTheDocument();
-      // One create entry point on the page (T-0114 review): the bulk wizard lives in the Actions menu.
-      expect(screen.queryByRole('button', { name: 'Grant access to clusters' })).not.toBeInTheDocument();
+      // One grant entry point on the page (T-0118 #9): "Grant access" on the Cluster access tab.
+      expect(screen.queryByRole('button', { name: /Grant access/ })).not.toBeInTheDocument();
 
       expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
         'Username',
@@ -120,8 +121,8 @@ describe('UserDetailPage (T-0032)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Actions' }));
     const items = await screen.findAllByRole('menuitem');
+    // No "Grant access to clusters": the Cluster access tab's "Grant access" is the page's one entry point.
     expect(items.map((item) => item.textContent)).toEqual([
-      'Grant access to clusters',
       'Promote to administrator',
       'Demote to user',
       'Set read-only',
@@ -152,7 +153,7 @@ describe('UserDetailPage (T-0032)', () => {
     renderApp('/admin/users/system%3Asa%40corp');
 
     expect(await screen.findByRole('heading', { name: 'system:sa@corp', level: 1 })).toBeInTheDocument();
-    expect(await screen.findByText('Encoded Name', { selector: 'p' })).toBeInTheDocument();
+    expect(await screen.findByText('Encoded Name')).toBeInTheDocument();
     expect(paths).toContain('/api/admin/users/system%3Asa%40corp');
   });
 

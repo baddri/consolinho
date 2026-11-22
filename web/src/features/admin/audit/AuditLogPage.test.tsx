@@ -8,6 +8,7 @@ import { mockViewportWidth } from '@/test/viewport';
 import { adminRoute } from '../routes';
 import { auditActionLabel } from './auditActionLabels';
 import { formatDetails } from './AuditEntryRow';
+import { checkFilterOption, chooseFilter } from '../dataViewTestUtils';
 
 const HOUR_MS = 3_600_000;
 
@@ -70,6 +71,10 @@ describe('AuditLogPage', () => {
       .closest('tr');
     if (!systemRow) throw new Error('row not found');
     expect(within(systemRow).getByText('system')).toBeInTheDocument();
+    // User and cluster targets are OCP `ResourceLink`s (kind badge + link), as an event's involved object.
+    const target = within(systemRow).getByRole('link', { name: 'admin' });
+    expect(target).toHaveAttribute('href', '/admin/users/admin');
+    expect(within(systemRow).getByTitle('User')).toHaveTextContent('U');
 
     const clusterLink = within(table).getAllByRole('link', { name: 'prod-eu-1' })[0];
     expect(clusterLink).toHaveAttribute('href', '/admin/clusters/prod-eu-1');
@@ -135,8 +140,7 @@ describe('AuditLogPage', () => {
     const { user, router } = renderApp('/admin/audit');
     await findAuditTable();
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Category' }));
-    await user.click(screen.getByRole('option', { name: 'Users' }));
+    await checkFilterOption(user, 'Category', 'Users', 'Target');
     await waitFor(() => expect(lastRequest(requests).get('category')).toBe('users'));
     expect(router.state.location.search).toBe('?category=users');
   });
@@ -146,6 +150,7 @@ describe('AuditLogPage', () => {
     const { user, router } = renderApp('/admin/audit');
     await findAuditTable();
 
+    await chooseFilter(user, 'Actor', 'Target');
     await user.click(screen.getByRole('combobox', { name: 'Filter by Actor' }));
     await user.paste('car');
     await user.click(await screen.findByRole('option', { name: 'carol' }));
@@ -157,6 +162,7 @@ describe('AuditLogPage', () => {
     const requests = recordAuditRequests();
     const { user, router } = renderApp('/admin/audit');
     await findAuditTable();
+    await chooseFilter(user, 'Cluster', 'Target');
     const cluster = screen.getByRole('combobox', { name: 'Filter by Cluster' });
 
     // Free text (e.g. a deleted cluster) is applied with Enter.
@@ -180,7 +186,7 @@ describe('AuditLogPage', () => {
     const { user, router } = renderApp('/admin/audit');
     await findAuditTable();
 
-    await user.click(screen.getByRole('textbox', { name: 'Search targets' }));
+    await user.click(screen.getByRole('textbox', { name: 'Filter by target name' }));
     await user.paste('alice');
     await waitFor(() => expect(lastRequest(requests).get('target')).toBe('alice'));
     expect(router.state.location.search).toBe('?target=alice');
@@ -242,8 +248,9 @@ describe('AuditLogPage', () => {
     if (!denied) throw new Error('no proxy.delete row');
     expect(within(denied).getByText('Denied — read-only grant')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Category' }));
-    expect(screen.getByRole('option', { name: 'Proxy' })).toBeInTheDocument();
+    await chooseFilter(user, 'Category', 'Target');
+    await user.click(screen.getByRole('button', { name: 'Filter by category' }));
+    expect(await screen.findByRole('checkbox', { name: 'Proxy' })).toBeInTheDocument();
   });
 
   it('400 on a hand-edited filter shows the problem and "Clear all filters"', async () => {
@@ -252,11 +259,7 @@ describe('AuditLogPage', () => {
     expect(await screen.findByText('These filters are not valid')).toBeInTheDocument();
     expect(screen.getByRole('list', { name: 'Filter errors' })).toHaveTextContent('from: Enter an ISO 8601 timestamp.');
 
-    // The toolbar's chip group has its own "Clear all filters"; the state's button renders after it.
-    const clearButtons = screen.getAllByRole('button', { name: 'Clear all filters' });
-    const stateClearButton = clearButtons.at(-1);
-    if (stateClearButton === undefined) throw new Error('no "Clear all filters" button');
-    await user.click(stateClearButton);
+    await user.click(screen.getByRole('button', { name: 'Clear all filters' }));
     await waitFor(() => expect(router.state.location.search).toBe(''));
     await findAuditTable();
   });

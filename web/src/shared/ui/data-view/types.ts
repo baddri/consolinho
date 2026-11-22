@@ -22,6 +22,11 @@ export interface DataViewColumn<T> {
    * squeezing the table (`UX.md` §5).
    */
   visibility?: ThProps['visibility'];
+  /**
+   * Default width in px (PF `resizableProps.width`) until the user resizes the column. Only for a column whose content
+   * can't wrap below that width; without it the header's width is measured on mount, from the page width.
+   */
+  width?: number;
   /** `false`: an additional column, shown only once picked in "Manage columns" (OCP `defaultVisible`). */
   defaultVisible?: boolean;
   /**

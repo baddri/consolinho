@@ -56,3 +56,18 @@
   position: absolute;
   width: 100%;
 }
+
+/*
+ * The kebab column is as wide as its cells (OCP: 61px), from the first render: the empty header would otherwise be
+ * measured at its padding while skeleton rows show, so the resizable headers (locked on mount) would leave too little
+ * room and the kebab cells would push the table past the page. `width: 1%` (PF's action-cell width) keeps spare space
+ * in the data columns. Width = action-cell padding (sm start, md end as the last cell) + plain menu toggle (sm padding
+ * on both sides + one body line for the icon). The selector beats the header's `pf-m-truncate` min-width.
+ */
+:global(.pf-v6-c-table) th.actionsHeader {
+  width: 1%;
+  min-width: calc(
+    3 * var(--pf-t--global--spacer--sm) + var(--pf-t--global--spacer--md) +
+      var(--pf-t--global--font--size--body--default) * var(--pf-t--global--font--line-height--body)
+  );
+}

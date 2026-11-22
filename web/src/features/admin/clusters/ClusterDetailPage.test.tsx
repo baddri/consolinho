@@ -90,7 +90,8 @@ describe('ClusterDetailPage (T-0035)', () => {
       const list = await findDetails(COLD_START_TIMEOUT_MS);
 
       expect(screen.getByRole('heading', { name: 'prod-eu-1', level: 1 })).toBeInTheDocument();
-      expect(screen.getByText('Production EU 1', { selector: 'p' })).toBeInTheDocument();
+      // OCP details heading: large kind badge, name and status; no subtitle (the display name is a details item).
+      expect(screen.queryByText('Production EU 1', { selector: 'p' })).not.toBeInTheDocument();
       const labels = screen.getByRole('list', { name: 'Cluster labels' });
       expect(within(labels).getByText('prod')).toBeInTheDocument();
       expect(within(labels).queryByText('TLS not verified')).not.toBeInTheDocument();
@@ -102,6 +103,7 @@ describe('ClusterDetailPage (T-0035)', () => {
       expect(screen.getByRole('heading', { name: 'Cluster details', level: 2 })).toBeInTheDocument();
 
       expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
+        'Name',
         'Display name',
         'Environment',
         'Description',

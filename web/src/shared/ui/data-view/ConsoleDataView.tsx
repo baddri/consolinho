@@ -4,23 +4,21 @@ import {
   EmptyState,
   Pagination,
   PaginationVariant,
-  ToolbarItem,
   Tooltip,
 } from '@patternfly/react-core';
 import {
   DataView,
-  DataViewFilters,
   DataViewState,
   DataViewTable,
-  DataViewToolbar,
   type DataViewTr,
 } from '@patternfly/react-data-view';
-import { RhUiColumnsIcon, RhUiFilterIcon, RhUiUndoIcon } from '@patternfly/react-icons';
+import { RhUiColumnsIcon, RhUiUndoIcon } from '@patternfly/react-icons';
 import { Tbody, Td, Tr, type TdProps, type ThProps } from '@patternfly/react-table';
 import { Fragment, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
 import { TableSkeletonRows, useClientSort, type SortState, type SortValue } from '@/shared/table';
 import styles from './ConsoleDataView.module.css';
 import { ColumnManagementModal } from './ColumnManagementModal';
+import { ConsoleFilterToolbar, type DataViewFilterValue } from './ConsoleFilterToolbar';
 import { LabelSuggestionsContext } from './labelSuggestions';
 import type { DataViewColumn } from './types';
 import { useDataViewColumns } from './useDataViewColumns';
@@ -28,8 +26,7 @@ import { useDataViewColumns } from './useDataViewColumns';
 /** A header cell of `DataViewTable` (the package index exports the type under the component's name `DataViewTh`). */
 type DataViewTh = ComponentProps<typeof DataViewTable>['columns'][number];
 
-/** A filter's value: text filters hold a string, checkbox filters the selected values. */
-export type DataViewFilterValue = string | string[] | undefined;
+export type { DataViewFilterValue };
 
 /** Props for {@link ConsoleDataView}. */
 export interface ConsoleDataViewProps<T> {
@@ -127,7 +124,7 @@ function BodyEmpty({ label, colSpan }: { label: string; colSpan: number }) {
 
 /**
  * The generic list of the console, mirroring OCP `ConsoleDataView` (`UX.md` §5) on PF `@patternfly/react-data-view`:
- * a `DataViewToolbar` with the filters (category select hidden for a single filter, chips, "Clear filters"), plain
+ * a `ConsoleFilterToolbar` with the filters (category select hidden for a single filter, chips, "Clear filters"), plain
  * "Manage columns" and "Reset column widths" icon buttons and compact top pagination; a compact, resizable
  * `DataViewTable` with sortable `nowrap` headers, a sticky Name column and a sticky kebab column; compact bottom
  * pagination. Loading = 5 skeleton rows, filtered to nothing = a "No <label> found" row, no objects at all = an
@@ -173,6 +170,11 @@ export function ConsoleDataView<T>({
 
   const suggestions = useMemo(() => labelSuggestions(data, getLabels), [data, getLabels]);
 
+  // Skeleton cells hide with their low-priority headers, so the loading table has the loaded table's shape.
+  const skeletonVisibility = useMemo(
+    () => Object.fromEntries(shown.map((column, index) => [index, column.visibility])),
+    [shown],
+  );
   const headers = useMemo<DataViewTh[]>(
     () => [
       ...shown.map((column, index) => ({
@@ -183,13 +185,13 @@ export function ConsoleDataView<T>({
         },
         resizableProps: {
           isResizable: true,
-          width: widths[column.id],
+          width: widths[column.id] ?? column.width,
           onResize: (_event: unknown, _id: unknown, width: number) => setWidth(column.id, width),
           resizeButtonAriaLabel: `Resize ${column.title} column`,
         },
       })),
       ...(rowActions
-        ? [{ cell: undefined, props: { ...ACTIONS_HEADER_PROPS, screenReaderText: 'Actions' } }]
+        ? [{ cell: undefined, props: { ...ACTIONS_HEADER_PROPS, className: styles.actionsHeader, screenReaderText: 'Actions' } }]
         : []),
     ],
     [shown, sortProps, widths, setWidth, rowActions],
@@ -247,29 +249,11 @@ export function ConsoleDataView<T>({
         activeState={activeState}
         className={filterNodes.length === 1 ? styles.singleFilter : undefined}
       >
-        <DataViewToolbar
-          clearAllFilters={onClearAllFilters}
-          // Our own "Clear filters", so the button always calls the current callback (PF memoises its default).
-          customLabelGroupContent={
-            <ToolbarItem>
-              <Button variant="link" isInline onClick={onClearAllFilters}>
-                Clear filters
-              </Button>
-            </ToolbarItem>
-          }
-          filters={
-            filterNodes.length > 0 && (
-              <DataViewFilters
-                toggleIcon={<RhUiFilterIcon />}
-                values={filterValues}
-                onChange={(filterId, values: Record<string, DataViewFilterValue>) =>
-                  onFilterChange(filterId, values[filterId])
-                }
-              >
-                {filterNodes}
-              </DataViewFilters>
-            )
-          }
+        <ConsoleFilterToolbar
+          filterNodes={filterNodes}
+          filterValues={filterValues}
+          onFilterChange={onFilterChange}
+          onClearAllFilters={onClearAllFilters}
           actions={
             <>
               <Tooltip content="Manage columns">
@@ -308,7 +292,7 @@ export function ConsoleDataView<T>({
           bodyStates={{
             loading: (
               <Tbody>
-                <TableSkeletonRows columns={colSpan} />
+                <TableSkeletonRows columns={colSpan} columnVisibility={skeletonVisibility} />
               </Tbody>
             ),
             empty: <BodyEmpty label={label} colSpan={colSpan} />,

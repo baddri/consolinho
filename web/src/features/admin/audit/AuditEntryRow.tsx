@@ -9,10 +9,12 @@ import {
   Label,
 } from '@patternfly/react-core';
 import { ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table';
-import { Link } from 'react-router';
 import type { AuditEntry } from '@/shared/api';
 import { LOW_PRIORITY_COLUMN } from '@/shared/table';
-import { RelativeTime } from '@/shared/ui';
+import { Timestamp } from '@/shared/ui';
+import { AdminResourceLink, AdminResourceName } from '../AdminResourceLink';
+import { clusterDetailPath } from '../clusters/clusterTarget';
+import { userDetailPath } from '../users/userColumns';
 import { auditActionLabel } from './auditActionLabels';
 import { proxyOutcome } from './proxyOutcome';
 
@@ -51,20 +53,34 @@ function KubernetesTarget({ entry }: { entry: AuditEntry }) {
   );
 }
 
-/** Target of an entry: the Kubernetes target, or the target type (subtle) and name. */
+/**
+ * Target of an entry, like the involved object of an OCP event (`events.tsx` `ResourceLink`): users and clusters as
+ * kind badge + link to their admin page (a deleted one's link shows the not-found page), credentials as badge + name
+ * (they have no page of their own); the Kubernetes target; else the target type (subtle) and name.
+ */
 function AuditTarget({ entry }: { entry: AuditEntry }) {
-  if (entry.targetType === 'kubernetesResource') return <KubernetesTarget entry={entry} />;
-  return (
-    <>
-      <span className="pf-v6-u-text-color-subtle">{entry.targetType}</span> {entry.targetName}
-    </>
-  );
+  switch (entry.targetType) {
+    case 'kubernetesResource':
+      return <KubernetesTarget entry={entry} />;
+    case 'user':
+      return <AdminResourceLink kind="User" name={entry.targetName} to={userDetailPath(entry.targetName)} />;
+    case 'cluster':
+      return <AdminResourceLink kind="Cluster" name={entry.targetName} to={clusterDetailPath(entry.targetName)} />;
+    case 'credential':
+      return <AdminResourceName kind="Credential">{entry.targetName}</AdminResourceName>;
+    default:
+      return (
+        <>
+          <span className="pf-v6-u-text-color-subtle">{entry.targetType}</span> {entry.targetName}
+        </>
+      );
+  }
 }
 
-/** Cluster of an entry linked to its admin page (a deleted cluster's link shows the not-found page), or "—". */
+/** Cluster of an entry as badge + link to its admin page (a deleted cluster's link shows the not-found page), or "—". */
 function AuditCluster({ entry }: { entry: AuditEntry }) {
   if (!entry.clusterName) return <>—</>;
-  return <Link to={`/admin/clusters/${encodeURIComponent(entry.clusterName)}`}>{entry.clusterName}</Link>;
+  return <AdminResourceLink kind="Cluster" name={entry.clusterName} to={clusterDetailPath(entry.clusterName)} />;
 }
 
 /** Props for {@link AuditEntryRow}. */
@@ -76,9 +92,9 @@ export interface AuditEntryRowProps {
 }
 
 /**
- * One audit entry (AUD-2) as an expandable composable-table row in its own `Tbody`: time (relative, absolute in a
- * tooltip, one line), actor (a "system" label for configuration changes), human action label (`auditActionLabel`),
- * target type and name, cluster (linked to its admin page — a deleted cluster's link shows the not-found page) and
+ * One audit entry (AUD-2) as an expandable composable-table row in its own `Tbody`: time (OCP `Timestamp`, one
+ * line), actor (a "system" label for configuration changes), human action label (`auditActionLabel`), target
+ * (`AuditTarget`), cluster (badge + link to its admin page — a deleted cluster's link shows the not-found page) and
  * the wrapping summary. Target and Cluster share the header's `LOW_PRIORITY_COLUMN`, so 1280 fits. Expanded: target
  * and cluster again (reachable when their columns are hidden), the raw action id, the `details` JSON and the copyable
  * correlation id for log lookups.
@@ -91,7 +107,7 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
       <Tr>
         <Td expand={{ rowIndex, isExpanded, onToggle, expandId: 'audit-entry' }} />
         <Td dataLabel="Time" modifier="nowrap">
-          <RelativeTime value={entry.occurredAt} />
+          <Timestamp value={entry.occurredAt} />
         </Td>
         <Td dataLabel="Actor">
           {entry.actorIsSystem ? (
@@ -106,7 +122,7 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
         <Td dataLabel="Target" visibility={LOW_PRIORITY_COLUMN}>
           <AuditTarget entry={entry} />
         </Td>
-        <Td dataLabel="Cluster" visibility={LOW_PRIORITY_COLUMN}>
+        <Td dataLabel="Cluster" visibility={LOW_PRIORITY_COLUMN} modifier="nowrap">
           <AuditCluster entry={entry} />
         </Td>
         <Td dataLabel="Summary">{entry.summary}</Td>

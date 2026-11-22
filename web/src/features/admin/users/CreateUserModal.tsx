@@ -15,7 +15,7 @@ import { useToast } from '@/shared/ui';
 import { useCreateUser } from './api';
 import { CREATE_USER_DEFAULTS, createUserSchema, type CreateUserFormValues } from './CreateUserForm.schema';
 import type { OpenBulkGrantState } from './UserDetailPage';
-import { userDetailPath } from './UserRow';
+import { userDetailPath } from './userColumns';
 
 const ROLE_CHOICES: readonly RadioGroupFieldOption[] = [
   { value: 'user', label: 'User', description: 'Uses the clusters they are granted access to.' },

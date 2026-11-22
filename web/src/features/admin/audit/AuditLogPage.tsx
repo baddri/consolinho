@@ -102,8 +102,9 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
       <Table aria-label="Audit log" variant="compact">
         <Thead>
           <Tr>
-            {/* Fixed widths: the header keeps its layout when the body is only an empty-state row. */}
-            <Th screenReaderText="Row expansion" width={10} />
+            {/* Fixed widths: the header keeps its layout when the body is only an empty-state row; the expand toggle
+                column takes only its content width, as PF expandable tables. */}
+            <Th screenReaderText="Row expansion" />
             <Th modifier="nowrap" width={15}>
               Time
             </Th>

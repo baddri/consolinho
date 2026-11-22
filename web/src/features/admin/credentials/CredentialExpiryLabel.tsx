@@ -6,9 +6,9 @@ import { RelativeTime, StatusIconText, type StatusKind } from '@/shared/ui';
 const EXPIRY_LABELS: Record<CredentialExpiryStatus, { text: string; status: StatusKind }> = {
   ok: { text: 'Valid', status: 'success' },
   expiringSoon: { text: 'Expires soon', status: 'warning' },
-  expired: { text: 'Expired', status: 'danger' },
+  expired: { text: 'Expired', status: 'ban' },
   noExpiry: { text: 'No expiry', status: 'neutral' },
-  unknown: { text: 'Unknown', status: 'neutral' },
+  unknown: { text: 'Unknown', status: 'unknown' },
 };
 
 /** Props for {@link CredentialExpiryLabel}. */
@@ -19,7 +19,7 @@ export type CredentialExpiryLabelProps = Pick<Credential, 'expiryStatus' | 'expi
 
 /**
  * Token expiry of a credential (CRED-4) as icon + text (`UX.md` §5) — Valid (green check), Expires soon (warning),
- * Expired (danger), No expiry / Unknown (plain text) — followed by the expiry date as `RelativeTime` ("in 5 days",
+ * Expired (ban icon, as OCP maps Expired), Unknown (unknown icon), No expiry (plain text) — followed by the expiry date as `RelativeTime` ("in 5 days",
  * absolute in a tooltip) whenever the token has one. The server computes the status with its warning window
  * (`expiryWarningDays`).
  */

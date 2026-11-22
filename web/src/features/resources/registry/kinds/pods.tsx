@@ -71,6 +71,8 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
     {
       id: 'status',
       title: 'Status',
+      // A status (`CrashLoopBackOff`, `ContainerCreating`) doesn't wrap: start wide enough for it.
+      width: 170,
       cell: (pod) => <ResourceStatusLabel status={status(pod)} />,
       sortValue: podStatus,
     },

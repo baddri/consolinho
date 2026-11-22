@@ -40,9 +40,10 @@ export interface UserActions {
  *   (Demote), then self (Demote, Deactivate). A disabled item's click is a no-op, so no request is ever sent.
  *
  * "Grant access to clusters" (first item, GRANT-4) opens the bulk grant wizard; only a read-only admin is refused.
+ * `withGrant: false` leaves it out (the detail page grants from its Cluster access tab, T-0118 #9).
  * Dialogs send `user.version`; pass the freshest representation (list row or loaded detail).
  */
-export function useUserActions(user: UserActionTarget): UserActions {
+export function useUserActions(user: UserActionTarget, { withGrant = true }: { withGrant?: boolean } = {}): UserActions {
   const { readOnlyReason } = useAdminAccess();
   const { data: me } = useCurrentUser();
   const [open, setOpen] = useState<UserMenuActionKind | null>(null);
@@ -61,7 +62,7 @@ export function useUserActions(user: UserActionTarget): UserActions {
     };
   };
 
-  const items: UserActionItem[] = [item('grantAccess', 'Grant access to clusters')];
+  const items: UserActionItem[] = withGrant ? [item('grantAccess', 'Grant access to clusters')] : [];
   if (!user.isAdminByAssignment) {
     items.push(item('promote', 'Promote to administrator'));
   }

@@ -1,55 +1,75 @@
-import { Table, Tbody, Th, Thead, Tr } from '@patternfly/react-table';
+import { Button, EmptyState, EmptyStateActions, EmptyStateBody, EmptyStateFooter } from '@patternfly/react-core';
+import { DataViewCheckboxFilter } from '@patternfly/react-data-view';
 import { useMemo } from 'react';
-import { Link } from 'react-router';
+import { Link, type LinkProps } from 'react-router';
 import type { Credential } from '@/shared/api';
-import {
-  FilterToolbar,
-  LOW_PRIORITY_COLUMN,
-  TableEmptyRow,
-  TableNoMatchRow,
-  TableSkeletonRows,
-  useClientSort,
-  useUrlFilters,
-  type SortValue,
-} from '@/shared/table';
-import { ErrorState, PageBody, PageHeading } from '@/shared/ui';
+import { ConsoleDataView, DataViewTextFilter, ErrorState, PageBody, PageHeading } from '@/shared/ui';
 import { ENVIRONMENT_OPTIONS } from '../clusters/clusterFilters';
+import { useAdminListFilters } from '../useAdminListFilters';
 import { useFleetCredentials } from './api';
 import { CREDENTIAL_FILTERS, EXPIRY_OPTIONS, matchesCredentialFilters } from './credentialFilters';
 import { CredentialExpiryAlert } from './CredentialExpiryAlert';
-import {
-  FLEET_CREDENTIAL_COLUMN_COUNT,
-  FLEET_CREDENTIAL_COLUMN_VISIBILITY,
-  FleetCredentialRow,
-} from './FleetCredentialRow';
+import { FLEET_CREDENTIAL_COLUMNS } from './fleetCredentialColumns';
 
-/**
- * Sort keys. `expiry` ascending with nulls last is exactly the server's primary order and the sort is stable, so the
- * initial sort keeps the server order (CRED-7: expiry, then cluster, then name).
- */
-const SORT_ACCESSORS: Record<'cluster' | 'expiry', (credential: Credential) => SortValue> = {
-  cluster: (credential) => credential.clusterName,
-  expiry: (credential) => (credential.expiresAt === null ? null : Date.parse(credential.expiresAt)),
-};
+/** Filter elements (OCP `ConsoleDataView`): Name, then the attribute filters. Module-level, so never recreated. */
+const FILTER_NODES = [
+  <DataViewTextFilter key="q" filterId="q" title="Name" placeholder="Filter by name" />,
+  <DataViewCheckboxFilter
+    key="expiry"
+    filterId="expiry"
+    title="Expiry"
+    placeholder="Filter by expiry"
+    options={EXPIRY_OPTIONS}
+  />,
+  <DataViewCheckboxFilter
+    key="env"
+    filterId="env"
+    title="Environment"
+    placeholder="Filter by environment"
+    options={ENVIRONMENT_OPTIONS}
+  />,
+];
 
-const NO_CREDENTIALS: Credential[] = [];
+/** Initial sort: soonest expiry first, the server's order (CRED-7). */
+const DEFAULT_SORT = { by: 'expiry', direction: 'asc' } as const;
+
+const idOf = (credential: Credential) => credential.id;
+
+/** Router link to the clusters list that PatternFly's `Button` can render as. */
+function ClustersLink(props: Omit<LinkProps, 'to'>) {
+  return <Link {...props} to="/admin/clusters" />;
+}
+
+/** No credential anywhere yet: where credentials are added, with a way there (OCP custom list empty state). */
+function NoCredentials() {
+  return (
+    <EmptyState titleText="No Credentials found" headingLevel="h2">
+      <EmptyStateBody>Credentials are added per cluster, on the cluster&apos;s Credentials tab.</EmptyStateBody>
+      <EmptyStateFooter>
+        <EmptyStateActions>
+          <Button variant="link" component={ClustersLink}>
+            Go to Clusters
+          </Button>
+        </EmptyStateActions>
+      </EmptyStateFooter>
+    </EmptyState>
+  );
+}
 
 /**
  * `/admin/credentials` — every credential of the fleet in one list, soonest expiry first (CRED-7), under the expiry
- * alert (CRED-8). Filters live in the URL (`?q=&expiry=&env=`) so the alert can link to a pre-filtered view; sorting
- * by expiry or cluster is client-side. Rows link to the cluster's Credentials tab, where rotate/delete live.
- * Fingerprint and Grants hide below `2xl` so the compact table fits 1280. Lazy-loaded by `routes.tsx`.
+ * alert (CRED-8), as an OCP list page (`UX.md` §5, `ConsoleDataView`). Filters live in the URL (`?q=&expiry=&env=`;
+ * Name searches cluster, credential name and service account) so the alert can link to a pre-filtered view. Rows link
+ * to the cluster's Credentials tab, where rotate/delete live. Lazy-loaded by `routes.tsx`.
  */
 export function CredentialsListPage() {
   const { data, error, isPending, refetch } = useFleetCredentials();
-  const { values, setText, toggle, clear, clearAll } = useUrlFilters(CREDENTIAL_FILTERS);
+  const { values, filterValues, onFilterChange, clearAll, isFiltered } = useAdminListFilters(CREDENTIAL_FILTERS);
 
-  const credentials = data ?? NO_CREDENTIALS;
-  const visible = useMemo(
-    () => credentials.filter((credential) => matchesCredentialFilters(credential, values)),
-    [credentials, values],
+  const filtered = useMemo(
+    () => (data ?? []).filter((credential) => matchesCredentialFilters(credential, values)),
+    [data, values],
   );
-  const { sorted, sortProps } = useClientSort(visible, SORT_ACCESSORS, { by: 'expiry', direction: 'asc' });
 
   return (
     <>
@@ -62,79 +82,28 @@ export function CredentialsListPage() {
       />
       <PageBody>
         <CredentialExpiryAlert />
-        {error && <ErrorState error={error} title="Could not load credentials" onRetry={() => void refetch()} />}
-        <FilterToolbar
-          ariaLabel="Credentials toolbar"
-          search={{
-            value: values.q ?? '',
-            onChange: (value) => setText('q', value),
-            placeholder: 'Filter by cluster, name or service account',
-            ariaLabel: 'Search credentials',
-          }}
-          filters={[
-            {
-              key: 'expiry',
-              label: 'Expiry',
-              options: EXPIRY_OPTIONS,
-              selected: values.expiry,
-              onToggle: (value) => toggle('expiry', value),
-              onClear: () => clear('expiry'),
-            },
-            {
-              key: 'env',
-              label: 'Environment',
-              options: ENVIRONMENT_OPTIONS,
-              selected: values.env,
-              onToggle: (value) => toggle('env', value),
-              onClear: () => clear('env'),
-            },
-          ]}
-          onClearAll={clearAll}
-        />
-        {!error && (
-          <Table aria-label="Credentials" variant="compact">
-            <Thead>
-              <Tr>
-                <Th modifier="nowrap" sort={sortProps('cluster', 0)}>
-                  Cluster
-                </Th>
-                <Th modifier="nowrap">Name</Th>
-                <Th modifier="nowrap">Service account</Th>
-                <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
-                  Fingerprint
-                </Th>
-                <Th modifier="nowrap" sort={sortProps('expiry', 4)}>
-                  Expiry
-                </Th>
-                <Th modifier="nowrap" visibility={LOW_PRIORITY_COLUMN}>
-                  Grants
-                </Th>
-                <Th modifier="nowrap">Last test</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {isPending && (
-                <TableSkeletonRows
-                  columns={FLEET_CREDENTIAL_COLUMN_COUNT}
-                  columnVisibility={FLEET_CREDENTIAL_COLUMN_VISIBILITY}
-                />
-              )}
-              {data?.length === 0 && (
-                <TableEmptyRow
-                  colSpan={FLEET_CREDENTIAL_COLUMN_COUNT}
-                  title="No credentials found"
-                  body="Credentials are added per cluster, on the cluster's Credentials tab."
-                  actions={<Link to="/admin/clusters">Go to Clusters</Link>}
-                />
-              )}
-              {credentials.length > 0 && sorted.length === 0 && (
-                <TableNoMatchRow colSpan={FLEET_CREDENTIAL_COLUMN_COUNT} onClearAll={clearAll} />
-              )}
-              {sorted.map((credential) => (
-                <FleetCredentialRow key={credential.id} credential={credential} />
-              ))}
-            </Tbody>
-          </Table>
+        {data?.length === 0 ? (
+          <NoCredentials />
+        ) : (
+          <ConsoleDataView
+            id="admin-credentials"
+            label="Credentials"
+            data={data}
+            filteredData={filtered}
+            loaded={!isPending}
+            error={
+              error &&
+              !data && <ErrorState error={error} title="Could not load credentials" onRetry={() => void refetch()} />
+            }
+            columns={FLEET_CREDENTIAL_COLUMNS}
+            getRowId={idOf}
+            defaultSort={DEFAULT_SORT}
+            filterNodes={FILTER_NODES}
+            filterValues={filterValues}
+            onFilterChange={onFilterChange}
+            onClearAllFilters={clearAll}
+            isFiltered={isFiltered}
+          />
         )}
       </PageBody>
     </>

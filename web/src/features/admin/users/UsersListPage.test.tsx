@@ -5,6 +5,7 @@ import { mockDb, problem, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
+import { checkFilterOption } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
 
 /** All fixture usernames in server order (sorted by username). */
@@ -55,10 +56,14 @@ describe('UsersListPage (USR-1)', () => {
     expect(visibleUsernames(table)).toEqual(ALL_USERS);
     expect(screen.getByRole('heading', { name: 'Users', level: 1 })).toBeInTheDocument();
     // The create action sits in the page heading (UX.md §3), not in the toolbar.
-    expect(screen.getByRole('button', { name: 'Add user' })).toBeInTheDocument();
-    const toolbar = screen.getByRole('group', { name: 'Users toolbar' });
-    expect(within(toolbar).queryByRole('button', { name: 'Add user' })).not.toBeInTheDocument();
-    expect(within(table).getByRole('columnheader', { name: 'Cluster grants' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Add user' })).toHaveLength(1);
+    // OCP list toolbar (UX.md §5): name filter with the `/` hint, column management, pagination top and bottom.
+    expect(screen.getByRole('textbox', { name: 'Filter by name' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Column management' })).toBeInTheDocument();
+    expect(screen.getAllByRole('navigation', { name: /Users pagination/ })).toHaveLength(2);
+    expect(within(table).getByRole('columnheader', { name: /^Cluster grants/ })).toBeInTheDocument();
+    // Names are OCP `ResourceLink`s with the fleet kind badge "U" (UX.md §5).
+    expect(within(rowOf(table, 'admin')).getByText('U')).toHaveAttribute('title', 'User');
     expect(within(table).getByRole('link', { name: 'pending-paul' })).toHaveAttribute(
       'href',
       '/admin/users/pending-paul',
@@ -107,12 +112,12 @@ describe('UsersListPage (USR-1)', () => {
 
     // Paste, not type: every keystroke re-renders the table and updates the URL, which under load pushed this test
     // past Vitest's 5 s timeout. One input event per value is ~3x faster; `delay: null` made no difference (T-0046).
-    await user.click(screen.getByRole('textbox', { name: 'Search users' }));
+    await user.click(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('auditors');
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['ines']));
     expect(router.state.location.search).toBe('?q=auditors');
 
-    await user.clear(screen.getByRole('textbox', { name: 'Search users' }));
+    await user.clear(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('carol op');
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['carol']));
   });
@@ -121,21 +126,19 @@ describe('UsersListPage (USR-1)', () => {
     const { user, router } = renderApp('/admin/users');
     const table = await findUsersTable();
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Role' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Admin' }));
+    await checkFilterOption(user, 'Role', 'Admin');
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['admin', 'carol', 'ines']));
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Status' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Active' }));
+    await user.click(screen.getByRole('button', { name: 'Filter by role' }));
+    await checkFilterOption(user, 'Status', 'Active', 'Role');
     await user.click(await screen.findByRole('checkbox', { name: 'Pending' }));
-    expect(router.state.location.search).toBe('?role=admin&status=active&status=pending');
+    expect(router.state.location.search).toBe('?role=admin&status=pending&status=active');
 
-    const toolbar = screen.getByRole('group', { name: 'Users toolbar' });
-    const statusChips = within(toolbar).getByRole('list', { name: 'Status' });
+    const statusChips = screen.getByRole('list', { name: 'Status' });
     expect(within(statusChips).getByText('Active')).toBeInTheDocument();
     expect(within(statusChips).getByText('Pending')).toBeInTheDocument();
 
-    await user.click(within(toolbar).getByRole('button', { name: 'Clear all filters' }));
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(visibleUsernames(table)).toEqual(ALL_USERS));
     expect(router.state.location.search).toBe('');
   });
@@ -145,35 +148,29 @@ describe('UsersListPage (USR-1)', () => {
     const table = await screen.findByRole('grid', { name: 'Users' });
 
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['dave']));
-    const toolbar = screen.getByRole('group', { name: 'Users toolbar' });
-    expect(
-      within(within(toolbar).getByRole('list', { name: 'Status' })).getByText('Deactivated'),
-    ).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Status' })).getByText('Deactivated')).toBeInTheDocument();
   });
 
   it('filters by the read-only flag', async () => {
     const { user, router } = renderApp('/admin/users');
     const table = await findUsersTable();
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Read only' }));
-    await user.click(await screen.findByRole('option', { name: 'Yes' }));
+    await checkFilterOption(user, 'Read only', 'Yes');
     await waitFor(() => expect(visibleUsernames(table)).toEqual(['ines']));
     expect(router.state.location.search).toBe('?readOnly=yes');
 
-    await user.click(screen.getByRole('button', { name: 'Filter by Read only' }));
-    await user.click(await screen.findByRole('option', { name: 'No' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Yes' }));
+    await user.click(screen.getByRole('checkbox', { name: 'No' }));
     await waitFor(() => expect(visibleUsernames(table)).not.toContain('ines'));
     expect(visibleUsernames(table)).toHaveLength(ALL_USERS.length - 1);
   });
 
-  it('shows the no-match state with "Clear all filters" when nothing matches', async () => {
+  it('shows the OCP no-match row with "Clear filters" when nothing matches', async () => {
     const { user, router } = renderApp('/admin/users?q=nobody-like-this');
     const table = await screen.findByRole('grid', { name: 'Users' });
 
-    expect(
-      await within(table).findByRole('heading', { name: 'No results match the filter criteria' }),
-    ).toBeInTheDocument();
-    await user.click(within(table).getByRole('button', { name: 'Clear all filters' }));
+    expect(await within(table).findByText('No Users found')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(visibleUsernames(table)).toEqual(ALL_USERS));
     expect(router.state.location.search).toBe('');
   });
@@ -205,7 +202,7 @@ describe('UsersListPage (USR-1)', () => {
       'pending-paul',
     ]);
 
-    await user.click(within(table).getByRole('button', { name: 'Username' }));
+    await user.click(within(table).getByRole('button', { name: 'Name' }));
     expect(visibleUsernames(table)).toEqual(ALL_USERS);
   });
 

@@ -19,6 +19,7 @@ export {
   type ConsoleDataViewProps,
   type DataViewFilterValue,
 } from './data-view/ConsoleDataView';
+export { ConsoleFilterToolbar, type ConsoleFilterToolbarProps } from './data-view/ConsoleFilterToolbar';
 export { DataViewLabelFilter, type DataViewLabelFilterProps } from './data-view/DataViewLabelFilter';
 export { DataViewTextFilter, type DataViewTextFilterProps } from './data-view/DataViewTextFilter';
 export { FilterTextInput, type FilterTextInputProps } from './data-view/FilterTextInput';

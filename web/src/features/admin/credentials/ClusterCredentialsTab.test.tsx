@@ -6,6 +6,7 @@ import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { adminRoute } from '../routes';
+import { withoutBadges } from '../dataViewTestUtils';
 
 /** Fake tokens only. A JWT for `system:serviceaccount:fleetconsole:fleet-ops`, expiring in 2100. */
 const JWT_TOKEN = [
@@ -29,7 +30,7 @@ async function findTable(cluster: string, timeout?: number) {
 function rowOf(table: HTMLElement, name: string): HTMLElement {
   const row = within(table)
     .getAllByRole('row')
-    .find((candidate) => within(candidate).queryAllByRole('cell')[0]?.textContent.startsWith(name));
+    .find((candidate) => withoutBadges(within(candidate).queryAllByRole('cell')[0]).startsWith(name));
   if (!row) throw new Error(`No row ${name}`);
   return row;
 }

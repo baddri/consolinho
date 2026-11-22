@@ -22,7 +22,7 @@ import { UserGrantsTab } from '../grants/GrantsTab';
 import { useUser } from './api';
 import { UserDetailHeader } from './UserDetailHeader';
 import { UserDetailsTab } from './UserDetailsTab';
-import { userDetailPath } from './UserRow';
+import { userDetailPath } from './userColumns';
 
 /** Router link to the users list that PatternFly's `Button` can render as. */
 function UsersLink(props: Omit<LinkProps, 'to'>) {
@@ -95,14 +95,14 @@ function UserTabPanel({ user, tab, onGrantAccess }: UserTabsProps) {
   if (tab === 'details') {
     return <UserDetailsTab user={user} />;
   }
-  return <UserGrantsTab user={user} onBulkGrant={onGrantAccess} />;
+  return <UserGrantsTab user={user} onGrantAccess={onGrantAccess} />;
 }
 
 /** Props of {@link UserTabs} and {@link UserTabPanel}. */
 interface UserTabsProps {
   user: UserDetail;
   tab: UserDetailTab;
-  /** Opens the bulk grant wizard (Cluster access empty state). */
+  /** Opens the bulk grant wizard (Cluster access "Grant access"). */
   onGrantAccess: () => void;
 }
 
@@ -128,8 +128,8 @@ function UserTabs({ user, tab, onGrantAccess }: UserTabsProps) {
  * decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
  * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry —
  * both only while nothing is loaded: a failed background refetch keeps the loaded data, and a 404 after load sends
- * the admin back to the list with a toast. "Grant access to clusters" (Actions menu, Cluster access empty state, or
- * router state {@link OpenBulkGrantState} after "Create and grant access") opens the bulk grant wizard.
+ * the admin back to the list with a toast. "Grant access" (Cluster access tab) or router state
+ * {@link OpenBulkGrantState} after "Create and grant access" opens the bulk grant wizard.
  * Lazy-loaded by `routes.tsx`.
  */
 export function UserDetailPage() {

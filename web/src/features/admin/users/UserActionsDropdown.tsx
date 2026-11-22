@@ -11,11 +11,12 @@ export interface UserActionsDropdownProps {
 
 /**
  * The user detail page's "Actions" menu (USR-3/4/5/6). Items, order and disabled reasons come from
- * `useUserActions`, the same hook as the list kebab, so both offer exactly the same actions; disabled items stay
- * visible, aria-disabled with a tooltip. The confirmation dialog the hook owns is rendered next to the menu.
+ * `useUserActions`, the same hook as the list kebab, minus "Grant access to clusters": on this page granting lives in
+ * the Cluster access tab's toolbar only (T-0118 #9). Disabled items stay visible, aria-disabled with a tooltip. The
+ * confirmation dialog the hook owns is rendered next to the menu.
  */
 export function UserActionsDropdown({ user }: UserActionsDropdownProps) {
-  const { items, dialog } = useUserActions(user);
+  const { items, dialog } = useUserActions(user, { withGrant: false });
   const [isOpen, setOpen] = useState(false);
 
   return (

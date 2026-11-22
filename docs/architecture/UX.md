@@ -85,7 +85,9 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - Kind badge = OCP `co-m-resource-icon` (`public/components/_resource.scss`): filled pill, white text, radius 20px,
   `padding: 1px 4px`, `min-width: 18px`, `line-height: 16px`; colour per kind from `public/style/_vars.scss` (Pod
   `#009596`, workloads `#004080`, Namespace/Project `#1e4f18`, ConfigMap `#40199a`, Secret `#c46100`, Service
-  `#6ca100`, default `#2b9af3`). Fleet kinds use the default colour and OCP's abbreviation rule (capitals of the kind).
+  `#6ca100`, default `#2b9af3`). Fleet kinds use the default colour and OCP's abbreviation rule (capitals of the kind):
+  User `U`, Cluster `C`, Credential `CC` (rule applied to ClusterCredential; OCP gives colliding kinds an own `abbr`,
+  `public/models/index.ts`; not `CR` = OCP's ClusterRole).
 - Status cells: **icon + text**, not a filled label, mapped exactly as OCP `.../status/Status.tsx`: sync icon, no colour
   (Running, Updating, In Progress); green check (Active, Ready, Succeeded, Completed, Enabled, Up to date, Valid,
   Passed); red exclamation (Failed, Error, CrashLoopBackOff, ImagePullBackOff); in-progress icon (Pending); ban icon
