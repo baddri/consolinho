@@ -12,7 +12,7 @@ import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } 
 import { mockDb, mockK8s, problem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
-import { NO_EVENTS_BODY, NO_EVENTS_TITLE } from '../events/ResourceEventsTab';
+import { NO_EVENTS } from '../events/EventStreamView';
 import { resourceRoutes } from '../routes';
 import { base64Size, formatBytes } from './sections/ConfigMapDetails';
 
@@ -260,17 +260,22 @@ describe('events tab (UI-5)', () => {
     const pod = getPod('dev-1', CRASHING_POD);
     renderApp(`${POD_PATH}/events`);
 
-    const table = await screen.findByRole('grid', { name: 'Events' });
+    const stream = await screen.findByRole('list', { name: 'Events' });
     expect(screen.getByRole('tab', { name: 'Events' })).toHaveAttribute('aria-selected', 'true');
-    await within(table).findByText('BackOff');
-    expect(fieldSelectors).toContain(`involvedObject.uid=${pod.metadata.uid ?? ''}`);
-    const reasons = () =>
-      within(table)
-        .getAllByRole('row')
-        .slice(1)
-        .map((row) => within(row).queryByText(/^(BackOff|Started|Killing)$/)?.textContent);
-    expect(reasons()).toEqual(['BackOff', 'Started']);
-    expect(within(table).queryByRole('columnheader', { name: 'Involved object' })).not.toBeInTheDocument();
+    expect(fieldSelectors).toContain(
+      `involvedObject.uid=${pod.metadata.uid ?? ''},involvedObject.name=${CRASHING_POD},involvedObject.kind=Pod`,
+    );
+    const messages = () =>
+      within(stream)
+        .getAllByRole('group')
+        .map((message) => message.textContent);
+    expect(messages()).toEqual([
+      `Back-off restarting failed container web in pod ${CRASHING_POD}`,
+      'Started container web',
+    ]);
+    // The OCP stream on a details tab has no toolbar.
+    expect(screen.queryByRole('combobox', { name: 'Resources' })).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 2 events')).toBeInTheDocument();
 
     mockK8s.upsert('dev-1', {
       apiVersion: 'v1',
@@ -289,15 +294,16 @@ describe('events tab (UI-5)', () => {
       lastTimestamp: new Date().toISOString(),
     } as K8sResource);
 
-    await waitFor(() => expect(reasons()).toEqual(['Killing', 'BackOff', 'Started']));
+    await waitFor(() => expect(messages()[0]).toBe('Stopping container web'));
+    expect(screen.getByText('Showing 3 events')).toBeInTheDocument();
   });
 
-  it('shows a small empty state without table headers', async () => {
+  it('shows "No events" under the stream header (OCP NoEvents)', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config/events');
 
-    expect(await screen.findByRole('heading', { name: NO_EVENTS_TITLE })).toBeInTheDocument();
-    expect(screen.getByText(NO_EVENTS_BODY)).toBeInTheDocument();
-    expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
+    expect(await screen.findByText(NO_EVENTS)).toBeInTheDocument();
+    expect(screen.getByText('Showing 0 events')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Events' })).not.toBeInTheDocument();
   });
 });
 

@@ -89,6 +89,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * that match, and is where the "N of M pods" status links.
    */
   podsSelector?(obj: T): Record<string, string> | undefined;
+  /**
+   * How the list page renders: `table` (default, `ConsoleDataView`) or `eventStream`, OCP's live stream of event cards
+   * with its own toolbar (Event only, `UX.md` §6a).
+   */
+  listLayout?: 'table' | 'eventStream';
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /** Delete asks to type the name (Namespace, Project). */

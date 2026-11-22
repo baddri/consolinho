@@ -122,7 +122,6 @@ describe('resource list states (QG-3, UI-10)', () => {
   it.each([
     ['pods', 'Pods', WEB_PODS[0] ?? ''],
     ['configmaps', 'ConfigMaps', 'web-config'],
-    ['events', 'Events', 'Back-off restarting failed container web in pod ' + CRASHING_POD],
   ])(
     'renders %s from the fixtures without a badge or Live label (UX.md §3)',
     async (plural, title, sample) => {
@@ -143,7 +142,6 @@ describe('resource list states (QG-3, UI-10)', () => {
   it.each([
     ['pods', 'Pods'],
     ['configmaps', 'ConfigMaps'],
-    ['events', 'Events'],
     ['deployments', 'Deployments'],
     ['services', 'Services'],
   ])('shows skeleton rows while %s load', async (plural, title) => {
@@ -159,7 +157,6 @@ describe('resource list states (QG-3, UI-10)', () => {
   it.each([
     ['pods', 'Pods'],
     ['configmaps', 'ConfigMaps'],
-    ['events', 'Events'],
     ['deployments', 'Deployments'],
     ['services', 'Services'],
   ])('shows only the empty state for %s in an empty namespace (OCP EmptyBox)', async (plural, title) => {
@@ -311,43 +308,6 @@ describe('resource list filters and sorting (UI-3)', () => {
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));
     await waitFor(() => expect(linkNames(table)).toEqual(WEB_PODS));
     expect(router.state.location.search).toBe('');
-  });
-
-  it('lists events with the UI-3 columns and links a registered involved object', async () => {
-    renderApp('/c/dev-1/k8s/ns/shop/events');
-    const table = await findTable('Events');
-    const reason = await within(table).findByText('BackOff');
-
-    const headers = columnHeaders(table);
-    for (const name of ['Type', 'Reason', 'Involved object', 'Message', 'Count', 'Last seen']) {
-      expect(headers).toContain(name);
-    }
-    const row = reason.closest('tr');
-    if (!row) throw new Error('row not found');
-    expect(within(row).getByText('Warning')).toBeInTheDocument();
-    expect(within(row).getByRole('link', { name: new RegExp(CRASHING_POD) })).toHaveAttribute(
-      'href',
-      `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`,
-    );
-  });
-
-  it('filters events by type, newest first', async () => {
-    const { user } = renderApp('/c/dev-1/k8s/ns/shop/events');
-    const table = await findTable('Events');
-    await within(table).findByText('BackOff');
-    const reasons = () =>
-      within(table)
-        .getAllByRole('row')
-        .slice(1)
-        .map((row) => within(row).getAllByRole('cell')[1]?.textContent);
-    // The Warning happened 2 minutes ago, the Normal ones hours ago.
-    expect(reasons()[0]).toBe('BackOff');
-
-    await chooseFilter(user, 'Type');
-    await user.click(screen.getByRole('button', { name: 'Filter by type' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Normal' }));
-
-    await waitFor(() => expect(reasons()).toEqual(['Started', 'Started', 'Started']));
   });
 
   it('sorts by a column header', async () => {

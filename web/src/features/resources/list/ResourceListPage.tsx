@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router';
 import { apiVersionOf, useK8sDiscovery } from '@/shared/k8s';
 import { PageBody, PageHeading } from '@/shared/ui';
 import { ProjectBar } from '../components/ProjectBar';
+import { EventsPage } from '../events/EventsPage';
 import { ResourcePageSkeleton } from '../components/ResourcePageSkeleton';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
 import { descriptorForPlural } from '../registry/registry';
@@ -58,10 +59,14 @@ export function ResourceListPage() {
       />
     );
   }
+  const key = `${cluster}|${plural}|${namespace ?? ''}`;
+  if (descriptor.listLayout === 'eventStream') {
+    return <EventsPage key={key} descriptor={descriptor} cluster={cluster} namespace={namespace} />;
+  }
   // Remount per list so sort, page and the label draft start fresh on another kind, namespace or cluster.
   return (
     <ResourceList
-      key={`${cluster}|${plural}|${namespace ?? ''}`}
+      key={key}
       descriptor={descriptor}
       cluster={cluster}
       scope={scope}

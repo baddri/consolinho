@@ -8,8 +8,9 @@ describe('resource registry', () => {
     expect(new Set(plurals).size).toBe(plurals.length);
   });
 
-  it('sorts every list by a sortable column by default', () => {
-    for (const descriptor of resourceDescriptors()) {
+  it('sorts every table list by a sortable column by default', () => {
+    // The event stream (T-0124) has no columns: it is always newest first.
+    for (const descriptor of resourceDescriptors().filter((d) => d.listLayout !== 'eventStream')) {
       const columnId = descriptor.defaultSort?.columnId ?? 'name';
       expect(
         descriptor.columns.some((column) => column.id === columnId && column.sortValue !== undefined),

@@ -12,6 +12,8 @@ export interface FilterTextInputProps {
   isShortcutActive?: boolean;
   onFocus?: FocusEventHandler<HTMLInputElement>;
   onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
+  /** Focus on mount, as OCP's Events page text filter (`events.tsx` `autoFocus`). */
+  autoFocus?: boolean;
 }
 
 /** True when the key press started in a field that takes text itself. */
@@ -33,6 +35,7 @@ export function FilterTextInput({
   isShortcutActive,
   onFocus,
   onKeyDown,
+  autoFocus,
 }: FilterTextInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +62,9 @@ export function FilterTextInput({
         onChange={(_event, next) => onChange(next)}
         onFocus={onFocus}
         onKeyDown={onKeyDown}
+        // Opt-in only, for a page whose main task is this filter (OCP Events page autofocuses it).
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus={autoFocus}
       />
       <span className={styles.feedback}>
         <kbd className={styles.kbd}>/</kbd>

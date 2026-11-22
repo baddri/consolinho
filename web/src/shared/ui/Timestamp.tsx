@@ -1,26 +1,8 @@
 import { Tooltip } from '@patternfly/react-core';
-import { useEffect, useState } from 'react';
 import { RhUiClockIcon } from '@patternfly/react-icons';
 import { isRelativeTimestamp, timestampText, utcTimestampText } from './formatTimestamp';
 import styles from './Timestamp.module.css';
-
-/** How often a relative timestamp ("Just now", "N minutes ago") re-renders. */
-const TICK_MS = 10_000;
-
-/**
- * The current time for a timestamp of `date`: ticks every {@link TICK_MS} only while the text is relative, and stops
- * for good once it turns absolute (time moves forward), so a page of old timestamps runs no timers.
- */
-function useTimestampNow(date: Date | undefined): Date {
-  const [now, setNow] = useState(() => new Date());
-  const relative = date !== undefined && isRelativeTimestamp(date, now);
-  useEffect(() => {
-    if (!relative) return undefined;
-    const timer = setInterval(() => setNow(new Date()), TICK_MS);
-    return () => clearInterval(timer);
-  }, [relative]);
-  return now;
-}
+import { useTimestampTick } from './timestampTick';
 
 /** `value` as a date; `undefined` when absent or unparseable. */
 function parse(value: string | null | undefined): Date | undefined {
@@ -39,11 +21,12 @@ export interface TimestampProps {
  * OCP `Timestamp` (`console-shared/src/components/datetime/Timestamp.tsx`, `UX.md` §5) for every time of a
  * Kubernetes object (Created cells, "Created at", condition updates): clock icon + the absolute local date and time,
  * relative ("5 minutes ago") only within 10.5 minutes; the UTC time in a tooltip. The focusable `<time>` lets
- * keyboard users open the tooltip; relative text re-renders every 10 seconds so "Just now" moves on; absolute text runs no timer.
+ * keyboard users open the tooltip; relative text re-renders on the shared 10-second tick so "Just now" moves on; absolute text doesn't re-render.
  */
 export function Timestamp({ value }: TimestampProps) {
   const date = parse(value);
-  const now = useTimestampNow(date);
+  // Ticks (on the one shared timer) only while the text is relative; absolute text never changes again.
+  const now = useTimestampTick((current) => date !== undefined && isRelativeTimestamp(date, current));
   if (!value) return <>-</>;
   // Never hide data: an unparseable value is shown as received.
   if (date === undefined) return <>{value}</>;

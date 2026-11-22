@@ -21,6 +21,7 @@ export {
 } from './data-view/ConsoleDataView';
 export { DataViewLabelFilter, type DataViewLabelFilterProps } from './data-view/DataViewLabelFilter';
 export { DataViewTextFilter, type DataViewTextFilterProps } from './data-view/DataViewTextFilter';
+export { FilterTextInput, type FilterTextInputProps } from './data-view/FilterTextInput';
 export type { DataViewColumn, DataViewColumnType } from './data-view/types';
 export {
   DetailsColumn,
@@ -57,7 +58,8 @@ export { SectionHeading, type SectionHeadingProps } from './page/SectionHeading'
 export { Status, statusKindOf, type StatusProps } from './Status';
 export { StatusIconText, type StatusIconTextProps, type StatusKind } from './StatusIconText';
 export { Timestamp, type TimestampProps } from './Timestamp';
-export { timestampText, utcTimestampText } from './formatTimestamp';
+export { durationText, timestampText, utcTimestampText } from './formatTimestamp';
+export { useTimestampTick } from './timestampTick';
 export { TOAST_TIMEOUT_MS, ToastProvider } from './ToastProvider';
 export { TypeaheadSelect, type TypeaheadItem, type TypeaheadSelectProps } from './TypeaheadSelect';
 export type { ShowToast, ToastApi } from './toastContext';

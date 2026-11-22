@@ -51,3 +51,23 @@ export function timestampText(date: Date, now: Date): string {
 export function utcTimestampText(date: Date): string {
   return utcFormat.format(date);
 }
+
+/**
+ * How long ago `date` was, without suffix, in its largest whole unit: "3 days", "1 hour", "5 minutes" (OCP `fromNow`
+ * with `omitSuffix`, e.g. an event's "12 times in the last 3 days"). "-" for an invalid or future time.
+ */
+export function durationText(date: Date, now: Date): string {
+  const ago = now.getTime() - date.getTime();
+  // Unparseable dates (NaN) and future times read "-", as OCP `timestampFor`/`fromNow`.
+  if (Number.isNaN(ago) || ago < 0) return '-';
+  const minutes = Math.floor(ago / MINUTE);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (days > 0) return plural(days, 'day');
+  if (hours > 0) return plural(hours, 'hour');
+  return plural(minutes, 'minute');
+}
+
+function plural(count: number, unit: string): string {
+  return `${count} ${unit}${count === 1 ? '' : 's'}`;
+}
