@@ -128,6 +128,9 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - Fleet-wide search ("where is image X running?").
 - Change windows policy (block mutations on prod outside business hours).
 - Per-cluster favourites and pinned resources.
+- (CP3.7 spec) Filter the admin Clusters list and the switcher by distribution (`OCP`/`K8s`) and environment.
+- (CP3.7 spec) "Fix distribution" quick action from the DIST-7 mismatch warning (one click to the edit form, field focused).
+- (CP3.7 spec) Show the saved inspect namespaces in the Credentials list as a hover hint for namespaced SAs.
 - Fleet access matrix (users × clusters, edit in place); bulk grant many users to one cluster; bulk re-assign grants between credentials.
 - Group-based grants using OCP groups recorded in CP1.
 - Time-bound / break-glass grants (auto-revert, audited).
