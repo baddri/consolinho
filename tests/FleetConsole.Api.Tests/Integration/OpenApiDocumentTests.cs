@@ -123,13 +123,17 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
     }
 
     [Theory]
-    [InlineData("failedStep", "ConnectionTestStep")]
-    [InlineData("headline", "CapabilityLevel")]
-    public async Task NullableEnumProperties_StayNullableAtTheReference(string property, string enumSchema)
+    [InlineData("ConnectionTestSummary", "failedStep", "ConnectionTestStep")]
+    [InlineData("ConnectionTestSummary", "headline", "CapabilityLevel")]
+    [InlineData("ConnectionTestResult", "detectedDistribution", "ClusterDistribution")]
+    [InlineData("ConnectionTestStepResult", "failureKind", "ProbeFailureKind")]
+    // T-0154: a get-only property (no setter to read write-nullability from) lost the null branch.
+    [InlineData("NamespaceRules", "failureKind", "ProbeFailureKind")]
+    public async Task NullableEnumProperties_StayNullableAtTheReference(string schema, string property, string enumSchema)
     {
         var document = await GetDocumentAsync();
 
-        var oneOf = document.GetProperty("components").GetProperty("schemas").GetProperty("ConnectionTestSummary")
+        var oneOf = document.GetProperty("components").GetProperty("schemas").GetProperty(schema)
             .GetProperty("properties").GetProperty(property).GetProperty("oneOf").EnumerateArray().ToArray();
 
         oneOf.Where(s => s.TryGetProperty("type", out _)).Select(s => s.GetProperty("type").GetString()).ShouldBe(["null"]);

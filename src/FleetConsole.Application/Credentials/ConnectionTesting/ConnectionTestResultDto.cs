@@ -107,7 +107,13 @@ public sealed record NamespaceRulesDto
     public string? Error { get; }
 
     /// <summary>The categorized cause when <see cref="Error"/> is set; otherwise null.</summary>
-    public ProbeFailureKind? FailureKind { get; }
+    /// <remarks>
+    /// The private <c>init</c> is load-bearing (T-0154): Microsoft.AspNetCore.OpenApi (.NET 10) only wraps a reference to a
+    /// componentized schema (this enum) in <c>oneOf: [{ "type": "null" }, { "$ref": … }]</c> when the property's
+    /// <em>write</em> nullability is <c>Nullable</c>, and a get-only property has no setter to read it from, so the
+    /// schema would claim <c>failureKind</c> is never null. Nothing calls the setter; the factories stay the only way in.
+    /// </remarks>
+    public ProbeFailureKind? FailureKind { get; private init; }
 
     /// <summary>A namespace whose rules were reviewed.</summary>
     /// <param name="namespace">The namespace.</param>
