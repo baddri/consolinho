@@ -11,6 +11,7 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
 - **Rendered truth:** compare against the real console side by side, at the same route, width and theme. It runs
   locally from the clone (`docs/dev/OCP-REFERENCE.md`: `scripts/ocp-ref/run-console.sh`, screenshots with
   `scripts/ocp-ref/shot.mjs`). Keep images in the scratchpad and never commit them. If it isn't running, fall back to source.
+  Measure first with the style probe `scripts/ui-probe.mjs` (text diff of computed styles, same doc); screenshots second.
 - **Own code:** reimplement with our components. Mirror OCP's PF component choice and variants, DOM nesting, spacing,
   CSS values and copy. Don't copy files or large blocks. No Red Hat/OpenShift logos or trademarks: our brand is "Consolinho".
 - **Parity matrix:** `docs/architecture/ocp-parity.md` lists each FleetConsole screen with its OCP route, its OCP source

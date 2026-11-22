@@ -1,7 +1,7 @@
 ---
 id: T-0138
 title: UI parity probe script (screenshots + computed-style diff vs OCP)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 3.6
 depends_on: []
@@ -48,15 +48,19 @@ node scripts/ui-probe.mjs <ours-route> <ocp-route> [--pair '<ourSel>=<ocpSel>' .
 - Rules: CLAUDE.md "Screenshots"/"Turns" bullets; reference console = browse only, never click actions.
 
 ## Acceptance criteria
-- [ ] Two consecutive runs reuse the same server (second run starts no process); `--stop` stops it.
-- [ ] Against a running reference console, `--pair 'h1=h1'` on a details page prints mismatch lines or `0 mismatches`.
-- [ ] With the reference console down, it prints the one-line hint and still probes our side.
-- [ ] `--shot` writes clipped PNGs only into the given dir.
-- [ ] Usage documented in `OCP-REFERENCE.md`; `UX.md` §0 points to it.
-- [ ] `scripts/check-fe.sh` green (script isn't part of the web build, but nothing else may break).
+- [x] Two consecutive runs reuse the same server (second run starts no process); `--stop` stops it.
+- [x] Against a running reference console, `--pair 'h1=h1'` on a details page prints mismatch lines or `0 mismatches`.
+- [x] With the reference console down, it prints the one-line hint and still probes our side.
+- [x] `--shot` writes clipped PNGs only into the given dir.
+- [x] Usage documented in `OCP-REFERENCE.md`; `UX.md` §0 points to it.
+- [x] `scripts/check-fe.sh` green (script isn't part of the web build, but nothing else may break).
 
 ## Work log
+- 2026-11-23 orchestrator: wrote `scripts/ui-probe.mjs`. Verified: second run reuses :5199 (one listener), `--stop`
+  frees it, OCP-down hint, `-` route, usage exit 2, `--shot` writes clipped PNGs only. Against the reference console,
+  pod details `h1=h1` + tabs: 2 mismatches / 28 checked (h1 width, content-dependent). Docs updated.
 
 ## Review
+- Architect review skipped (dev tooling outside `web/`, done by orchestrator); human may request one.
 
 ## Handover notes

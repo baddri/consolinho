@@ -22,3 +22,17 @@ node scripts/ocp-ref/shot.mjs /k8s/ns/openshift-console/pods pods <scratchpad> [
   installed console. We mirror the clone. The launcher sets `BRIDGE_BRANDING=ocp` (felt theme, the look we mirror; Red Hat logo). Override with `OCP_BRANDING=okd`. Never copy logos.
 - The bearer token expires with the `oc` login. Restart the console after `oc login`.
 - Stop it with `kill <pid>` (find the pid with `ss -ltnp | grep 9000`). `pkill -f bin/bridge` also kills the calling shell.
+
+## Measure instead of eyeballing: the style probe (T-0138)
+```bash
+node scripts/ui-probe.mjs <ours-route> <ocp-route|-> --pair '<ourSel>=<ocpSel>' [--pair ...] \
+     [--props font-size,gap,...] [--width 1280] [--theme light|dark|both] [--shot <scratchpad dir>] [--user admin|alice]
+node scripts/ui-probe.mjs --stop     # stop the mock server the probe started
+# e.g. node scripts/ui-probe.mjs /c/dev-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp /k8s/ns/consolinho/pods/<pod> --pair 'h1=h1'
+```
+- Prints only mismatches, `<ourSel> | <prop>: ours=<v> ocp=<v>`, then `N mismatches / M checked`. It also reports `box`
+  (WxH) and `gap-to-prev` (px to the previous sibling). Width and box depend on content, so compare them only on the same data.
+- Our side is the mock UI on fixed port 5199. The probe starts it once, detached, and later runs reuse it. Don't start
+  or kill dev servers by hand. If :9000 is down, it prints a hint and probes our side only (`-` as the OCP route does the same).
+- It only navigates and reads, never clicks. `--shot` writes PNGs clipped to the probed elements. Open them only for
+  what the numbers can't settle (CLAUDE.md "Screenshots").
