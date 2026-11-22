@@ -1,0 +1,19 @@
+/* OCP `.co-xl-icon-button` (`public/style/_overrides.scss`): an xl star padded to a standard button's height. */
+.xlIconButton {
+  --fc-button-icon-size: var(--pf-t--global--icon--size--xl);
+  --fc-button-size: calc(
+    var(--pf-t--global--font--size--body--default) * var(--pf-t--global--font--line-height--body) +
+      var(--pf-t--global--spacer--control--vertical--default) * 2
+  );
+
+  padding: calc((var(--fc-button-size) - var(--fc-button-icon-size)) / 2);
+}
+
+.xlIconButton :global(.pf-v6-c-button__icon) {
+  line-height: 0;
+}
+
+.xlIconButton :global(.pf-v6-svg) {
+  height: var(--fc-button-icon-size);
+  width: var(--fc-button-icon-size);
+}

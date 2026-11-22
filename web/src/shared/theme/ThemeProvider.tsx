@@ -1,20 +1,30 @@
-import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { ThemeContext, type Theme, type ThemePreference } from './themeContext';
+import { useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { useStoredValue } from '@/shared/hooks';
+import {
+  ThemeContext,
+  type Contrast,
+  type ContrastPreference,
+  type Theme,
+  type ThemePreference,
+} from './themeContext';
 
 /*
  * PatternFly 6 theme classes on the root `<html>` element, set exactly like OCP's `public/index.html` (UX.md §1).
- * `web/index.html` applies the same classes in a pre-paint script so the first frame is already themed; keep the two
- * in sync (class names, storage key, media queries).
+ * `web/public/theme-init.js` applies the same classes in a pre-paint script so the first frame is already themed; keep
+ * the two in sync (class names, storage keys and values, media queries).
  */
 /** Switches every design token to the dark palette. */
 const DARK_THEME_CLASS = 'pf-v6-theme-dark';
 /** Default contrast mode: floating sidebar card, background image, translucent main card. */
 const GLASS_THEME_CLASS = 'pf-v6-theme-glass';
-/** Contrast mode for users whose OS asks for more contrast; replaces glass. */
+/** High contrast mode; replaces glass. */
 const HIGH_CONTRAST_THEME_CLASS = 'pf-v6-theme-high-contrast';
 /** The OpenShift (commercial) palette; OCP sets it for every non-OKD branding, we set it always. */
 const FELT_THEME_CLASS = 'pf-v6-theme-felt';
-const STORAGE_KEY = 'fleetconsole.theme';
+/** Raw `light` / `dark` / `system`; no per-user key, because the pre-paint script runs before the session is known. */
+const THEME_STORAGE_KEY = 'fleetconsole.theme';
+/** Raw `glass` / `contrast` / `system`. */
+const CONTRAST_STORAGE_KEY = 'fleetconsole.contrast';
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 const MORE_CONTRAST_QUERY = '(prefers-contrast: more)';
 
@@ -43,37 +53,39 @@ function readOsMoreContrast(): boolean {
   return mediaQuery(MORE_CONTRAST_QUERY)?.matches ?? false;
 }
 
-/**
- * Reads the remembered preference. Values written before `system` existed (`light`/`dark`) stay valid; missing or
- * invalid values — and blocked storage, which is a convenience only — mean `system`.
- */
-function readInitialPreference(): ThemePreference {
-  try {
-    const stored = globalThis.localStorage.getItem(STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      return stored;
-    }
-  } catch {
-    // Storage blocked (private mode, policy) — ignore.
-  }
-  return 'system';
-}
+/** Stored values are raw strings; anything unknown counts as "not set" (= `system`). */
+const parseThemePreference = (raw: string): ThemePreference | undefined =>
+  raw === 'light' || raw === 'dark' || raw === 'system' ? raw : undefined;
+const parseContrastPreference = (raw: string): ContrastPreference | undefined =>
+  raw === 'glass' || raw === 'contrast' || raw === 'system' ? raw : undefined;
+const serializeRaw = (value: string): string => value;
 
 /**
- * Owns the theme for the whole app: the user's preference (light / dark / system, remembered in `localStorage`) and
- * the resolved theme, which follows the OS setting live while the preference is `system`. The contrast mode follows
- * the OS live: glass by default, high contrast under `prefers-contrast: more`; felt is always on.
+ * Owns the theme for the whole app, like OCP's `ThemeProvider`: the colour scheme (light / dark / system) and the
+ * contrast mode (glass / high contrast / system), both chosen on the User preferences page and remembered in
+ * `localStorage` (shared live across tabs). `system` follows the OS live (`prefers-color-scheme`,
+ * `prefers-contrast: more`). Felt is always on.
  *
- * Applying the theme requires toggling a class on `<html>` (PatternFly defines its dark tokens on `:root`, and
+ * Applying the theme requires toggling classes on `<html>` (PatternFly defines its theme tokens on `:root`, and
  * popovers/menus are portalled outside the React tree). This module is the single, deliberate exception to the
  * "no direct DOM access" rule.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreference] = useState<ThemePreference>(readInitialPreference);
+  const [storedTheme, setPreference] = useStoredValue(THEME_STORAGE_KEY, parseThemePreference, serializeRaw);
+  const [storedContrast, setContrastPreference] = useStoredValue(
+    CONTRAST_STORAGE_KEY,
+    parseContrastPreference,
+    serializeRaw,
+  );
+  const preference = storedTheme ?? 'system';
+  const contrastPreference = storedContrast ?? 'system';
+
   const osTheme = useSyncExternalStore(subscribeToOsTheme, readOsTheme);
   const theme: Theme = preference === 'system' ? osTheme : preference;
 
-  const moreContrast = useSyncExternalStore(subscribeToOsContrast, readOsMoreContrast);
+  const osMoreContrast = useSyncExternalStore(subscribeToOsContrast, readOsMoreContrast);
+  const osContrast: Contrast = osMoreContrast ? 'contrast' : 'glass';
+  const contrast: Contrast = contrastPreference === 'system' ? osContrast : contrastPreference;
 
   useEffect(() => {
     globalThis.document.documentElement.classList.toggle(DARK_THEME_CLASS, theme === 'dark');
@@ -82,18 +94,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const { classList } = globalThis.document.documentElement;
     classList.add(FELT_THEME_CLASS);
-    classList.toggle(GLASS_THEME_CLASS, !moreContrast);
-    classList.toggle(HIGH_CONTRAST_THEME_CLASS, moreContrast);
-  }, [moreContrast]);
+    classList.toggle(GLASS_THEME_CLASS, contrast === 'glass');
+    classList.toggle(HIGH_CONTRAST_THEME_CLASS, contrast === 'contrast');
+  }, [contrast]);
 
-  useEffect(() => {
-    try {
-      globalThis.localStorage.setItem(STORAGE_KEY, preference);
-    } catch {
-      // Not persisting is acceptable.
-    }
-  }, [preference]);
-
-  const value = useMemo(() => ({ preference, theme, setPreference }), [preference, theme]);
+  const value = useMemo(
+    () => ({ preference, theme, setPreference, contrastPreference, contrast, setContrastPreference }),
+    [preference, theme, setPreference, contrastPreference, contrast, setContrastPreference],
+  );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

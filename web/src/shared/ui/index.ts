@@ -32,6 +32,11 @@ export { formatAbsoluteTime, formatRelativeTime } from './formatRelativeTime';
 export { LabelList, type LabelListProps } from './LabelList';
 export { NotFoundPage } from './NotFoundPage';
 export { PageBody, type PageBodyProps } from './page/PageBody';
+export {
+  HeadingFavoriteContext,
+  type HeadingFavoriteProps,
+  type HeadingFavoriteRenderer,
+} from './page/headingFavorite';
 export { PageHeading, type BreadcrumbCrumb, type PageHeadingProps } from './page/PageHeading';
 export { PageTabs, type PageTab, type PageTabsProps } from './page/PageTabs';
 export { PlaceholderPage, type PlaceholderPageProps } from './PlaceholderPage';

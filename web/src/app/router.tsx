@@ -3,6 +3,7 @@ import { adminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
 import { OverviewPage, SearchPage } from '@/features/home';
+import { preferencesRoute } from '@/features/preferences';
 import { resourceRoutes } from '@/features/resources';
 import { NotFoundPage } from '@/shared/ui';
 import { AppShell } from './layout/AppShell';
@@ -39,6 +40,8 @@ export const routes: RouteObject[] = [
           },
           // Admin pages are lazy route modules in their own chunks, gated by RequireAdmin (ADM-3).
           adminRoute,
+          // Colour scheme and contrast (OCP User preferences); browser-local, not cluster-scoped.
+          preferencesRoute,
           { path: '*', element: <NotFoundPage /> },
         ],
       },

@@ -42,6 +42,7 @@ and the `Timestamp`/`DetailsSubsection` move of item 10.
    empty → "No labels" in `pf-v6-u-text-color-subtle`. No "Edit" link (no label editing feature).
 8. Field help popovers (dashed term underline, OpenAPI descriptions) — out of scope; follow-up task.
 9. Move `Timestamp` and `DetailsSubsection` to `shared/ui` with a unit test [T-0118 #10].
+10. Tabs spacing (from T-0120 visual review) — our details tabs sit 26px below the heading, OCP 22px — match OCP.
 
 ## Context pack
 - Docs: `UX.md` §3, §6.

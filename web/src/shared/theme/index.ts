@@ -1,3 +1,3 @@
 export { ThemeProvider } from './ThemeProvider';
 export { useTheme } from './useTheme';
-export type { Theme, ThemePreference } from './themeContext';
+export type { Contrast, ContrastPreference, Theme, ThemePreference } from './themeContext';
