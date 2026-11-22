@@ -38,13 +38,17 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   (`packages/console-app/src/components/user-preferences/UserPreferencePage.tsx`, "Color scheme", "Contrast mode").
 - Sidebar (`packages/console-app/src/components/nav/index.tsx`): `PageSidebar > PageSidebarBody > Nav`. The first child
   of the `Nav` is the header switcher, then the `NavExpandable` sections.
-  Order like OCP "Core platform": Home, Favorites (starred pages, `packages/console-app/src/components/favorite/`),
-  then the cluster sections, then Fleet administration. Every section starts collapsed, also the one holding the
+  Content follows the perspective like OCP `PerspectiveNav.tsx`: cluster pages show, like OCP "Core platform", Home,
+  Favorites (starred pages, `packages/console-app/src/components/favorite/`), then the cluster sections; fleet pages
+  (`/fleet/...`) show only the fleet sections (Fleet administration), never mixed (ADR-0033 §5). Every section starts collapsed, also the one holding the
   active page (marked current), like OCP `NavSection.tsx` (`useState(false)`).
 - **Cluster switcher = OCP's perspective switcher** (`packages/console-app/src/components/nav/NavHeader.tsx`): a
   full-width `MenuToggle` (`isFullWidth`, an icon, the name as `Title h2 size="md"`) at the top of the sidebar, menu
   opening under it. One line, same height as OCP's toggle (labels inline after the name), no divider under it. Fleet additions: search box, Recent / All clusters groups, environment and Read only labels.
-  On pages outside a cluster (admin) it shows the cluster the cluster nav links point to.
+  Perspective entry (fleet invention, like OCP's perspective menu items): admins get "Fleet management" (`GlobeIcon`)
+  as the first menu entry, in its own list under the search divider with a divider below, never filtered by the
+  search. On fleet pages the toggle shows the globe + "Fleet management" (`Title h2 md`, no labels) and that entry is
+  selected. On other non-cluster pages (Preferences) it shows the cluster the cluster nav links point to.
 - Project selector = OCP namespace bar (`public/components/namespace-bar.tsx`): first row of the main area, above the
   page heading, on namespaced list **and** details pages; `Project: <name>` toggle, then a divider.
 - The main area is filled to the bottom of the viewport (`Page isContentFilled`); the white inset card never ends

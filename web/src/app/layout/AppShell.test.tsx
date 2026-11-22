@@ -69,8 +69,9 @@ describe('AppShell', () => {
     },
   );
 
-  // Sections come from the registry (T-0073): only sections with registered kinds are listed, admin last (SW-11).
-  it('renders registry-driven navigation sections and an admin section', async () => {
+  // Sections come from the registry (T-0073): only sections with registered kinds are listed; Fleet administration
+  // lives in the fleet perspective only (FLEET-4).
+  it('renders registry-driven navigation sections and no Fleet administration on cluster pages', async () => {
     const { user } = renderApp('/c/dev-1/k8s/all-namespaces/events');
 
     const nav = await openSidebar(user);
@@ -78,7 +79,7 @@ describe('AppShell', () => {
       .getAllByRole('button')
       .filter((button) => !button.getAttribute('aria-label')?.endsWith('switch cluster'))
       .map((button) => button.textContent);
-    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Administration', 'Fleet administration']);
+    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Administration']);
     await expandSection(user, nav, 'Home');
     const events = within(nav).getByRole('link', { name: 'Events' });
     expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
@@ -90,7 +91,7 @@ describe('AppShell', () => {
     const { user } = renderApp('/c/dev-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
-    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Administration', 'Fleet administration']) {
+    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Administration']) {
       expect(within(nav).getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false');
     }
     expect(within(nav).getByRole('button', { name: 'Workloads' }).closest('li')).toHaveClass('pf-m-current');
@@ -98,6 +99,38 @@ describe('AppShell', () => {
     expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('href', '/c/dev-1/k8s/pods');
     expect(within(nav).getByRole('link', { name: 'Pods' })).toHaveAttribute('aria-current', 'page');
     expect(within(nav).getByRole('link', { name: 'ConfigMaps' })).toBeVisible();
+  });
+
+  // ADR-0033 §5: the fleet perspective shows only its own sections, in the same Nav frame under the switcher.
+  it.each(['admin', 'ines'])('shows only Fleet administration on fleet pages to %s (FLEET-3)', async (username) => {
+    setMockUser(username);
+    const { user } = renderApp('/fleet/admin/users');
+
+    const nav = await openSidebar(user);
+    const toggle = await within(nav).findByRole('button', { name: 'Fleet management, switch cluster' });
+    const buttons = within(nav).getAllByRole('button');
+    expect(buttons[0]).toBe(toggle);
+    expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet administration']);
+    await expandSection(user, nav, 'Fleet administration');
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
+      'Users',
+      'Clusters',
+      'Credentials',
+      'Audit log',
+    ]);
+  });
+
+  it('shows no sections on fleet pages to a non-admin (FLEET-8)', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/fleet/admin/users');
+
+    expect(
+      await screen.findByRole('heading', { name: "You don't have access to Fleet administration" }),
+    ).toBeInTheDocument();
+    const nav = await openSidebar(user);
+    expect(within(nav).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
+      'Fleet management, switch cluster',
+    ]);
   });
 
   it('switches cluster while keeping the current page', async () => {
@@ -211,8 +244,11 @@ describe('AppShell', () => {
     it.each([
       ['a development cluster', 'admin', '/c/dev-1/overview'],
       ['an admin page', 'alice', '/fleet/admin/users'],
+      // FLEET-9: the preferred cluster is production, but fleet pages are not about a cluster.
+      ['a fleet page with a production preferred cluster', 'carol', '/fleet/admin/users'],
     ])('is absent on %s', async (_case, username, path) => {
       setMockUser(username);
+      localStorage.setItem('fleetconsole.lastCluster', 'prod-eu-1');
       const { user } = renderApp(path);
 
       const nav = await openSidebar(user);

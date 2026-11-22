@@ -26,7 +26,7 @@ test('H3: switcher shows the cluster with dev and Read only labels', async ({ pa
 
 /**
  * H4 (SW-4): users without grants land on the "no clusters" page with a disabled "No clusters" switcher in the
- * sidebar (none in the masthead); only admins get the administration way out.
+ * sidebar (none in the masthead); only admins get the administration way out (and an enabled switcher).
  */
 test('H4: grantless users see the no-clusters landing', async ({ browser }) => {
   const user = await browser.newPage();
@@ -44,8 +44,35 @@ test('H4: grantless users see the no-clusters landing', async ({ browser }) => {
   await admin.goto('/');
   await loginAs(admin, 'e2e-admin');
   await expect(admin.getByRole('heading', { name: 'No clusters assigned yet' })).toBeVisible();
-  await expect(sidebar(admin).getByRole('button', { name: 'No clusters' })).toBeDisabled();
+  // Admins keep an enabled switcher: its menu holds Fleet management (FLEET-1).
+  await expect(sidebar(admin).getByRole('button', { name: 'Select a cluster' })).toBeEnabled();
   await expect(admin.getByRole('link', { name: 'Go to Fleet administration' })).toBeVisible();
   await expect(admin.getByRole('link', { name: 'grant yourself access from your user page' })).toBeVisible();
   await admin.context().close();
+});
+
+/**
+ * H5 (FLEET-1..3): an admin reaches the fleet perspective from the switcher; there the toggle reads "Fleet management"
+ * and the sidebar holds only Fleet administration. alice (no admin) gets no such entry.
+ */
+test('H5: admins switch to the fleet perspective', async ({ browser }) => {
+  const admin = await browser.newPage();
+  await admin.goto('/fleet');
+  await loginAs(admin, 'e2e-admin');
+  await expect(admin).toHaveURL(/\/fleet\/admin\/users$/);
+  const toggle = sidebar(admin).getByRole('button', { name: 'Fleet management, switch cluster' });
+  await expect(toggle).toBeVisible();
+  await expect(sidebar(admin).getByRole('button', { name: 'Fleet administration' })).toBeVisible();
+  await expect(sidebar(admin).getByRole('button', { name: 'Home' })).toHaveCount(0);
+  await toggle.click();
+  await expect(admin.getByRole('option', { name: 'Fleet management' })).toHaveAttribute('aria-selected', 'true');
+  await admin.context().close();
+
+  const user = await browser.newPage();
+  await user.goto(`/c/${cluster()}`);
+  await loginAs(user, 'alice');
+  await sidebar(user).getByRole('button', { name: /switch cluster$/ }).click();
+  await expect(user.getByRole('listbox', { name: 'All clusters' })).toBeVisible();
+  await expect(user.getByRole('option', { name: 'Fleet management' })).toHaveCount(0);
+  await user.context().close();
 });

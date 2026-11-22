@@ -107,24 +107,25 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         return HttpResponse.json([]);
       }),
     );
-    const { user } = renderApp('/fleet/admin/users');
+    const { user } = renderApp('/user-preferences/general');
 
     expect(await findSwitcher(user, 'Loading clusters')).toBeDisabled();
   });
 
   it('offers a retry when the list cannot be loaded', async () => {
+    setMockUser('alice');
     server.use(
       http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), {
         once: true,
       }),
     );
-    const { user } = renderApp('/fleet/admin/users');
+    const { user } = renderApp('/user-preferences/general');
 
     await user.click(await findSwitcher(user, 'Clusters unavailable — retry'));
 
     // Outside a cluster the toggle names the preferred cluster (the one the sidebar links target), never a blank.
-    const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
-    expect(optionNames(options)).toEqual(['dev-1']);
+    const options = await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
+    expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1']);
   });
 
   it('shows a disabled "No clusters" toggle to a user without grants', async () => {
@@ -199,7 +200,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
   it('shows and selects the preferred cluster on a non-cluster page', async () => {
     grantAllClusters();
     localStorage.setItem(LAST_CLUSTER_KEY, 'staging-eu-1');
-    const { user } = renderApp('/fleet/admin/users');
+    const { user } = renderApp('/user-preferences/general');
 
     const options = await openSwitcher(user, 'Cluster staging-eu-1 (staging), switch cluster');
     const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
@@ -262,7 +263,7 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
   it('hides recent clusters that are no longer granted', async () => {
     setMockUser('alice');
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1', 'staging-eu-1']));
-    const { user } = renderApp('/fleet/admin/users');
+    const { user } = renderApp('/user-preferences/general');
 
     await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
     const recent = screen.getByRole('listbox', { name: 'Recent clusters' });
@@ -289,7 +290,7 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
 
   it('has no Recent group for a fresh user', async () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1']));
-    const { user } = renderApp('/fleet/admin/users');
+    const { user } = renderApp('/user-preferences/general');
 
     await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
@@ -322,6 +323,154 @@ describe('ClusterSwitcher keeps context (SW-9)', () => {
     // `/c/dev-2` — the cluster's index route then picks its landing page (Projects, or Namespaces when discovery
     // fails: the mock proxy has no grant for admin on dev-2, only the switcher list is widened here).
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/c\/dev-2\/k8s\/cluster\//));
+  });
+});
+
+describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
+  /** Opens the switcher menu and returns its "Fleet" list, or null when the menu has none. */
+  async function openFleetList(user: UserEvent, toggleName: string | RegExp) {
+    await user.click(await findSwitcher(user, toggleName));
+    await screen.findByRole('listbox', { name: 'All clusters' });
+    return screen.queryByRole('listbox', { name: 'Fleet' });
+  }
+
+  it.each(['admin', 'ines'])('offers "Fleet management" first to %s, also while searching', async (username) => {
+    setMockUser(username);
+    const { user } = renderApp('/fleet/admin/users');
+
+    await openFleetList(user, 'Fleet management, switch cluster');
+    const fleet = screen.getByRole('listbox', { name: 'Fleet' });
+    // First list of the menu, before Recent / All clusters.
+    expect(screen.getAllByRole('listbox')[0]).toBe(fleet);
+    expect(within(fleet).getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+
+    await user.type(screen.getByRole('textbox', { name: 'Search clusters' }), 'zzz');
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    // Enter opens the first cluster match only; with none it stays put.
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+  });
+
+  it('does not offer it to a non-admin', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/c/prod-eu-1/overview');
+
+    expect(await openFleetList(user, /switch cluster$/)).toBeNull();
+    expect(screen.queryByRole('option', { name: 'Fleet management' })).not.toBeInTheDocument();
+  });
+
+  it('goes to /fleet/admin/users and shows the fleet toggle there, with the entry selected', async () => {
+    const { user, router } = renderApp('/c/dev-1/overview');
+
+    await openFleetList(user, 'Cluster dev-1 (dev), switch cluster');
+    await user.click(screen.getByRole('option', { name: 'Fleet management' }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
+    const toggle = await screen.findByRole('button', { name: 'Fleet management, switch cluster' });
+    expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Fleet management');
+    // No environment or read-only labels on the fleet toggle.
+    expect(toggle).toHaveTextContent(/^Fleet management$/);
+
+    await user.click(toggle);
+    expect(await screen.findByRole('option', { name: 'Fleet management' })).toHaveAttribute('aria-selected', 'true');
+    const all = screen.getByRole('listbox', { name: 'All clusters' });
+    expect(within(all).queryAllByRole('option', { selected: true })).toEqual([]);
+  });
+
+  it('shows the fleet toggle to a non-admin on a fleet page', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/fleet/admin/users');
+
+    await screen.findByRole('heading', { name: "You don't have access to Fleet administration" });
+    const nav = await openSidebar(user);
+    expect(within(nav).getByRole('button', { name: 'Fleet management, switch cluster' })).toBeInTheDocument();
+  });
+
+  it('returns to the cluster sidebar when a cluster is chosen on a fleet page', async () => {
+    const { user, router } = renderApp('/fleet/admin/users');
+
+    await openFleetList(user, 'Fleet management, switch cluster');
+    await user.click(screen.getByRole('option', { name: /dev-1/ }));
+
+    await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/c\/dev-1\//));
+    const nav = await openSidebar(user);
+    expect(await within(nav).findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' })).toBeInTheDocument();
+    expect(await within(nav).findByRole('button', { name: 'Home' })).toBeInTheDocument();
+    expect(within(nav).queryByRole('button', { name: 'Fleet administration' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Fleet management reachable for an admin whose cluster list failed, with a retry row', async () => {
+    server.use(http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), { once: true }));
+    const { user, router } = renderApp('/user-preferences/general');
+
+    await openFleetList(user, 'Select a cluster');
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Clusters unavailable — retry' }));
+    expect(await screen.findByRole('option', { name: /dev-1/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('option', { name: 'Fleet management' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
+  });
+
+  it('keeps Fleet management reachable for an admin without grants outside a fleet page', async () => {
+    server.use(http.get('*/api/clusters', () => HttpResponse.json([])));
+    const { user } = renderApp('/user-preferences/general');
+
+    const toggle = await findSwitcher(user, 'Select a cluster');
+    expect(toggle).toBeEnabled();
+    await openFleetList(user, 'Select a cluster');
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    expect(within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters')).toBeInTheDocument();
+  });
+
+  it.each(['/c/dev-1/overview', '/fleet/admin/users'])(
+    'keeps the menu open with a "Loading clusters" row while a retry refetches (%s)',
+    async (path) => {
+      let release: () => void = () => undefined;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let calls = 0;
+      server.use(
+        http.get('*/api/clusters', async () => {
+          calls += 1;
+          if (calls === 1) return HttpResponse.json({ title: 'Down' }, { status: 503 });
+          // Returning nothing falls through to the default handler (the admin's real list).
+          await gate;
+        }),
+      );
+      const { user } = renderApp(path);
+
+      await openFleetList(user, /^(Select a cluster|Fleet management, switch cluster)$/);
+      await user.click(screen.getByRole('option', { name: 'Clusters unavailable — retry' }));
+
+      const all = screen.getByRole('listbox', { name: 'All clusters' });
+      expect(await within(all).findByText('Loading clusters')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Loading clusters' })).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'Search clusters' })).toHaveFocus();
+      expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+
+      release();
+      expect(await screen.findByRole('option', { name: /dev-1/ })).toBeInTheDocument();
+    },
+  );
+
+  it('offers a retry row on a fleet page when the cluster list failed', async () => {
+    server.use(http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), { once: true }));
+    const { user } = renderApp('/fleet/admin/users');
+
+    await openFleetList(user, 'Fleet management, switch cluster');
+    await user.click(screen.getByRole('option', { name: 'Clusters unavailable — retry' }));
+    expect(await screen.findByRole('option', { name: /dev-1/ })).toBeInTheDocument();
+  });
+
+  it('lists the fleet entry for an admin without clusters on a fleet page', async () => {
+    server.use(http.get('*/api/clusters', () => HttpResponse.json([])));
+    const { user } = renderApp('/fleet/admin/users');
+
+    await openFleetList(user, 'Fleet management, switch cluster');
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    expect(within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters')).toBeInTheDocument();
   });
 });
 
@@ -448,7 +597,7 @@ describe('sidebar cluster links', () => {
     setMockUser('carol');
     // carol: prod-eu-1 granted (dev-2 is disabled); stale names fall back to it.
     localStorage.setItem(LAST_CLUSTER_KEY, 'dev-2');
-    const { user } = renderApp('/fleet/admin/users');
+    const { user } = renderApp('/user-preferences/general');
 
     const nav = await openSidebar(user);
     await expandSection(user, nav, 'Home');
@@ -458,7 +607,8 @@ describe('sidebar cluster links', () => {
     );
   });
 
-  // T-0097: the sidebar never links into clusters from the "not available" page; admins keep Fleet administration.
+  // T-0097: the sidebar never links into clusters from the "not available" page; Fleet administration is in the fleet
+  // perspective only (FLEET-4), so an admin sees no sections there either.
   it('are hidden on the "not available" page and come back after switching to a granted cluster', async () => {
     localStorage.setItem(LAST_CLUSTER_KEY, 'dev-1');
     const { user } = renderApp('/c/nope/overview');
@@ -470,7 +620,7 @@ describe('sidebar cluster links', () => {
         .getAllByRole('button')
         .slice(1) // the cluster switcher ("Select a cluster": the URL's cluster is not in the list)
         .map((button) => button.textContent);
-    expect(sectionTitles()).toEqual(['Fleet administration']);
+    expect(sectionTitles()).toEqual([]);
     expect(within(nav).queryByRole('link', { name: 'Events' })).not.toBeInTheDocument();
 
     await user.click(within(nav).getByRole('button', { name: 'Select a cluster' }));
@@ -478,7 +628,7 @@ describe('sidebar cluster links', () => {
 
     await expandSection(user, nav, 'Home');
     expect(within(nav).getByRole('link', { name: 'Events' })).toHaveAttribute('href', '/c/dev-1/k8s/events');
-    expect(sectionTitles()).toContain('Fleet administration');
+    expect(sectionTitles()).not.toContain('Fleet administration');
   });
 
   it('open from the "not available" page: its "Select a cluster" opens the sidebar switcher', async () => {

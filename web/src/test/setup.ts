@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, configure } from '@testing-library/react';
-import { afterAll, afterEach, beforeAll, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { DEFAULT_MOCK_USER, resetMockDb, setMockUser } from '@/mocks';
 import { server } from './server';
 
@@ -20,7 +20,8 @@ class NoopIntersectionObserver {
   disconnect = vi.fn();
   takeRecords = vi.fn(() => []);
 }
-vi.stubGlobal('IntersectionObserver', NoopIntersectionObserver);
+// Re-applied before every test: a test's `vi.unstubAllGlobals()` (e.g. AppShell's matchMedia fake) also removes it.
+beforeEach(() => vi.stubGlobal('IntersectionObserver', NoopIntersectionObserver));
 
 // Any request without a handler fails the test, so tests can never silently hit a real network.
 beforeAll(() => server.listen({ onUnhandledFrame: 'error' }));
