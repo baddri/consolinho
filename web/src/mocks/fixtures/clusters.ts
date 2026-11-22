@@ -11,9 +11,9 @@ export const FAKE_CA_BUNDLE = [
 /**
  * Clusters of the mock backend: two production clusters (`prod-eu-1` with a CA bundle, `prod-us-1` on system trust),
  * `staging-eu-1` with skip-TLS (its connection settings changed after the last test → stale summary), `dev-1`,
- * `dev-2` (disabled) and `lab-1` (no credentials yet). `lab-1` is declared Kubernetes and serves no OpenShift APIs
- * (`k8s/fixtures.ts:VANILLA_CLUSTERS`); `dev-2` is declared Kubernetes but serves OpenShift APIs — the DIST-5 mismatch
- * demo (discovery wins, ADR-0032).
+ * `dev-2` (disabled) and `lab-1` (one untested credential, granted to admin and alice). `lab-1` is declared
+ * Kubernetes and serves no OpenShift APIs (`k8s/fixtures.ts:VANILLA_CLUSTERS`); `dev-2` is declared Kubernetes but
+ * serves OpenShift APIs — the DIST-5 mismatch demo (discovery wins, ADR-0032).
  */
 export const clusterFixtures: readonly MockCluster[] = [
   {

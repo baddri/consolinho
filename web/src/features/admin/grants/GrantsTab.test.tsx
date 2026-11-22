@@ -3,6 +3,7 @@ import { accessibleClustersQueryKey } from '@/features/cluster-context';
 import { CSRF_HEADER, type AccessibleCluster, type Grant } from '@/shared/api';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import {
+  clearClusterAccess,
   credentialIds,
   grantIds,
   http,
@@ -102,7 +103,11 @@ describe('Grants tabs (T-0039)', () => {
     async () => {
       renderApp('/fleet/admin/users/alice/access');
       const table = await findTable('Cluster access of alice', COLD_START_TIMEOUT_MS);
-      expect(within(table).getAllByRole('link').map((link) => link.textContent)).toEqual(['prod-eu-1', 'staging-eu-1']);
+      expect(
+        within(table)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual(['prod-eu-1', 'staging-eu-1', 'lab-1']);
       const prod = rowOf(table, 'prod-eu-1');
       expect(within(prod).getByRole('link', { name: 'prod-eu-1' })).toHaveAttribute(
         'href',
@@ -134,7 +139,11 @@ describe('Grants tabs (T-0039)', () => {
   it('CLU-8: the cluster Access tab lists users and filters by text (q in the URL)', async () => {
     const { user, router } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
-    expect(firstCells(table).map((text) => text.split(/[A-Z]/)[0])).toEqual(['alice', 'carol', 'pending-paul']);
+    expect(firstCells(table).map((text) => text.split(/[A-Z]/)[0])).toEqual([
+      'alice',
+      'carol',
+      'pending-paul',
+    ]);
     expect(cellText(rowOf(table, 'carol'), 'Access mode')).toBe('Read write');
 
     await user.click(screen.getByRole('textbox', { name: 'Search grants' }));
@@ -154,7 +163,9 @@ describe('Grants tabs (T-0039)', () => {
     const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
 
     await pick(user, 'User', 'bob', 'bob');
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'),
+    );
     expect(within(dialog).getByRole('radio', { name: /Read only/ })).toBeChecked();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
@@ -179,9 +190,13 @@ describe('Grants tabs (T-0039)', () => {
     const dialog = await screen.findByRole('dialog', { name: /Grant access to prod-us-1/ });
 
     await pick(user, 'User', 'bob', 'bob');
-    expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('Select a credential');
+    expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent(
+      'Select a credential',
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Credential' }));
-    expect(await screen.findByRole('option', { name: /^fleet-view/ })).toHaveTextContent(/Expired.*Last test failed/);
+    expect(await screen.findByRole('option', { name: /^fleet-view/ })).toHaveTextContent(
+      /Expired.*Last test failed/,
+    );
     expect(screen.getByRole('option', { name: /^legacy-token/ })).toHaveTextContent('Never tested');
     await user.click(screen.getByRole('option', { name: /^legacy-token/ }));
 
@@ -204,7 +219,9 @@ describe('Grants tabs (T-0039)', () => {
     await user.click(await screen.findByRole('option', { name: /^bob/ }));
     await pickCredential(user, 'fleet-edit');
     await user.click(within(dialog).getByRole('radio', { name: /Read write/ }));
-    expect(within(dialog).getByText('This user will be able to change production cluster prod-eu-1.')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('This user will be able to change production cluster prod-eu-1.'),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
     expect(await screen.findByText('Granted bob ReadWrite on prod-eu-1')).toBeInTheDocument();
@@ -227,7 +244,9 @@ describe('Grants tabs (T-0039)', () => {
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to dev-1/ });
     await pick(user, 'User', 'bob', 'bob');
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-edit'));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-edit'),
+    );
 
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
     const picker = within(dialog).getByRole('combobox', { name: 'User' });
@@ -240,7 +259,9 @@ describe('Grants tabs (T-0039)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
     const credential = within(dialog).getByRole('button', { name: 'Credential' });
     await waitFor(() =>
-      expect(credential).toHaveAccessibleDescription(expect.stringContaining('This credential belongs to another cluster.')),
+      expect(credential).toHaveAccessibleDescription(
+        expect.stringContaining('This credential belongs to another cluster.'),
+      ),
     );
     expect(screen.getByRole('dialog', { name: /Grant access to dev-1/ })).toBeInTheDocument();
   });
@@ -331,18 +352,23 @@ describe('Grants tabs (T-0039)', () => {
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
     await pick(user, 'User', 'admin', 'admin');
-    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'),
+    );
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: accessibleClustersQueryKey });
     await waitFor(() =>
       expect(
-        queryClient.getQueryData<AccessibleCluster[]>(accessibleClustersQueryKey)?.map((cluster) => cluster.name),
+        queryClient
+          .getQueryData<AccessibleCluster[]>(accessibleClustersQueryKey)
+          ?.map((cluster) => cluster.name),
       ).toContain('staging-eu-1'),
     );
   });
 
   it('QG-3: empty and error states per tab', async () => {
+    clearClusterAccess('lab-1');
     const { user, router } = renderApp('/fleet/admin/clusters/lab-1/access');
     expect(await screen.findByText('Nobody has access to this cluster')).toBeInTheDocument();
 

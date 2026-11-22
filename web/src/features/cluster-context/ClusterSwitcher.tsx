@@ -15,6 +15,7 @@ import {
   SearchInput,
   Skeleton,
   Title,
+  Tooltip,
   Truncate,
 } from '@patternfly/react-core';
 import { ClusterIcon, GlobeIcon } from '@patternfly/react-icons';
@@ -23,7 +24,13 @@ import { useLocation, useNavigate } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
 import type { AccessibleCluster } from '@/shared/api';
 import { FLEET_PATH, usePerspective } from '@/shared/routing';
-import { EnvironmentLabel, environmentLabel } from '@/shared/ui';
+import {
+  ClusterTypeIcon,
+  ClusterTypeLabel,
+  clusterTypeText,
+  EnvironmentLabel,
+  environmentLabel,
+} from '@/shared/ui';
 import { useClusterSwitcherOpenRequest } from './clusterSwitcherRequest';
 import { clusterSwitchPath } from './clusterSwitchPath';
 import { NoMatchStatus } from './NoMatchStatus';
@@ -45,14 +52,21 @@ import {
 /** Toggle text in the fleet perspective, also the start of its accessible name (FLEET-2). */
 const FLEET_TITLE = 'Fleet management';
 
-/** Environment label and — for an effective read-only mode (contract §6) — a "Read only" label. */
-function ClusterLabels({ cluster }: { cluster: AccessibleCluster }) {
+/**
+ * Labels after the cluster's display name, in UX.md §2a order (SW-5): type tag (`OCP`/`K8s`), environment and — in
+ * the menu only, for an effective read-only mode (contract §6) — "Read only". The toggle stays one line, so it drops
+ * "Read only" (its accessible name still says it, SW-4).
+ */
+function ClusterLabels({ cluster, placement }: { cluster: AccessibleCluster; placement: 'menu' | 'toggle' }) {
   return (
     <>
       <FlexItem>
+        <ClusterTypeLabel distribution={cluster.distribution} />
+      </FlexItem>
+      <FlexItem>
         <EnvironmentLabel environment={cluster.environment} isCompact />
       </FlexItem>
-      {cluster.accessMode === 'readOnly' && (
+      {placement === 'menu' && cluster.accessMode === 'readOnly' && (
         <FlexItem>
           <Label isCompact>Read only</Label>
         </FlexItem>
@@ -61,22 +75,23 @@ function ClusterLabels({ cluster }: { cluster: AccessibleCluster }) {
   );
 }
 
-/** Menu item content: name then labels on one line; a long name truncates (full name in a tooltip). */
+/** Menu item content: display name then labels on one line; a long name truncates (full name in a tooltip). */
 function ClusterBadges({ cluster }: { cluster: AccessibleCluster }) {
   return (
     <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
       <FlexItem flex={{ default: 'flex_1' }} className="pf-v6-u-min-width">
-        <Truncate content={cluster.name} />
+        <Truncate content={cluster.displayName} />
       </FlexItem>
-      <ClusterLabels cluster={cluster} />
+      <ClusterLabels cluster={cluster} placement="menu" />
     </Flex>
   );
 }
 
 /**
- * Toggle content on one line like OCP's perspective switcher (`NavHeader.tsx`): the name as `Title h2 size="md"`,
- * the labels inline after it. The title itself shrinks and clips with an ellipsis (`pf-v6-u-text-truncate`), so the
- * gap before the labels stays; the full name is in the toggle's accessible name and in the menu.
+ * Toggle content on one line like OCP's perspective switcher (`NavHeader.tsx`): the display name as `Title h2
+ * size="md"`, the type and environment labels inline after it. The title itself shrinks and clips with an ellipsis
+ * (`pf-v6-u-text-truncate`), so the gap before the labels stays; the full name is in the toggle's accessible name,
+ * its tooltip and the menu.
  */
 function ToggleContent({ cluster }: { cluster: AccessibleCluster }) {
   return (
@@ -88,22 +103,24 @@ function ToggleContent({ cluster }: { cluster: AccessibleCluster }) {
     >
       <FlexItem flex={{ default: 'flex_1' }} className="pf-v6-u-min-width">
         <Title headingLevel="h2" size="md" className="pf-v6-u-text-truncate">
-          {cluster.name}
+          {cluster.displayName}
         </Title>
       </FlexItem>
-      <ClusterLabels cluster={cluster} />
+      <ClusterLabels cluster={cluster} placement="toggle" />
     </Flex>
   );
 }
 
 /**
- * Accessible name of the switcher toggle. It replaces the visible content for screen readers, so it repeats the
- * environment and read-only cues the labels show, e.g. "Cluster prod-eu-1 (prod, read only), switch cluster".
+ * Accessible name of the switcher toggle (SW-4). It replaces the visible content for screen readers, so it names the
+ * cluster (when the display name differs), the type and environment tags and the read-only mode the toggle doesn't
+ * show, e.g. "Cluster Prod EU West (prod-eu-1, OCP, prod, read only), switch cluster".
  */
 function toggleLabel(cluster: AccessibleCluster): string {
-  const cues = [environmentLabel(cluster.environment).text];
+  const cues = [clusterTypeText(cluster.distribution).tag, environmentLabel(cluster.environment).text];
+  if (cluster.displayName !== cluster.name) cues.unshift(cluster.name);
   if (cluster.accessMode === 'readOnly') cues.push('read only');
-  return `Cluster ${cluster.name} (${cues.join(', ')}), switch cluster`;
+  return `Cluster ${cluster.displayName} (${cues.join(', ')}), switch cluster`;
 }
 
 /** Accessible name of the toggle per perspective: the fleet, the shown cluster or a prompt. */
@@ -112,14 +129,26 @@ function toggleAccessibleName(isFleet: boolean, shown: AccessibleCluster | undef
   return shown ? toggleLabel(shown) : 'Select a cluster';
 }
 
-/** One selectable cluster; `itemId` is the cluster name, the display name is the description when it differs. */
-function ClusterItem({ cluster, id, isFocused }: { cluster: AccessibleCluster; id: string; isFocused: boolean }) {
+/**
+ * One selectable cluster (SW-1, SW-3): type icon, display name as main text and the cluster name as PF `description`
+ * when it differs; `itemId` stays the cluster name.
+ */
+function ClusterItem({
+  cluster,
+  id,
+  isFocused,
+}: {
+  cluster: AccessibleCluster;
+  id: string;
+  isFocused: boolean;
+}) {
   return (
     <MenuItem
       itemId={cluster.name}
       id={id}
       isFocused={isFocused}
-      description={cluster.displayName !== cluster.name ? cluster.displayName : undefined}
+      icon={<ClusterTypeIcon distribution={cluster.distribution} />}
+      description={cluster.displayName !== cluster.name ? cluster.name : undefined}
     >
       <ClusterBadges cluster={cluster} />
     </MenuItem>
@@ -131,7 +160,10 @@ function ClusterItem({ cluster, id, isFocused }: { cluster: AccessibleCluster; i
  * at the top of the nav, its menu opening below at least as wide as the toggle. It switches the active cluster by
  * rewriting the URL (see {@link clusterSwitchPath}: path and filters are kept, SW-9); navigation only (SW-2). Built on PF `MenuContainer` + `Menu` (role `listbox`):
  *
- * - a search box, focused on open, filters by name, display name and environment; Enter opens the first match (SW-7);
+ * - each cluster shows its type icon, display name (cluster name as description or toggle tooltip when it differs) and
+ *   `OCP`/`K8s` + environment tags; the toggle stays one line without "Read only" (SW-1..5);
+ * - a search box, focused on open, filters by name, display name, environment and type (`ocp`, `kubernetes`, …);
+ *   Enter opens the first match (SW-6, SW-7);
  * - keyboard (T-0153, PF typeahead pattern): focus stays in the search box (a `combobox`); ArrowUp/ArrowDown move
  *   `aria-activedescendant` over the rows of {@link buildSwitcherSections} and wrap, Enter opens the focused row;
  * - a "Recent" group from {@link useRecentClusters} above "All clusters" (contract order), hidden while searching,
@@ -142,7 +174,7 @@ function ClusterItem({ cluster, id, isFocused }: { cluster: AccessibleCluster; i
  * In the fleet perspective (`/fleet/...`, for everyone) the toggle shows the globe icon and "Fleet management" and
  * that entry is selected; choosing a cluster goes to its root via {@link clusterSwitchPath} (FLEET-5).
  *
- * In the cluster perspective the toggle shows the active cluster; outside a cluster (e.g. Preferences) it shows
+ * In the cluster perspective the toggle shows the active cluster (its type icon in PF's `icon` slot); outside a cluster (e.g. Preferences) it shows
  * {@link usePreferredCluster} — the cluster the sidebar links target — and that cluster is marked selected.
  *
  * States (cluster perspective): loading → skeleton in a disabled toggle; error without cached data → "Clusters
@@ -337,7 +369,9 @@ export function ClusterSwitcher() {
             onKeyDown={onSearchKeyDown}
           />
         </MenuSearchInput>
-        <NoMatchStatus text={needle && matches.length === 0 ? `No clusters match "${searchText.trim()}"` : undefined} />
+        <NoMatchStatus
+          text={needle && matches.length === 0 ? `No clusters match "${searchText.trim()}"` : undefined}
+        />
       </MenuSearch>
       <Divider />
       <MenuContent maxMenuHeight="60vh">
@@ -351,36 +385,57 @@ export function ClusterSwitcher() {
     </Menu>
   );
 
+  // The toggle's title truncates, so like PF `Truncate` its tooltip holds the full display name, with the cluster
+  // name on a second line when it differs. PF `triggerRef` keeps the toggle unwrapped.
+  const tooltip = shown && (
+    <>
+      <div>{shown.displayName}</div>
+      {shown.displayName !== shown.name && <div>{shown.name}</div>}
+    </>
+  );
+
   return (
-    <MenuContainer
-      isOpen={isOpen}
-      onOpenChange={changeOpen}
-      menu={menu}
-      menuRef={menuRef}
-      toggleRef={toggleRef}
-      // The popper is appended to <body>, so the sidebar's overflow never clips it.
-      // At least as wide as the toggle; bounded so a very long name truncates instead of widening the menu.
-      popperProps={{ minWidth: 'trigger', maxWidth: '28rem' }}
-      toggle={
-        <MenuToggle
-          ref={toggleRef}
-          isFullWidth
-          icon={isFleet ? <GlobeIcon /> : <ClusterIcon />}
-          onClick={() => changeOpen(!isOpen)}
-          isExpanded={isOpen}
-          aria-label={toggleAccessibleName(isFleet, shown)}
-        >
-          {isFleet ? (
-            <Title headingLevel="h2" size="md">
-              {FLEET_TITLE}
-            </Title>
-          ) : shown ? (
-            <ToggleContent cluster={shown} />
-          ) : (
-            'Select a cluster'
-          )}
-        </MenuToggle>
-      }
-    />
+    <>
+      <MenuContainer
+        isOpen={isOpen}
+        onOpenChange={changeOpen}
+        menu={menu}
+        menuRef={menuRef}
+        toggleRef={toggleRef}
+        // The popper is appended to <body>, so the sidebar's overflow never clips it.
+        // At least as wide as the toggle; bounded so a very long name truncates instead of widening the menu.
+        popperProps={{ minWidth: 'trigger', maxWidth: '28rem' }}
+        toggle={
+          <MenuToggle
+            ref={toggleRef}
+            isFullWidth
+            icon={
+              isFleet ? (
+                <GlobeIcon />
+              ) : shown ? (
+                <ClusterTypeIcon distribution={shown.distribution} />
+              ) : (
+                <ClusterIcon />
+              )
+            }
+            onClick={() => changeOpen(!isOpen)}
+            isExpanded={isOpen}
+            aria-label={toggleAccessibleName(isFleet, shown)}
+          >
+            {isFleet ? (
+              <Title headingLevel="h2" size="md">
+                {FLEET_TITLE}
+              </Title>
+            ) : shown ? (
+              <ToggleContent cluster={shown} />
+            ) : (
+              'Select a cluster'
+            )}
+          </MenuToggle>
+        }
+      />
+      {/* `aria="none"`: both names are already in the toggle's accessible name. */}
+      {tooltip && <Tooltip content={tooltip} triggerRef={toggleRef} aria="none" />}
+    </>
   );
 }

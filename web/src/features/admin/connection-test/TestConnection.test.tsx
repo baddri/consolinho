@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import type { QueryClient } from '@tanstack/react-query';
 import { delay } from 'msw';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
-import { credentialIds, http, setMockUser, validationProblem } from '@/test/handlers';
+import { clearClusterAccess, credentialIds, http, setMockUser, validationProblem } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
@@ -35,7 +35,8 @@ function captureTests() {
 
 /** Makes `path` hang until aborted; returns the signal of every request it received (to assert cancellation). */
 function holdRequests(
-  path: '/api/admin/clusters/{name}/credentials/{credentialId}/test' | '/api/admin/clusters/{name}/test-token',
+  path:
+    '/api/admin/clusters/{name}/credentials/{credentialId}/test' | '/api/admin/clusters/{name}/test-token',
 ) {
   const signals: AbortSignal[] = [];
   server.use(
@@ -90,7 +91,9 @@ describe('Connection test (T-0038)', () => {
     async () => {
       const requests = captureTests();
       const { user } = renderApp('/fleet/admin/clusters/prod-eu-1');
-      await user.click(await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }));
+      await user.click(
+        await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
+      );
       await user.click(await screen.findByRole('menuitem', { name: 'Test connection' }));
       const dialog = await screen.findByRole('dialog', { name: /Test connection to prod-eu-1/ });
 
@@ -105,9 +108,13 @@ describe('Connection test (T-0038)', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
       expect(await within(dialog).findByText(/^Connection test passed in/)).toBeInTheDocument();
       expect(
-        within(dialog).getByText('1 users have ReadWrite grants with this credential but it cannot modify workloads'),
+        within(dialog).getByText(
+          '1 users have ReadWrite grants with this credential but it cannot modify workloads',
+        ),
       ).toBeInTheDocument();
-      expect(await screen.findByText('Connection test passed for fleet-view on prod-eu-1')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Connection test passed for fleet-view on prod-eu-1'),
+      ).toBeInTheDocument();
       expect(requests).toEqual([
         {
           path: `/api/admin/clusters/prod-eu-1/credentials/${credentialIds.prodEuView}/test`,
@@ -125,14 +132,18 @@ describe('Connection test (T-0038)', () => {
 
     await credentialAction(user, table, 'fleet-view', 'Test');
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
-    expect(await within(dialog).findByRole('combobox', { name: /Credential/ })).toHaveValue(credentialIds.dev2View);
+    expect(await within(dialog).findByRole('combobox', { name: /Credential/ })).toHaveValue(
+      credentialIds.dev2View,
+    );
     expect(within(dialog).getByText(/dev-2 is disabled\. Connection tests still run/)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
     expect(await within(dialog).findByText(/^Connection test passed in/)).toBeInTheDocument();
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) ?? dialog);
 
     await waitFor(() =>
-      expect(within(credentialRow(table, 'fleet-view')).getByText('Passed · Cluster-wide view')).toBeInTheDocument(),
+      expect(
+        within(credentialRow(table, 'fleet-view')).getByText('Passed · Cluster-wide view'),
+      ).toBeInTheDocument(),
     );
   });
 
@@ -144,7 +155,9 @@ describe('Connection test (T-0038)', () => {
     await user.click(within(row).getByRole('button', { name: 'Kebab toggle' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Test connection' }));
     const dialog = await screen.findByRole('dialog', { name: /Test connection to dev-2/ });
-    expect(await within(dialog).findByText(/dev-2 is disabled\. Connection tests still run/)).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(/dev-2 is disabled\. Connection tests still run/),
+    ).toBeInTheDocument();
     await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1) ?? dialog);
 
     const dev1 = screen.getByRole('link', { name: 'dev-1' }).closest('tr');
@@ -162,6 +175,7 @@ describe('Connection test (T-0038)', () => {
   });
 
   it('TEST-1: a cluster without credentials has the action aria-disabled with the reason', async () => {
+    clearClusterAccess('lab-1');
     const { user } = renderApp('/fleet/admin/clusters');
     const row = (await screen.findByRole('link', { name: 'lab-1' })).closest('tr');
     if (!row) throw new Error('no lab-1 row');
@@ -181,7 +195,9 @@ describe('Connection test (T-0038)', () => {
 
     await user.type(namespace, 'Bad_NS');
     await user.click(within(dialog).getByRole('button', { name: 'Run test' }));
-    expect(await within(dialog).findByText(/Use lowercase letters, digits and '-' \(max 63\)/)).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText(/Use lowercase letters, digits and '-' \(max 63\)/),
+    ).toBeInTheDocument();
 
     server.use(
       http.post('/api/admin/clusters/{name}/credentials/{credentialId}/test', () =>
@@ -241,7 +257,10 @@ describe('Connection test (T-0038)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel test' }));
     await waitFor(() => expect(signals[0]?.aborted).toBe(true));
     expect(await within(dialog).findByText('Test cancelled.')).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Rotate' })).not.toHaveAttribute('aria-disabled', 'true');
+    expect(within(dialog).getByRole('button', { name: 'Rotate' })).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(token).toHaveValue(PASSING_TOKEN);
     expectTokenGone(PASSING_TOKEN, queryClient);
     expect(signals).toHaveLength(1);
@@ -251,11 +270,16 @@ describe('Connection test (T-0038)', () => {
     setMockUser('ines');
     const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findCredentials('prod-eu-1');
-    await user.click(within(credentialRow(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }));
+    await user.click(
+      within(credentialRow(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }),
+    );
     expect(await screen.findByRole('menuitem', { name: 'Test' })).toHaveAttribute('aria-disabled', 'true');
     await user.keyboard('{Escape}');
     await user.click(screen.getByRole('button', { name: 'Actions' }));
-    expect(await screen.findByRole('menuitem', { name: 'Test connection' })).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByRole('menuitem', { name: 'Test connection' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   it('CRED-5/2: "Test new token" posts test-token; a failure turns Rotate into "Save anyway"; edits reset it', async () => {

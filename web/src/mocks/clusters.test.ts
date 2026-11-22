@@ -28,9 +28,10 @@ describe('mock clusters API (contract §8.2)', () => {
       tlsMode: 'skipVerify',
       lastTest: { isStale: true },
     });
+    // lab-1's only credential was never tested.
     expect(rows.find((r) => r.name === 'lab-1')).toMatchObject({
-      credentialCount: 0,
-      worstCredentialExpiryStatus: null,
+      credentialCount: 1,
+      worstCredentialExpiryStatus: 'ok',
       lastTest: null,
     });
   });
@@ -126,6 +127,7 @@ describe('mock credentials API (contract §8.4, §8.5)', () => {
     expect(list.map((c) => c.expiryStatus)).toEqual([
       'expired',
       'expiringSoon',
+      'ok',
       'ok',
       'ok',
       'ok',
@@ -234,7 +236,9 @@ describe('mock credentials API (contract §8.4, §8.5)', () => {
 
     expect(tooMany.fieldErrors.inspectNamespaces).toEqual(['Enter at most 10 namespaces.']);
     expect(Object.keys(invalid.fieldErrors)).toEqual(['inspectNamespaces[1]']);
-    expect(invalid.fieldErrors['inspectNamespaces[1]']?.[0]).toContain("'Team_A' is not a valid namespace name");
+    expect(invalid.fieldErrors['inspectNamespaces[1]']?.[0]).toContain(
+      "'Team_A' is not a valid namespace name",
+    );
   });
 
   it('saves the namespace list on a stored test and returns rules per namespace in order (NST-5)', async () => {
@@ -248,7 +252,9 @@ describe('mock credentials API (contract §8.4, §8.5)', () => {
       await unwrap(apiClient.GET('/api/admin/clusters/{name}/credentials', cluster('prod-eu-1')))
     ).filter((c) => c.id === credentialIds.prodEuView);
 
-    expect(result.namespaceRules.map((entry) => [entry.namespace, entry.rules !== null, entry.error !== null])).toEqual([
+    expect(
+      result.namespaceRules.map((entry) => [entry.namespace, entry.rules !== null, entry.error !== null]),
+    ).toEqual([
       ['payments', true, false],
       ['forbidden-ns', false, true],
       ['billing', true, false],

@@ -40,19 +40,20 @@ describe('UserDetailPage (T-0032)', () => {
       // OCP details heading: large kind badge, name and status; no subtitle (the display name is a details item).
       expect(screen.queryByText('Alice Example', { selector: 'p' })).not.toBeInTheDocument();
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-      expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute('href', '/fleet/admin/users');
+      expect(within(crumbs).getByRole('link', { name: 'Users' })).toHaveAttribute(
+        'href',
+        '/fleet/admin/users',
+      );
       expect(within(crumbs).getByText('User details')).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { name: 'User details', level: 2 })).toBeInTheDocument();
       // One grant entry point on the page (T-0118 #9): "Grant access" on the Cluster access tab.
       expect(screen.queryByRole('button', { name: /Grant access/ })).not.toBeInTheDocument();
 
-      expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
-        'Username',
-        'Display name',
-        'Role',
-        'Status',
-        'Read only',
-      ]);
+      expect(
+        within(list)
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual(['Username', 'Display name', 'Role', 'Status', 'Read only']);
       const values = details();
       expect(values).toMatchObject({
         Username: 'alice',
@@ -60,7 +61,7 @@ describe('UserDetailPage (T-0032)', () => {
         Status: 'Active',
         'Display name': 'Alice Example',
         'Groups last seen': 'sre',
-        'Cluster grants': '2',
+        'Cluster grants': '3',
       });
       expect(values['Read only']).toBe(
         "NoRead-only users can't change anything on any cluster or in Fleet administration.",
@@ -168,7 +169,9 @@ describe('UserDetailPage (T-0032)', () => {
   });
 
   it('QG-3: other errors show the detail with a working Retry', async () => {
-    server.use(http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })));
+    server.use(
+      http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })),
+    );
     const { user } = renderApp('/fleet/admin/users/alice');
 
     expect(await screen.findByText('Could not load user')).toBeInTheDocument();
@@ -184,7 +187,9 @@ describe('UserDetailPage (T-0032)', () => {
     const { queryClient } = renderApp('/fleet/admin/users/alice');
     await findDetails();
 
-    server.use(http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })));
+    server.use(
+      http.get('/api/admin/users/{username}', () => problem(500, { detail: 'Database unavailable.' })),
+    );
     await queryClient.invalidateQueries({ queryKey: adminKeys.user('alice') });
 
     await waitFor(() => expect(queryClient.getQueryState(adminKeys.user('alice'))?.status).toBe('error'));

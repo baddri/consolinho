@@ -41,6 +41,15 @@ export const mockDb: MockDb = seed();
 const FIRST_RUNTIME_ID = 0x900000;
 let nextId = FIRST_RUNTIME_ID;
 
+/**
+ * Drops every credential and grant of cluster `name`, for tests of the "no credentials" / "nobody has access" states
+ * now that every fixture cluster has at least one credential (lab-1 got one in T-0147). Undone by {@link resetMockDb}.
+ */
+export function clearClusterAccess(name: string): void {
+  mockDb.credentials = mockDb.credentials.filter((credential) => credential.clusterName !== name);
+  mockDb.grants = mockDb.grants.filter((grant) => grant.clusterName !== name);
+}
+
 /** Restores the fixture state, including the mock clusters' objects, and closes open watches (`test/setup.ts`). */
 export function resetMockDb(): void {
   Object.assign(mockDb, seed());

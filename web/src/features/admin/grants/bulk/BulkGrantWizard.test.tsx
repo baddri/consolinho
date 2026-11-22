@@ -2,7 +2,14 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { accessibleClustersQueryKey } from '@/features/cluster-context';
 import { CSRF_HEADER } from '@/shared/api';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
-import { credentialIds, http, mockDb, setMockUser, validationProblem } from '@/test/handlers';
+import {
+  clearClusterAccess,
+  credentialIds,
+  http,
+  mockDb,
+  setMockUser,
+  validationProblem,
+} from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
@@ -29,7 +36,9 @@ const checkboxOf = (dialog: HTMLElement, cluster: string) =>
 
 /** Body rows of the review table. */
 function reviewRows(dialog: HTMLElement): HTMLElement[] {
-  return within(within(dialog).getByRole('grid', { name: 'Clusters to grant access to' })).getAllByRole('row').slice(1);
+  return within(within(dialog).getByRole('grid', { name: 'Clusters to grant access to' }))
+    .getAllByRole('row')
+    .slice(1);
 }
 
 /** Clicks the wizard footer button `name`. */
@@ -57,6 +66,8 @@ describe('Bulk grant wizard (T-0040)', () => {
     'GRANT-4: selects clusters, pre-fills credentials, blocks until complete and grants all in order',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
+      // lab-1 stands in for a cluster without credentials (and drops alice's lab-1 grant).
+      clearClusterAccess('lab-1');
       const requests = captureBulk();
       const { user, queryClient } = renderApp('/fleet/admin/users/alice/access');
       const dialog = await openWizard(user, 'alice', COLD_START_TIMEOUT_MS);
@@ -84,7 +95,9 @@ describe('Bulk grant wizard (T-0040)', () => {
       expect(within(dialog).getByRole('button', { name: 'Credential for prod-us-1' })).toHaveTextContent(
         'Select a credential',
       );
-      expect(within(dialog).getByRole('button', { name: 'Credential for dev-1' })).toHaveTextContent('fleet-edit');
+      expect(within(dialog).getByRole('button', { name: 'Credential for dev-1' })).toHaveTextContent(
+        'fleet-edit',
+      );
       expect(within(dialog).getByRole('button', { name: 'Grant access' })).toBeDisabled();
 
       // A preferred name pre-fills the matching credential.
@@ -92,7 +105,9 @@ describe('Bulk grant wizard (T-0040)', () => {
       await user.click(within(dialog).getByRole('textbox', { name: 'Preferred credential name' }));
       await user.paste('fleet-view');
       await footer(user, dialog, 'Next');
-      expect(within(dialog).getByRole('button', { name: 'Credential for prod-us-1' })).toHaveTextContent('fleet-view');
+      expect(within(dialog).getByRole('button', { name: 'Credential for prod-us-1' })).toHaveTextContent(
+        'fleet-view',
+      );
 
       await waitFor(() => expect(queryClient.getQueryData(accessibleClustersQueryKey)).toBeDefined());
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
@@ -116,13 +131,12 @@ describe('Bulk grant wizard (T-0040)', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       const table = await screen.findByRole('grid', { name: 'Cluster access of alice' });
       await waitFor(() =>
-        expect(within(table).getAllByRole('link').map((link) => link.textContent).sort()).toEqual([
-          'dev-1',
-          'dev-2',
-          'prod-eu-1',
-          'prod-us-1',
-          'staging-eu-1',
-        ]),
+        expect(
+          within(table)
+            .getAllByRole('link')
+            .map((link) => link.textContent)
+            .sort(),
+        ).toEqual(['dev-1', 'dev-2', 'prod-eu-1', 'prod-us-1', 'staging-eu-1']),
       );
     },
   );
@@ -137,6 +151,7 @@ describe('Bulk grant wizard (T-0040)', () => {
   });
 
   it('GRANT-4: highlights production rows and warns about read write on them', async () => {
+    clearClusterAccess('lab-1');
     const { user } = renderApp('/fleet/admin/users/bob/access');
     const dialog = await openWizard(user, 'bob', COLD_START_TIMEOUT_MS);
 
@@ -194,7 +209,11 @@ describe('Bulk grant wizard (T-0040)', () => {
 
   it('USR-2: "Create and grant access" opens the wizard for the new user', async () => {
     const { user, router } = renderApp('/fleet/admin/users');
-    const [add] = await screen.findAllByRole('button', { name: 'Add user' }, { timeout: COLD_START_TIMEOUT_MS });
+    const [add] = await screen.findAllByRole(
+      'button',
+      { name: 'Add user' },
+      { timeout: COLD_START_TIMEOUT_MS },
+    );
     if (!add) throw new Error('no Add user');
     await user.click(add);
     const create = await screen.findByRole('dialog', { name: 'Add user' });

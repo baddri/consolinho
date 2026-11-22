@@ -3,6 +3,9 @@ import { loginAs } from './support/session';
 
 const cluster = (): string => process.env.E2E_CLUSTER ?? '';
 
+/** `text` as a literal inside a `RegExp`. */
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** The sidebar, where the cluster switcher lives (UX.md §2); the e2e viewport is desktop-wide, so it is open. */
 const sidebar = (page: Page): Locator => page.getByRole('navigation', { name: 'Global' });
 
@@ -11,8 +14,11 @@ test('H3: switcher shows the cluster with dev and Read only labels', async ({ pa
   await page.goto(`/c/${cluster()}`);
   await loginAs(page, 'alice');
 
+  // The seeded display name is environment-specific: "Cluster <displayName> ([<name>, ]OCP|K8s, dev, read only)" (SW-4).
   const toggle = sidebar(page).getByRole('button', {
-    name: `Cluster ${cluster()} (dev, read only), switch cluster`,
+    name: new RegExp(
+      `^Cluster .+ \\((${escapeRegExp(cluster())}, )?(OCP|K8s), dev, read only\\), switch cluster$`,
+    ),
   });
   await expect(toggle).toBeVisible();
   await toggle.click();
@@ -20,6 +26,7 @@ test('H3: switcher shows the cluster with dev and Read only labels', async ({ pa
   // While searching only the "All clusters" list is shown, so the option is unique.
   const item = page.getByRole('listbox', { name: 'All clusters' }).getByRole('option', { name: cluster() });
   await expect(item).toBeVisible();
+  await expect(item.getByText(/^(OCP|K8s)$/)).toBeVisible();
   await expect(item.getByText('dev', { exact: true })).toBeVisible();
   await expect(item.getByText('Read only', { exact: true })).toBeVisible();
 });
@@ -65,13 +72,18 @@ test('H5: admins switch to the fleet perspective', async ({ browser }) => {
   await expect(sidebar(admin).getByRole('button', { name: 'Fleet administration' })).toBeVisible();
   await expect(sidebar(admin).getByRole('button', { name: 'Home' })).toHaveCount(0);
   await toggle.click();
-  await expect(admin.getByRole('option', { name: 'Fleet management' })).toHaveAttribute('aria-selected', 'true');
+  await expect(admin.getByRole('option', { name: 'Fleet management' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
   await admin.context().close();
 
   const user = await browser.newPage();
   await user.goto(`/c/${cluster()}`);
   await loginAs(user, 'alice');
-  await sidebar(user).getByRole('button', { name: /switch cluster$/ }).click();
+  await sidebar(user)
+    .getByRole('button', { name: /switch cluster$/ })
+    .click();
   await expect(user.getByRole('listbox', { name: 'All clusters' })).toBeVisible();
   await expect(user.getByRole('option', { name: 'Fleet management' })).toHaveCount(0);
   await user.context().close();

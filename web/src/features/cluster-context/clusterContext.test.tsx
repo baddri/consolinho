@@ -14,14 +14,16 @@ const recentKey = (username: string) => `fleetconsole.recentClusters.${username}
 
 /** Grants the current user every fixture cluster (incl. the disabled dev-2), read-write, in fixture order. */
 function grantAllClusters() {
-  const all: AccessibleCluster[] = mockDb.clusters.map(({ name, displayName, environment, distribution }) => ({
-    name,
-    displayName,
-    environment,
-    distribution,
-    accessMode: 'readWrite',
-    webConsoleUrl: null,
-  }));
+  const all: AccessibleCluster[] = mockDb.clusters.map(
+    ({ name, displayName, environment, distribution }) => ({
+      name,
+      displayName,
+      environment,
+      distribution,
+      accessMode: 'readWrite',
+      webConsoleUrl: null,
+    }),
+  );
   server.use(http.get('*/api/clusters', () => HttpResponse.json(all)));
 }
 
@@ -60,18 +62,27 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
 
       const toggle = await findSwitcher(
         user,
-        'Cluster prod-eu-1 (prod, read only), switch cluster',
+        'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
         COLD_START_TIMEOUT_MS,
       );
+      // One line (SW-2, SW-5): display name, then type and environment tags; "Read only" only in the accessible name.
+      expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Production EU 1');
+      expect(within(toggle).getByText('OCP')).toBeInTheDocument();
       expect(within(toggle).getByText('prod')).toBeInTheDocument();
-      expect(within(toggle).getByText('Read only')).toBeInTheDocument();
+      expect(within(toggle).queryByText('Read only')).not.toBeInTheDocument();
 
-      const options = await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
-      expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1']);
+      const options = await openSwitcher(
+        user,
+        'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
+      );
+      expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1', 'lab-1']);
       const [prod, staging] = options as [HTMLElement, HTMLElement];
       expect(within(prod).getByText('prod')).toBeInTheDocument();
       expect(within(prod).getByText('Read only')).toBeInTheDocument();
       expect(within(prod).getByText('Production EU 1')).toBeInTheDocument();
+      expect(within(prod).getByText('OCP')).toBeInTheDocument();
+      // Labels in UX.md §2a order: type, environment, Read only (SW-5).
+      expect(prod).toHaveTextContent(/OCP\s*prod\s*Read only/);
       expect(within(staging).getByText('staging')).toBeInTheDocument();
       expect(within(staging).queryByText('Read only')).not.toBeInTheDocument();
     },
@@ -94,7 +105,10 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
     });
     const { user } = renderApp('/c/dev-1/overview');
 
-    const options = await openSwitcher(user, 'Cluster dev-1 (dev, read only), switch cluster');
+    const options = await openSwitcher(
+      user,
+      'Cluster Development 1 (dev-1, OCP, dev, read only), switch cluster',
+    );
     expect(optionNames(options)).toEqual(['prod-us-1', 'dev-1']);
     for (const option of options) {
       expect(within(option).getByText('Read only')).toBeInTheDocument();
@@ -125,8 +139,11 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
     await user.click(await findSwitcher(user, 'Clusters unavailable — retry'));
 
     // Outside a cluster the toggle names the preferred cluster (the one the sidebar links target), never a blank.
-    const options = await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
-    expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1']);
+    const options = await openSwitcher(
+      user,
+      'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
+    );
+    expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1', 'lab-1']);
   });
 
   it('shows a disabled "No clusters" toggle to a user without grants', async () => {
@@ -147,7 +164,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
     grantAllClusters();
     const { user } = renderApp('/c/dev-1/overview');
 
-    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     const search = screen.getByRole('combobox', { name: 'Search clusters' });
     await waitFor(() => expect(search).toHaveFocus());
 
@@ -170,7 +187,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
     grantAllClusters();
     const { user, router } = renderApp('/c/dev-1/overview');
 
-    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     await user.paste('prod');
     await user.keyboard('{Enter}');
 
@@ -182,7 +199,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
     grantAllClusters();
     const { user } = renderApp('/c/dev-1/overview');
 
-    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     await user.paste('zzz');
 
     const list = screen.getByRole('listbox', { name: 'All clusters' });
@@ -193,7 +210,10 @@ describe('ClusterSwitcher search (SW-7)', () => {
     grantAllClusters();
     const { user } = renderApp('/c/staging-eu-1/overview');
 
-    const options = await openSwitcher(user, 'Cluster staging-eu-1 (staging), switch cluster');
+    const options = await openSwitcher(
+      user,
+      'Cluster Staging EU 1 (staging-eu-1, OCP, staging), switch cluster',
+    );
     const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
     expect(optionNames(selected)).toEqual(['staging-eu-1']);
   });
@@ -203,7 +223,10 @@ describe('ClusterSwitcher search (SW-7)', () => {
     localStorage.setItem(LAST_CLUSTER_KEY, 'staging-eu-1');
     const { user } = renderApp('/user-preferences/general');
 
-    const options = await openSwitcher(user, 'Cluster staging-eu-1 (staging), switch cluster');
+    const options = await openSwitcher(
+      user,
+      'Cluster Staging EU 1 (staging-eu-1, OCP, staging), switch cluster',
+    );
     const selected = options.filter((option) => option.getAttribute('aria-selected') === 'true');
     expect(optionNames(selected)).toEqual(['staging-eu-1']);
   });
@@ -211,7 +234,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
   it('works by keyboard: Enter opens with the search focused, Escape closes back onto the toggle', async () => {
     const { user } = renderApp('/c/dev-1/overview');
 
-    const toggle = await findSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    const toggle = await findSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     toggle.focus();
     await user.keyboard('{Enter}');
     const search = await screen.findByRole('combobox', { name: 'Search clusters' });
@@ -224,6 +247,69 @@ describe('ClusterSwitcher search (SW-7)', () => {
   });
 });
 
+describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
+  it('lists the display name with the cluster name as description and the type tag', async () => {
+    grantAllClusters();
+    const { user } = renderApp('/c/dev-1/overview');
+
+    const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
+    const lab = optionOf(options, 'lab-1');
+    expect(within(lab).getByText('Lab 1')).toBeInTheDocument();
+    expect(within(lab).getByText('lab-1')).toBeInTheDocument();
+    expect(lab).toHaveTextContent(/Lab 1\s*K8s\s*dev/);
+  });
+
+  it('shows the full display name and, on a second line, the cluster name in the toggle tooltip', async () => {
+    grantAllClusters();
+    const { user } = renderApp('/c/lab-1/overview');
+
+    const toggle = await findSwitcher(user, 'Cluster Lab 1 (lab-1, K8s, dev), switch cluster');
+    expect(within(toggle).getByText('K8s')).toBeInTheDocument();
+    await user.hover(toggle);
+    const tooltip = await screen.findByRole('tooltip');
+    // Two lines: the (possibly truncated) title in full, then the cluster name.
+    expect(within(tooltip).getByText('Lab 1')).toBeInTheDocument();
+    expect(within(tooltip).getByText('lab-1')).toBeInTheDocument();
+  });
+
+  it('shows only the display name in the toggle tooltip when it equals the cluster name', async () => {
+    server.use(
+      http.get('*/api/clusters', () =>
+        HttpResponse.json([
+          {
+            name: 'dev-1',
+            displayName: 'dev-1',
+            environment: 'development',
+            distribution: 'openShift',
+            accessMode: 'readWrite',
+            webConsoleUrl: null,
+          } satisfies AccessibleCluster,
+        ]),
+      ),
+    );
+    const { user } = renderApp('/c/dev-1/overview');
+
+    const toggle = await findSwitcher(user, 'Cluster dev-1 (OCP, dev), switch cluster');
+    await user.hover(toggle);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^dev-1$/);
+  });
+
+  it.each([
+    ['k8s', ['dev-2', 'lab-1']],
+    ['kubernetes', ['dev-2', 'lab-1']],
+    ['ocp', ['prod-eu-1', 'prod-us-1', 'staging-eu-1', 'dev-1']],
+    ['OpenShift', ['prod-eu-1', 'prod-us-1', 'staging-eu-1', 'dev-1']],
+  ])('filters by cluster type "%s"', async (text, expected) => {
+    grantAllClusters();
+    const { user } = renderApp('/c/dev-1/overview');
+
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
+    await user.paste(text);
+    const list = screen.getByRole('listbox', { name: 'All clusters' });
+    expect(optionNames(within(list).getAllByRole('option'))).toEqual(expected);
+  });
+});
+
 describe('ClusterSwitcher keyboard (T-0153)', () => {
   // PF scrolls the focused row into view; jsdom has no layout, so no `scrollIntoView`.
   beforeAll(() => {
@@ -232,7 +318,7 @@ describe('ClusterSwitcher keyboard (T-0153)', () => {
 
   /** Opens the switcher on dev-1 as admin and returns the focused search combobox. */
   async function openSearch(user: UserEvent) {
-    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     const search = screen.getByRole('combobox', { name: 'Search clusters' });
     await waitFor(() => expect(search).toHaveFocus());
     return search;
@@ -260,7 +346,9 @@ describe('ClusterSwitcher keyboard (T-0153)', () => {
     grantAllClusters();
     const { user } = renderApp('/c/dev-1/overview');
     const search = await openSearch(user);
-    const clusters = optionNames(within(screen.getByRole('listbox', { name: 'All clusters' })).getAllByRole('option'));
+    const clusters = optionNames(
+      within(screen.getByRole('listbox', { name: 'All clusters' })).getAllByRole('option'),
+    );
 
     await user.keyboard('{ArrowDown}');
     const fleet = screen.getByRole('option', { name: 'Fleet management' });
@@ -310,10 +398,14 @@ describe('ClusterSwitcher keyboard (T-0153)', () => {
     expect(search).toHaveAttribute('aria-activedescendant');
     await user.keyboard('p');
     expect(search).not.toHaveAttribute('aria-activedescendant');
-    expect(screen.queryByRole('option', { name: 'Fleet management' })?.closest('li')).not.toHaveClass('pf-m-focus');
+    expect(screen.queryByRole('option', { name: 'Fleet management' })?.closest('li')).not.toHaveClass(
+      'pf-m-focus',
+    );
 
     await user.keyboard('{ArrowDown}{Escape}');
-    const toggle = screen.getByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' });
+    const toggle = screen.getByRole('button', {
+      name: 'Cluster Development 1 (dev-1, OCP, dev), switch cluster',
+    });
     await waitFor(() => expect(toggle).toHaveFocus());
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
@@ -324,9 +416,13 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     grantAllClusters();
     const { user } = renderApp('/c/dev-1/overview');
 
-    const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     await user.click(optionOf(options, 'prod-eu-1'));
-    await user.click(await screen.findByRole('button', { name: 'Cluster prod-eu-1 (prod), switch cluster' }));
+    await user.click(
+      await screen.findByRole('button', {
+        name: 'Cluster Production EU 1 (prod-eu-1, OCP, prod), switch cluster',
+      }),
+    );
 
     const recent = await screen.findByRole('listbox', { name: 'Recent clusters' });
     expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['prod-eu-1', 'dev-1']);
@@ -361,17 +457,17 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1', 'staging-eu-1']));
     const { user } = renderApp('/user-preferences/general');
 
-    await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
+    await openSwitcher(user, 'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster');
     const recent = screen.getByRole('listbox', { name: 'Recent clusters' });
     expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['staging-eu-1']);
   });
 
   it('has no Recent group when it would repeat All clusters', async () => {
-    localStorage.setItem(recentKey('admin'), JSON.stringify(['dev-1']));
+    localStorage.setItem(recentKey('admin'), JSON.stringify(['dev-1', 'lab-1']));
     const { user } = renderApp('/c/dev-1/overview');
 
-    const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
-    expect(optionNames(options)).toEqual(['dev-1']);
+    const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
+    expect(optionNames(options)).toEqual(['dev-1', 'lab-1']);
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
   });
 
@@ -379,7 +475,10 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     setMockUser('alice');
     const { user } = renderApp('/c/prod-eu-1/overview');
 
-    const options = await openSwitcher(user, 'Cluster prod-eu-1 (prod, read only), switch cluster');
+    const options = await openSwitcher(
+      user,
+      'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
+    );
     expect(optionNames(options)).toContain('staging-eu-1');
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
   });
@@ -388,7 +487,7 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1']));
     const { user } = renderApp('/user-preferences/general');
 
-    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Recent' })).not.toBeInTheDocument();
   });
@@ -399,13 +498,15 @@ describe('ClusterSwitcher keeps context (SW-9)', () => {
     grantAllClusters();
     const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/pods?label=app%3Dweb');
 
-    const options = await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     await user.click(optionOf(options, 'dev-2'));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-2/k8s/ns/shop/pods'));
     expect(router.state.location.search).toBe('?label=app%3Dweb');
     // The switcher re-renders with the new cluster after the navigation commits; wait for its new name and focus.
-    const toggle = await screen.findByRole('button', { name: 'Cluster dev-2 (dev), switch cluster' });
+    const toggle = await screen.findByRole('button', {
+      name: 'Cluster Development 2 (dev-2, K8s, dev), switch cluster',
+    });
     await waitFor(() => expect(toggle).toHaveFocus());
   });
 
@@ -430,22 +531,25 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
     return screen.queryByRole('listbox', { name: 'Fleet' });
   }
 
-  it.each(['admin', 'ines'])('offers "Fleet management" first to %s, also while searching', async (username) => {
-    setMockUser(username);
-    const { user } = renderApp('/fleet/admin/users');
+  it.each(['admin', 'ines'])(
+    'offers "Fleet management" first to %s, also while searching',
+    async (username) => {
+      setMockUser(username);
+      const { user } = renderApp('/fleet/admin/users');
 
-    await openFleetList(user, 'Fleet management, switch cluster');
-    const fleet = screen.getByRole('listbox', { name: 'Fleet' });
-    // First list of the menu, before Recent / All clusters.
-    expect(screen.getAllByRole('listbox')[0]).toBe(fleet);
-    expect(within(fleet).getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+      await openFleetList(user, 'Fleet management, switch cluster');
+      const fleet = screen.getByRole('listbox', { name: 'Fleet' });
+      // First list of the menu, before Recent / All clusters.
+      expect(screen.getAllByRole('listbox')[0]).toBe(fleet);
+      expect(within(fleet).getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
 
-    await user.type(screen.getByRole('combobox', { name: 'Search clusters' }), 'zzz');
-    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
-    // Enter opens the first cluster match only; with none it stays put.
-    await user.keyboard('{Enter}');
-    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
-  });
+      await user.type(screen.getByRole('combobox', { name: 'Search clusters' }), 'zzz');
+      expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+      // Enter opens the first cluster match only; with none it stays put.
+      await user.keyboard('{Enter}');
+      expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    },
+  );
 
   it('does not offer it to a non-admin', async () => {
     setMockUser('alice');
@@ -458,7 +562,7 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
   it('goes to /fleet/admin/users and shows the fleet toggle there, with the entry selected', async () => {
     const { user, router } = renderApp('/c/dev-1/overview');
 
-    await openFleetList(user, 'Cluster dev-1 (dev), switch cluster');
+    await openFleetList(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     await user.click(screen.getByRole('option', { name: 'Fleet management' }));
 
     await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
@@ -468,7 +572,10 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
     expect(toggle).toHaveTextContent(/^Fleet management$/);
 
     await user.click(toggle);
-    expect(await screen.findByRole('option', { name: 'Fleet management' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('option', { name: 'Fleet management' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     const all = screen.getByRole('listbox', { name: 'All clusters' });
     expect(within(all).queryAllByRole('option', { selected: true })).toEqual([]);
   });
@@ -490,13 +597,19 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
 
     await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/c\/dev-1\//));
     const nav = await openSidebar(user);
-    expect(await within(nav).findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' })).toBeInTheDocument();
+    expect(
+      await within(nav).findByRole('button', {
+        name: 'Cluster Development 1 (dev-1, OCP, dev), switch cluster',
+      }),
+    ).toBeInTheDocument();
     expect(await within(nav).findByRole('button', { name: 'Home' })).toBeInTheDocument();
     expect(within(nav).queryByRole('button', { name: 'Fleet administration' })).not.toBeInTheDocument();
   });
 
   it('keeps Fleet management reachable for an admin whose cluster list failed, with a retry row', async () => {
-    server.use(http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), { once: true }));
+    server.use(
+      http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), { once: true }),
+    );
     const { user, router } = renderApp('/user-preferences/general');
 
     await openFleetList(user, 'Select a cluster');
@@ -516,7 +629,9 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
     expect(toggle).toBeEnabled();
     await openFleetList(user, 'Select a cluster');
     expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
-    expect(within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters'),
+    ).toBeInTheDocument();
   });
 
   it.each(['/c/dev-1/overview', '/fleet/admin/users'])(
@@ -552,7 +667,9 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
   );
 
   it('offers a retry row on a fleet page when the cluster list failed', async () => {
-    server.use(http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), { once: true }));
+    server.use(
+      http.get('*/api/clusters', () => HttpResponse.json({ title: 'Down' }, { status: 503 }), { once: true }),
+    );
     const { user } = renderApp('/fleet/admin/users');
 
     await openFleetList(user, 'Fleet management, switch cluster');
@@ -566,7 +683,9 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
 
     await openFleetList(user, 'Fleet management, switch cluster');
     expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
-    expect(within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters')).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -768,7 +887,7 @@ describe('useAccessibleClusters (SW-6)', () => {
   it('refetches on window focus and every 5 minutes', async () => {
     const { queryClient } = renderWithProviders(<ClustersProbe />);
 
-    expect(await screen.findByText('1 clusters')).toBeInTheDocument();
+    expect(await screen.findByText('2 clusters')).toBeInTheDocument();
     const query = queryClient.getQueryCache().find({ queryKey: accessibleClustersQueryKey, exact: true });
     expect(accessibleClustersQueryKey).toEqual(['api', 'clusters']);
     expect(query?.options).toMatchObject({

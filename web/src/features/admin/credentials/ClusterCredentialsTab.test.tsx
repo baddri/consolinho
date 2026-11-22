@@ -1,7 +1,15 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import type { QueryClient } from '@tanstack/react-query';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
-import { credentialIds, http, mockDb, problem, setMockUser, validationProblem } from '@/test/handlers';
+import {
+  clearClusterAccess,
+  credentialIds,
+  http,
+  mockDb,
+  problem,
+  setMockUser,
+  validationProblem,
+} from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
@@ -11,7 +19,13 @@ import { withoutBadges } from '../dataViewTestUtils';
 /** Fake tokens only. A JWT for `system:serviceaccount:fleetconsole:fleet-ops`, expiring in 2100. */
 const JWT_TOKEN = [
   'eyJhbGciOiJub25lIn0',
-  btoa(JSON.stringify({ sub: 'system:serviceaccount:fleetconsole:fleet-ops', iat: 1_700_000_000, exp: 4_102_444_800 }))
+  btoa(
+    JSON.stringify({
+      sub: 'system:serviceaccount:fleetconsole:fleet-ops',
+      iat: 1_700_000_000,
+      exp: 4_102_444_800,
+    }),
+  )
     .replaceAll('=', '')
     .replaceAll('+', '-')
     .replaceAll('/', '_'),
@@ -41,7 +55,12 @@ function cellText(row: HTMLElement, label: string): string {
 }
 
 /** Opens the row kebab of `name` and clicks `action`. */
-async function rowAction(user: ReturnType<typeof renderApp>['user'], table: HTMLElement, name: string, action: string) {
+async function rowAction(
+  user: ReturnType<typeof renderApp>['user'],
+  table: HTMLElement,
+  name: string,
+  action: string,
+) {
   await user.click(within(rowOf(table, name)).getByRole('button', { name: 'Kebab toggle' }));
   await user.click(await screen.findByRole('menuitem', { name: action }));
 }
@@ -121,10 +140,15 @@ describe('ClusterCredentialsTab (T-0036)', () => {
   });
 
   it('QG-3: empty state offers Add credential and the oc command', async () => {
+    clearClusterAccess('lab-1');
     renderApp('/fleet/admin/clusters/lab-1/credentials');
     expect(await screen.findByRole('heading', { name: 'No credentials' })).toBeInTheDocument();
-    expect(screen.getByText(/Users can't be granted access until you add a ServiceAccount token/)).toBeInTheDocument();
-    expect(screen.getByDisplayValue('oc create token <service-account> -n <namespace> --duration=8760h')).toBeVisible();
+    expect(
+      screen.getByText(/Users can't be granted access until you add a ServiceAccount token/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByDisplayValue('oc create token <service-account> -n <namespace> --duration=8760h'),
+    ).toBeVisible();
     expect(screen.getAllByRole('button', { name: 'Add credential' })).toHaveLength(2);
   });
 
@@ -147,7 +171,10 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     const table = await findTable('prod-eu-1');
     expect(screen.getByRole('button', { name: 'Add credential' })).toHaveAttribute('aria-disabled', 'true');
     await user.click(within(rowOf(table, 'fleet-view')).getByRole('button', { name: 'Kebab toggle' }));
-    expect(await screen.findByRole('menuitem', { name: 'Rotate token' })).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByRole('menuitem', { name: 'Rotate token' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     expect(screen.getByRole('menuitem', { name: 'Delete' })).toHaveAttribute('aria-disabled', 'true');
   });
 
@@ -170,7 +197,9 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
     expect(await screen.findByText('Credential fleet-ops added to prod-eu-1')).toBeInTheDocument();
     expect(writes).toEqual([{ body: { name: 'fleet-ops', description: null, token: JWT_TOKEN }, csrf: '1' }]);
-    await waitFor(() => expect(cellText(rowOf(table, 'fleet-ops'), 'Service account')).toBe('fleetconsole/fleet-ops'));
+    await waitFor(() =>
+      expect(cellText(rowOf(table, 'fleet-ops'), 'Service account')).toBe('fleetconsole/fleet-ops'),
+    );
     expect(screen.queryByText('Not a ServiceAccount token')).not.toBeInTheDocument();
     expectTokenGone(JWT_TOKEN, queryClient);
 
@@ -190,7 +219,9 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     await user.click(within(dialog).getByLabelText(/^Token/, { selector: 'input' }));
     await user.paste('abc def');
     await user.click(within(dialog).getByRole('button', { name: 'Add' }));
-    expect(await within(dialog).findByText('The token must not contain spaces or line breaks.')).toBeInTheDocument();
+    expect(
+      await within(dialog).findByText('The token must not contain spaces or line breaks.'),
+    ).toBeInTheDocument();
     expect(writes).toEqual([]);
   });
 
@@ -218,10 +249,14 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     expect(
       await within(dialog).findByText('The token may contain printable ASCII characters only.'),
     ).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/^Token/, { selector: 'input' })).toHaveAttribute('aria-invalid', 'true');
+    expect(within(dialog).getByLabelText(/^Token/, { selector: 'input' })).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
   });
 
   it('Q10: adding an opaque token shows the warning toast', async () => {
+    clearClusterAccess('lab-1');
     const { user, queryClient } = renderApp('/fleet/admin/clusters/lab-1/credentials');
     await screen.findByRole('heading', { name: 'No credentials' });
     await user.click(screen.getAllByRole('button', { name: 'Add credential' })[0] ?? document.body);
@@ -231,7 +266,9 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     await user.paste(OPAQUE_TOKEN);
     await user.click(within(dialog).getByRole('button', { name: 'Add' }));
 
-    expect(await screen.findByText("Expiry unknown and it is tied to a person's account.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Expiry unknown and it is tied to a person's account."),
+    ).toBeInTheDocument();
     expect(await screen.findByRole('grid', { name: 'Credentials of lab-1' })).toHaveTextContent('bot');
     expectTokenGone(OPAQUE_TOKEN, queryClient);
   });
@@ -299,7 +336,9 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     const dialog = await screen.findByRole('dialog', { name: /fleet-view is in use on prod-eu-1/ });
     expect(within(dialog).getByText(/Re-assign or revoke these grants first\./)).toBeInTheDocument();
     const users = await within(dialog).findByRole('list', { name: 'Affected users' });
-    const items = within(users).getAllByRole('listitem').map((item) => item.textContent);
+    const items = within(users)
+      .getAllByRole('listitem')
+      .map((item) => item.textContent);
     expect(items).toHaveLength(2);
     expect(items.find((text) => text.startsWith('alice'))).toMatch(/Read only$/);
     expect(items.find((text) => text.startsWith('pending-paul'))).toMatch(/Read-write$/);
@@ -344,7 +383,9 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     await user.paste(OPAQUE_TOKEN);
     await user.click(within(dialog).getByRole('button', { name: 'Rotate' }));
 
-    expect(await screen.findByText('Credential fleet-edit no longer exists on prod-eu-1')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Credential fleet-edit no longer exists on prod-eu-1'),
+    ).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(within(table).queryByText('fleet-edit')).not.toBeInTheDocument());
   });
@@ -358,7 +399,9 @@ describe('ClusterCredentialsTab (T-0036)', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText('Credential legacy-token no longer exists on prod-us-1')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Credential legacy-token no longer exists on prod-us-1'),
+    ).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     await waitFor(() => expect(within(table).queryByText('legacy-token')).not.toBeInTheDocument());
   });

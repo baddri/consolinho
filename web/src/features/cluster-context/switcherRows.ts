@@ -1,5 +1,5 @@
 import type { AccessibleCluster } from '@/shared/api';
-import { environmentLabel } from '@/shared/ui';
+import { clusterTypeText, environmentLabel } from '@/shared/ui';
 
 /**
  * Menu item id of the "Fleet management" entry. `:` can't occur in a DNS-1123 cluster name, so it never collides
@@ -46,11 +46,15 @@ export interface SwitcherSectionsInput {
 }
 
 /**
- * Case-insensitive substring match over name, display name and environment — both the enum value ("production") and
- * the label text ("prod") — so users can type what they see or what they mean (SW-7).
+ * Case-insensitive substring match over name, display name, environment — both the enum value ("production") and
+ * the label text ("prod") — and cluster type — tag ("OCP", "K8s") and word ("OpenShift", "Kubernetes") — so users
+ * can type what they see or what they mean (SW-6, SW-7).
  */
 function matchesSearch(cluster: AccessibleCluster, needle: string): boolean {
+  const type = clusterTypeText(cluster.distribution);
   const fields = [
+    type.tag,
+    type.word,
     cluster.name,
     cluster.displayName,
     cluster.environment,
@@ -112,7 +116,8 @@ export function buildSwitcherSections(input: SwitcherSectionsInput): SwitcherSec
   let allRows: SwitcherRow[];
   if (showRetry) allRows = [{ kind: 'retry', key: 'all:retry', itemId: RETRY_ITEM_ID }];
   else if (matches.length > 0) allRows = matches.map((cluster) => clusterRow('all', cluster));
-  else allRows = [{ kind: 'status', key: 'all:status', text: clusterListStatus(clusters, searchText.trim()) }];
+  else
+    allRows = [{ kind: 'status', key: 'all:status', text: clusterListStatus(clusters, searchText.trim()) }];
   sections.push({
     id: 'all',
     ariaLabel: 'All clusters',
@@ -130,7 +135,9 @@ export function matchingClusters(sections: readonly SwitcherSection[]): Accessib
 
 /** Focusable rows in render order: every row except `status`. */
 export function focusOrder(sections: readonly SwitcherSection[]): FocusableRow[] {
-  return sections.flatMap((section) => section.rows.filter((row): row is FocusableRow => row.kind !== 'status'));
+  return sections.flatMap((section) =>
+    section.rows.filter((row): row is FocusableRow => row.kind !== 'status'),
+  );
 }
 
 /**
@@ -145,6 +152,7 @@ export function nextFocusKey(
   if (order.length === 0) return null;
   const index = order.findIndex((row) => row.key === current);
   const step = key === 'ArrowDown' ? 1 : -1;
-  const next = index === -1 ? (step === 1 ? 0 : order.length - 1) : (index + step + order.length) % order.length;
+  const next =
+    index === -1 ? (step === 1 ? 0 : order.length - 1) : (index + step + order.length) % order.length;
   return order[next]?.key ?? null;
 }

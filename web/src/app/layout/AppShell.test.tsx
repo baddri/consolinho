@@ -56,14 +56,20 @@ describe('AppShell', () => {
       const mastheadButtons = within(masthead)
         .getAllByRole('button')
         .map((button) => button.getAttribute('aria-label') ?? button.textContent);
-      expect(mastheadButtons).toEqual(['Global navigation', 'Help menu', expect.stringMatching(/Fleet Admin/)]);
+      expect(mastheadButtons).toEqual([
+        'Global navigation',
+        'Help menu',
+        expect.stringMatching(/Fleet Admin/),
+      ]);
 
       const nav = await openSidebar(user);
-      const toggle = await within(nav).findByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' });
+      const toggle = await within(nav).findByRole('button', {
+        name: 'Cluster Development 1 (dev-1, OCP, dev), switch cluster',
+      });
       expect(toggle).toHaveTextContent('dev');
       // First child of the nav, before the sections (UX.md §2); one line: labels inline after the name.
       expect(within(nav).getAllByRole('button')[0]).toBe(toggle);
-      expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('dev-1');
+      expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Development 1');
       // No version footer in the sidebar (it moved to Help › About).
       expect(screen.queryByText(/0\.0\.0-test/)).not.toBeInTheDocument();
     },
@@ -102,23 +108,25 @@ describe('AppShell', () => {
   });
 
   // ADR-0033 §5: the fleet perspective shows only its own sections, in the same Nav frame under the switcher.
-  it.each(['admin', 'ines'])('shows only Fleet administration on fleet pages to %s (FLEET-3)', async (username) => {
-    setMockUser(username);
-    const { user } = renderApp('/fleet/admin/users');
+  it.each(['admin', 'ines'])(
+    'shows only Fleet administration on fleet pages to %s (FLEET-3)',
+    async (username) => {
+      setMockUser(username);
+      const { user } = renderApp('/fleet/admin/users');
 
-    const nav = await openSidebar(user);
-    const toggle = await within(nav).findByRole('button', { name: 'Fleet management, switch cluster' });
-    const buttons = within(nav).getAllByRole('button');
-    expect(buttons[0]).toBe(toggle);
-    expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet administration']);
-    await expandSection(user, nav, 'Fleet administration');
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual([
-      'Users',
-      'Clusters',
-      'Credentials',
-      'Audit log',
-    ]);
-  });
+      const nav = await openSidebar(user);
+      const toggle = await within(nav).findByRole('button', { name: 'Fleet management, switch cluster' });
+      const buttons = within(nav).getAllByRole('button');
+      expect(buttons[0]).toBe(toggle);
+      expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet administration']);
+      await expandSection(user, nav, 'Fleet administration');
+      expect(
+        within(nav)
+          .getAllByRole('link')
+          .map((link) => link.textContent),
+      ).toEqual(['Users', 'Clusters', 'Credentials', 'Audit log']);
+    },
+  );
 
   it('shows no sections on fleet pages to a non-admin (FLEET-8)', async () => {
     setMockUser('alice');
@@ -128,9 +136,11 @@ describe('AppShell', () => {
       await screen.findByRole('heading', { name: "You don't have access to Fleet administration" }),
     ).toBeInTheDocument();
     const nav = await openSidebar(user);
-    expect(within(nav).getAllByRole('button').map((button) => button.getAttribute('aria-label'))).toEqual([
-      'Fleet management, switch cluster',
-    ]);
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Fleet management, switch cluster']);
   });
 
   it('switches cluster while keeping the current page', async () => {
@@ -139,13 +149,17 @@ describe('AppShell', () => {
 
     const nav = await openSidebar(user);
     await user.click(
-      await within(nav).findByRole('button', { name: 'Cluster prod-eu-1 (prod, read only), switch cluster' }),
+      await within(nav).findByRole('button', {
+        name: 'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
+      }),
     );
     await user.click(await screen.findByRole('option', { name: /staging-eu-1/ }));
 
     expect(router.state.location.pathname).toBe('/c/staging-eu-1/k8s/ns/default/pods');
     expect(
-      await screen.findByRole('button', { name: 'Cluster staging-eu-1 (staging), switch cluster' }),
+      await screen.findByRole('button', {
+        name: 'Cluster Staging EU 1 (staging-eu-1, OCP, staging), switch cluster',
+      }),
     ).toBeInTheDocument();
   });
 
@@ -187,7 +201,9 @@ describe('AppShell', () => {
       expect(document.documentElement).toHaveClass('pf-v6-theme-glass', 'pf-v6-theme-felt');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-dark');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-high-contrast');
-      expect(within(screen.getByRole('banner')).queryByRole('button', { name: 'Theme' })).not.toBeInTheDocument();
+      expect(
+        within(screen.getByRole('banner')).queryByRole('button', { name: 'Theme' }),
+      ).not.toBeInTheDocument();
     });
 
     it('keeps a stored choice across reloads', async () => {
