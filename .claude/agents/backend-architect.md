@@ -30,7 +30,9 @@ backend checklist in `docs/process/SDLC.md`. Use LSP/`grep -n` + ranged reads fo
 reading whole files. Run `scripts/check-be.sh` once yourself. Write the verdict into the task file's **Review** section:
 `APPROVE` or `CHANGES_REQUESTED` with findings as `path:line — problem — required fix`, ordered by severity.
 Only request changes for real issues (bugs, layering violations, missing tests/docs, security, maintainability) —
-not personal taste. Small nits: list as optional.
+not personal taste. Small nits: list as optional. Follow "Review rounds converge" and, when writing tasks, "Task
+size" (`docs/process/SDLC.md` §Review checklists): round 1 lists everything, round 2+ verifies only the listed fixes
+and regressions.
 
 You may make tiny doc/comment fixes yourself during review; anything else goes back to the engineer.
 Do not commit. Return the ≤8-line report format from `docs/process/SDLC.md` with the verdict on the first line of NOTES.
