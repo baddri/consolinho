@@ -294,6 +294,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     const { user, queryClient } = renderApp('/fleet/admin/clusters/prod-eu-1/credentials');
     const table = await findTable('prod-eu-1');
     const before = mockDb.credentials.find((c) => c.id === credentialIds.prodEuView);
+    expect(cellText(rowOf(table, 'fleet-view'), 'Name')).not.toContain('Inspect namespaces');
 
     await rowAction(user, table, 'fleet-view', 'Rotate token');
     const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-view on prod-eu-1/ });
@@ -302,6 +303,8 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     expect(within(within(dialog).getByRole('heading', { level: 1 })).getByText('prod')).toBeInTheDocument();
     expect(within(dialog).getByText(before?.fingerprint ?? '')).toBeInTheDocument();
     expect(within(dialog).getByText(/^2 users are affected\./)).toBeInTheDocument();
+    // NST-6: an empty saved list is a dash in the dialog (and no line under the row's name, checked above).
+    expect(within(within(dialog).getByLabelText('Credential to rotate')).getByText('—')).toBeInTheDocument();
 
     await user.click(within(dialog).getByLabelText(/^New token/, { selector: 'input' }));
     await user.paste(JWT_TOKEN);
@@ -311,6 +314,23 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     expect(writes).toEqual([{ body: { token: JWT_TOKEN, version: 1 }, csrf: '1' }]);
     await waitFor(() => expect(cellText(rowOf(table, 'fleet-view'), 'Rotated')).toMatch(/by admin$/));
     expectTokenGone(JWT_TOKEN, queryClient);
+  });
+
+  it('NST-6: a saved namespace list shows under the name and in the rotate dialog', async () => {
+    const { user } = renderApp('/fleet/admin/clusters/staging-eu-1/credentials');
+    const table = await findTable('staging-eu-1');
+    expect(cellText(rowOf(table, 'fleet-admin'), 'Name')).toContain('Inspect namespaces: team-a, team-b');
+    // Clamped like the description; the full list is the hover title.
+    expect(within(rowOf(table, 'fleet-admin')).getByText('Inspect namespaces: team-a, team-b')).toHaveAttribute(
+      'title',
+      'Inspect namespaces: team-a, team-b',
+    );
+
+    await rowAction(user, table, 'fleet-admin', 'Rotate token');
+    const dialog = await screen.findByRole('dialog', { name: /Rotate token of fleet-admin/ });
+    const facts = within(dialog).getByLabelText('Credential to rotate');
+    expect(within(facts).getByText('Inspect namespaces')).toBeInTheDocument();
+    expect(within(facts).getByText('team-a, team-b')).toBeInTheDocument();
   });
 
   it('ADM-4: a stale version shows ConflictAlert and keeps the typed token', async () => {

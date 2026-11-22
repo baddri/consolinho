@@ -5,6 +5,7 @@ import { AdminResourceName } from '../AdminResourceLink';
 import { CredentialDescription } from './CredentialDescription';
 import { CredentialExpiryLabel } from './CredentialExpiryLabel';
 import type { CredentialCluster } from './CredentialModalFrame';
+import { formatInspectNamespaces } from './credentialText';
 import { LastTestLabel } from './LastTestLabel';
 import { ServiceAccountCell } from './ServiceAccountCell';
 import { useCredentialActions } from './useCredentialActions';
@@ -16,7 +17,8 @@ export const CREDENTIAL_COLUMN_COUNT = 8;
 const SUBTLE = 'pf-v6-u-text-color-subtle';
 
 /**
- * One row of a cluster's credentials table (CRED-3/4): kind badge + name with its description (two lines at most),
+ * One row of a cluster's credentials table (CRED-3/4): kind badge + name with its description (two lines at most) and,
+ * when saved, the namespaces its tests inspect (NST-6; omitted when empty — credentials have no details page),
  * ServiceAccount identity, fingerprint, expiry, grant count, last test and last rotation, then the Rotate / Delete
  * kebab whose dialog renders in the row (a portalled modal) with the row's current representation.
  */
@@ -29,6 +31,12 @@ export function CredentialRow({ cluster, credential }: { cluster: CredentialClus
           <span className="pf-v6-u-text-nowrap">{credential.name}</span>
         </AdminResourceName>
         {credential.description !== null && <CredentialDescription description={credential.description} />}
+        {credential.inspectNamespaces.length > 0 && (
+          // Same two-line clamp + full-text title as the description: a long list must not grow the row.
+          <CredentialDescription
+            description={`Inspect namespaces: ${formatInspectNamespaces(credential.inspectNamespaces)}`}
+          />
+        )}
       </Td>
       <Td dataLabel="Service account" modifier="nowrap">
         <ServiceAccountCell {...credential} />

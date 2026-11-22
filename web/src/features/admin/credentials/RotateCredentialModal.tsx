@@ -39,7 +39,7 @@ import {
   type RotateCredentialFormInput,
   type RotateCredentialFormValues,
 } from './credentialForm.schema';
-import { affectedUsersText } from './credentialText';
+import { affectedUsersText, formatInspectNamespaces } from './credentialText';
 import { CredentialModalFrame, type CredentialCluster } from './CredentialModalFrame';
 import { useCredentialGoneToast } from './useCredentialGoneToast';
 import { useCredentialSavedToast } from './useCredentialSavedToast';
@@ -151,6 +151,10 @@ function RotateCredentialForm({ cluster, credential, onClose }: RotateCredential
               <DescriptionListDescription className="pf-v6-u-font-family-monospace">
                 {credential.fingerprint}
               </DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Inspect namespaces</DescriptionListTerm>
+              <DescriptionListDescription>{formatInspectNamespaces(credential.inspectNamespaces)}</DescriptionListDescription>
             </DescriptionListGroup>
           </DescriptionList>
           <Content component="p">
