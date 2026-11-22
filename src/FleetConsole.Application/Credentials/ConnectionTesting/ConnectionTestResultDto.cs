@@ -1,4 +1,5 @@
 using FleetConsole.Application.Abstractions.Kubernetes;
+using System.Text.Json.Serialization;
 using FleetConsole.Domain.Credentials;
 
 namespace FleetConsole.Application.Credentials.ConnectionTesting;
@@ -16,7 +17,9 @@ namespace FleetConsole.Application.Credentials.ConnectionTesting;
 /// <param name="Identity">Who the cluster sees the token as, when known.</param>
 /// <param name="OpenShiftVersion">The OpenShift version, when the ClusterVersion resource was visible.</param>
 /// <param name="Capabilities">The capability summary, when the capabilities step ran to completion.</param>
-/// <param name="NamespaceRules">The token's rules in the inspected namespace; only when one was given and could be reviewed.</param>
+/// <param name="NamespaceRules">One entry per requested namespace, in the (normalised) request order (NST-3); each holds
+/// either the token's rules there or why they could not be reviewed. Never null: empty when no namespaces were given or
+/// the capabilities step did not complete.</param>
 /// <param name="Hints">Advice about the credential's grants (TEST-4); empty when there is nothing to say.</param>
 public sealed record ConnectionTestResultDto(
     bool Succeeded,
@@ -27,7 +30,7 @@ public sealed record ConnectionTestResultDto(
     ClusterIdentityDto? Identity,
     OpenShiftVersionDto? OpenShiftVersion,
     CapabilitySummaryDto? Capabilities,
-    NamespaceRulesDto? NamespaceRules,
+    IReadOnlyList<NamespaceRulesDto> NamespaceRules,
     IReadOnlyList<ConnectionTestHintDto> Hints);
 
 /// <summary>The outcome of one connection test step.</summary>
@@ -60,13 +63,73 @@ public sealed record CapabilitySummaryDto(CapabilityLevel Headline, IReadOnlyLis
 /// <param name="Allowed">Whether the cluster allows it.</param>
 public sealed record CapabilityCheckResultDto(string Id, string Label, CapabilityCategory Category, bool Allowed);
 
-/// <summary>The token's access rules in one namespace (a SelfSubjectRulesReview).</summary>
-/// <param name="Namespace">The inspected namespace.</param>
-/// <param name="Incomplete">True when the cluster could not evaluate all rules (e.g. an authorizer that can't list them).</param>
-/// <param name="EvaluationError">The cluster's explanation when the list is incomplete.</param>
-/// <param name="Rules">The resource rules.</param>
-public sealed record NamespaceRulesDto(
-    string Namespace, bool Incomplete, string? EvaluationError, IReadOnlyList<ResourceRuleDto> Rules);
+/// <summary>
+/// The token's access rules in one inspected namespace (a SelfSubjectRulesReview), or why they could not be reviewed
+/// (NST-3). <b>Exactly one of <see cref="Rules"/> and <see cref="Error"/> is non-null</b>; this holds by construction
+/// because instances are only made through the <see cref="Reviewed"/> and <c>Failed</c> factories. One failed namespace never
+/// fails the others or the test.
+/// </summary>
+public sealed record NamespaceRulesDto
+{
+    // Private: the factories are the only way in, so "exactly one of rules/error" can't be broken. [JsonConstructor]
+    // makes System.Text.Json (and so the OpenAPI schema / schema.gen.ts) treat all six fields as required, like the
+    // positional DTOs; the parameter names match the properties for that reason.
+    [JsonConstructor]
+    private NamespaceRulesDto(
+        string @namespace, bool incomplete, string? evaluationError, IReadOnlyList<ResourceRuleDto>? rules, string? error, ProbeFailureKind? failureKind)
+    {
+        Namespace = @namespace;
+        Incomplete = incomplete;
+        EvaluationError = evaluationError;
+        Rules = rules;
+        Error = error;
+        FailureKind = failureKind;
+    }
+
+    /// <summary>The inspected namespace.</summary>
+    public string Namespace { get; }
+
+    /// <summary>True when the cluster could not evaluate all rules; always false when <see cref="Error"/> is set.</summary>
+    public bool Incomplete { get; }
+
+    /// <summary>The cluster's explanation when the list is incomplete; null when <see cref="Error"/> is set.</summary>
+    public string? EvaluationError { get; }
+
+    /// <summary>The resource rules when the review succeeded; null exactly when <see cref="Error"/> is set.</summary>
+    public IReadOnlyList<ResourceRuleDto>? Rules { get; }
+
+    /// <summary>Why the rules could not be reviewed, shown verbatim; null exactly when <see cref="Rules"/> is set.</summary>
+    public string? Error { get; }
+
+    /// <summary>The categorized cause when <see cref="Error"/> is set; otherwise null.</summary>
+    public ProbeFailureKind? FailureKind { get; }
+
+    /// <summary>A namespace whose rules were reviewed.</summary>
+    /// <param name="namespace">The namespace.</param>
+    /// <param name="incomplete">Whether the cluster could not evaluate all rules.</param>
+    /// <param name="evaluationError">The cluster's explanation when incomplete.</param>
+    /// <param name="rules">The resource rules.</param>
+    /// <returns>The entry, with no error.</returns>
+    public static NamespaceRulesDto Reviewed(
+        string @namespace, bool incomplete, string? evaluationError, IReadOnlyList<ResourceRuleDto> rules)
+    {
+        ArgumentNullException.ThrowIfNull(@namespace);
+        ArgumentNullException.ThrowIfNull(rules);
+        return new NamespaceRulesDto(@namespace, incomplete, evaluationError, rules, null, null);
+    }
+
+    /// <summary>A namespace whose rules could not be reviewed.</summary>
+    /// <param name="namespace">The namespace.</param>
+    /// <param name="kind">The categorized cause.</param>
+    /// <param name="error">The message to show (free of the token).</param>
+    /// <returns>The entry, with no rules.</returns>
+    public static NamespaceRulesDto Failed(string @namespace, ProbeFailureKind kind, string error)
+    {
+        ArgumentNullException.ThrowIfNull(@namespace);
+        ArgumentException.ThrowIfNullOrWhiteSpace(error);
+        return new NamespaceRulesDto(@namespace, false, null, null, error, kind);
+    }
+}
 
 /// <summary>One resource rule: these verbs on these resources (optionally only these names) in these API groups.</summary>
 /// <param name="Verbs">The verbs, e.g. get, list.</param>

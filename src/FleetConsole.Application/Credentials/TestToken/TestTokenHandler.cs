@@ -42,6 +42,8 @@ internal sealed class TestTokenHandler(
         }
 
         var cluster = found.Value;
+        // Validated by TestTokenValidator before the handler runs, so Create can't fail here. Saved nowhere (NST-5).
+        var namespaces = InspectNamespaces.Create(request.InspectNamespaces).Value;
         GrantModeCounts? grants = null;
         if (request.CredentialId is { } credentialId)
         {
@@ -61,7 +63,7 @@ internal sealed class TestTokenHandler(
             ConnectionTester.ConnectionOf(cluster),
             request.Token,
             TokenInspector.Inspect(request.Token),
-            request.InspectNamespace,
+            namespaces,
             grants,
             cancellationToken).ConfigureAwait(false);
 
@@ -80,6 +82,7 @@ internal sealed class TestTokenHandler(
                 failedStep = summary.FailedStep,
                 headline = summary.Headline,
                 fingerprint = TokenFingerprints.Compute(request.Token).Value,
+                inspectNamespaces = namespaces.Values,
             }));
 
         return result;

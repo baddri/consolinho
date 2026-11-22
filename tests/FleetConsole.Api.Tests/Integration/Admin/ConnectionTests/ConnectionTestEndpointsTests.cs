@@ -19,6 +19,9 @@ namespace FleetConsole.Api.Tests.Integration.Admin.ConnectionTests;
 [Collection(ApiCollectionDefinition.Name)]
 public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
 {
+    private static readonly string[] PaddedTeamA = [" team-a "];
+    private static readonly string[] InvalidName = ["Bad_Name"];
+
     private const string Subject = "system:serviceaccount:fleet:viewer";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -34,7 +37,7 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var credentialName = credential.GetProperty("name").GetString()!;
         var credentialId = credential.GetProperty("id").GetGuid();
 
-        using var response = await TestCredentialAsync(admin, cluster, credentialId, "team-a");
+        using var response = await TestCredentialAsync(admin, cluster, credentialId, [" team-a ", "team-b"]);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var resultText = await response.Content.ReadAsStringAsync(Ct);
@@ -54,22 +57,38 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         listPods.GetProperty("id").GetString().ShouldBe("list-pods");
         listPods.GetProperty("category").GetString().ShouldBe("read");
         listPods.GetProperty("allowed").GetBoolean().ShouldBeTrue();
-        result.GetProperty("namespaceRules").GetProperty("namespace").GetString().ShouldBe("team-a");
+        var namespaceRules = result.GetProperty("namespaceRules").EnumerateArray().ToList();
+        namespaceRules.Select(r => r.GetProperty("namespace").GetString()).ShouldBe(["team-a", "team-b"]);
+        namespaceRules.ShouldAllBe(r => r.GetProperty("rules").GetArrayLength() == 1
+            && r.GetProperty("error").ValueKind == JsonValueKind.Null
+            && r.GetProperty("failureKind").ValueKind == JsonValueKind.Null);
         result.GetProperty("hints").GetArrayLength().ShouldBe(0);
         server.Requests.ShouldContain(r => r.Path == "/version" && r.Authorization == $"Bearer {token}");
+        server.Requests.Count(r => r.Path == FakeKubeApiServer.RulesReviewsPath).ShouldBe(2);
 
         var lastTest = await LastTestAsync(admin, cluster, credentialId);
         lastTest.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
         lastTest.GetProperty("failedStep").ValueKind.ShouldBe(JsonValueKind.Null);
         lastTest.GetProperty("headline").GetString().ShouldBe("clusterWideView");
         lastTest.GetProperty("isStale").GetBoolean().ShouldBeFalse();
+        SavedNamespaces(await CredentialAsync(admin, cluster, credentialId)).ShouldBe(["team-a", "team-b"]);
 
         var audit = (await factory.Data.AuditEntriesAsync(credentialName)).Where(e => e.Action == "credential.tested").ShouldHaveSingleItem();
         using (var details = JsonDocument.Parse(audit.DetailsJson))
         {
             details.RootElement.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
             details.RootElement.GetProperty("headline").GetString().ShouldBe("clusterWideView");
+            SavedNamespaces(details.RootElement).ShouldBe(["team-a", "team-b"]);
         }
+
+        // NST-5: a test without namespaces clears the saved list.
+        using (var cleared = await TestCredentialAsync(admin, cluster, credentialId))
+        {
+            cleared.StatusCode.ShouldBe(HttpStatusCode.OK);
+            JsonDocument.Parse(await cleared.Content.ReadAsStringAsync(Ct)).RootElement.GetProperty("namespaceRules").GetArrayLength().ShouldBe(0);
+        }
+
+        SavedNamespaces(await CredentialAsync(admin, cluster, credentialId)).ShouldBeEmpty();
 
         // CLU-4: changing the API URL makes the stored test stale.
         var version = await admin.VersionAsync(cluster);
@@ -167,13 +186,13 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var clusterVersion = await admin.VersionAsync(cluster);
         var token = Jwt("system:serviceaccount:fleet:unsaved");
 
-        using var response = await TestTokenAsync(admin, cluster, new { token = $"  {token}\n", credentialId = (Guid?)null, inspectNamespace = "" });
+        using var response = await TestTokenAsync(admin, cluster, new { token = $"  {token}\n", credentialId = (Guid?)null, inspectNamespaces = PaddedTeamA });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var resultText = await response.Content.ReadAsStringAsync(Ct);
         var result = JsonDocument.Parse(resultText).RootElement;
         result.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
-        result.GetProperty("namespaceRules").ValueKind.ShouldBe(JsonValueKind.Null);
+        result.GetProperty("namespaceRules").EnumerateArray().Select(r => r.GetProperty("namespace").GetString()).ShouldBe(["team-a"]);
         result.GetProperty("hints").GetArrayLength().ShouldBe(0);
         server.Requests.ShouldContain(r => r.Authorization == $"Bearer {token}");
 
@@ -187,6 +206,7 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
             details.RootElement.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
             details.RootElement.GetProperty("headline").GetString().ShouldBe("clusterWideView");
             details.RootElement.GetProperty("fingerprint").GetString().ShouldBe(TokenFingerprints.Compute(new SensitiveString(token)).Value);
+            SavedNamespaces(details.RootElement).ShouldBe(["team-a"]);
         }
 
         TokenLeakScanner.AssertAbsent(
@@ -207,7 +227,7 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var credentialId = (await AddOkAsync(admin, cluster, Jwt(Subject))).GetProperty("id").GetGuid();
         await factory.Data.GrantAsync(await factory.OfflineUserAsync(), cluster, new(credentialId), AccessMode.ReadWrite);
 
-        using var response = await TestTokenAsync(admin, cluster, new { token = Jwt(Subject), credentialId, inspectNamespace = (string?)null });
+        using var response = await TestTokenAsync(admin, cluster, new { token = Jwt(Subject), credentialId, inspectNamespaces = (string[]?)null });
 
         var hint = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).GetProperty("hints").EnumerateArray().ShouldHaveSingleItem();
         hint.GetProperty("severity").GetString().ShouldBe("warning");
@@ -223,10 +243,33 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var other = await factory.Data.ClusterAsync();
         var foreign = await factory.Data.CredentialAsync(other.Name);
 
-        using var response = await TestTokenAsync(admin, cluster, new { token = Jwt(Subject), credentialId = foreign.Id.Value, inspectNamespace = (string?)null });
+        using var response = await TestTokenAsync(admin, cluster, new { token = Jwt(Subject), credentialId = foreign.Id.Value, inspectNamespaces = (string[]?)null });
 
         await response.ShouldBeFieldErrorAsync("credentialId");
         server.Requests.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task InvalidNamespaceLists_Are400_AndNeverReachTheCluster()
+    {
+        await using var server = await HealthyServerAsync();
+        using var admin = await factory.AdminClientAsync();
+        var cluster = await RegisterAsync(admin, server);
+        var credentialId = (await AddOkAsync(admin, cluster, Jwt(Subject))).GetProperty("id").GetGuid();
+        var requestsBefore = server.Requests.Count;
+        string[] eleven = [.. Enumerable.Range(0, 11).Select(i => $"ns-{i}")];
+
+        using (var tooMany = await TestCredentialAsync(admin, cluster, credentialId, eleven))
+        {
+            await tooMany.ShouldBeFieldErrorAsync("inspectNamespaces");
+        }
+
+        using (var invalid = await TestTokenAsync(admin, cluster, new { token = Jwt(Subject), credentialId = (Guid?)null, inspectNamespaces = InvalidName }))
+        {
+            await invalid.ShouldBeFieldErrorAsync("inspectNamespaces[0]");
+        }
+
+        server.Requests.Count.ShouldBe(requestsBefore);
     }
 
     [Fact]
@@ -236,17 +279,17 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var cluster = await factory.Data.ClusterAsync();
         var credential = await factory.Data.CredentialAsync(cluster.Name);
 
-        using (var badNamespace = await TestCredentialAsync(admin, cluster.Name, credential.Id.Value, "Not_A_Namespace"))
+        using (var badNamespace = await TestCredentialAsync(admin, cluster.Name, credential.Id.Value, ["team-a", "Not_A_Namespace"]))
         {
-            await badNamespace.ShouldBeFieldErrorAsync("inspectNamespace");
+            await badNamespace.ShouldBeFieldErrorAsync("inspectNamespaces[1]");
         }
 
-        using (var badToken = await TestTokenAsync(admin, cluster.Name, new { token = "has space", credentialId = (Guid?)null, inspectNamespace = (string?)null }))
+        using (var badToken = await TestTokenAsync(admin, cluster.Name, new { token = "has space", credentialId = (Guid?)null, inspectNamespaces = (string[]?)null }))
         {
             await badToken.ShouldBeFieldErrorAsync("token");
         }
 
-        using (var unknownCluster = await TestTokenAsync(admin, "no-such-cluster", new { token = "fake-token", credentialId = (Guid?)null, inspectNamespace = (string?)null }))
+        using (var unknownCluster = await TestTokenAsync(admin, "no-such-cluster", new { token = "fake-token", credentialId = (Guid?)null, inspectNamespaces = (string[]?)null }))
         {
             await unknownCluster.ShouldBeProblemAsync(HttpStatusCode.NotFound, "Clusters.NotFound");
         }
@@ -269,7 +312,7 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
             await test.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "Auth.ReadOnly");
         }
 
-        using var testToken = await TestTokenAsync(readOnly, cluster.Name, new { token = "fake-token", credentialId = (Guid?)null, inspectNamespace = (string?)null });
+        using var testToken = await TestTokenAsync(readOnly, cluster.Name, new { token = "fake-token", credentialId = (Guid?)null, inspectNamespaces = (string[]?)null });
         await testToken.ShouldBeProblemAsync(HttpStatusCode.Forbidden, "Auth.ReadOnly");
     }
 
@@ -302,8 +345,17 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         return name;
     }
 
-    private static Task<HttpResponseMessage> TestCredentialAsync(HttpClient client, string cluster, Guid credentialId, string? inspectNamespace = null) =>
-        client.PostAsJsonAsync(ClusterCredentials(cluster, $"/{credentialId}/test"), new { inspectNamespace }, Ct);
+    private static Task<HttpResponseMessage> TestCredentialAsync(HttpClient client, string cluster, Guid credentialId, string[]? inspectNamespaces = null) =>
+        client.PostAsJsonAsync(ClusterCredentials(cluster, $"/{credentialId}/test"), new { inspectNamespaces }, Ct);
+
+    private static List<string?> SavedNamespaces(JsonElement owner) =>
+        [.. owner.GetProperty("inspectNamespaces").EnumerateArray().Select(e => e.GetString())];
+
+    private static async Task<JsonElement> CredentialAsync(HttpClient admin, string cluster, Guid credentialId)
+    {
+        using var list = JsonDocument.Parse(await GetBodyAsync(admin, $"/api/admin/clusters/{cluster}/credentials"));
+        return Find(list.RootElement, credentialId).ShouldNotBeNull().Clone();
+    }
 
     private static Task<HttpResponseMessage> TestTokenAsync(HttpClient client, string cluster, object body) =>
         client.PostAsJsonAsync(new Uri($"/api/admin/clusters/{cluster}/test-token", UriKind.Relative), body, Ct);

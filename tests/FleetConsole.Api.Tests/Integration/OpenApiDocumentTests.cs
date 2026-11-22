@@ -163,6 +163,18 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
             ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task NamespaceRules_RequiresAllSixFields()
+    {
+        var document = await GetDocumentAsync();
+
+        // Contract C: every field is present (nullable ones as null), so schema.gen.ts must not make them optional.
+        var schema = document.GetProperty("components").GetProperty("schemas").GetProperty("NamespaceRules");
+        schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ShouldBe(
+            ["namespace", "incomplete", "evaluationError", "rules", "error", "failureKind"],
+            ignoreOrder: true);
+    }
+
     [Theory]
     [InlineData("/api/admin/users", "get", "ListUsers")]
     [InlineData("/api/admin/users", "post", "CreateUser")]

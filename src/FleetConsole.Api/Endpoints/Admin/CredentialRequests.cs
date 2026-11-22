@@ -17,11 +17,14 @@ public sealed record AddCredentialRequest(string Name, string? Description, stri
 public sealed record RotateCredentialTokenRequest(string Token, uint Version);
 
 /// <summary>Runs a connection test of a stored credential.</summary>
-/// <param name="InspectNamespace">Optional namespace to list the credential's access rules in (a DNS label, at most 63 characters). Empty means none.</param>
-public sealed record TestCredentialRequest(string? InspectNamespace);
+/// <param name="InspectNamespaces">Namespaces to list the credential's access rules in: at most 10 DNS labels (at most 63
+/// characters each); entries are trimmed and duplicates dropped. Null or missing means none. The list replaces the
+/// credential's saved inspect namespaces (an empty list clears them).</param>
+public sealed record TestCredentialRequest(IReadOnlyList<string>? InspectNamespaces);
 
 /// <summary>Runs a connection test of a token that is not stored. Nothing is saved except an audit entry with the token's fingerprint.</summary>
 /// <param name="Token">The ServiceAccount token to test, with the same rules as when adding a credential.</param>
 /// <param name="CredentialId">Optional: the credential of this cluster whose token is being replaced; its grants produce the access-mode hints.</param>
-/// <param name="InspectNamespace">Optional namespace to list the token's access rules in (a DNS label, at most 63 characters). Empty means none.</param>
-public sealed record TestTokenRequest(string Token, Guid? CredentialId, string? InspectNamespace);
+/// <param name="InspectNamespaces">Namespaces to list the token's access rules in: at most 10 DNS labels (at most 63
+/// characters each); entries are trimmed and duplicates dropped. Null or missing means none. Not saved anywhere.</param>
+public sealed record TestTokenRequest(string Token, Guid? CredentialId, IReadOnlyList<string>? InspectNamespaces);

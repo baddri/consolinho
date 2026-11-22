@@ -3,13 +3,14 @@ using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Credentials.ConnectionTesting;
 using FleetConsole.Domain.Common;
+using FleetConsole.Domain.Credentials;
 
 namespace FleetConsole.Application.Credentials.TestCredential;
 
 /// <summary>
 /// Handles <see cref="TestCredentialCommand"/>: decrypts the stored token for this request only, reads the credential's
-/// grant counts for the hints, runs the <see cref="ConnectionTester"/> and records the summary on the credential
-/// (<c>Credential.RecordTest</c> → <c>CredentialTested</c> → audit). <c>UnitOfWorkBehavior</c> commits both.
+/// grant counts for the hints, runs the <see cref="ConnectionTester"/> and records the summary and the inspected namespaces
+/// on the credential (<c>Credential.RecordTest</c> → <c>CredentialTested</c> → audit). <c>UnitOfWorkBehavior</c> commits both.
 /// </summary>
 /// <remarks>
 /// A rotation committed while the test runs makes the commit fail with <c>Concurrency.Conflict</c> (the result would
@@ -41,18 +42,20 @@ internal sealed class TestCredentialHandler(
         }
 
         var (cluster, credential) = found.Value;
+        // Validated by TestCredentialValidator before the handler runs, so Create can't fail here.
+        var namespaces = InspectNamespaces.Create(request.InspectNamespaces).Value;
         var grants = await grantRepository.CountByModeAsync(credential.Id, cancellationToken).ConfigureAwait(false);
 
         var result = await tester.RunAsync(
             ConnectionTester.ConnectionOf(cluster),
             tokenProtector.Unprotect(credential.Token),
             credential.Metadata,
-            request.InspectNamespace,
+            namespaces,
             grants,
             cancellationToken).ConfigureAwait(false);
 
-        // Keeps the saved list for now; T-0141 passes the namespaces the request inspected instead (NST-5).
-        credential.RecordTest(ConnectionTester.SummaryOf(result), credential.InspectNamespaces, cluster.Name.Value);
+        // NST-5: the namespaces this test inspected replace the saved list (an empty request clears it).
+        credential.RecordTest(ConnectionTester.SummaryOf(result), namespaces, cluster.Name.Value);
         return result;
     }
 }

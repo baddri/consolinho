@@ -17,6 +17,7 @@ namespace FleetConsole.Application.Credentials.TestToken;
 /// <param name="Token">The token, already trimmed by the Api; validated like when adding a credential (CRED-1).</param>
 /// <param name="CredentialId">Optional credential of this cluster being rotated; supplies the grant counts for the hints.
 /// Not a credential of the cluster → 400 field error.</param>
-/// <param name="InspectNamespace">Optional namespace to list the token's rules in.</param>
-public sealed record TestTokenCommand(string ClusterName, SensitiveString Token, Guid? CredentialId, string? InspectNamespace)
+/// <param name="InspectNamespaces">Namespaces to list the token's rules in (0-10 DNS labels; trimmed and de-duplicated by
+/// <c>InspectNamespaces</c>); null means none.</param>
+public sealed record TestTokenCommand(string ClusterName, SensitiveString Token, Guid? CredentialId, IReadOnlyList<string>? InspectNamespaces)
     : ICommand<ConnectionTestResultDto>, IAdminRequest, IMutatingCommand;

@@ -43,7 +43,7 @@ public sealed class ConnectionTesterTests
         result.Identity.ShouldBe(new ClusterIdentityDto("system:serviceaccount:fleet:viewer", IdentitySource.SelfSubjectReview));
         result.OpenShiftVersion.ShouldBe(new OpenShiftVersionDto("4.17.3", false));
         result.Capabilities.ShouldNotBeNull().Checks.Select(c => c.Id).ShouldBe(CapabilityCheckSet.Checks.Select(c => c.Id));
-        result.NamespaceRules.ShouldBeNull();
+        result.NamespaceRules.ShouldBeEmpty();
         result.Hints.ShouldBeEmpty();
         _probes.SessionDisposed.ShouldBeTrue();
         _probes.ReviewedAttributes.ShouldContain(CapabilityCheckSet.ClusterAdmin);
@@ -258,33 +258,134 @@ public sealed class ConnectionTesterTests
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
 
         await Should.ThrowAsync<OperationCanceledException>(() => Tester(TimeSpan.FromMinutes(1))
-            .RunAsync(Connection, new SensitiveString("fake-token"), JwtMetadata, null, null, cts.Token));
+            .RunAsync(Connection, new SensitiveString("fake-token"), JwtMetadata, InspectNamespaces.Empty, null, cts.Token));
     }
 
     [Fact]
     public async Task Namespace_rules_only_when_requested()
     {
         var without = await RunAsync();
-        var with = await RunAsync(inspectNamespace: "team-a");
+        var with = await RunAsync(namespaces: ["team-a"]);
 
-        without.NamespaceRules.ShouldBeNull();
-        var rules = with.NamespaceRules.ShouldNotBeNull();
+        without.NamespaceRules.ShouldBeEmpty();
+        var rules = with.NamespaceRules.ShouldHaveSingleItem();
         rules.Namespace.ShouldBe("team-a");
-        rules.Rules.ShouldHaveSingleItem().Resources.ShouldBe(["pods"]);
+        rules.Rules.ShouldNotBeNull().ShouldHaveSingleItem().Resources.ShouldBe(["pods"]);
+        rules.Error.ShouldBeNull();
+        rules.FailureKind.ShouldBeNull();
         with.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+        with.Steps[4].Message.ShouldBe(without.Steps[4].Message);
     }
 
     [Fact]
-    public async Task Rules_review_failure_is_a_capabilities_warning()
+    public async Task Rules_review_failure_is_an_entry_and_a_capabilities_warning()
     {
         _probes.RulesReview = (_, _) => FakeProbeClient.Fail<RulesReviewResult>(ProbeFailureKind.Forbidden, "forbidden");
 
-        var result = await RunAsync(inspectNamespace: "team-a");
+        var result = await RunAsync(namespaces: ["team-a"]);
 
         result.Succeeded.ShouldBeTrue();
         result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Warning);
+        result.Steps[4].Message.ShouldEndWith("; rules reviewed in 0 of 1 namespaces");
+        result.Steps[4].FailureKind.ShouldBe(ProbeFailureKind.Forbidden);
         result.Capabilities.ShouldNotBeNull();
-        result.NamespaceRules.ShouldBeNull();
+        var entry = result.NamespaceRules.ShouldHaveSingleItem();
+        entry.Rules.ShouldBeNull();
+        entry.Error.ShouldBe("forbidden");
+        entry.FailureKind.ShouldBe(ProbeFailureKind.Forbidden);
+        entry.Incomplete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Rejected_token_in_one_namespace_gets_the_token_rejected_text()
+    {
+        _probes.RulesReview = (ns, _) => ns == "team-b"
+            ? FakeProbeClient.Fail<RulesReviewResult>(ProbeFailureKind.Unauthorized, "raw probe text")
+            : FakeProbeClient.Ok(new RulesReviewResult(false, null, []));
+
+        var result = await RunAsync(namespaces: ["team-a", "team-b"]);
+
+        result.Succeeded.ShouldBeTrue();
+        result.NamespaceRules[0].Error.ShouldBeNull();
+        result.NamespaceRules[1].Error.ShouldBe(ConnectionTester.TokenRejectedMessage);
+        result.NamespaceRules[1].FailureKind.ShouldBe(ProbeFailureKind.Unauthorized);
+        result.Steps[4].Message.ShouldEndWith("; rules reviewed in 1 of 2 namespaces");
+        result.Steps[4].FailureKind.ShouldBe(ProbeFailureKind.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Several_namespaces_one_forbidden_one_hanging_until_the_budget_keep_order_and_warn()
+    {
+        _probes.RulesReview = (ns, ct) => ns switch
+        {
+            "team-b" => FakeProbeClient.Fail<RulesReviewResult>(ProbeFailureKind.Forbidden, "namespaces \"team-b\" is forbidden"),
+            "team-c" => FakeProbeClient.Hang<RulesReviewResult>(ct),
+            _ => FakeProbeClient.Ok(new RulesReviewResult(true, "webhook authorizer", [])),
+        };
+
+        var result = await RunAsync(namespaces: ["team-a", "team-b", "team-c"], timeout: TimeSpan.FromMilliseconds(300));
+
+        result.Succeeded.ShouldBeTrue();
+        result.NamespaceRules.Select(r => r.Namespace).ShouldBe(["team-a", "team-b", "team-c"]);
+        result.NamespaceRules[0].Rules.ShouldNotBeNull().ShouldBeEmpty();
+        result.NamespaceRules[0].Incomplete.ShouldBeTrue();
+        result.NamespaceRules[0].EvaluationError.ShouldBe("webhook authorizer");
+        result.NamespaceRules[1].ShouldSatisfyAllConditions(
+            r => r.Rules.ShouldBeNull(),
+            r => r.Error.ShouldBe("namespaces \"team-b\" is forbidden"),
+            r => r.FailureKind.ShouldBe(ProbeFailureKind.Forbidden));
+        result.NamespaceRules[2].ShouldSatisfyAllConditions(
+            r => r.Rules.ShouldBeNull(),
+            r => r.Error.ShouldBe(ConnectionTester.RulesTimeoutMessage),
+            r => r.FailureKind.ShouldBe(ProbeFailureKind.Timeout));
+        var step = result.Steps[4];
+        step.Status.ShouldBe(ConnectionTestStepStatus.Warning);
+        step.Message.ShouldMatch(@"^Limited: 0 of \d+ checks allowed; rules reviewed in 1 of 3 namespaces$");
+        step.FailureKind.ShouldBe(ProbeFailureKind.Forbidden);
+    }
+
+    [Fact]
+    public async Task Rules_reviews_are_bounded_to_four_in_flight()
+    {
+        var inFlight = 0;
+        var maxInFlight = 0;
+        _probes.RulesReview = async (_, ct) =>
+        {
+            var now = Interlocked.Increment(ref inFlight);
+            InterlockedMax(ref maxInFlight, now);
+            await Task.Delay(20, ct);
+            Interlocked.Decrement(ref inFlight);
+            return ProbeResponse<RulesReviewResult>.Ok(new RulesReviewResult(false, null, []));
+        };
+
+        var result = await RunAsync(namespaces: [.. Enumerable.Range(0, 10).Select(i => $"ns-{i}")]);
+
+        result.NamespaceRules.Count.ShouldBe(10);
+        result.NamespaceRules.ShouldAllBe(r => r.Error == null);
+        maxInFlight.ShouldBe(4);
+        result.Steps[4].Status.ShouldBe(ConnectionTestStepStatus.Passed);
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_during_rules_reviews_propagates()
+    {
+        _probes.RulesReview = (_, ct) => FakeProbeClient.Hang<RulesReviewResult>(ct);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(Ct);
+        cts.CancelAfter(TimeSpan.FromMilliseconds(100));
+
+        await Should.ThrowAsync<OperationCanceledException>(() => Tester(TimeSpan.FromMinutes(1))
+            .RunAsync(Connection, new SensitiveString("fake-token"), JwtMetadata, Namespaces("team-a", "team-b"), null, cts.Token));
+    }
+
+    [Fact]
+    public void Namespace_rules_entries_hold_exactly_one_of_rules_and_error()
+    {
+        var reviewed = NamespaceRulesDto.Reviewed("team-a", false, null, []);
+        var failed = NamespaceRulesDto.Failed("team-a", ProbeFailureKind.NotFound, "not found");
+
+        reviewed.ShouldSatisfyAllConditions(r => r.Rules.ShouldNotBeNull(), r => r.Error.ShouldBeNull(), r => r.FailureKind.ShouldBeNull());
+        failed.ShouldSatisfyAllConditions(
+            r => r.Rules.ShouldBeNull(), r => r.Error.ShouldBe("not found"), r => r.FailureKind.ShouldBe(ProbeFailureKind.NotFound));
     }
 
     [Fact]
@@ -328,8 +429,18 @@ public sealed class ConnectionTesterTests
     private ConnectionTester Tester(TimeSpan timeout) =>
         new(_probes, new FixedClock(), Options.Create(new CredentialsOptions { ConnectionTestTimeout = timeout }));
 
+    private static InspectNamespaces Namespaces(params string[] names) => InspectNamespaces.Create(names).Value;
+
+    private static void InterlockedMax(ref int target, int value)
+    {
+        int seen;
+        while (value > (seen = Volatile.Read(ref target)) && Interlocked.CompareExchange(ref target, value, seen) != seen)
+        {
+        }
+    }
+
     private Task<ConnectionTestResultDto> RunAsync(
-        TokenMetadata? metadata = null, string? inspectNamespace = null, GrantModeCounts? grants = null, TimeSpan? timeout = null) =>
+        TokenMetadata? metadata = null, string[]? namespaces = null, GrantModeCounts? grants = null, TimeSpan? timeout = null) =>
         Tester(timeout ?? TimeSpan.FromSeconds(30))
-            .RunAsync(Connection, new SensitiveString("fake-token"), metadata ?? JwtMetadata, inspectNamespace, grants, Ct);
+            .RunAsync(Connection, new SensitiveString("fake-token"), metadata ?? JwtMetadata, Namespaces(namespaces ?? []), grants, Ct);
 }

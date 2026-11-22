@@ -21,6 +21,9 @@ namespace FleetConsole.Application.Credentials.ConnectionTesting;
 /// <para><b>Budget:</b> one <see cref="CredentialsOptions.ConnectionTestTimeout"/> over all steps, linked with the
 /// caller's token. When the budget runs out the running step fails with <see cref="ProbeFailureKind.Timeout"/>; when the
 /// caller cancels (request aborted) the <see cref="OperationCanceledException"/> propagates.</para>
+/// <para><b>Namespaces</b> (NST-3): after the capability reviews, the token's rules are reviewed in each requested
+/// namespace, concurrently and bounded like the capability reviews. A namespace that fails (403, not found, budget
+/// timeout) gets an error entry and turns the step into a warning; it never fails the step, the others or the test.</para>
 /// <para>The token is only handed to the probe session; it never appears in a message, and probe failure messages
 /// don't contain it.</para>
 /// </remarks>
@@ -40,6 +43,9 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
 
     /// <summary>Message of a step that didn't run.</summary>
     public const string SkippedMessage = "Skipped because an earlier step failed.";
+
+    /// <summary>Error of a namespace whose rules review got no answer before the test budget ran out (NST-3).</summary>
+    public const string RulesTimeoutMessage = "No answer within the test time limit.";
 
     // ADR-0011: the capability SSARs run concurrently, at most this many at a time.
     private const int MaxConcurrentReviews = 4;
@@ -81,7 +87,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
     /// <param name="token">The token to test; only handed to the probe session.</param>
     /// <param name="tokenMetadata">The token's JWT metadata; its subject is the identity fallback when the cluster has no
     /// SelfSubjectReview API.</param>
-    /// <param name="inspectNamespace">A namespace to list the token's rules in, or <see langword="null"/>.</param>
+    /// <param name="inspectNamespaces">The namespaces to list the token's rules in (validated, normalised; may be empty).</param>
     /// <param name="grants">The credential's grant counts for hints, or <see langword="null"/> for no grant hints.</param>
     /// <param name="cancellationToken">The caller's token (request aborted).</param>
     /// <returns>The result; a failed test is a normal result, not an exception.</returns>
@@ -89,13 +95,14 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         ClusterConnection connection,
         SensitiveString token,
         TokenMetadata tokenMetadata,
-        string? inspectNamespace,
+        InspectNamespaces inspectNamespaces,
         GrantModeCounts? grants,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(token);
         ArgumentNullException.ThrowIfNull(tokenMetadata);
+        ArgumentNullException.ThrowIfNull(inspectNamespaces);
 
         var testedAt = clock.UtcNow;
         var started = Stopwatch.GetTimestamp();
@@ -110,7 +117,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         {
             try
             {
-                await RunStepsAsync(session, run, tokenMetadata, inspectNamespace, budget.Token).ConfigureAwait(false);
+                await RunStepsAsync(session, run, tokenMetadata, inspectNamespaces, budget.Token, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (budget.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
@@ -141,7 +148,12 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
     }
 
     private static async Task RunStepsAsync(
-        IClusterProbeSession session, TestRun run, TokenMetadata tokenMetadata, string? inspectNamespace, CancellationToken ct)
+        IClusterProbeSession session,
+        TestRun run,
+        TokenMetadata tokenMetadata,
+        InspectNamespaces inspectNamespaces,
+        CancellationToken ct,
+        CancellationToken callerToken)
     {
         if (!await CheckReachabilityAsync(session, run, ct).ConfigureAwait(false))
         {
@@ -161,7 +173,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
             return;
         }
 
-        await CheckCapabilitiesAsync(session, run, inspectNamespace, ct).ConfigureAwait(false);
+        await CheckCapabilitiesAsync(session, run, inspectNamespaces, ct, callerToken).ConfigureAwait(false);
     }
 
     // Step 1: GET /version. Network and TLS problems fail here. A 401/403 means the server answered (some clusters don't
@@ -262,9 +274,10 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         return false;
     }
 
-    // Step 5: the cluster-admin review plus every check, concurrently; then the optional rules review.
+    // Step 5: the cluster-admin review plus every check, concurrently; then the rules review in each requested namespace.
+    // ct is the budget (linked with the caller); callerToken is the caller's own token, needed by the rules phase only.
     private static async Task CheckCapabilitiesAsync(
-        IClusterProbeSession session, TestRun run, string? inspectNamespace, CancellationToken ct)
+        IClusterProbeSession session, TestRun run, InspectNamespaces inspectNamespaces, CancellationToken ct, CancellationToken callerToken)
     {
         run.Begin(ConnectionTestStep.Capabilities);
         var checks = CapabilityCheckSet.Checks;
@@ -294,25 +307,60 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
             CultureInfo.InvariantCulture,
             $"{HeadlineLabel(headline)}: {results.Count(r => r.Allowed)} of {results.Count} checks allowed");
 
-        if (inspectNamespace is null)
+        var namespaceRules = await ReviewRulesAsync(session, inspectNamespaces.Values, ct, callerToken).ConfigureAwait(false);
+        run.NamespaceRules = namespaceRules;
+
+        if (namespaceRules.FirstOrDefault(r => r.Error is not null) is { } firstFailed)
         {
-            run.Pass(summary);
+            var reviewed = namespaceRules.Count(r => r.Error is null);
+            run.Warn(
+                string.Create(CultureInfo.InvariantCulture, $"{summary}; rules reviewed in {reviewed} of {namespaceRules.Length} namespaces"),
+                firstFailed.FailureKind);
             return;
         }
 
-        var rules = await session.ReviewRulesAsync(inspectNamespace, ct).ConfigureAwait(false);
-        if (!rules.IsSuccess)
-        {
-            run.Warn($"{summary}; the rules in namespace {inspectNamespace} could not be reviewed: {rules.Failure.Message}", rules.Failure.Kind);
-            return;
-        }
-
-        run.NamespaceRules = new NamespaceRulesDto(
-            inspectNamespace,
-            rules.Value.Incomplete,
-            rules.Value.EvaluationError,
-            [.. rules.Value.Rules.Select(r => new ResourceRuleDto(r.Verbs, r.ApiGroups, r.Resources, r.ResourceNames))]);
         run.Pass(summary);
+    }
+
+    // NST-3: one SelfSubjectRulesReview per namespace, at most MaxConcurrentReviews at a time; entries land by index, so
+    // they keep the request order. A namespace's failure becomes its entry, never an exception.
+    //
+    // Budget vs caller: the budget token (ct) is deliberately NOT the loop's ParallelOptions.CancellationToken — when it
+    // fires, ForEachAsync would throw and drop the namespaces already answered, failing the whole step as a timeout.
+    // Instead each review gets ct, and a budget expiry turns only the unanswered namespaces into timeout entries. The
+    // caller's own cancellation (request aborted) is checked separately and still propagates.
+    private static async Task<NamespaceRulesDto[]> ReviewRulesAsync(
+        IClusterProbeSession session, IReadOnlyList<string> namespaces, CancellationToken ct, CancellationToken callerToken)
+    {
+        var entries = new NamespaceRulesDto[namespaces.Count];
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, namespaces.Count),
+            new ParallelOptions { MaxDegreeOfParallelism = MaxConcurrentReviews, CancellationToken = callerToken },
+            async (index, _) => entries[index] = await ReviewRulesInAsync(session, namespaces[index], ct, callerToken).ConfigureAwait(false))
+            .ConfigureAwait(false);
+        return entries;
+    }
+
+    private static async Task<NamespaceRulesDto> ReviewRulesInAsync(
+        IClusterProbeSession session, string @namespace, CancellationToken ct, CancellationToken callerToken)
+    {
+        try
+        {
+            // Not started yet when the budget already ran out (a later batch): don't send a request that can't finish.
+            ct.ThrowIfCancellationRequested();
+            var rules = await session.ReviewRulesAsync(@namespace, ct).ConfigureAwait(false);
+            return rules.IsSuccess
+                ? NamespaceRulesDto.Reviewed(
+                    @namespace,
+                    rules.Value.Incomplete,
+                    rules.Value.EvaluationError,
+                    [.. rules.Value.Rules.Select(r => new ResourceRuleDto(r.Verbs, r.ApiGroups, r.Resources, r.ResourceNames))])
+                : NamespaceRulesDto.Failed(@namespace, rules.Failure.Kind, MessageFor(rules.Failure));
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested && !callerToken.IsCancellationRequested)
+        {
+            return NamespaceRulesDto.Failed(@namespace, ProbeFailureKind.Timeout, RulesTimeoutMessage);
+        }
     }
 
     // TEST-4: only when the capabilities are known and the credential (hence its grants) is known.
@@ -374,7 +422,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
 
         public CapabilitySummaryDto? Capabilities { get; set; }
 
-        public NamespaceRulesDto? NamespaceRules { get; set; }
+        public IReadOnlyList<NamespaceRulesDto> NamespaceRules { get; set; } = [];
 
         public void Begin(ConnectionTestStep step) => _current = step;
 
