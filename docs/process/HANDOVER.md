@@ -18,7 +18,7 @@
 - **Human approval (2026-11-23):** after CP3.7 closes (merge + tag), continue straight into **CP4** without stopping to report; still report CP3.7 delivery in the session summary.
 - **CP3.7 BUILD (2026-11-23):** spec `docs/specs/CP3.7-fleet-foundations.md` (Q1 decided: one-line toggle), ADRs
   0032–0035, UX.md §2a (K8s navy theme), tasks BE T-0139→T-0142 (sequential), FE T-0144…T-0151 (deps in frontmatter;
-  T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3), T-0140 (84ca7f2), T-0141 (716b5d7), T-0145 (81dc55c), T-0142 (300542f), T-0153 (54ba309). In progress: T-0146 (frontend-engineer). Follow-ups filed: T-0152 menu width, T-0153 switcher keyboard nav (design first; before VERIFY).
+  T-0146 waits for all BE). Done: T-0139 (1a9e210), T-0144 (73ac7e3), T-0140 (84ca7f2), T-0141 (716b5d7), T-0145 (81dc55c), T-0142 (300542f), T-0153 (54ba309), T-0154 (e618e38, OpenAPI nullability), T-0146 (85f4ef6). In progress: T-0147 (shared tree), T-0148 + T-0150 (worktrees; orchestrator commits there, then cherry-picks). Follow-ups filed: T-0152 menu width, T-0153 switcher keyboard nav (design first; before VERIFY).
 - **CP3.7 scope (human, 2026-11-23)** — ROADMAP §CP3.7 holds the decided scope (switcher display name/type tag, read-only
   off the toggle, `Cluster.Distribution` + discovery gating, Fleet perspective, K8s masthead theme, multi-namespace token
   test, 4 ADRs). SPEC with `ocp-product-owner` + `ux-designer` (theme values). Groups + cache decided for CP4.5, K8s
