@@ -14,6 +14,10 @@ public sealed record SelfSubjectReviewInfo(string Username, IReadOnlyList<string
 /// <param name="UpdateProgressing">True when the <c>Progressing</c> condition is <c>True</c> (an update is running).</param>
 public sealed record ClusterVersionInfo(string Version, bool UpdateProgressing);
 
+/// <summary>The API groups a cluster serves, from <c>GET /apis</c>; the connection test's distribution evidence (ADR-0032).</summary>
+/// <param name="Names">The group names, e.g. <c>apps</c>, <c>config.openshift.io</c> (the core group is not listed there).</param>
+public sealed record ServedApiGroups(IReadOnlyCollection<string> Names);
+
 /// <summary>The request a SelfSubjectAccessReview asks about ("may I <em>verb</em> <em>resource</em>?").</summary>
 /// <param name="Verb">Kubernetes verb (<c>get</c>, <c>list</c>, <c>patch</c>, <c>*</c>…).</param>
 /// <param name="Group">API group; empty string for the core group, <c>*</c> for all.</param>

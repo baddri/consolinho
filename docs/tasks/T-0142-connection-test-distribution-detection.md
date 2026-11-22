@@ -1,7 +1,7 @@
 ---
 id: T-0142
 title: Connection test detects the distribution from API discovery — distribution step, mismatch warning, ClusterVersion skip
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 3.7
 depends_on: [T-0139, T-0141]   # T-0141: both edit ConnectionTester.cs / result DTO
@@ -54,16 +54,40 @@ messages verbatim, `detectedDistribution: ClusterDistribution | null`, DIST-8 sk
   (the stub cluster used there must serve `/apis`).
 
 ## Acceptance criteria
-- [ ] Declared OpenShift + `config.openshift.io` served → `distribution` passed, `detectedDistribution: "openShift"`.
-- [ ] Declared Kubernetes + served → warning with the exact DIST-7 text; ClusterVersion runs as today; test succeeds.
-- [ ] Declared OpenShift + not served → reverse warning; ClusterVersion as today (warning if not visible).
-- [ ] Declared Kubernetes + not served → passed; `openShiftVersion` skipped "Not an OpenShift cluster", no ClusterVersion call (DIST-8).
-- [ ] `/apis` 403 → warning, `detectedDistribution: null`, test continues.
-- [ ] Results have 6 steps in order; a failure before the step reports `distribution` as skipped.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Declared OpenShift + `config.openshift.io` served → `distribution` passed, `detectedDistribution: "openShift"`.
+- [x] Declared Kubernetes + served → warning with the exact DIST-7 text; ClusterVersion runs as today; test succeeds.
+- [x] Declared OpenShift + not served → reverse warning; ClusterVersion as today (warning if not visible).
+- [x] Declared Kubernetes + not served → passed; `openShiftVersion` skipped "Not an OpenShift cluster", no ClusterVersion call (DIST-8).
+- [x] `/apis` 403 → warning, `detectedDistribution: null`, test continues.
+- [x] Results have 6 steps in order; a failure before the step reports `distribution` as skipped.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 backend-engineer: started.
+- 2026-11-23 backend-engineer: `GetServedApiGroupsAsync` (GET /apis) + step 4 `Distribution` (enum value 5, ordered between
+  identity and openShiftVersion); DIST-8 skip without the ClusterVersion call. Outside `paths`: `KubernetesDtos.cs`
+  (APIGroupList DTO), `Fakes/FakeKubeApiServer.cs` (`MapApiGroups`), `TokenLeakSweepTests.cs` (/apis echoes the token).
+  check-be green 333/705/789.
 
 ## Review
+**Round 1 — backend-architect, 2026-11-23: APPROVE.** check-be green (333/705/789). Contract C (distribution parts)
+is met: the messages match word for word; `detectedDistribution` stays null when discovery is unreadable or the test
+stops earlier (tests at `ConnectionTesterTests.cs:239,255`); declared Kubernetes without detected OpenShift skips
+ClusterVersion without calling it; a mismatch warns with `failureKind: null` and never fails the step. Layering is
+fine (`ConnectionTestTarget` keeps `ClusterConnection` free of presentation data). The leak sweep now echoes the
+token on `/apis` too. Step names are stored as strings, so no migration is needed. `detectedDistribution` is a
+positional parameter, so the OpenAPI schema marks it `required` and nullable, the same as `failedStep`.
+The three files outside the task paths (`KubernetesDtos.cs`, `FakeKubeApiServer.cs`, `TokenLeakSweepTests.cs`) were
+needed for the work. They were missing from the task's paths, which was my mistake, not the engineer's.
+- Optional: add a check to `OpenApiDocumentTests` that `ConnectionTestResult.detectedDistribution` is
+  `oneOf [null, $ref ClusterDistribution]` and listed in `required`, like `NullableEnumProperties_StayNullableAtTheReference`.
 
 ## Handover notes
+- New step `distribution` (`ConnectionTestStep.Distribution = 5`, append-only value; the list order is in `StepOrder`).
+- New result field `detectedDistribution: ClusterDistribution | null` (null when /apis is not readable). The FE must
+  regenerate `schema.gen.ts`; step labels need a "Distribution" entry.
+- `ConnectionTester.TargetOf(cluster)` replaces `ConnectionOf`; `RunAsync` takes a `ConnectionTestTarget` (connection +
+  declared distribution).
+- Messages are public constants on `ConnectionTester`. Mismatch warnings have `failureKind: null`. Discovery 403/404
+  warns with the probe kind. Declared Kubernetes and OpenShift not detected (including unreadable discovery) → skipped.
+- The stored `ConnectionTestSummary` is unchanged: no migration, and a mismatch never sets `failedStep`.

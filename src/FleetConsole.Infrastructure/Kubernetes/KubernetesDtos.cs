@@ -7,6 +7,12 @@ namespace FleetConsole.Infrastructure.Kubernetes;
 /// <summary><c>GET /version</c> answer.</summary>
 internal sealed record VersionDto(string? GitVersion);
 
+/// <summary><c>GET /apis</c> answer (an <c>APIGroupList</c>); only the group names are read.</summary>
+internal sealed record ApiGroupListDto(IReadOnlyList<ApiGroupDto?>? Groups);
+
+/// <summary>One entry of <c>APIGroupList.groups</c>.</summary>
+internal sealed record ApiGroupDto(string? Name);
+
 /// <summary>Body of a SelfSubjectReview / SelfSubjectAccessReview / SelfSubjectRulesReview POST.</summary>
 internal sealed record ReviewRequestDto(string ApiVersion, string Kind, ReviewSpecDto? Spec);
 

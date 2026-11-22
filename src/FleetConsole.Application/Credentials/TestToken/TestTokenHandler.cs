@@ -60,7 +60,7 @@ internal sealed class TestTokenHandler(
         }
 
         var result = await tester.RunAsync(
-            ConnectionTester.ConnectionOf(cluster),
+            ConnectionTester.TargetOf(cluster),
             request.Token,
             TokenInspector.Inspect(request.Token),
             namespaces,

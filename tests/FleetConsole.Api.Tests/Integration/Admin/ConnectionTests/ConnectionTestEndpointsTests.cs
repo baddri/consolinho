@@ -44,13 +44,14 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var result = JsonDocument.Parse(resultText).RootElement;
         result.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
         result.GetProperty("steps").EnumerateArray().Select(s => s.GetProperty("step").GetString())
-            .ShouldBe(["reachability", "authentication", "identity", "openShiftVersion", "capabilities"]);
+            .ShouldBe(["reachability", "authentication", "identity", "distribution", "openShiftVersion", "capabilities"]);
         result.GetProperty("steps").EnumerateArray().ShouldAllBe(s => s.GetProperty("status").GetString() == "passed");
         result.GetProperty("steps")[0].GetProperty("message").GetString().ShouldBe("Reachable, Kubernetes v1.31.4");
         result.GetProperty("kubernetesVersion").GetString().ShouldBe("v1.31.4");
         result.GetProperty("identity").GetProperty("username").GetString().ShouldBe(Subject);
         result.GetProperty("identity").GetProperty("source").GetString().ShouldBe("selfSubjectReview");
         result.GetProperty("openShiftVersion").GetProperty("version").GetString().ShouldBe("4.17.3");
+        result.GetProperty("detectedDistribution").GetString().ShouldBe("openShift");
         var capabilities = result.GetProperty("capabilities");
         capabilities.GetProperty("headline").GetString().ShouldBe("clusterWideView");
         var listPods = capabilities.GetProperty("checks")[0];
@@ -156,6 +157,50 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         authentication.GetProperty("message").GetString().ShouldBe("Token rejected by the cluster (expired, revoked, or for another cluster)");
         result.GetProperty("steps").EnumerateArray().Skip(2).ShouldAllBe(s => s.GetProperty("status").GetString() == "skipped");
         (await LastTestAsync(admin, cluster, credentialId)).GetProperty("failedStep").GetString().ShouldBe("authentication");
+    }
+
+    [Fact]
+    public async Task TestCredential_OnKubernetesCluster_WithoutOpenShiftApis_SkipsClusterVersion()
+    {
+        await using var server = await HealthyServerAsync();
+        server.MapApiGroups("apps", "batch");
+        using var admin = await factory.AdminClientAsync();
+        var cluster = await RegisterAsync(admin, server, distribution: "kubernetes");
+        var credentialId = (await AddOkAsync(admin, cluster, Jwt(Subject))).GetProperty("id").GetGuid();
+
+        using var response = await TestCredentialAsync(admin, cluster, credentialId);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        result.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
+        result.GetProperty("detectedDistribution").GetString().ShouldBe("kubernetes");
+        result.GetProperty("steps")[3].GetProperty("status").GetString().ShouldBe("passed");
+        var openShiftVersion = result.GetProperty("steps")[4];
+        openShiftVersion.GetProperty("status").GetString().ShouldBe("skipped");
+        openShiftVersion.GetProperty("message").GetString().ShouldBe("Not an OpenShift cluster");
+        result.GetProperty("openShiftVersion").ValueKind.ShouldBe(JsonValueKind.Null);
+        server.Requests.ShouldNotContain(r => r.Path == FakeKubeApiServer.ClusterVersionPath);
+    }
+
+    [Fact]
+    public async Task TestToken_OnKubernetesDeclaredOpenShiftCluster_WarnsAboutTheMismatch()
+    {
+        await using var server = await HealthyServerAsync();
+        using var admin = await factory.AdminClientAsync();
+        var cluster = await RegisterAsync(admin, server, distribution: "kubernetes");
+
+        using var response = await TestTokenAsync(admin, cluster, new { token = Jwt(Subject), credentialId = (Guid?)null, inspectNamespaces = (string[]?)null });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>(Ct);
+        result.GetProperty("succeeded").GetBoolean().ShouldBeTrue();
+        result.GetProperty("detectedDistribution").GetString().ShouldBe("openShift");
+        var distribution = result.GetProperty("steps")[3];
+        distribution.GetProperty("step").GetString().ShouldBe("distribution");
+        distribution.GetProperty("status").GetString().ShouldBe("warning");
+        distribution.GetProperty("message").GetString()
+            .ShouldBe("The cluster serves OpenShift APIs but is registered as Kubernetes. Check the distribution.");
+        result.GetProperty("steps")[4].GetProperty("status").GetString().ShouldBe("passed");
     }
 
     [Fact]
@@ -322,6 +367,7 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
         server.MapVersion();
         server.MapSelfSubjectReview(Subject, "system:authenticated");
+        server.MapApiGroups("apps", "config.openshift.io", "route.openshift.io");
         server.MapClusterVersion();
         server.MapRulesReview(false, null, (["get", "list"], [""], ["pods"], []));
         server.SetAccessReview("list", "", "pods", allowed: true);
@@ -330,7 +376,8 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         return server;
     }
 
-    private static async Task<string> RegisterAsync(HttpClient admin, FakeKubeApiServer server, bool withCaBundle = true)
+    private static async Task<string> RegisterAsync(
+        HttpClient admin, FakeKubeApiServer server, bool withCaBundle = true, string distribution = "openShift")
     {
         var name = $"ct-{TestData.Unique()}";
         using var response = await admin.PostAsJsonAsync(
@@ -339,6 +386,7 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
             {
                 body["apiUrl"] = server.BaseAddress.GetLeftPart(UriPartial.Authority);
                 body["caBundle"] = withCaBundle ? server.CaBundlePem : null;
+                body["distribution"] = distribution;
             }),
             Ct);
         response.StatusCode.ShouldBe(HttpStatusCode.Created);

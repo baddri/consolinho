@@ -35,8 +35,10 @@ public sealed class TokenLeakSweepTests(ApiFactory factory)
         await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
         server.MapVersion();
         // Hostile upstream: SelfSubjectReview fails with a body that contains the caller's Authorization header, and
-        // ClusterVersion is forbidden with the same echo. Neither may reach a step message, the stored test or the audit.
+        // ClusterVersion and API discovery are forbidden with the same echo. None may reach a step message, the stored
+        // test or the audit.
         server.Map("POST", FakeKubeApiServer.SelfSubjectReviewsPath, EchoAuthorizationAsync(500));
+        server.Map("GET", "/apis", EchoAuthorizationAsync(403));
         server.Map("GET", FakeKubeApiServer.ClusterVersionPath, EchoAuthorizationAsync(403));
 
         using var admin = await factory.AdminClientAsync();

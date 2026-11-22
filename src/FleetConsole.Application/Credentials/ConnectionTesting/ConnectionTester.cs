@@ -10,14 +10,14 @@ using Microsoft.Extensions.Options;
 namespace FleetConsole.Application.Credentials.ConnectionTesting;
 
 /// <summary>
-/// Runs a connection test (ADR-0011, TEST-1..4): the five steps against one cluster with one token, the capability
+/// Runs a connection test (ADR-0011, TEST-1..4, ADR-0032): the six steps against one cluster with one token, the capability
 /// evaluation of <see cref="CapabilityCheckSet"/> and the grant-mode hints. Pure orchestration over the
 /// <see cref="IClusterProbeClient"/> port, so it is unit-tested with a fake session; used by the <c>TestCredential</c>
 /// and <c>TestToken</c> handlers, which do the loading, recording and auditing.
 /// </summary>
 /// <remarks>
 /// <para><b>Steps</b> run in order and stop at the first failed one; the rest are reported as skipped. Warnings
-/// (version not visible, identity unknown, rules not reviewable) don't stop the test.</para>
+/// (version not visible, identity unknown, distribution mismatch, rules not reviewable) don't stop the test.</para>
 /// <para><b>Budget:</b> one <see cref="CredentialsOptions.ConnectionTestTimeout"/> over all steps, linked with the
 /// caller's token. When the budget runs out the running step fails with <see cref="ProbeFailureKind.Timeout"/>; when the
 /// caller cancels (request aborted) the <see cref="OperationCanceledException"/> propagates.</para>
@@ -41,6 +41,30 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
     /// <summary>Warning message of <c>openShiftVersion</c> when the ClusterVersion is forbidden or absent (contract §8.5).</summary>
     public const string NotVisibleMessage = "Not visible with this credential";
 
+    /// <summary><c>distribution</c> passed: declared OpenShift and <c>config.openshift.io</c> served (contract C).</summary>
+    public const string OpenShiftAsRegisteredMessage = "OpenShift APIs served, as registered";
+
+    /// <summary><c>distribution</c> passed: declared Kubernetes and no OpenShift APIs served (contract C).</summary>
+    public const string KubernetesAsRegisteredMessage = "No OpenShift APIs served, as registered";
+
+    /// <summary><c>distribution</c> warning (DIST-7): OpenShift APIs served on a cluster declared as Kubernetes.</summary>
+    public const string ServesOpenShiftMessage =
+        "The cluster serves OpenShift APIs but is registered as Kubernetes. Check the distribution.";
+
+    /// <summary><c>distribution</c> warning (DIST-7): no OpenShift APIs on a cluster declared as OpenShift.</summary>
+    public const string ServesNoOpenShiftMessage =
+        "The cluster does not serve OpenShift APIs but is registered as OpenShift. Check the distribution.";
+
+    /// <summary><c>distribution</c> warning when <c>GET /apis</c> failed (e.g. 403); the test continues.</summary>
+    public const string DiscoveryNotVisibleMessage =
+        "API discovery is not visible with this credential; the distribution was not checked";
+
+    /// <summary><c>openShiftVersion</c> skipped (DIST-8): declared Kubernetes and no OpenShift APIs detected.</summary>
+    public const string NotOpenShiftMessage = "Not an OpenShift cluster";
+
+    /// <summary>The API group whose presence in discovery means "OpenShift" (ADR-0032).</summary>
+    public const string OpenShiftConfigGroup = "config.openshift.io";
+
     /// <summary>Message of a step that didn't run.</summary>
     public const string SkippedMessage = "Skipped because an earlier step failed.";
 
@@ -55,17 +79,20 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         ConnectionTestStep.Reachability,
         ConnectionTestStep.Authentication,
         ConnectionTestStep.Identity,
+        ConnectionTestStep.Distribution,
         ConnectionTestStep.OpenShiftVersion,
         ConnectionTestStep.Capabilities,
     ];
 
-    /// <summary>Maps a cluster's stored connection settings to the probe port's input.</summary>
+    /// <summary>Maps a cluster's stored connection settings and declared distribution to the tester's input.</summary>
     /// <param name="cluster">The cluster.</param>
-    /// <returns>The connection.</returns>
-    public static ClusterConnection ConnectionOf(Cluster cluster)
+    /// <returns>The target.</returns>
+    public static ConnectionTestTarget TargetOf(Cluster cluster)
     {
         ArgumentNullException.ThrowIfNull(cluster);
-        return new ClusterConnection(cluster.Endpoint.Url, cluster.Endpoint.CaBundle?.Pem, cluster.Endpoint.SkipTlsVerify);
+        return new ConnectionTestTarget(
+            new ClusterConnection(cluster.Endpoint.Url, cluster.Endpoint.CaBundle?.Pem, cluster.Endpoint.SkipTlsVerify),
+            cluster.Distribution);
     }
 
     /// <summary>
@@ -83,7 +110,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
     }
 
     /// <summary>Runs the test.</summary>
-    /// <param name="connection">Where and how to connect.</param>
+    /// <param name="target">Where and how to connect, and the declared distribution.</param>
     /// <param name="token">The token to test; only handed to the probe session.</param>
     /// <param name="tokenMetadata">The token's JWT metadata; its subject is the identity fallback when the cluster has no
     /// SelfSubjectReview API.</param>
@@ -92,14 +119,14 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
     /// <param name="cancellationToken">The caller's token (request aborted).</param>
     /// <returns>The result; a failed test is a normal result, not an exception.</returns>
     public async Task<ConnectionTestResultDto> RunAsync(
-        ClusterConnection connection,
+        ConnectionTestTarget target,
         SensitiveString token,
         TokenMetadata tokenMetadata,
         InspectNamespaces inspectNamespaces,
         GrantModeCounts? grants,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(connection);
+        ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(token);
         ArgumentNullException.ThrowIfNull(tokenMetadata);
         ArgumentNullException.ThrowIfNull(inspectNamespaces);
@@ -112,12 +139,12 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         using var budget = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         budget.CancelAfter(timeout);
 
-        var session = probes.Open(connection, token);
+        var session = probes.Open(target.Connection, token);
         await using (session.ConfigureAwait(false))
         {
             try
             {
-                await RunStepsAsync(session, run, tokenMetadata, inspectNamespaces, budget.Token, cancellationToken).ConfigureAwait(false);
+                await RunStepsAsync(session, run, target.Distribution, tokenMetadata, inspectNamespaces, budget.Token, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (budget.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
@@ -142,6 +169,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
             KubernetesVersion: run.KubernetesVersion,
             Identity: run.Identity,
             OpenShiftVersion: run.OpenShiftVersion,
+            DetectedDistribution: run.DetectedDistribution,
             Capabilities: run.Capabilities,
             NamespaceRules: run.NamespaceRules,
             Hints: HintsFor(run.Capabilities, grants));
@@ -150,6 +178,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
     private static async Task RunStepsAsync(
         IClusterProbeSession session,
         TestRun run,
+        ClusterDistribution declared,
         TokenMetadata tokenMetadata,
         InspectNamespaces inspectNamespaces,
         CancellationToken ct,
@@ -168,7 +197,9 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
 
         ResolveIdentity(run, reviewedUsername, tokenMetadata);
 
-        if (!await CheckOpenShiftVersionAsync(session, run, ct).ConfigureAwait(false))
+        await CheckDistributionAsync(session, run, declared, ct).ConfigureAwait(false);
+
+        if (!await CheckOpenShiftVersionAsync(session, run, declared, ct).ConfigureAwait(false))
         {
             return;
         }
@@ -250,10 +281,51 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         }
     }
 
-    // Step 4: ClusterVersion. Not visible (403/404, e.g. plain Kubernetes or a namespaced SA) is a warning, not a failure.
-    private static async Task<bool> CheckOpenShiftVersionAsync(IClusterProbeSession session, TestRun run, CancellationToken ct)
+    // Step 4: API discovery (ADR-0032). Never fails: a mismatch with the declaration is a warning (DIST-7; the admin
+    // fixes the declaration, we never auto-correct it), and unreadable discovery is a warning with the probe's kind.
+    private static async Task CheckDistributionAsync(
+        IClusterProbeSession session, TestRun run, ClusterDistribution declared, CancellationToken ct)
+    {
+        run.Begin(ConnectionTestStep.Distribution);
+        var groups = await session.GetServedApiGroupsAsync(ct).ConfigureAwait(false);
+        if (!groups.IsSuccess)
+        {
+            run.Warn(DiscoveryNotVisibleMessage, groups.Failure.Kind);
+            return;
+        }
+
+        var detected = groups.Value.Names.Contains(OpenShiftConfigGroup) ? ClusterDistribution.OpenShift : ClusterDistribution.Kubernetes;
+        run.DetectedDistribution = detected;
+        switch (declared, detected)
+        {
+            case (ClusterDistribution.OpenShift, ClusterDistribution.OpenShift):
+                run.Pass(OpenShiftAsRegisteredMessage);
+                break;
+            case (ClusterDistribution.Kubernetes, ClusterDistribution.Kubernetes):
+                run.Pass(KubernetesAsRegisteredMessage);
+                break;
+            case (_, ClusterDistribution.OpenShift):
+                run.Warn(ServesOpenShiftMessage, null);
+                break;
+            default:
+                run.Warn(ServesNoOpenShiftMessage, null);
+                break;
+        }
+    }
+
+    // Step 5: ClusterVersion. Not visible (403/404, e.g. a namespaced SA, or an OpenShift-declared cluster without the
+    // API) is a warning, not a failure. DIST-8: declared Kubernetes and OpenShift not detected (absent or discovery not
+    // readable) → skipped without the call, since there is no ClusterVersion to look for.
+    private static async Task<bool> CheckOpenShiftVersionAsync(
+        IClusterProbeSession session, TestRun run, ClusterDistribution declared, CancellationToken ct)
     {
         run.Begin(ConnectionTestStep.OpenShiftVersion);
+        if (declared == ClusterDistribution.Kubernetes && run.DetectedDistribution != ClusterDistribution.OpenShift)
+        {
+            run.Skip(NotOpenShiftMessage);
+            return true;
+        }
+
         var version = await session.GetClusterVersionAsync(ct).ConfigureAwait(false);
         if (version.IsSuccess)
         {
@@ -274,7 +346,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         return false;
     }
 
-    // Step 5: the cluster-admin review plus every check, concurrently; then the rules review in each requested namespace.
+    // Step 6: the cluster-admin review plus every check, concurrently; then the rules review in each requested namespace.
     // ct is the budget (linked with the caller); callerToken is the caller's own token, needed by the rules phase only.
     private static async Task CheckCapabilitiesAsync(
         IClusterProbeSession session, TestRun run, InspectNamespaces inspectNamespaces, CancellationToken ct, CancellationToken callerToken)
@@ -420,6 +492,8 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
 
         public OpenShiftVersionDto? OpenShiftVersion { get; set; }
 
+        public ClusterDistribution? DetectedDistribution { get; set; }
+
         public CapabilitySummaryDto? Capabilities { get; set; }
 
         public IReadOnlyList<NamespaceRulesDto> NamespaceRules { get; set; } = [];
@@ -429,6 +503,9 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         public void Pass(string message) => Complete(ConnectionTestStepStatus.Passed, message, null);
 
         public void Warn(string message, ProbeFailureKind? kind) => Complete(ConnectionTestStepStatus.Warning, message, kind);
+
+        // A step deliberately not run (DIST-8); distinct from the SkippedMessage of steps after a failure.
+        public void Skip(string message) => Complete(ConnectionTestStepStatus.Skipped, message, null);
 
         public void Fail(ProbeFailure failure) => Fail(failure.Kind, MessageFor(failure));
 

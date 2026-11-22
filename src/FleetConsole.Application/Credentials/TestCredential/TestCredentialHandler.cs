@@ -47,7 +47,7 @@ internal sealed class TestCredentialHandler(
         var grants = await grantRepository.CountByModeAsync(credential.Id, cancellationToken).ConfigureAwait(false);
 
         var result = await tester.RunAsync(
-            ConnectionTester.ConnectionOf(cluster),
+            ConnectionTester.TargetOf(cluster),
             tokenProtector.Unprotect(credential.Token),
             credential.Metadata,
             namespaces,

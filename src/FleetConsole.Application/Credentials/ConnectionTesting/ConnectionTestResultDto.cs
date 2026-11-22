@@ -1,21 +1,25 @@
 using FleetConsole.Application.Abstractions.Kubernetes;
 using System.Text.Json.Serialization;
+using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
 
 namespace FleetConsole.Application.Credentials.ConnectionTesting;
 
 /// <summary>
-/// The full result of one connection test (TEST-2..4, contract §8.5): the five steps in order, what the cluster told us,
+/// The full result of one connection test (TEST-2..4, contract §8.5): the six steps in order, what the cluster told us,
 /// the capability summary and the grant-mode hints. Returned by <c>TestCredential</c> and <c>TestToken</c>; only its
 /// summary (<see cref="ConnectionTestSummary"/>) is ever stored (TEST-5).
 /// </summary>
 /// <param name="Succeeded">True when no step failed; warnings are allowed.</param>
 /// <param name="TestedAt">When the test started.</param>
 /// <param name="DurationMs">How long the test took, in milliseconds.</param>
-/// <param name="Steps">Always all five steps, in execution order; steps after a failed one are skipped.</param>
+/// <param name="Steps">Always all six steps, in execution order; steps after a failed one are skipped.</param>
 /// <param name="KubernetesVersion">The API server's gitVersion (e.g. v1.31.4), when the version endpoint answered.</param>
 /// <param name="Identity">Who the cluster sees the token as, when known.</param>
 /// <param name="OpenShiftVersion">The OpenShift version, when the ClusterVersion resource was visible.</param>
+/// <param name="DetectedDistribution">What API discovery shows the cluster to be (<c>config.openshift.io</c> served ⇒
+/// OpenShift, ADR-0032); null when discovery was not readable or the test stopped before the step. A presentation hint
+/// only (it is compared with the declared distribution); what the UI may do comes from discovery itself.</param>
 /// <param name="Capabilities">The capability summary, when the capabilities step ran to completion.</param>
 /// <param name="NamespaceRules">One entry per requested namespace, in the (normalised) request order (NST-3); each holds
 /// either the token's rules there or why they could not be reviewed. Never null: empty when no namespaces were given or
@@ -29,6 +33,7 @@ public sealed record ConnectionTestResultDto(
     string? KubernetesVersion,
     ClusterIdentityDto? Identity,
     OpenShiftVersionDto? OpenShiftVersion,
+    ClusterDistribution? DetectedDistribution,
     CapabilitySummaryDto? Capabilities,
     IReadOnlyList<NamespaceRulesDto> NamespaceRules,
     IReadOnlyList<ConnectionTestHintDto> Hints);
