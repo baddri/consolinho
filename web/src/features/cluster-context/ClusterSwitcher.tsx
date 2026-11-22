@@ -157,7 +157,7 @@ function ClusterItem({
 
 /**
  * Sidebar context selector — FleetConsole's counterpart of OCP's perspective switcher (UX.md §2): a full-width toggle
- * at the top of the nav, its menu opening below at least as wide as the toggle. It switches the active cluster by
+ * at the top of the nav, its menu opening below exactly as wide as the toggle. It switches the active cluster by
  * rewriting the URL (see {@link clusterSwitchPath}: path and filters are kept, SW-9); navigation only (SW-2). Built on PF `MenuContainer` + `Menu` (role `listbox`):
  *
  * - each cluster shows its type icon, display name (cluster name as description or toggle tooltip when it differs) and
@@ -402,8 +402,9 @@ export function ClusterSwitcher() {
         menuRef={menuRef}
         toggleRef={toggleRef}
         // The popper is appended to <body>, so the sidebar's overflow never clips it.
-        // At least as wide as the toggle; bounded so a very long name truncates instead of widening the menu.
-        popperProps={{ minWidth: 'trigger', maxWidth: '28rem' }}
+        // Exactly the toggle's width, like OCP's perspective menu: search text and long names never widen it past the
+        // sidebar edge (T-0152); long display names truncate with a tooltip instead (`ClusterBadges`).
+        popperProps={{ width: 'trigger' }}
         toggle={
           <MenuToggle
             ref={toggleRef}

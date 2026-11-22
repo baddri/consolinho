@@ -294,6 +294,35 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(/^dev-1$/);
   });
 
+  it('truncates a long display name in the menu, keeping it in full in the option name and a tooltip (T-0152)', async () => {
+    const longName = 'Lab cluster with a deliberately very long display name, sixt';
+    server.use(
+      http.get('*/api/clusters', () =>
+        HttpResponse.json([
+          {
+            name: 'lab-1',
+            displayName: longName,
+            environment: 'development',
+            distribution: 'kubernetes',
+            accessMode: 'readWrite',
+            webConsoleUrl: null,
+          } satisfies AccessibleCluster,
+        ]),
+      ),
+    );
+    const { user } = renderApp('/c/lab-1/overview');
+
+    const option = optionOf(
+      await openSwitcher(user, `Cluster ${longName} (lab-1, K8s, dev), switch cluster`),
+      'lab-1',
+    );
+    expect(option).toHaveAccessibleName(expect.stringContaining(longName));
+    const name = within(option).getByText(longName);
+    expect(name.closest('.pf-v6-c-truncate')).not.toBeNull();
+    await user.hover(name);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(longName);
+  });
+
   it.each([
     ['k8s', ['dev-2', 'lab-1']],
     ['kubernetes', ['dev-2', 'lab-1']],
