@@ -147,7 +147,7 @@ describe('ClusterSwitcher search (SW-7)', () => {
     const { user } = renderApp('/c/dev-1/overview');
 
     await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
-    const search = screen.getByRole('textbox', { name: 'Search clusters' });
+    const search = screen.getByRole('combobox', { name: 'Search clusters' });
     await waitFor(() => expect(search).toHaveFocus());
 
     await user.paste('us');
@@ -213,11 +213,106 @@ describe('ClusterSwitcher search (SW-7)', () => {
     const toggle = await findSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
     toggle.focus();
     await user.keyboard('{Enter}');
-    const search = await screen.findByRole('textbox', { name: 'Search clusters' });
+    const search = await screen.findByRole('combobox', { name: 'Search clusters' });
     await waitFor(() => expect(search).toHaveFocus());
 
     await user.keyboard('{Escape}');
 
+    await waitFor(() => expect(toggle).toHaveFocus());
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+describe('ClusterSwitcher keyboard (T-0153)', () => {
+  // PF scrolls the focused row into view; jsdom has no layout, so no `scrollIntoView`.
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  /** Opens the switcher on dev-1 as admin and returns the focused search combobox. */
+  async function openSearch(user: UserEvent) {
+    await openSwitcher(user, 'Cluster dev-1 (dev), switch cluster');
+    const search = screen.getByRole('combobox', { name: 'Search clusters' });
+    await waitFor(() => expect(search).toHaveFocus());
+    return search;
+  }
+
+  /** The `option` the combobox's `aria-activedescendant` points at, or null. */
+  function activeOption(search: HTMLElement): HTMLElement | null {
+    const id = search.getAttribute('aria-activedescendant');
+    return id ? (screen.getAllByRole('option').find((option) => option.id === id) ?? null) : null;
+  }
+
+  it('is a combobox controlling the menu lists', async () => {
+    grantAllClusters();
+    const { user } = renderApp('/c/dev-1/overview');
+
+    const search = await openSearch(user);
+    expect(search).toHaveAttribute('aria-expanded', 'true');
+    expect(search).toHaveAttribute('aria-autocomplete', 'list');
+    expect(search).not.toHaveAttribute('aria-activedescendant');
+    const controlled = (search.getAttribute('aria-controls') ?? '').split(' ');
+    expect(controlled).toEqual(screen.getAllByRole('listbox').map((list) => list.id));
+  });
+
+  it('moves through Fleet management and the clusters with the arrows, wrapping at the ends', async () => {
+    grantAllClusters();
+    const { user } = renderApp('/c/dev-1/overview');
+    const search = await openSearch(user);
+    const clusters = optionNames(within(screen.getByRole('listbox', { name: 'All clusters' })).getAllByRole('option'));
+
+    await user.keyboard('{ArrowDown}');
+    const fleet = screen.getByRole('option', { name: 'Fleet management' });
+    expect(activeOption(search)).toBe(fleet);
+    expect(fleet.closest('li')).toHaveClass('pf-m-focus');
+    expect(search).toHaveFocus();
+
+    await user.keyboard('{ArrowDown}');
+    expect(optionNames([activeOption(search) ?? search])).toEqual([clusters[0]]);
+    expect(fleet.closest('li')).not.toHaveClass('pf-m-focus');
+
+    await user.keyboard('{ArrowUp}{ArrowUp}');
+    expect(optionNames([activeOption(search) ?? search])).toEqual([clusters[clusters.length - 1]]);
+    await user.keyboard('{ArrowDown}');
+    expect(activeOption(search)).toBe(fleet);
+  });
+
+  it('opens the focused cluster on Enter', async () => {
+    grantAllClusters();
+    const { user, router } = renderApp('/c/dev-1/overview');
+    const search = await openSearch(user);
+
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+    const [target] = optionNames([activeOption(search) ?? search]);
+    expect(target).not.toBe('dev-1');
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/c/${target}/overview`));
+    expect(screen.queryByRole('listbox', { name: 'All clusters' })).not.toBeInTheDocument();
+  });
+
+  it('opens Fleet management on Enter', async () => {
+    const { user, router } = renderApp('/c/dev-1/overview');
+    await openSearch(user);
+
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
+  });
+
+  it('resets the focused row when typing, and Escape returns to the toggle', async () => {
+    grantAllClusters();
+    const { user } = renderApp('/c/dev-1/overview');
+    const search = await openSearch(user);
+
+    await user.keyboard('{ArrowDown}');
+    expect(search).toHaveAttribute('aria-activedescendant');
+    await user.keyboard('p');
+    expect(search).not.toHaveAttribute('aria-activedescendant');
+    expect(screen.queryByRole('option', { name: 'Fleet management' })?.closest('li')).not.toHaveClass('pf-m-focus');
+
+    await user.keyboard('{ArrowDown}{Escape}');
+    const toggle = screen.getByRole('button', { name: 'Cluster dev-1 (dev), switch cluster' });
     await waitFor(() => expect(toggle).toHaveFocus());
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
   });
@@ -344,7 +439,7 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
     expect(screen.getAllByRole('listbox')[0]).toBe(fleet);
     expect(within(fleet).getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
 
-    await user.type(screen.getByRole('textbox', { name: 'Search clusters' }), 'zzz');
+    await user.type(screen.getByRole('combobox', { name: 'Search clusters' }), 'zzz');
     expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
     // Enter opens the first cluster match only; with none it stays put.
     await user.keyboard('{Enter}');
@@ -447,7 +542,7 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
       const all = screen.getByRole('listbox', { name: 'All clusters' });
       expect(await within(all).findByText('Loading clusters')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Loading clusters' })).not.toBeInTheDocument();
-      expect(screen.getByRole('textbox', { name: 'Search clusters' })).toHaveFocus();
+      expect(screen.getByRole('combobox', { name: 'Search clusters' })).toHaveFocus();
       expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
 
       release();

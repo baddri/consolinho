@@ -18,7 +18,7 @@ import {
   Truncate,
 } from '@patternfly/react-core';
 import { ClusterIcon, GlobeIcon } from '@patternfly/react-icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useCurrentUser } from '@/features/auth';
 import type { AccessibleCluster } from '@/shared/api';
@@ -31,15 +31,16 @@ import { useAccessibleClusters } from './useAccessibleClusters';
 import { useActiveCluster } from './useActiveCluster';
 import { usePreferredCluster } from './usePreferredCluster';
 import { useRecentClusters } from './useRecentClusters';
-
-/**
- * Menu item id of the "Fleet management" entry. `:` can't occur in a DNS-1123 cluster name, so it never collides
- * with a cluster's item id (ADR-0033 §6).
- */
-const FLEET_ITEM_ID = 'fleet:management';
-
-/** Menu item id of the "Clusters unavailable — retry" row; refetches instead of navigating. */
-const RETRY_ITEM_ID = 'clusters:retry';
+import {
+  buildSwitcherSections,
+  FLEET_ITEM_ID,
+  focusOrder,
+  matchingClusters,
+  nextFocusKey,
+  RETRY_ITEM_ID,
+  type SwitcherRow,
+  type SwitcherSection,
+} from './switcherRows';
 
 /** Toggle text in the fleet perspective, also the start of its accessible name (FLEET-2). */
 const FLEET_TITLE = 'Fleet management';
@@ -111,36 +112,13 @@ function toggleAccessibleName(isFleet: boolean, shown: AccessibleCluster | undef
   return shown ? toggleLabel(shown) : 'Select a cluster';
 }
 
-/**
- * Case-insensitive substring match over name, display name and environment — both the enum value ("production") and
- * the label text ("prod") — so users can type what they see or what they mean (SW-7).
- */
-function matchesSearch(cluster: AccessibleCluster, needle: string): boolean {
-  const fields = [
-    cluster.name,
-    cluster.displayName,
-    cluster.environment,
-    environmentLabel(cluster.environment).text,
-  ];
-  return fields.some((field) => field.toLowerCase().includes(needle));
-}
-
-/**
- * "All clusters" body when there is nothing to pick: the menu can open before or without a cluster list (fleet
- * perspective; an admin whose list failed or is empty), so it says why instead of listing nothing. A failed list
- * gets the enabled {@link RETRY_ITEM_ID} row instead.
- */
-function clusterListStatus(clusters: readonly AccessibleCluster[] | undefined, searchText: string): string {
-  if (!clusters) return 'Loading clusters';
-  if (clusters.length === 0) return 'No clusters';
-  return `No clusters match "${searchText}"`;
-}
-
 /** One selectable cluster; `itemId` is the cluster name, the display name is the description when it differs. */
-function ClusterItem({ cluster }: { cluster: AccessibleCluster }) {
+function ClusterItem({ cluster, id, isFocused }: { cluster: AccessibleCluster; id: string; isFocused: boolean }) {
   return (
     <MenuItem
       itemId={cluster.name}
+      id={id}
+      isFocused={isFocused}
       description={cluster.displayName !== cluster.name ? cluster.displayName : undefined}
     >
       <ClusterBadges cluster={cluster} />
@@ -154,6 +132,8 @@ function ClusterItem({ cluster }: { cluster: AccessibleCluster }) {
  * rewriting the URL (see {@link clusterSwitchPath}: path and filters are kept, SW-9); navigation only (SW-2). Built on PF `MenuContainer` + `Menu` (role `listbox`):
  *
  * - a search box, focused on open, filters by name, display name and environment; Enter opens the first match (SW-7);
+ * - keyboard (T-0153, PF typeahead pattern): focus stays in the search box (a `combobox`); ArrowUp/ArrowDown move
+ *   `aria-activedescendant` over the rows of {@link buildSwitcherSections} and wrap, Enter opens the focused row;
  * - a "Recent" group from {@link useRecentClusters} above "All clusters" (contract order), hidden while searching,
  *   when empty (SW-8), when it would list every cluster again or only the shown cluster.
  *
@@ -173,6 +153,8 @@ function ClusterItem({ cluster }: { cluster: AccessibleCluster }) {
 export function ClusterSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
+  const baseId = useId();
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -222,21 +204,34 @@ export function ClusterSwitcher() {
     );
   }
 
-  const all = clusters ?? [];
   const shownName = isFleet ? undefined : (activeCluster ?? preferredCluster);
-  const shown = all.find((cluster) => cluster.name === shownName);
+  const shown = clusters?.find((cluster) => cluster.name === shownName);
   const needle = searchText.trim().toLowerCase();
-  const matches = needle ? all.filter((cluster) => matchesSearch(cluster, needle)) : all;
-  // Hidden when it would only repeat "All clusters" (e.g. a single granted cluster) or hold nothing but the cluster
-  // already checked in "All clusters" (T-0119 item 8).
-  const showRecent =
-    !needle && recent.length < all.length && recent.some((cluster) => cluster.name !== shown?.name);
-
-  const showRetry = !clusters && error !== null;
+  const sections = buildSwitcherSections({
+    isAdmin,
+    clusters,
+    hasError: error !== null,
+    recent,
+    shownName: shown?.name,
+    searchText,
+  });
+  const matches = matchingClusters(sections);
+  const order = focusOrder(sections);
+  // A key whose row disappeared (filter, refetch) simply counts as "nothing focused".
+  const focused = order.find((row) => row.key === focusedKey);
+  const rowId = (row: SwitcherRow) => `${baseId}-${row.key}`;
+  const listId = (section: SwitcherSection) => `${baseId}-list-${section.id}`;
 
   const changeOpen = (open: boolean) => {
     setIsOpen(open);
+    setFocusedKey(null);
     if (!open) setSearchText('');
+  };
+
+  // Typing resets the active option (WAI-ARIA APG combobox).
+  const changeSearch = (value: string) => {
+    setSearchText(value);
+    setFocusedKey(null);
   };
 
   const choose = (name: string) => {
@@ -255,19 +250,58 @@ export function ClusterSwitcher() {
     }
   };
 
-  const allList = (
-    <MenuList aria-label="All clusters">
-      {showRetry ? (
-        <MenuItem itemId={RETRY_ITEM_ID}>
-          Clusters unavailable — retry
-        </MenuItem>
-      ) : matches.length > 0 ? (
-        matches.map((cluster) => <ClusterItem key={cluster.name} cluster={cluster} />)
-      ) : (
-        <MenuItem isDisabled>{clusterListStatus(clusters, searchText.trim())}</MenuItem>
-      )}
-    </MenuList>
-  );
+  /** One row as a PF `MenuItem`; `isFocused` drives PF's `pf-m-focus` and scroll-into-view (DOM focus stays in the search). */
+  const renderRow = (row: SwitcherRow) => {
+    const rowProps = { id: rowId(row), isFocused: row.key === focused?.key };
+    switch (row.kind) {
+      case 'fleet':
+        return (
+          <MenuItem key={row.key} itemId={row.itemId} icon={<GlobeIcon />} {...rowProps}>
+            {FLEET_TITLE}
+          </MenuItem>
+        );
+      case 'cluster':
+        return <ClusterItem key={row.key} cluster={row.cluster} {...rowProps} />;
+      case 'retry':
+        return (
+          <MenuItem key={row.key} itemId={row.itemId} {...rowProps}>
+            Clusters unavailable — retry
+          </MenuItem>
+        );
+      case 'status':
+        return (
+          <MenuItem key={row.key} isDisabled>
+            {row.text}
+          </MenuItem>
+        );
+    }
+  };
+
+  const renderSection = (section: SwitcherSection) => {
+    const list = (
+      <MenuList id={listId(section)} aria-label={section.ariaLabel}>
+        {section.rows.map(renderRow)}
+      </MenuList>
+    );
+    return section.groupLabel ? (
+      <MenuGroup label={section.groupLabel} labelHeadingLevel="h3">
+        {list}
+      </MenuGroup>
+    ) : (
+      list
+    );
+  };
+
+  // Typeahead pattern (PF `SelectTypeahead`): DOM focus stays in the search box, the arrows move a React-state focus.
+  const onSearchKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      setFocusedKey(nextFocusKey(order, focused?.key ?? null, event.key));
+    } else if (event.key === 'Enter') {
+      if (focused) choose(focused.itemId);
+      else if (needle && matches[0]) choose(matches[0].name);
+    }
+  };
 
   const menu = (
     <Menu
@@ -287,48 +321,32 @@ export function ClusterSwitcher() {
             aria-label="Search clusters"
             placeholder="Search clusters"
             value={searchText}
-            onChange={(_event, value) => setSearchText(value)}
-            onClear={() => setSearchText('')}
-            // No `onSearch`: it would add a submit ("→") button that OCP's menu search doesn't have. Enter still opens
-            // the first match (SW-7); the key event bubbles from the input to the SearchInput's wrapper.
-            onKeyDown={(event) => {
-              const first = matches[0];
-              if (event.key === 'Enter' && needle && first) choose(first.name);
+            onChange={(_event, value) => changeSearch(value)}
+            onClear={() => changeSearch('')}
+            // Combobox semantics go on the <input> itself; SearchInput's top-level aria-* land on its wrapper.
+            inputProps={{
+              role: 'combobox',
+              // The input only exists while the menu is open.
+              'aria-expanded': true,
+              'aria-autocomplete': 'list',
+              'aria-controls': sections.map(listId).join(' '),
+              'aria-activedescendant': focused ? rowId(focused) : undefined,
             }}
+            // No `onSearch`: it would add a submit ("→") button that OCP's menu search doesn't have. Enter opens the
+            // focused row, else the first match (SW-7); the key event bubbles from the input to the wrapper.
+            onKeyDown={onSearchKeyDown}
           />
         </MenuSearchInput>
         <NoMatchStatus text={needle && matches.length === 0 ? `No clusters match "${searchText.trim()}"` : undefined} />
       </MenuSearch>
       <Divider />
       <MenuContent maxMenuHeight="60vh">
-        {/* Outside the search: the perspective entry stays while filtering clusters (FLEET-1). */}
-        {isAdmin && (
-          <>
-            <MenuList aria-label="Fleet">
-              <MenuItem itemId={FLEET_ITEM_ID} icon={<GlobeIcon />}>
-                {FLEET_TITLE}
-              </MenuItem>
-            </MenuList>
-            <Divider />
-          </>
-        )}
-        {showRecent ? (
-          <>
-            <MenuGroup label="Recent" labelHeadingLevel="h3">
-              <MenuList aria-label="Recent clusters">
-                {recent.map((cluster) => (
-                  <ClusterItem key={cluster.name} cluster={cluster} />
-                ))}
-              </MenuList>
-            </MenuGroup>
-            <Divider />
-            <MenuGroup label="All clusters" labelHeadingLevel="h3">
-              {allList}
-            </MenuGroup>
-          </>
-        ) : (
-          allList
-        )}
+        {sections.map((section, index) => (
+          <Fragment key={section.id}>
+            {index > 0 && <Divider />}
+            {renderSection(section)}
+          </Fragment>
+        ))}
       </MenuContent>
     </Menu>
   );
