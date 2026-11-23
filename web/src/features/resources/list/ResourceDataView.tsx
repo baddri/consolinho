@@ -38,6 +38,11 @@ export interface ResourceDataViewOptions {
    * Pods tab lists only its pods).
    */
   fixedSelector?: Record<string, string>;
+  /**
+   * Client-side condition every listed object must meet, for what a label selector can't express (a Deployment's
+   * ReplicaSets tab keeps only those it owns). Keep it referentially stable: it re-filters the list when it changes.
+   */
+  rowFilter?: (obj: K8sResource) => boolean;
 }
 
 /** Result of {@link useResourceDataView}. */
@@ -82,6 +87,7 @@ export function useResourceDataView({
   scope,
   namespace,
   fixedSelector,
+  rowFilter,
 }: ResourceDataViewOptions): ResourceDataView {
   const { model } = descriptor;
   const filters = useResourceFilters(descriptor);
@@ -93,8 +99,12 @@ export function useResourceDataView({
     labelSelector,
   });
 
+  const rows = useMemo(
+    () => (rowFilter && list.data ? list.data.filter(rowFilter) : list.data),
+    [list.data, rowFilter],
+  );
   const deferredName = useDeferredValue(filters.name);
-  const filtered = useFilteredRows(descriptor, list.data ?? NO_ROWS, deferredName, filters.selected);
+  const filtered = useFilteredRows(descriptor, rows ?? NO_ROWS, deferredName, filters.selected);
   const filterNodes = useFilterNodes(descriptor);
   const filterValues = useMemo(
     () => ({ name: filters.name, label: filters.labelSelector ?? '', ...filters.selected }),
@@ -136,7 +146,7 @@ export function useResourceDataView({
       <ConsoleDataView
         id={model.plural}
         label={model.labelPlural}
-        data={list.data}
+        data={rows}
         filteredData={filtered}
         loaded={!list.isPending}
         error={
