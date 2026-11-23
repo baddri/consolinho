@@ -133,6 +133,7 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   nav: { section: 'workloads', order: 20 },
   status: deploymentStatus,
   hideHeadingStatus: true,
+  hasEditForm: true,
   summary: {
     podSelector: (deployment) => deployment.spec?.selector.matchLabels,
     nodeSelector: (deployment) => deployment.spec?.template.spec?.nodeSelector,

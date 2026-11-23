@@ -16,6 +16,13 @@ const detailsPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   HydrateFallback: ResourcePageSkeleton,
 };
 
+/** Edit Deployment (FORM-1): a full page of its own, not a details tab. */
+const editDeploymentPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
+  lazy: () =>
+    import('./workloads/deployments/form/EditDeploymentPage').then((m) => ({ Component: m.EditDeploymentPage })),
+  HydrateFallback: ResourcePageSkeleton,
+};
+
 const searchPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   lazy: () => import('./search/SearchPage').then((m) => ({ Component: m.SearchPage })),
   HydrateFallback: ResourcePageSkeleton,
@@ -87,6 +94,12 @@ export const resourceRoutes: RouteObject[] = [
   { path: 'k8s/all-namespaces/:plural', handle: { scope: 'all' } satisfies ResourceRouteHandle, ...listPage },
   { path: 'k8s/ns/:namespace/:plural', handle: { scope: 'ns' } satisfies ResourceRouteHandle, ...listPage },
   { path: 'k8s/cluster/:plural', handle: { scope: 'cluster' } satisfies ResourceRouteHandle, ...listPage },
+  // A static `deployments` segment outranks `:plural`, so this wins over a details tab named `form`.
+  {
+    path: 'k8s/ns/:namespace/deployments/:name/form',
+    handle: { scope: 'ns' } satisfies ResourceRouteHandle,
+    ...editDeploymentPage,
+  },
   ...detailsRoutes('k8s/ns/:namespace/:plural/:name', 'ns'),
   ...detailsRoutes('k8s/cluster/:plural/:name', 'cluster'),
   // Home → Search (SRCH-1): `search` picks the last project like `k8s/:plural`.

@@ -142,6 +142,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /**
+   * The kind has a full-page edit form at `…/<name>/form` (FORM-4, OCP's Edit Deployment): the Edit action opens it
+   * instead of the YAML tab. Its route is registered in `routes.tsx`.
+   */
+  hasEditForm?: true;
+  /**
    * The kind's own actions (ADR-0037 §3), listed before the common ones in the row kebab and the details Actions
    * menu. A hook: it is called on every render of the menu, which is keyed by the model so a kind change remounts.
    * Every mutating item gates itself with `useActionAccess`.
