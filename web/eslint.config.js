@@ -67,6 +67,12 @@ const noLegacyAdminPaths = [
   },
 ];
 
+/** xterm.js stays behind the `shared/ui/terminal` wrapper (lazy-loaded, themed, disposed in one place). */
+const noDirectXterm = [
+  'error',
+  { patterns: [{ group: ['@xterm/*'], message: 'Use shared/ui/terminal (ADR on terminal).' }] },
+];
+
 /** Allows importing another feature only through its public entry point. */
 const featurePublicApi = { to: { element: { type: 'feature', fileInternalPath: 'index.ts' } } };
 
@@ -117,6 +123,7 @@ export default tseslint.config(
       // No direct DOM access: go through React/PatternFly. Exceptions: `documentAllowedFiles` below.
       'no-restricted-globals': noDocumentGlobal,
       'no-restricted-properties': ['error', ...domLookupBans, ...documentViaGlobalBans],
+      'no-restricted-imports': noDirectXterm,
       'boundaries/dependencies': [
         'error',
         {
@@ -161,6 +168,11 @@ export default tseslint.config(
     // The legacy `/admin` → `/fleet/admin` redirect has to name the old prefix (ADR-0033 §2).
     files: ['src/features/admin/LegacyAdminRedirect.tsx', 'src/features/admin/LegacyAdminRedirect.test.tsx'],
     rules: { 'no-restricted-syntax': 'off' },
+  },
+  {
+    // The terminal wrapper is the one place that may import xterm.js.
+    files: ['src/shared/ui/terminal/**'],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     // main.tsx mounts React into index.html's #root — the only place a DOM lookup is legitimate.

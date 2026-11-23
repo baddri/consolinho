@@ -68,6 +68,7 @@ export { SectionHeading, type SectionHeadingProps } from './page/SectionHeading'
 export { Status, statusKindOf, type StatusProps } from './Status';
 export { StatusIconText, type StatusIconTextProps, type StatusKind } from './StatusIconText';
 export { Timestamp, type TimestampProps } from './Timestamp';
+export { TogglePlay, type TogglePlayProps } from './TogglePlay';
 export { durationText, timestampText, utcTimestampText } from './formatTimestamp';
 export { useTimestampTick } from './timestampTick';
 export { TOAST_TIMEOUT_MS, ToastProvider } from './ToastProvider';

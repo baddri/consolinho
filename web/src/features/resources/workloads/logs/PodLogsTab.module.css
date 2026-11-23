@@ -27,19 +27,9 @@
   visibility: hidden;
 }
 
-/* OCP `_toggle-play.scss` `.co-toggle-play`: the round pause/play button, green ring while streaming. */
-.togglePlay:global(.pf-v6-c-button) {
-  align-items: center;
-  background-color: var(--pf-t--global--background--color--primary--default);
-  border: var(--pf-t--global--border--width--extra-strong) solid var(--pf-t--global--border--color--default);
-  border-radius: 50%;
-  height: 37px;
+/* The shared `TogglePlay` inside the logs toolbar: centred icon, no trailing gap (toolbar items own the spacing). The
+   extra `.pf-m-plain` outranks the shared module's `.togglePlay.pf-v6-c-button` whatever the CSS load order. */
+.togglePlay:global(.pf-v6-c-button.pf-m-plain) {
   justify-content: center;
   margin-right: 0;
-  padding: 0;
-  width: 37px;
-}
-
-.togglePlayActive:global(.pf-v6-c-button) {
-  border-color: var(--pf-t--global--border--color--status--success--default);
 }
