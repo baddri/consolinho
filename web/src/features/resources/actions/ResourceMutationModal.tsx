@@ -27,6 +27,13 @@ export interface ResourceMutationModalProps {
   onSave: () => void;
   onClose: () => void;
   saveLabel?: string;
+  /** Text under the title (PF `ModalHeader description`), as OCP's count modal explains what the field does. */
+  description?: ReactNode;
+  /**
+   * The field focused on open (PF `Modal elementToFocus`, e.g. `#configure-count-input`); the modal's focus trap
+   * otherwise focuses its first focusable element, the Close button, and wins over `autoFocus`.
+   */
+  elementToFocus?: string;
   /** The form fields. */
   children: ReactNode;
 }
@@ -48,18 +55,33 @@ export function ResourceMutationModal({
   onSave,
   onClose,
   saveLabel = 'Save',
+  description,
+  elementToFocus,
   children,
 }: ResourceMutationModalProps) {
   const titleId = useId();
   const formId = useId();
+  const descriptionId = useId();
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
     if (!isSaving) onSave();
   };
 
   return (
-    <Modal variant="small" isOpen onClose={onClose} aria-labelledby={titleId}>
-      <ModalHeader title={title} labelId={titleId} />
+    <Modal
+      variant="small"
+      isOpen
+      onClose={onClose}
+      aria-labelledby={titleId}
+      aria-describedby={description === undefined ? undefined : descriptionId}
+      elementToFocus={elementToFocus}
+    >
+      <ModalHeader
+        title={title}
+        labelId={titleId}
+        description={description}
+        descriptorId={descriptionId}
+      />
       <ModalBody>
         <Form id={formId} onSubmit={submit}>
           <ClusterContextText

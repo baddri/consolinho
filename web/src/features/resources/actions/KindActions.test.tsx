@@ -192,6 +192,30 @@ describe('ResourceMutationModal (SAFE-1)', () => {
     expect(onSave).toHaveBeenCalledTimes(2);
   });
 
+  it('optionally shows a header description and focuses a given field on open', async () => {
+    renderWithProviders(
+      <ResourceMutationModal
+        title="Edit thing"
+        cluster="prod-eu-1"
+        namespace="shop"
+        objectName="web"
+        kindLabel="Deployment"
+        isSaving={false}
+        error={undefined}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+        description="Things maintain themselves."
+        elementToFocus="#stub-field"
+      >
+        <input id="stub-field" aria-label="Value" />
+      </ResourceMutationModal>,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Edit thing' });
+    expect(dialog).toHaveAccessibleDescription('Things maintain themselves.');
+    await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Value' })).toHaveFocus());
+  });
+
   it('shows a failure inline with the server message, never blank', async () => {
     const error = new ApiError({ status: 403, title: 'Forbidden', code: undefined, detail: undefined });
     renderWithProviders(<StubModal error={error} onSave={vi.fn()} />);
