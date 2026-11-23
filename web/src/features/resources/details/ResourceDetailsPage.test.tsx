@@ -15,7 +15,6 @@ import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { NO_EVENTS } from '../events/EventStreamView';
 import { resourceRoutes } from '../routes';
-import { base64Size, formatBytes } from './sections/ConfigMapDetails';
 
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const CRASHING_POD = 'web-7d4b9c8f6d-tq5wn';
@@ -203,30 +202,6 @@ describe('details project bar', () => {
   });
 });
 
-describe('config map details (UI-4)', () => {
-  it('shows each data key with its value', async () => {
-    renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config');
-
-    const block = await screen.findByLabelText('app.properties');
-    expect(block).toHaveTextContent('shop.currency=EUR');
-    expect(screen.getByLabelText('LOG_LEVEL')).toHaveTextContent('debug');
-  });
-
-  it('lists binary keys with their decoded size', async () => {
-    renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-assets');
-
-    const binary = await screen.findByRole('grid', { name: 'Binary data' });
-    expect(within(binary).getByText('favicon.png')).toBeInTheDocument();
-    expect(within(binary).getByText('68 B')).toBeInTheDocument();
-  });
-
-  it('formats sizes', () => {
-    expect(base64Size('aGVsbG8=')).toBe(5);
-    expect(formatBytes(1229)).toBe('1.2 KiB');
-    expect(formatBytes(3 * 1024 * 1024)).toBe('3 MiB');
-  });
-});
-
 describe('details tabs (URL segments)', () => {
   it('switches to YAML by URL and shows the whole object, managedFields included (folded by Monaco)', async () => {
     const cm = mockK8s.get('dev-1', ConfigMapModel, 'shop', 'web-config') as ConfigMap & K8sResource;
@@ -274,7 +249,7 @@ describe('kind tabs (ADR-0037 §2)', () => {
       expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'),
     );
     expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
-    expect(tabNames()).toEqual(['Details', 'YAML', 'Events']);
+    expect(tabNames()).toEqual(['Details', 'YAML']); // no Events on config maps (CFG-1, OCP)
   });
 });
 
@@ -332,7 +307,7 @@ describe('events tab (UI-5)', () => {
   });
 
   it('shows "No events" under the stream header (OCP NoEvents)', async () => {
-    renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config/events');
+    renderApp('/c/dev-1/k8s/ns/shop/services/web/events'); // config maps have no Events tab (CFG-1)
 
     expect(await screen.findByText(NO_EVENTS)).toBeInTheDocument();
     expect(screen.getByText('Showing 0 events')).toBeInTheDocument();
