@@ -7,7 +7,7 @@ engineer can find the code for what they see on screen within a minute.
 
 React + TypeScript (strict) + Vite, **PatternFly 6** (`@patternfly/react-core`, `react-table`, `react-icons`,
 `react-data-view` for lists, `react-code-editor` for YAML, `react-log-viewer` for logs), React Router (data router), TanStack Query,
-react-hook-form + zod, `yaml`, `kubernetes-types` (TS types only), xterm.js for exec (later),
+react-hook-form + zod, `yaml`, `kubernetes-types` (TS types only), `@xterm/xterm` + `@xterm/addon-fit` for exec, `use-debounce` (ADR-0037),
 `openapi-typescript` + `openapi-fetch` for the admin/auth API. Pin exact versions; use the React major that PatternFly 6 officially supports.
 
 ## Folder structure
@@ -43,7 +43,7 @@ web/src/
     resources/            # generic resource browser — the core engine
       registry/           # ResourceDescriptor per kind: columns, detail tabs, actions, status getter
       ResourceListPage.tsx  ResourceDetailsPage.tsx  ResourceYamlTab.tsx  ResourceEventsTab.tsx
-    workloads/            # kind-specific extras: PodLogs, PodTerminal, ScaleAction, RolloutRestartAction
+      workloads/          # kind extras inside the engine (ADR-0037 §1): logs/, terminal/, pods/, deployments/, replicasets/
     networking/  storage/  compute/  home/ (overview, search, events)
     admin/                # routes.tsx (lazy route objects), RequireAdmin, useAdminAccess, queryKeys.ts
       users/ clusters/ credentials/ connection-test/ grants/ audit/   # one folder per area: api.ts (hooks), pages, dialogs
@@ -64,7 +64,7 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 /c/:cluster/k8s/:plural                        # NamespaceRedirect → last project of this cluster, else all-namespaces
 /c/:cluster/k8s/all-namespaces/:plural         # list, all namespaces   ?name=&label=&status=|type=
 /c/:cluster/k8s/ns/:namespace/:plural          # list, one namespace
-/c/:cluster/k8s/ns/:namespace/:plural/:name[/yaml|/events]   # details tabs (CP4 adds logs | terminal)
+/c/:cluster/k8s/ns/:namespace/:plural/:name[/yaml|/replicasets|/pods|/logs|/events|/terminal]   # details tabs (ADR-0037 §2)
 /c/:cluster/k8s/cluster/:plural[/:name[/yaml|/events]]       # cluster-scoped kinds (projects, namespaces, nodes…)
 /c/:cluster/overview | /c/:cluster/search      # placeholders, not in the nav until CP5
 /fleet                                         # → /fleet/admin/users; /fleet/<unknown> → 404  (ADR-0033)
@@ -218,6 +218,8 @@ with `applyServerErrors`; 409 version conflicts shown by `ConflictAlert` without
   control doesn't forward refs, the adapter may wrap it in its own element and call `focus()` on the first control
   inside that element (`useWrapperFocusRef`, `shared/forms`). The lookup must start from that ref, never from
   `document`, and may only read and focus. It must not change attributes, classes or structure.
+  The second allowed pattern is **mounting a DOM-only library into a ref the component owns** (ADR-0037 §5): only
+  `shared/ui/terminal/XTerm.tsx` (`terminal.open(ref.current)`); it never queries the document.
 - Every page handles loading (Skeleton), error (ErrorState with retry), empty (EmptyState) explicitly.
 - Destructive actions use a confirm modal that names the resource and cluster.
 - Respect `useCanI` to hide/disable actions the user can't perform; still handle 403 gracefully.
