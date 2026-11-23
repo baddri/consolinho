@@ -1,5 +1,5 @@
 import { Label } from '@patternfly/react-core';
-import { ClusterIcon, CubesIcon } from '@patternfly/react-icons';
+import { CubesIcon, OpenshiftIcon } from '@patternfly/react-icons';
 import type { ClusterDistribution } from '@/shared/api';
 
 /** Short tag (switcher toggle, rows, lists) and full word (forms, details) of a cluster distribution. */
@@ -36,10 +36,12 @@ export function ClusterTypeLabel({ distribution }: ClusterTypeProps) {
 }
 
 /**
- * The cluster type icon (UX.md §2a): generic PF shapes that differ at a glance — `ClusterIcon` for OpenShift,
- * `CubesIcon` for Kubernetes (never logo look-alikes). Always `aria-hidden`: the tag or text next to it carries the
- * meaning, so the icon is never the only cue.
+ * The cluster type icon (UX.md §2a): PatternFly's own `OpenshiftIcon` for OpenShift (the one logo exception, used in
+ * the cluster switcher only) and the generic `CubesIcon` for Kubernetes. Always `aria-hidden`: the accessible name
+ * of the toggle and the `K8s` tag carry the type, so the icon is never the only cue.
  */
 export function ClusterTypeIcon({ distribution }: ClusterTypeProps) {
-  return distribution === 'kubernetes' ? <CubesIcon aria-hidden /> : <ClusterIcon aria-hidden />;
+  // TODO(CP5.5): Kubernetes logo icon (PatternFly ships none today).
+  if (distribution === 'kubernetes') return <CubesIcon aria-hidden />;
+  return <OpenshiftIcon aria-hidden />;
 }
