@@ -21,6 +21,7 @@ against an MSW `ws` echo shell.
 - Out: reconnect on its own (OCP has none — the user clicks Reconnect), debug container, node terminal.
 
 ## Contract / design notes
+- UX (T-0175 review): a single-container pod shows "Connecting to" + the container label in the toolbar, not a dropdown (OCP `public/components/pod-connect.tsx` L256-268). Use `ContainerSelect isOptionDisabled` for non-running containers and `useSelectedContainer({ includeInit: false })` (added in T-0175).
 - `execUrl(cluster, ns, pod, { container, command = ['sh','-i','-c', OCP_SHELL] })` → `ws(s)://<origin>/api/clusters/<c>/k8s/api/v1/namespaces/<ns>/pods/<pod>/exec?stdout=1&stdin=1&stderr=1&tty=1&container=…&command=…`
   (OCP `pod-connect.tsx` L123-132 command `TERM=xterm sh -c "bash || sh"` — copy the semantics, our string).
   Subprotocol `base64.channel.k8s.io`. Codec: `encodeStdin(text)` = `'0' + base64(utf8)`, `encodeResize(cols, rows)`

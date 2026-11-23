@@ -19,8 +19,8 @@
 - **CP3.7 DONE** (tag cp-3.7, merged to main): T-0139…T-0154; QA PASS 40/40 (`docs/specs/CP3.7-verify.md`; BE 1830,
   FE 891, e2e 10/10); PO ACCEPT WITH FOLLOW-UPS (`docs/specs/CP3.7-acceptance.md`, in ROADMAP §CP4/§CP5.5).
 - **CP4 SPEC done** (`docs/specs/CP4-workloads.md`, split CP4a/b/c, Q1–Q8 recommendations accepted). CP4a DESIGN done: BE T-0155→T-0156→T-0157 (ADR-0036),
-  FE T-0170…T-0186 (ADR-0037, lanes in the tasks). ACT-4 tooltip keeps UI-9 copy (orchestrator). Done: T-0170 (aada516; admin's first cluster is now prod-k8s-1).
-  In progress: T-0155 (BE review), T-0175 (shared), T-0174 (worktree). T-0173 needs Api for gen:api (after T-0155). Merge + tag per sub-checkpoint (cp-4a…).
+  FE T-0170…T-0186 (ADR-0037, lanes in the tasks). ACT-4 tooltip keeps UI-9 copy (orchestrator). Done: T-0170 (aada516; admin's first cluster is now prod-k8s-1), T-0174 (e0eb834; new deps → `npm ci`).
+  In progress: T-0155 (fix round 1: `Proxy:StreamIdleSlack`), T-0175 (shared tree, fix round 1), T-0171 (worktree). T-0173 needs Api for gen:api (after T-0155). Merge + tag per sub-checkpoint (cp-4a…).
 0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
    `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
    waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +
@@ -48,6 +48,8 @@
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` (T-0054 worktree) — safe to remove.
 
 ## Follow-ups (optional, not filed)
+- `scripts/ui-probe.mjs` uses one `/tmp` PID file for every worktree → a stale :5199 server from another worktree blocks the probe (T-0175); make it per-worktree.
+- T-0174 review: move mock-only cases (400/422, scale validation) from `shared/k8s/client.test.ts` to the mock test file.
 - T-0147 review: prettier printWidth 110 vs code ~120 → one-commit reformat or set 120 (churn on every touched file).
 - T-0090 review: explicit `proxyResponse is not null` in flush condition; tests watch→unreachable (502), watch→401.
 - T-0093 review: extend Connection test with `Authorization` nominated, assert bearer still sent.
