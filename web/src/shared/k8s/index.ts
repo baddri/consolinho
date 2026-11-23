@@ -21,6 +21,19 @@ export { k8sErrorFromResponse } from './errors';
 export { k8sQueryKeys, type AccessReview, type AccessVerb } from './queryKeys';
 export { useK8sList, useK8sGet, type K8sLiveResult } from './hooks';
 export { useK8sDiscovery } from './discovery';
+export {
+  useOpenApiSchema,
+  openApiSchemaFor,
+  resolveSchemaPath,
+  gvPath,
+  type OpenApiSchema,
+  type OpenApiDocument,
+  type OpenApiIndex,
+  type JSONSchema,
+  type GroupVersionKind,
+  type SchemaField,
+  type SchemaRef,
+} from './openapi';
 export { useCanI } from './access';
 export { WATCH_FLUSH_MS, setWatchTimingForTests, type LiveStatus } from './watchManager';
 export {

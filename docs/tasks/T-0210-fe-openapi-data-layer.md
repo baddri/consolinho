@@ -1,12 +1,12 @@
 ---
 id: T-0210
 title: Cluster OpenAPI v3 data layer (lazy per group-version, per-cluster cache, silent degrade)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: CP4c
 depends_on: []
 paths: [web/src/shared/k8s/openapi.ts, web/src/shared/k8s/openapi.test.ts, web/src/shared/k8s/queryKeys.ts, web/src/shared/k8s/index.ts, web/src/mocks/k8s/openapi.ts, web/src/mocks/k8s/fixtures/openapi/, web/src/mocks/k8s/apiServer.ts]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -44,14 +44,33 @@ ADR-0038 is the contract. Put everything in `web/src/shared/k8s/openapi.ts` and 
 - OCP reference: `/home/bad/works/openshift-console/frontend/public/module/k8s/swagger.ts` (`definitionFor`, `getSwaggerPath`, type text); `public/components/sidebars/explore-type-sidebar.tsx` (how types are named). OCP uses v2 and one global; we use v3 per cluster (ADR-0038).
 
 ## Acceptance criteria
-- [ ] OAPI-1: the hook fetches the index plus only the model's group-version document. Query keys carry the cluster, and a test shows that switching cluster refetches and never returns the other cluster's schema.
-- [ ] OAPI-2: on 403 and 404 the hook returns `undefined`, makes no retry, logs one `console.debug` per cluster (tested), and raises no error UI.
-- [ ] OAPI-4: a Vitest test builds a ≥ 2 MB synthetic core/v1-like document, then `JSON.parse` + kind lookup + `resolveSchemaPath(['spec','containers','resources','limits'])` completes in < 100 ms.
-- [ ] Unit tests for `resolveSchemaPath` cover: `$ref`, `allOf`, array items, map `additionalProperties`, the required list, an unknown path returning `undefined`, and the per-kind `$ref` closure (it contains no unrelated schemas).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] OAPI-1: the hook fetches the index plus only the model's group-version document. Query keys carry the cluster, and a test shows that switching cluster refetches and never returns the other cluster's schema.
+- [x] OAPI-2: on 403 and 404 the hook returns `undefined`, makes no retry, logs one `console.debug` per cluster (tested), and raises no error UI.
+- [x] OAPI-4: a Vitest test builds a ≥ 2 MB synthetic core/v1-like document, then `JSON.parse` + kind lookup + `resolveSchemaPath(['spec','containers','resources','limits'])` completes in < 100 ms.
+- [x] Unit tests for `resolveSchemaPath` cover: `$ref`, `allOf`, array items, map `additionalProperties`, the required list, an unknown path returning `undefined`, and the per-kind `$ref` closure (it contains no unrelated schemas).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: started; `shared/k8s/openapi.ts` + MSW `/openapi/v3` fixtures.
+
+- 2026-11-24 frontend-engineer: done. `openapi.ts` (hook, kind lookup, closure, resolver), query keys, exports; MSW
+  `/openapi/v3` + `fixtures/openapi/{core,apps}.ts`; 10 tests incl. 2 MB parse budget. Full gate green. No UI, so no
+  style probe. Nothing added to `shared/ui/index.ts`.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. Matches ADR-0038 §1–5, 7, 8. Keys, staleTime/gcTime, retry for 403/404, one debug per cluster, WeakMap memo, GVK lookup and closure are all tested. `SchemaRef` `{type, description?, enum?, drillable}` + parent `required` fits T-0212 (list, "View details", required label) and T-0213 (description only). Gate: typecheck/test/build ok. The first run's lint error went away on re-lint (another lane's file, not T-0210).
+  - nit (optional): `openapi.ts` `useOpenApiSchema` — `serverRelativeURL` comes from the cluster. Add a guard (`url.startsWith('/openapi/v3/')`, no `..`) so a hostile index can't point the GET at other same-origin paths. GET only and the body is never shown, so this is low impact.
 
 ## Handover notes
+- API (`@/shared/k8s`): `useOpenApiSchema(cluster, model)`, `openApiSchemaFor(doc, model)` (memoised, non-hook),
+  `resolveSchemaPath(doc, rootName, path)`, `gvPath`, types `OpenApiSchema`, `OpenApiDocument`, `OpenApiIndex`,
+  `JSONSchema` (own interface, not `@types/json-schema`), `SchemaField`, `SchemaRef`, `GroupVersionKind`.
+- `SchemaRef` = child summary `{ type, description?, enum?, drillable }`: enough for the T-0212 sidebar list (OCP
+  "View details" when `drillable`, "Allowed values" from `enum`). Child description = property's own, else target's.
+- Type text: primitives/`format` of referenced primitives (`date-time`, `int-or-string`), `object`, `[]Container`,
+  `[]string`, `map[string]string`. Root (empty path) has name = kind short name, type `object`.
+- Failure reasons also include "gv not in index" and "kind not in document"; all → `undefined` + one debug per cluster.
+- Mock: `view`-profile credentials get 403 on `/openapi/*` (alice@prod-eu-1, carol@dev-2), so OAPI-2 shows in the
+  mock UI; only `api/v1` and `apis/apps/v1` are in the index (other kinds silently get no schema).
+
+- 2026-11-24 orchestrator: applied review nit — `serverRelativeURL` must start with `/openapi/v3/` and contain no `..`.
