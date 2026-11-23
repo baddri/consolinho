@@ -7,7 +7,7 @@ import { css } from '@patternfly/react-styles';
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '@/shared/theme';
 import { EditorSettingsModal } from './EditorSettingsModal';
-import type { FullscreenControls } from './useFullscreen';
+import type { FullscreenControls } from '@/shared/hooks';
 import { useEditorSettings } from './useEditorSettings';
 import { useShortcutsPopover } from './useShortcutsPopover';
 import { managedFieldsLine } from './yamlObject';

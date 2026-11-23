@@ -12,7 +12,7 @@ import { useResourceDetails } from '../details/detailsContext';
 import { resourcePath } from '../paths';
 import styles from './ResourceYamlTab.module.css';
 import { UnsavedChangesGuard } from './UnsavedChangesGuard';
-import { useFullscreen } from './useFullscreen';
+import { useFullscreen } from '@/shared/hooks';
 import { useUpdateResource } from './useUpdateResource';
 import { YamlEditor } from './YamlEditor';
 import { parseEdited, toEditorText } from './yamlObject';

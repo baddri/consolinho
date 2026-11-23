@@ -10,6 +10,7 @@ import {
 } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { mockDb, mockK8s, problem } from '@/test/handlers';
+import { stubLogViewerLayout } from '@/test/logViewer';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { NO_EVENTS } from '../events/EventStreamView';
@@ -23,6 +24,7 @@ const POD_PATH = `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`;
 beforeAll(() => preloadLazyRoutes(resourceRoutes));
 
 beforeEach(() => {
+  stubLogViewerLayout(); // the Logs tab (LOG-1) mounts PF LogViewer
   onTestFinished(
     setWatchTimingForTests({ flushMs: 10, initialBackoffMs: 20, maxBackoffMs: 40, minStreamMs: 100 }),
   );

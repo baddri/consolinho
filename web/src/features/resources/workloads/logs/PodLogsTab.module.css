@@ -1,0 +1,45 @@
+/* OCP `_resource-log.scss` `.co-resource-log`: the viewer fills the tab; flexbox sizes it instead of PF's observer.
+   Size containment keeps the viewer's last measured height from growing the filled section: without it, after
+   Collapse the full screen height pushed the section (min-height: auto) and the page scrolled (U1a). The height
+   comes from the layout only. */
+.log {
+  contain: size;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.log :global(.pf-v6-c-log-viewer__scroll-container) {
+  height: 100% !important;
+}
+
+/* "Expand" (browser Fullscreen API on the wrapper): OCP `.co-fullscreen pf-v6-u-p-sm`, page background, small padding. */
+.expanded {
+  background: var(--pf-t--global--background--image--default)
+    var(--pf-t--global--background--color--secondary--default);
+  padding: var(--pf-t--global--spacer--sm);
+}
+
+/* OCP `_log-window.scss` `.log-window__footer--hidden`. */
+.footerHidden {
+  visibility: hidden;
+}
+
+/* OCP `_toggle-play.scss` `.co-toggle-play`: the round pause/play button, green ring while streaming. */
+.togglePlay:global(.pf-v6-c-button) {
+  align-items: center;
+  background-color: var(--pf-t--global--background--color--primary--default);
+  border: var(--pf-t--global--border--width--extra-strong) solid var(--pf-t--global--border--color--default);
+  border-radius: 50%;
+  height: 37px;
+  justify-content: center;
+  margin-right: 0;
+  padding: 0;
+  width: 37px;
+}
+
+.togglePlayActive:global(.pf-v6-c-button) {
+  border-color: var(--pf-t--global--border--color--status--success--default);
+}

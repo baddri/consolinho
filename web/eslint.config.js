@@ -47,8 +47,8 @@ const noDocumentGlobal = ['error', { name: 'document', message: domMessage }];
 const documentAllowedFiles = [
   'src/app/main.tsx',
   'src/shared/theme/ThemeProvider.tsx',
-  // The Fullscreen API's state and exit are document-level (YAML editor "Toggle fullscreen mode", T-0123).
-  'src/features/resources/yaml/useFullscreen.ts',
+  // The Fullscreen API's state and exit are document-level (YAML editor full screen T-0123, Logs "Expand" T-0179).
+  'src/shared/hooks/useFullscreen.ts',
   'src/**/*.test.{ts,tsx}',
   'src/test/**',
 ];

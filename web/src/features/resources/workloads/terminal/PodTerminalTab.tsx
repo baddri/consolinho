@@ -25,7 +25,7 @@ import {
   useResourceAccess,
 } from '../../actions/useResourceAccess';
 import { useResourceDetails } from '../../details/detailsContext';
-import { useFullscreen } from '../../yaml/useFullscreen';
+import { useFullscreen } from '@/shared/hooks';
 import { ContainerLabel, ContainerSelect } from '../ContainerSelect';
 import { containerNames } from '../containers';
 import { useSelectedContainer } from '../useSelectedContainer';
