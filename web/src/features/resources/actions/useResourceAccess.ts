@@ -46,13 +46,28 @@ export interface ResourceAccess {
   disabledReason: string | undefined;
 }
 
+/** Options of {@link useResourceAccess}. */
+export interface ResourceAccessOptions {
+  /**
+   * `false` when the review does not apply (e.g. a ReplicaSet without an owning Deployment): no
+   * SelfSubjectAccessReview is sent and the result fails closed — `isChecking` stays `true`, so a control rendered
+   * anyway is aria-disabled. Callers are expected not to render the control. Defaults to `true`.
+   */
+  enabled?: boolean;
+}
+
 /**
  * Whether the user may perform a write on a resource of `cluster` and, if not, the first applicable reason (UI-9,
  * ADR-0014): the user's global read-only flag, then the grant's ReadOnly access mode — both known from FleetConsole
  * alone, so no SelfSubjectAccessReview is sent for them — then the cluster's RBAC for the grant's ServiceAccount
  * (`useCanI`, deduplicated and cached per query key). The proxy still enforces everything; callers show its 403.
+ * See {@link ResourceAccessOptions.enabled} to skip the review entirely.
  */
-export function useResourceAccess(cluster: string, review: ResourceAccessReview): ResourceAccess {
+export function useResourceAccess(
+  cluster: string,
+  review: ResourceAccessReview,
+  { enabled = true }: ResourceAccessOptions = {},
+): ResourceAccess {
   const { data: me } = useCurrentUser();
   const { data: clusters } = useAccessibleClusters();
   const { verb, model, name, subresource } = review;
@@ -65,13 +80,16 @@ export function useResourceAccess(cluster: string, review: ResourceAccessReview)
     fleetReason = readOnlyGrantReason(cluster);
   }
   // Ask the cluster only once FleetConsole's own gates are known to pass.
-  const needsReview = fleetReason === undefined && me !== undefined && clusters !== undefined;
+  const needsReview = enabled && fleetReason === undefined && me !== undefined && clusters !== undefined;
   const { allowed } = useCanI(
     cluster,
     { verb, model, namespace, name, subresource },
     { enabled: needsReview },
   );
 
+  if (!enabled) {
+    return { isChecking: true, disabledReason: undefined };
+  }
   if (fleetReason !== undefined) {
     return { isChecking: false, disabledReason: fleetReason };
   }
