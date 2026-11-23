@@ -30,10 +30,10 @@ function terms(list: HTMLElement): string[] {
     .map((term) => term.textContent);
 }
 
-/** The table row whose name link is `name`. */
+/** The table row whose name link is `name` (the first such link: an HPA's scale target can share the name). */
 async function findRow(table: HTMLElement, name: string): Promise<HTMLElement> {
-  const link = await within(table).findByRole('link', { name });
-  const row = link.closest('tr');
+  const [link] = await within(table).findAllByRole('link', { name });
+  const row = link?.closest('tr');
   if (!row) throw new Error(`no row for ${name}`);
   return row;
 }
@@ -300,7 +300,9 @@ describe('CP4b kinds (T-0189 foundation)', () => {
     const { user, router } = renderApp(`/c/dev-1/k8s/ns/shop/${plural}`);
 
     const table = await screen.findByRole('grid', { name: title }, { timeout: COLD_START_TIMEOUT_MS });
-    await user.click(within(await findRow(table, name)).getByRole('link', { name }));
+    const [nameLink] = within(await findRow(table, name)).getAllByRole('link', { name });
+    if (!nameLink) throw new Error(`no name link for ${name}`);
+    await user.click(nameLink);
 
     await waitFor(() =>
       expect(router.state.location.pathname).toBe(`/c/dev-1/k8s/ns/shop/${plural}/${name}`),
