@@ -7,10 +7,12 @@ import { mockK8s, problem, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
 import { deploymentDescriptor } from '../registry/kinds/deployments';
+import { podDescriptor } from '../registry/kinds/pods';
 import { projectDescriptor } from '../registry/kinds/projects';
 import { resourceRoutes } from '../routes';
 import { DeleteResourceModal } from './DeleteResourceModal';
 import { useResourceAccess } from './useResourceAccess';
+import { useResourceActions } from './useResourceActions';
 
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const SSAR_PATH = '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews';
@@ -48,6 +50,18 @@ function AccessProbe({
 }) {
   const { isChecking, disabledReason } = useResourceAccess(cluster, { verb: 'delete', model, namespace });
   return <p>{isChecking ? 'checking' : (disabledReason ?? 'allowed')}</p>;
+}
+
+/** Lists the item keys {@link useResourceActions} returns for a pod. */
+function ActionKeysProbe() {
+  const { items } = useResourceActions({
+    cluster: 'dev-1',
+    descriptor: podDescriptor,
+    namespace: 'shop',
+    name: POD,
+    reviewByName: false,
+  });
+  return <p>{items.map((item) => item.itemKey).join(',')}</p>;
 }
 
 /** The row of `name` in the pods table. */
@@ -258,6 +272,12 @@ describe('resource actions (UI-8)', () => {
     const items = screen.getAllByRole('menuitem');
     expect(items.map((item) => item.textContent)).toEqual(['Edit Pod', 'Delete Pod']);
     for (const item of items) expect(item.closest('li')).not.toHaveClass('pf-m-danger');
+  });
+
+  it('keys the items "edit" and "delete" (ADR-0037 §3 adds edit-labels/edit-annotations next to "edit")', () => {
+    renderWithProviders(<ActionKeysProbe />);
+
+    expect(screen.getByText('edit,delete')).toBeInTheDocument();
   });
 
   it('Edit Pod opens the YAML tab', async () => {

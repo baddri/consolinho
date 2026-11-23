@@ -1,7 +1,7 @@
 ---
 id: T-0173
 title: Regenerate the API schema, drop the NamespaceRulesResult alias; rename itemKey edit-yaml → edit
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4a
 depends_on: []
@@ -28,12 +28,20 @@ action key `'edit-yaml'` becomes `'edit'` (T-0135 nit; ADR-0037 §3 adds `edit-l
 - Do not touch the unrelated `edit-yaml` strings in `yaml/` (OCP file names in comments).
 
 ## Acceptance criteria
-- [ ] FND-4: alias and cast gone; typecheck passes without them.
-- [ ] FND-5: itemKey `'edit'`; tests updated; no visible change.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] FND-4: alias and cast gone; typecheck passes without them.
+- [x] FND-5: itemKey `'edit'`; tests updated; no visible change.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 frontend-engineer: gen:api against isolated Aspire Api — no diff (schema.gen.ts already had nullable `failureKind`).
+  Alias `NamespaceRulesResult` → `NamespaceRules` in types.ts + 3 users; no `testResultBody`/`as ConnectionTestResult` cast exists.
+  itemKey `'edit-yaml'` → `'edit'`; added a hook-key test. check-fe green: 78 files / 901 tests, build ok.
 
 ## Review
+- Round 1 (orchestrator, 2026-11-23): APPROVE. Mechanical rename + itemKey test; gen:api had no diff.
 
 ## Handover notes
+- `gen:api` produced no change; schema.gen.ts untouched.
+- Type is now `NamespaceRules` (schema name) via `@/shared/api`; no alias left.
+- `ResourceActionItem.itemKey` is `'edit' | 'delete'`; widen it there when ADR-0037 §3 adds `edit-labels`/`edit-annotations`.
+- New test "keys the items edit and delete" in ResourceActions.test.tsx pins the keys (DropdownItem `value` is not in the DOM).

@@ -5,7 +5,7 @@ import type {
   ConnectionTestResult,
   ConnectionTestStep,
   ConnectionTestStepResult,
-  NamespaceRulesResult,
+  NamespaceRules,
   ResourceRule,
 } from '@/shared/api';
 import type { ConnectionTestScenario } from './types';
@@ -132,7 +132,7 @@ const NAMESPACE_RULES: readonly ResourceRule[] = [
 ];
 
 /** One inspected namespace: names starting with `forbidden` fail with a 403 (partial failure, NST-3). */
-function namespaceRulesFor(namespace: string): NamespaceRulesResult {
+function namespaceRulesFor(namespace: string): NamespaceRules {
   if (namespace.startsWith('forbidden')) {
     return {
       namespace,
@@ -154,7 +154,7 @@ function namespaceRulesFor(namespace: string): NamespaceRulesResult {
 }
 
 /** The `capabilities` step: a warning naming the reviewed share when some namespaces failed (NST-3). */
-function capabilitiesStep(level: CapabilityLevel, rules: readonly NamespaceRulesResult[]): ConnectionTestStepResult {
+function capabilitiesStep(level: CapabilityLevel, rules: readonly NamespaceRules[]): ConnectionTestStepResult {
   const summary = HEADLINE_MESSAGE[level];
   const failed = rules.filter((entry) => entry.error !== null);
   const [firstFailed] = failed;

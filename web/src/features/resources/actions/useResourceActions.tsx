@@ -11,7 +11,7 @@ import { useResourceAccess } from './useResourceAccess';
  * dropdown maps it to `DropdownItem`s. Disabled items stay visible, with a tooltip once the reason is known.
  */
 export interface ResourceActionItem extends DisabledActionProps {
-  itemKey: 'edit-yaml' | 'delete';
+  itemKey: 'edit' | 'delete';
   title: string;
   onClick: () => void;
 }
@@ -67,7 +67,7 @@ export function useResourceActions({
 
   const items: ResourceActionItem[] = [
     {
-      itemKey: 'edit-yaml',
+      itemKey: 'edit',
       title: `Edit ${model.kind}`,
       onClick: () => void navigate(resourcePath(cluster, model, { namespace, name, tab: 'yaml' })),
     },

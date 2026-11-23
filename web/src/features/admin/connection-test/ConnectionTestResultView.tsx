@@ -13,7 +13,7 @@ import {
   type LabelProps,
 } from '@patternfly/react-core';
 import { ExclamationTriangleIcon } from '@patternfly/react-icons';
-import type { CapabilityLevel, ConnectionTestResult, NamespaceRulesResult } from '@/shared/api';
+import type { CapabilityLevel, ConnectionTestResult, NamespaceRules } from '@/shared/api';
 import { CAPABILITY_LABELS } from '../credentials/LastTestLabel';
 import { CapabilityGrid } from './CapabilityGrid';
 import { NamespaceRulesTable } from './NamespaceRulesTable';
@@ -100,7 +100,7 @@ export function ConnectionTestResultView({ result }: ConnectionTestResultViewPro
  * sections are grouped under a "Namespace rules" heading like "Capabilities"; the "reviewed in n of m" headline is the
  * server's step, not computed here.
  */
-function NamespaceRulesSections({ entries }: { entries: readonly NamespaceRulesResult[] }) {
+function NamespaceRulesSections({ entries }: { entries: readonly NamespaceRules[] }) {
   return (
     <Stack hasGutter>
       {entries.length > 1 && (
