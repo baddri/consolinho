@@ -57,14 +57,14 @@ async function openEnabledItem(user: UserEvent, name: string): Promise<HTMLEleme
 }
 
 describe('Deployment actions (T-0182)', () => {
-  it('DEP-4: kind items come first, in OCP order, then Edit Deployment and Delete Deployment', async () => {
+  it('DEP-4: kind items come first, in OCP order, then Edit labels/annotations, Edit Deployment and Delete Deployment', async () => {
     const { user } = renderWithProviders(
       <ResourceActionsMenu cluster="dev-1" descriptor={deploymentDescriptor} obj={web()} />,
     );
 
     await user.click(screen.getByRole('button', { name: 'Actions' }));
     const items = screen.getAllByRole('menuitem').map((item) => item.textContent);
-    expect(items).toEqual([...KIND_ITEMS, 'Edit Deployment', 'Delete Deployment']);
+    expect(items).toEqual([...KIND_ITEMS, 'Edit labels', 'Edit annotations', 'Edit Deployment', 'Delete Deployment']);
   });
 
   it(

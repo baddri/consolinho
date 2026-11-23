@@ -1,0 +1,11 @@
+/* OCP `.co-tags-input` (public/components/utils/_label.scss L30-45): the labels box is a multi-line area padded by
+   spacer--sm and at least 120px tall, with labels and the input wrapping from the top-left. The spacer--xs gap between
+   them is PF's default for the text-input group and label group. */
+.tagsInput {
+  padding: var(--pf-t--global--spacer--sm);
+}
+
+.tagsInput :global(.pf-v6-c-text-input-group__main) {
+  min-height: 120px;
+  align-content: flex-start;
+}

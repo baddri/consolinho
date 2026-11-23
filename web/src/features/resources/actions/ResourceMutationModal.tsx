@@ -7,6 +7,7 @@ import {
   ModalBody,
   ModalFooter,
   ModalHeader,
+  type ModalProps,
 } from '@patternfly/react-core';
 import { useId, type ReactNode, type SyntheticEvent } from 'react';
 import { ClusterContextText } from './ClusterContextText';
@@ -34,6 +35,10 @@ export interface ResourceMutationModalProps {
    * otherwise focuses its first focusable element, the Close button, and wins over `autoFocus`.
    */
   elementToFocus?: string;
+  /** Modal width; default `small`. OCP: labels `medium`, annotations `large`. */
+  variant?: ModalProps['variant'];
+  /** Disables Save while the fields are invalid (OCP labels modal `isDisabled={!isInputValid}`). */
+  isSaveDisabled?: boolean;
   /** The form fields. */
   children: ReactNode;
 }
@@ -57,6 +62,8 @@ export function ResourceMutationModal({
   saveLabel = 'Save',
   description,
   elementToFocus,
+  variant = 'small',
+  isSaveDisabled = false,
   children,
 }: ResourceMutationModalProps) {
   const titleId = useId();
@@ -64,12 +71,12 @@ export function ResourceMutationModal({
   const descriptionId = useId();
   const submit = (event: SyntheticEvent) => {
     event.preventDefault();
-    if (!isSaving) onSave();
+    if (!isSaving && !isSaveDisabled) onSave();
   };
 
   return (
     <Modal
-      variant="small"
+      variant={variant}
       isOpen
       onClose={onClose}
       aria-labelledby={titleId}
@@ -106,6 +113,7 @@ export function ResourceMutationModal({
             form={formId}
             variant="primary"
             isAriaDisabled={isSaving}
+            isDisabled={isSaveDisabled && !isSaving}
             isLoading={isSaving}
             spinnerAriaValueText={isSaving ? 'Saving' : undefined}
           >

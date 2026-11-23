@@ -19,7 +19,11 @@ import { useResourceMutation, NO_MESSAGE_FALLBACK } from './useResourceMutation'
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const POD = 'web-7d4b9c8f6d-2xkqp';
 const pod: K8sResource = { apiVersion: 'v1', kind: 'Pod', metadata: { name: POD, namespace: 'shop' } };
-const project: K8sResource = { apiVersion: 'project.openshift.io/v1', kind: 'Project', metadata: { name: 'shop' } };
+const project: K8sResource = {
+  apiVersion: 'project.openshift.io/v1',
+  kind: 'Project',
+  metadata: { name: 'shop' },
+};
 
 /** Records the method and path of every PATCH the proxy receives. */
 function recordPatches(): string[] {
@@ -75,7 +79,14 @@ describe('kind actions engine (ADR-0037 §3)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Actions' }));
     const items = screen.getAllByRole('menuitem').map((item) => item.textContent);
-    expect(items).toEqual(['Annotate', 'Inspect', 'Edit Pod', 'Delete Pod']);
+    expect(items).toEqual([
+      'Annotate',
+      'Inspect',
+      'Edit labels',
+      'Edit annotations',
+      'Edit Pod',
+      'Delete Pod',
+    ]);
   });
 
   it('ACT-1: and in the row kebab', async () => {
@@ -91,7 +102,14 @@ describe('kind actions engine (ADR-0037 §3)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Kebab toggle' }));
     const items = (await screen.findAllByRole('menuitem')).map((item) => item.textContent);
-    expect(items).toEqual(['Annotate', 'Inspect', 'Edit Pod', 'Delete Pod']);
+    expect(items).toEqual([
+      'Annotate',
+      'Inspect',
+      'Edit labels',
+      'Edit annotations',
+      'Edit Pod',
+      'Delete Pod',
+    ]);
   });
 
   it.each([
@@ -104,22 +122,25 @@ describe('kind actions engine (ADR-0037 §3)', () => {
       project,
       'The service account for prod-eu-1 cannot patch projects (cluster RBAC).',
     ],
-  ])('ACT-4: %s on %s: the kind item is aria-disabled with "%s" and sends nothing', async (persona, cluster, descriptor, obj, reason) => {
-    setMockUser(persona);
-    const patches = recordPatches();
-    const { user } = renderWithProviders(
-      <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />,
-    );
+  ])(
+    'ACT-4: %s on %s: the kind item is aria-disabled with "%s" and sends nothing',
+    async (persona, cluster, descriptor, obj, reason) => {
+      setMockUser(persona);
+      const patches = recordPatches();
+      const { user } = renderWithProviders(
+        <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />,
+      );
 
-    await user.click(screen.getByRole('button', { name: 'Actions' }));
-    const annotate = screen.getByRole('menuitem', { name: 'Annotate' });
-    await user.hover(annotate);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
-    expect(annotate).toHaveAttribute('aria-disabled', 'true');
-    await user.click(annotate);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(patches).toEqual([]);
-  });
+      await user.click(screen.getByRole('button', { name: 'Actions' }));
+      const annotate = screen.getByRole('menuitem', { name: 'Annotate' });
+      await user.hover(annotate);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
+      expect(annotate).toHaveAttribute('aria-disabled', 'true');
+      await user.click(annotate);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(patches).toEqual([]);
+    },
+  );
 
   it('ACT-6: success toasts the object and the cluster display name; the patch is applied', async () => {
     const { user } = renderWithProviders(
@@ -182,9 +203,7 @@ describe('ResourceMutationModal (SAFE-1)', () => {
     const { user } = renderWithProviders(<StubModal onSave={onSave} />);
 
     const dialog = await screen.findByRole('dialog', { name: 'Edit thing' });
-    await waitFor(() =>
-      expect(dialog).toHaveTextContent('Deployment web in shop on Production EU 1 prod'),
-    );
+    await waitFor(() => expect(dialog).toHaveTextContent('Deployment web in shop on Production EU 1 prod'));
     expect(within(dialog).getByText('Production EU 1', { selector: 'strong' })).toBeInTheDocument();
     await user.type(within(dialog).getByRole('textbox', { name: 'Value' }), 'x{Enter}');
     expect(onSave).toHaveBeenCalledTimes(1);

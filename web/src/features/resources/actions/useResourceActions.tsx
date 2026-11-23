@@ -4,6 +4,8 @@ import type { K8sResource } from '@/shared/k8s';
 import { resourcePath } from '../paths';
 import type { KindActions, ResourceActionItem, ResourceDescriptor } from '../registry/types';
 import { DeleteResourceModal } from './DeleteResourceModal';
+import { EditAnnotationsModal } from './EditAnnotationsModal';
+import { EditLabelsModal } from './EditLabelsModal';
 import { useActionAccess } from './useActionAccess';
 
 export type { ResourceActionItem } from '../registry/types';
@@ -30,6 +32,9 @@ export interface ResourceActions {
   dialog: ReactNode;
 }
 
+/** The common dialog that is open; one at a time. */
+type CommonDialog = 'labels' | 'annotations' | 'delete';
+
 const NO_KIND_ACTIONS: KindActions = { items: [], dialog: null };
 
 /** The kind hook of descriptors without kind actions, so `useResourceActions` always calls exactly one hook. */
@@ -40,8 +45,9 @@ function noKindActions(): KindActions {
 /**
  * Builds the actions of one object (ADR-0037 §3, UI-8/9) and owns the dialogs they open, so the row kebab and the
  * details Actions menu offer the same items: the kind's own items (`descriptor.useKindActions`) first, then OCP's
- * common actions in `useCommonActions` order, worded as OCP and in normal colour — "Edit <Kind>" (opens the YAML tab;
- * always enabled, the tab explains read-only itself) and "Delete <Kind>", gated by {@link useActionAccess}.
+ * common actions in `useCommonActions` order, worded as OCP and in normal colour — "Edit labels" and "Edit annotations"
+ * (modals, gated by `patch`), "Edit <Kind>" (opens the YAML tab; always enabled, the tab explains read-only itself) and
+ * "Delete <Kind>" (gated by `delete`), each write gated by {@link useActionAccess}.
  *
  * Callers key the menu by `modelKey(descriptor.model)`, so the kind hook runs on every render of one instance and a
  * kind change remounts the menu instead of swapping hooks (rules of hooks).
@@ -62,10 +68,28 @@ export function useResourceActions({
   const kind = descriptor.useKindActions
     ? descriptor.useKindActions({ cluster, obj, reviewByName })
     : noKindActions();
-  const [isDeleteOpen, setDeleteOpen] = useState(false);
+  const [open, setOpen] = useState<CommonDialog | null>(null);
+  const patchAccess = useActionAccess(cluster, { verb: 'patch', model, namespace, name }, reviewByName);
   const deleteAccess = useActionAccess(cluster, { verb: 'delete', model, namespace, name }, reviewByName);
+  const close = () => setOpen(null);
 
   const common: ResourceActionItem[] = [
+    {
+      itemKey: 'edit-labels',
+      title: 'Edit labels',
+      onClick: () => {
+        if (!patchAccess.isAriaDisabled) setOpen('labels');
+      },
+      ...patchAccess,
+    },
+    {
+      itemKey: 'edit-annotations',
+      title: 'Edit annotations',
+      onClick: () => {
+        if (!patchAccess.isAriaDisabled) setOpen('annotations');
+      },
+      ...patchAccess,
+    },
     {
       itemKey: 'edit',
       title: `Edit ${model.kind}`,
@@ -75,21 +99,26 @@ export function useResourceActions({
       itemKey: 'delete',
       title: `Delete ${model.kind}`,
       onClick: () => {
-        if (!deleteAccess.isAriaDisabled) setDeleteOpen(true);
+        if (!deleteAccess.isAriaDisabled) setOpen('delete');
       },
       ...deleteAccess,
     },
   ];
 
-  const commonDialog = isDeleteOpen ? (
-    <DeleteResourceModal
-      cluster={cluster}
-      descriptor={descriptor}
-      namespace={namespace}
-      name={name}
-      onDeleted={onDeleted}
-      onClose={() => setDeleteOpen(false)}
-    />
-  ) : null;
+  const commonDialog =
+    open === 'labels' ? (
+      <EditLabelsModal cluster={cluster} model={model} obj={obj} onClose={close} />
+    ) : open === 'annotations' ? (
+      <EditAnnotationsModal cluster={cluster} model={model} obj={obj} onClose={close} />
+    ) : open === 'delete' ? (
+      <DeleteResourceModal
+        cluster={cluster}
+        descriptor={descriptor}
+        namespace={namespace}
+        name={name}
+        onDeleted={onDeleted}
+        onClose={close}
+      />
+    ) : null;
   return { items: [...kind.items, ...common], dialog: kind.dialog ?? commonDialog };
 }

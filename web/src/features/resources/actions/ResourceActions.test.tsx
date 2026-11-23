@@ -168,15 +168,15 @@ describe('resource actions (UI-8)', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('rows of one namespace share a single access review', async () => {
+  it('rows of one namespace share a single access review per verb (patch, delete)', async () => {
     const reviews = recordAccessReviews();
     renderApp(POD_LIST);
 
     await findRow(POD);
-    await waitFor(() => expect(reviews).toHaveLength(1));
+    await waitFor(() => expect(reviews).toHaveLength(2));
     // The rows' checks are namespace-level: no name in the review.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(reviews).toHaveLength(1);
+    expect(reviews).toHaveLength(2);
   });
 
   it('deletes a pod from the list: the modal names namespace, cluster and environment; the row goes', async () => {
@@ -262,21 +262,26 @@ describe('resource actions (UI-8)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
-  it('words the items as OCP: "Edit <Kind>", "Delete <Kind>", in order and in normal colour', async () => {
+  it('words the items as OCP: "Edit labels", "Edit annotations", "Edit <Kind>", "Delete <Kind>", in order and in normal colour', async () => {
     const { user } = renderApp(`${POD_LIST}/${POD}`);
 
     await user.click(
       await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
     );
     const items = screen.getAllByRole('menuitem');
-    expect(items.map((item) => item.textContent)).toEqual(['Edit Pod', 'Delete Pod']);
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Edit labels',
+      'Edit annotations',
+      'Edit Pod',
+      'Delete Pod',
+    ]);
     for (const item of items) expect(item.closest('li')).not.toHaveClass('pf-m-danger');
   });
 
-  it('keys the items "edit" and "delete" (ADR-0037 §3 adds edit-labels/edit-annotations next to "edit")', () => {
+  it('keys the items as OCP (edit-labels, edit-annotations, edit, delete)', () => {
     renderWithProviders(<ActionKeysProbe />);
 
-    expect(screen.getByText('edit,delete')).toBeInTheDocument();
+    expect(screen.getByText('edit-labels,edit-annotations,edit,delete')).toBeInTheDocument();
   });
 
   it('Edit Pod opens the YAML tab', async () => {
