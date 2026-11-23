@@ -193,6 +193,7 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
         actions={
           obj && <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />
         }
+        alert={descriptor.HeadingAlert && <descriptor.HeadingAlert cluster={cluster} />}
       />
       {body}
     </>

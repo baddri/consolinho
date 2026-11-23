@@ -199,6 +199,19 @@ export async function k8sDelete(
   await response.body?.cancel();
 }
 
+/**
+ * POSTs `body` to a subresource of one object — e.g. a DeploymentConfig's `instantiate` or `rollback`, which take a
+ * request object rather than a patch — and returns the server's answer ({@link k8sCreate} only targets collections).
+ */
+export async function k8sCreateSubresource<T>(
+  cluster: string,
+  model: K8sModel,
+  target: PatchTarget & { subresource: string },
+  body: unknown,
+): Promise<T> {
+  return readJson<T>(await k8sFetch(resourceApiPath(cluster, model, target), { method: 'POST', body }));
+}
+
 /** Creates an object (POST) — e.g. a `SelfSubjectAccessReview` — and returns the server's answer. */
 export async function k8sCreate<T>(
   cluster: string,

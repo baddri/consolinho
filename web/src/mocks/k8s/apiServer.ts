@@ -472,7 +472,11 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
   if (target === 'unknown' || target.model === SelfSubjectAccessReviewModel) return unknownResource();
 
   const watch = ['1', 'true'].includes(api.query.get('watch') ?? '');
-  const verb = verbOf(method, target.name !== undefined, watch);
+  // POST to an object's subresource (DeploymentConfig `instantiate`, `rollback`) is a `create` of that subresource.
+  const verb =
+    method === 'POST' && target.subresource !== undefined && target.name !== undefined
+      ? 'create'
+      : verbOf(method, target.name !== undefined, watch);
   if (!verb) return methodNotAllowed();
   const { model, namespace, name, subresource } = target;
   const handler = subresource === undefined ? undefined : SUBRESOURCES[subresource];

@@ -149,4 +149,9 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   useKindActions?(args: KindActionArgs<T>): KindActions;
   /** Delete asks to type the name (Namespace, Project). */
   deleteRequiresName?: boolean;
+  /**
+   * An alert under the list and details page headings (OCP `ListPage` / `DetailsPage` `helpAlert`), e.g.
+   * DeploymentConfig's deprecation notice. Same component shape as {@link DetailsSection}.
+   */
+  HeadingAlert?(props: { cluster: string }): ReactNode;
 }
