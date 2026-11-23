@@ -22,3 +22,12 @@ export { useK8sList, useK8sGet, type K8sLiveResult } from './hooks';
 export { useK8sDiscovery } from './discovery';
 export { useCanI } from './access';
 export { WATCH_FLUSH_MS, setWatchTimingForTests, type LiveStatus } from './watchManager';
+export {
+  streamPodLog,
+  podLogPath,
+  parseLogLine,
+  logTimeKey,
+  logTimeToSecond,
+  type LogLine,
+  type PodLogOptions,
+} from './logStream';

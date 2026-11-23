@@ -1,12 +1,13 @@
 import { applyPatch, JsonPatchError, type Operation } from 'fast-json-patch';
 import { HttpResponse } from 'msw';
 import type { K8sModel, K8sResource } from '@/shared/k8s';
+import { podLog } from './podLogs';
 import { notFound, statusResponse } from './status';
 import { getObject, upsertObject } from './store';
 
 /**
  * Subresources of the mock API server (T-0174, ADR-0037 §8) and the JSON Patch engine every mock PATCH uses. Each
- * entry of {@link SUBRESOURCES} serves `…/<plural>/<name>/<subresource>`; T-0178 adds `log`. Exec is not an entry: it is a
+ * entry of {@link SUBRESOURCES} serves `…/<plural>/<name>/<subresource>`; `log` is in `podLogs.ts` (T-0178). Exec is not an entry: it is a
  * WebSocket (`ws.link`, T-0180) that never reaches the API server and must check `create pods/exec` itself. The proxy's
  * guards and the credential's RBAC already ran when a handler is called.
  */
@@ -170,4 +171,4 @@ const scale: SubresourceHandler = {
 };
 
 /** Subresources the mock serves, by URL segment. */
-export const SUBRESOURCES: Record<string, SubresourceHandler> = { scale };
+export const SUBRESOURCES: Record<string, SubresourceHandler> = { scale, log: podLog };
