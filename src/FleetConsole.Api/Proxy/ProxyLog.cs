@@ -34,4 +34,16 @@ internal static partial class ProxyLog
         Message = "Forwarding {Method} {Cluster} {Path} failed: {ForwarderError} ({ExceptionType}, {HttpRequestError})")]
     public static partial void ForwardFailed(
         ILogger logger, string method, string cluster, string path, ForwarderError forwarderError, string? exceptionType, HttpRequestError? httpRequestError);
+
+    /// <summary>
+    /// A proxied stream (watch, followed log, exec/attach) reached its hard lifetime and was ended by the proxy
+    /// (ADR-0036 §1). Expected — the client reconnects and is re-authorized — so Debug, not Warning.
+    /// </summary>
+    /// <param name="logger">The proxy logger.</param>
+    /// <param name="method">HTTP method.</param>
+    /// <param name="cluster">Cluster name.</param>
+    /// <param name="path">Forwarded path, without query.</param>
+    [LoggerMessage(EventId = 2402, Level = LogLevel.Debug,
+        Message = "Proxied stream {Method} {Cluster} {Path} reached its lifetime and was closed")]
+    public static partial void StreamLifetimeReached(ILogger logger, string method, string cluster, string path);
 }

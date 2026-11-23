@@ -1,12 +1,12 @@
 ---
 id: T-0155
 title: Proxy stream lifetimes — exec session cap, followed-log cap, upgrade idle timeout, pool grace
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4a
 depends_on: []
 paths: [src/FleetConsole.Application/Proxy/ProxyOptions.cs, src/FleetConsole.Api/Proxy/KubernetesProxyEndpoint.cs, src/FleetConsole.Api/Proxy/ProxySetup.cs, src/FleetConsole.Api/Proxy/ForwarderErrorMapper.cs, src/FleetConsole.Api/Proxy/ProxyLog.cs, src/FleetConsole.Api/appsettings.json, src/FleetConsole.Infrastructure/DependencyInjection.cs, src/FleetConsole.Infrastructure/Kubernetes/ClusterForwardingClientPool.cs, tests/FleetConsole.Api.Tests/Integration/Proxy, tests/FleetConsole.Api.Tests/Kubernetes, docs/specs/CP2-api-contract.md, docs/architecture/BACKEND.md, docs/architecture/SECURITY.md, deploy/kustomize/base]
-review_rounds: 0
+review_rounds: 2
 ---
 
 ## Goal
@@ -62,20 +62,58 @@ gotcha). Implements ADR-0036 §1–2 (spec TERM-8, LOG-6 "expected cut", LOG-7 "
   hold a log body open).
 
 ## Acceptance criteria
-- [ ] TERM-8: with `ExecSessionCap` = 2 s, an open exec socket is closed by the proxy within cap + 1 s. After the grant is
+- [x] TERM-8: with `ExecSessionCap` = 2 s, an open exec socket is closed by the proxy within cap + 1 s. After the grant is
       revoked, the reconnect gets 404 (Kestrel test).
-- [ ] An exec socket idle for longer than `StreamIdleTimeout` (configure watch cap 1 s, exec cap 10 s) stays open.
-- [ ] Followed log: with watch cap 1 s, a `follow=true` stream is cut within lifetime + 1 s. After revocation the
+- [x] An exec socket idle for longer than `StreamIdleTimeout` (configure watch cap 1 s, exec cap 10 s) stays open.
+- [x] Followed log: with watch cap 1 s, a `follow=true` stream is cut within lifetime + 1 s. After revocation the
       re-request is 404. No Warning/Error log for the cut.
-- [ ] LOG-7 (part): a followed log quiet for longer than `RequestTimeout` (configure 1 s, quiet 3 s) is not cut, and the
+- [x] LOG-7 (part): a followed log quiet for longer than `RequestTimeout` (configure 1 s, quiet 3 s) is not cut, and the
       next line still arrives.
-- [ ] Pool: a unit test asserts the grace period comes from options (`max(...) + 1 min`). A stream opened before a
+- [x] Pool: a unit test asserts the grace period comes from options (`max(...) + 1 min`). A stream opened before a
       cluster edit is not disposed at the old 6 min (fake `TimeProvider` in the pool test, existing pattern).
-- [ ] `ProxyOptionsValidator` rejects `ExecSessionCap` ≤ 0 or fractional seconds (unit test). Docs/contract §7 updated.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `ProxyOptionsValidator` rejects `ExecSessionCap` ≤ 0 or fractional seconds (unit test). Docs/contract §7 updated.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 backend-engineer: in_progress → in_review. `ExecSessionCap` + `StreamLifetime(isUpgrade)`, endpoint lifetime
+  timer (TimeProvider, linked into `RequestAborted`), upgrade ActivityTimeout = exec cap, `ProxyLog` 2402 (Debug), pool grace
+  from options via DI factory. Deploy base lists no `Proxy__*` keys, so untouched. check-be green (802/705/333).
+- 2026-11-23 backend-engineer: review round 1 fixed. `Proxy:StreamIdleSlack` (default 30 s, ≥ 0; validator cases, CP2 §7,
+  appsettings, SECURITY Limits); `StreamIdleTimeout = WatchTimeoutCap + StreamIdleSlack`. Lifetime tests: watch cap 1 s,
+  slack 4 s, exec cap 10 s; exec idles 6 s (> 5 s). Checked: upgrade ActivityTimeout → `StreamIdleTimeout` fails the exec
+  test. LIFO comment added at the lifetime flag. Tests take ~10 s (exec) + ~6 s (log).
 
 ## Review
+### Round 1 — backend-architect, 2026-11-23: CHANGES_REQUESTED
+check-be green (802/705/333). Race fix, grace-from-options, validator, docs and log level are correct and match ADR-0036.
+Required:
+1. src/FleetConsole.Application/Proxy/ProxyOptions.cs:31 + ProxyStreamLifetimeTests.cs:21-24,50 — the 30 s slack is fixed, so the
+   idle-exec test idles only past `RequestTimeout`; nothing end-to-end checks that upgrades idle on `ExecSessionCap`
+   rather than `StreamIdleTimeout` (the bug this task fixes: reverting L137 to `StreamIdleTimeout` stays green). It also
+   makes the followed-log test 31 s in the serial Api collection — add `ProxyOptions.StreamIdleSlack` (default `00:00:30`,
+   ≥ 0, validator + unit case, CP2 §7 row, `StreamIdleTimeout = WatchTimeoutCap + StreamIdleSlack`); variant: watch cap
+   1 s, slack 4 s (lifetime 5 s > the 3 s quiet), exec cap 10 s; the exec test idles > 5 s, as the AC says. Drop the
+   deviation note in the class remarks and work log.
+Optional:
+- KubernetesProxyEndpoint.cs:150 — the flag is set before YARP's abort only because CTS runs callbacks LIFO (this
+  registration is after the linked source's); say so in the comment.
+
+### Round 2 — backend-architect, 2026-11-23: APPROVE
+check-be green (805/705/333); Api suite 2 m 14 s → 1 m 34 s. Finding 1 fixed: `StreamIdleSlack` (≥ 0, validated, CP2 §7,
+appsettings); the test setup now uses watch cap 1 s, slack 4 s, exec cap 10 s, and the exec test idles past `StreamIdleTimeout`. Optional comment added.
+ADR-0036 keeps "watch cap + 30 s" (the default); acceptable, as CP2 §7 documents the knob.
 
 ## Handover notes
+- `ProxyOptions.StreamLifetime(isUpgrade)`: upgrade → `ExecSessionCap` (default 1 h), else `StreamIdleTimeout`. It is both
+  the hard lifetime and YARP's `ActivityTimeout` for streams. Non-streaming requests are unchanged.
+- Endpoint: `new CancellationTokenSource(lifetime, TimeProvider)` linked with the client token and assigned to
+  `RequestAborted` around `SendAsync`, then restored. "Lifetime reached" is decided **in the timer callback**, because
+  YARP's `context.Abort()` also cancels the connection token, so checking afterwards races. Then no mapping, no problem
+  body and no Warning, only `ProxyLog.StreamLifetimeReached` (2402, Debug). Audit status is unchanged (101/200 for exec).
+  T-0156 owns exec audit timing; a free EventId for `ExecSessionEnded` is 2403.
+- Pool: `ClusterForwardingClientPool.GracePeriodFor(options)` = max(lifetimes) + 1 min, set by a DI factory. The default
+  constant is now 61 min (= the default options).
+- `Proxy:StreamIdleSlack` (default 30 s) is the slack in `StreamIdleTimeout`; the pool grace follows it.
+- Tests: `Integration/Proxy/ProxyStreamLifetimeTests.cs` (Kestrel variant; admin logs in over sockets because a Kestrel
+  variant has no in-memory client), plus pool and options cases in `Kubernetes/ClusterForwardingClientPoolTests.cs` and
+  `Proxy/ProxyEndpointPartsTests.cs`.

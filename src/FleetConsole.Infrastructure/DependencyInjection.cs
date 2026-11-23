@@ -3,6 +3,7 @@ using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Auth;
 using FleetConsole.Application.Credentials;
+using FleetConsole.Application.Proxy;
 using FleetConsole.Infrastructure.Crypto;
 using FleetConsole.Infrastructure.Events;
 using FleetConsole.Infrastructure.Kubernetes;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace FleetConsole.Infrastructure;
 
@@ -109,7 +111,16 @@ public static class DependencyInjection
             services.GetRequiredService<ClusterTlsHandlerFactory>(),
             services.GetRequiredService<ILogger<ClusterProbeClient>>(),
             ClusterProbeClient.DefaultRequestTimeout));
-        builder.Services.AddSingleton<IClusterForwardingClients, ClusterForwardingClientPool>();
+        // The grace period for retired handlers covers the longest stream lifetime (ADR-0036 §2), so an admin cluster
+        // edit never cuts an open log or terminal. ProxyOptions are bound and validated by the Api.
+        builder.Services.AddSingleton<IClusterForwardingClients>(services => new ClusterForwardingClientPool(
+            services.GetRequiredService<ClusterTlsHandlerFactory>(),
+            services.GetRequiredService<TimeProvider>(),
+            services.GetRequiredService<ILogger<ClusterForwardingClientPool>>())
+        {
+            RetiredHandlerGracePeriod = ClusterForwardingClientPool.GracePeriodFor(
+                services.GetRequiredService<IOptions<ProxyOptions>>().Value),
+        });
 
         builder.AddConsoleDataProtection();
         builder.Services.AddSingleton<ITokenProtector, DataProtectionTokenProtector>();

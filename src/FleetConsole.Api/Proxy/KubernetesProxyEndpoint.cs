@@ -53,6 +53,7 @@ public static class KubernetesProxyEndpoint
     /// <param name="clients">The per-cluster invoker pool.</param>
     /// <param name="options">Timeouts and body limit.</param>
     /// <param name="publicOrigin">The console's public origin, for the WebSocket <c>Origin</c> check.</param>
+    /// <param name="time">Runs the stream lifetime timer (ADR-0036 §1).</param>
     /// <param name="loggerFactory">Creates the proxy logger.</param>
     /// <returns>A task that completes when the response has been written.</returns>
     internal static async Task HandleAsync(
@@ -63,6 +64,7 @@ public static class KubernetesProxyEndpoint
         IClusterForwardingClients clients,
         IOptions<ProxyOptions> options,
         IOptions<PublicOriginOptions> publicOrigin,
+        TimeProvider time,
         ILoggerFactory loggerFactory)
     {
         // Upstream 4xx/5xx bodies (Kubernetes Status objects) must reach the client untouched (BACKEND.md).
@@ -127,18 +129,54 @@ public static class KubernetesProxyEndpoint
         }
 
         var transformer = new KubernetesRequestTransformer(target, request, settings.WatchTimeoutCapSeconds);
+        var lifetime = request.IsStreaming ? settings.StreamLifetime(isUpgrade) : (TimeSpan?)null;
         var config = new ForwarderRequestConfig
         {
-            // YARP's timeout is an idle timeout; streams get the watch cap plus slack (ADR-0020 §7).
-            ActivityTimeout = request.IsStreaming ? settings.StreamIdleTimeout : settings.RequestTimeout,
+            // YARP's timeout is an idle timeout. A stream's equals its hard lifetime (ADR-0036 §1): watches and followed
+            // logs get the watch cap plus Proxy:StreamIdleSlack (ADR-0020 §7), upgrades the exec cap, so an idle
+            // terminal isn't cut early.
+            ActivityTimeout = lifetime ?? settings.RequestTimeout,
         };
 
-        var forwardError = await forwarder
-            .SendAsync(context, target.Connection.ApiUrl.AbsoluteUri, invoker, config, transformer)
-            .ConfigureAwait(false);
+        // Every stream gets a hard lifetime (ADR-0036 §1): YARP links its activity token to HttpContext.RequestAborted,
+        // so swapping in a token that also fires at the lifetime makes YARP abort the response body or the upgraded
+        // tunnel then. The client reconnects, which re-runs authorization: revocation takes effect at the cap (TERM-8).
+        var clientAborted = context.RequestAborted;
+        using var lifetimeTimer = lifetime is { } span ? new CancellationTokenSource(span, time) : null;
+        using var linked = lifetimeTimer is null ? null : CancellationTokenSource.CreateLinkedTokenSource(clientAborted, lifetimeTimer.Token);
+
+        // Decided when the timer fires, not after SendAsync: YARP's abort of the cut response also cancels the
+        // connection's own token, so "client gone" can't be told apart afterwards. This relies on a
+        // CancellationTokenSource running callbacks last-registered-first: this registration comes after the linked
+        // source's, so the flag is set before the linked token (and with it YARP's abort) fires.
+        var lifetimeReached = false;
+        using var lifetimeWatch = lifetimeTimer?.Token.Register(() => lifetimeReached = !clientAborted.IsCancellationRequested);
+        ForwarderError forwardError;
+        try
+        {
+            if (linked is not null)
+            {
+                context.RequestAborted = linked.Token;
+            }
+
+            forwardError = await forwarder
+                .SendAsync(context, target.Connection.ApiUrl.AbsoluteUri, invoker, config, transformer)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            // The linked source is disposed when the method returns; later readers must see the connection's own token.
+            context.RequestAborted = clientAborted;
+        }
+
+        // The cap fired while the client was still there: an expected end, not a failure — no Warning, no problem body.
+        if (lifetimeReached)
+        {
+            ProxyLog.StreamLifetimeReached(audit.Logger, request.Method, target.ClusterName, request.Path.Value);
+        }
 
         Error? failure = null;
-        if (forwardError != ForwarderError.None)
+        if (forwardError != ForwarderError.None && !lifetimeReached)
         {
             var exception = context.GetForwarderErrorFeature()?.Exception;
             failure = ForwarderErrorMapper.Map(forwardError, exception, target.ClusterName, settings.MaxMutationBodyBytes);

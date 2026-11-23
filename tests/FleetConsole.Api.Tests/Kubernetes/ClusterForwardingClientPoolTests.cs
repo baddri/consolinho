@@ -1,8 +1,12 @@
 using System.Net;
 using FleetConsole.Api.Tests.Fakes;
 using FleetConsole.Application.Abstractions.Kubernetes;
+using FleetConsole.Application.Proxy;
 using FleetConsole.Domain.Clusters;
+using FleetConsole.Infrastructure;
 using FleetConsole.Infrastructure.Kubernetes;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace FleetConsole.Api.Tests.Kubernetes;
 
@@ -160,6 +164,53 @@ public sealed class ClusterForwardingClientPoolTests : IDisposable
         await Should.ThrowAsync<ObjectDisposedException>(() => GetVersionAsync(retired, server));
         (await GetVersionAsync(current, server)).ShouldBe(HttpStatusCode.OK);
         _time.ActiveTimers.ShouldBe(0);
+    }
+
+    // ADR-0036 §2: the grace period covers the longest stream lifetime, max(StreamIdleTimeout, ExecSessionCap) + 1 min.
+    [Fact]
+    public void GracePeriod_IsTheLongestStreamLifetimePlusOneMinute()
+    {
+        ClusterForwardingClientPool.GracePeriodFor(new ProxyOptions()).ShouldBe(TimeSpan.FromMinutes(61));
+        ClusterForwardingClientPool.GracePeriodFor(new ProxyOptions()).ShouldBe(ClusterForwardingClientPool.DefaultRetiredHandlerGracePeriod);
+        ClusterForwardingClientPool.GracePeriodFor(new ProxyOptions { WatchTimeoutCap = TimeSpan.FromMinutes(10), ExecSessionCap = TimeSpan.FromMinutes(2) })
+            .ShouldBe(TimeSpan.FromMinutes(10) + TimeSpan.FromSeconds(30) + TimeSpan.FromMinutes(1));
+        ClusterForwardingClientPool.GracePeriodFor(new ProxyOptions { ExecSessionCap = TimeSpan.FromMinutes(90) })
+            .ShouldBe(TimeSpan.FromMinutes(91));
+    }
+
+    [Fact]
+    public void AddInfrastructure_SetsTheGracePeriodFromProxyOptions()
+    {
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { EnvironmentName = Environments.Production });
+        builder.AddInfrastructure();
+        builder.Services.Configure<ProxyOptions>(o => o.ExecSessionCap = TimeSpan.FromMinutes(20));
+        using var services = builder.Services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        services.GetRequiredService<IClusterForwardingClients>().ShouldBeOfType<ClusterForwardingClientPool>()
+            .RetiredHandlerGracePeriod.ShouldBe(TimeSpan.FromMinutes(21));
+    }
+
+    // HANDOVER CP4 gotcha: a cluster edit used to dispose the old handler — and cut its open streams — after 6 minutes.
+    [Fact]
+    public async Task StreamOpenedBeforeAClusterEdit_SurvivesTheOldSixMinutes()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        const string pods = "/api/v1/namespaces/shop/pods";
+        var watch = server.MapWatch(pods);
+        var clusterId = NewClusterId();
+        var retired = Get(clusterId, Trusting(server));
+        using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(server.BaseAddress, pods.TrimStart('/') + "?watch=1"));
+        using var response = await retired.SendAsync(request, Ct);
+        await watch.Connected.WaitAsync(TimeSpan.FromSeconds(10), Ct);
+
+        _ = Get(clusterId, Trusting(server) with { SkipTlsVerify = true }); // the admin edit retires the handler
+        _time.Advance(TimeSpan.FromMinutes(6));
+
+        await using var body = await response.Content.ReadAsStreamAsync(Ct);
+        using var reader = new StreamReader(body);
+        await watch.SendAsync("ADDED", new { kind = "Pod", metadata = new { name = "web-1" } }, Ct);
+        (await reader.ReadLineAsync(Ct).AsTask().WaitAsync(TimeSpan.FromSeconds(10), Ct)).ShouldNotBeNull().ShouldContain("web-1");
+        _time.ActiveTimers.ShouldBe(1, "the retired handler is still waiting for its grace period");
     }
 
     [Fact]

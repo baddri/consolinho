@@ -105,21 +105,47 @@ public sealed class ProxyEndpointPartsTests
     }
 
     [Theory]
-    [InlineData("00:00:30", "00:05:00", 1, true)]
-    [InlineData("00:00:00", "00:05:00", 1, false)]
-    [InlineData("00:00:30", "00:00:00.500", 1, false)]
-    [InlineData("00:00:30", "00:00:01.500", 1, false)]
-    [InlineData("00:00:30", "00:00:01", 1, true)]
-    [InlineData("00:00:30", "00:05:00", 0, false)]
-    public void Validates_Proxy_Options(string requestTimeout, string watchCap, long maxBytes, bool valid)
+    [InlineData("00:00:30", "00:05:00", 1, "01:00:00", true)]
+    [InlineData("00:00:00", "00:05:00", 1, "01:00:00", false)]
+    [InlineData("00:00:30", "00:00:00.500", 1, "01:00:00", false)]
+    [InlineData("00:00:30", "00:00:01.500", 1, "01:00:00", false)]
+    [InlineData("00:00:30", "00:00:01", 1, "01:00:00", true)]
+    [InlineData("00:00:30", "00:05:00", 0, "01:00:00", false)]
+    [InlineData("00:00:30", "00:05:00", 1, "00:00:01", true)]
+    [InlineData("00:00:30", "00:05:00", 1, "00:00:00", false)]
+    [InlineData("00:00:30", "00:05:00", 1, "-00:00:05", false)]
+    [InlineData("00:00:30", "00:05:00", 1, "00:00:02.500", false)]
+    [InlineData("00:00:30", "00:05:00", 1, "01:00:00", true, "00:00:00")]
+    [InlineData("00:00:30", "00:05:00", 1, "01:00:00", true, "00:00:04")]
+    [InlineData("00:00:30", "00:05:00", 1, "01:00:00", false, "-00:00:01")]
+    public void Validates_Proxy_Options(string requestTimeout, string watchCap, long maxBytes, string execCap, bool valid, string slack = "00:00:30")
     {
         var options = new ProxyOptions
         {
             RequestTimeout = TimeSpan.Parse(requestTimeout, System.Globalization.CultureInfo.InvariantCulture),
             WatchTimeoutCap = TimeSpan.Parse(watchCap, System.Globalization.CultureInfo.InvariantCulture),
             MaxMutationBodyBytes = maxBytes,
+            ExecSessionCap = TimeSpan.Parse(execCap, System.Globalization.CultureInfo.InvariantCulture),
+            StreamIdleSlack = TimeSpan.Parse(slack, System.Globalization.CultureInfo.InvariantCulture),
         };
 
         new ProxyOptionsValidator().Validate(null, options).Succeeded.ShouldBe(valid);
+    }
+
+    // ADR-0036 §1: an upgrade lives (and may idle) until the exec cap, not the watch-derived stream idle timeout.
+    [Fact]
+    public void Stream_Lifetime_Is_The_Exec_Cap_For_Upgrades_And_The_Stream_Idle_Timeout_Otherwise()
+    {
+        var options = new ProxyOptions
+        {
+            WatchTimeoutCap = TimeSpan.FromSeconds(1),
+            StreamIdleSlack = TimeSpan.FromSeconds(4),
+            ExecSessionCap = TimeSpan.FromSeconds(10),
+        };
+
+        options.StreamLifetime(isUpgrade: true).ShouldBe(TimeSpan.FromSeconds(10));
+        options.StreamLifetime(isUpgrade: false).ShouldBe(TimeSpan.FromSeconds(5), "watch cap + slack");
+        new ProxyOptions().ExecSessionCap.ShouldBe(TimeSpan.FromHours(1));
+        new ProxyOptions().StreamIdleTimeout.ShouldBe(TimeSpan.FromMinutes(5.5));
     }
 }

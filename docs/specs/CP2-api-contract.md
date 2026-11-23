@@ -89,4 +89,6 @@ Switcher recents (SW-8), last project (NS-2) and discovery (DATA-2) are client-s
 |---|---|---|
 | `Proxy:RequestTimeout` | `00:00:30` | Idle timeout for non-streaming requests → 504. |
 | `Proxy:WatchTimeoutCap` | `00:05:00` | Whole seconds, ≥ 1 s. Max `timeoutSeconds` for watches; also bounds revocation latency for open streams. |
+| `Proxy:StreamIdleSlack` | `00:00:30` | ≥ 0. Added to `WatchTimeoutCap` to give the idle timeout and hard lifetime of non-upgrade streams (watches, followed logs), so a watch ends upstream before the proxy cuts it (ADR-0020, ADR-0036). |
+| `Proxy:ExecSessionCap` | `01:00:00` | Whole seconds, ≥ 1 s. Hard lifetime and idle timeout of an upgraded stream (exec/attach WebSocket); at the cap the socket closes without a close frame (1006) and the reconnect is re-authorized (ADR-0036). Followed logs and other non-watch streams end at `WatchTimeoutCap` + `StreamIdleSlack` (body aborted). |
 | `Proxy:MaxMutationBodyBytes` | `10485760` | > 0. |

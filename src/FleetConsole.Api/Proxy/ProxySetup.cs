@@ -33,7 +33,8 @@ public static class ProxySetup
 
 /// <summary>
 /// Validates <see cref="ProxyOptions"/>: positive request timeout, a watch cap of whole seconds of at least one second
-/// (it is forwarded as the integer <c>timeoutSeconds</c>), and a positive mutation body limit.
+/// (it is forwarded as the integer <c>timeoutSeconds</c>), an exec session cap of whole seconds of at least one second
+/// (ADR-0036), and a positive mutation body limit.
 /// </summary>
 internal sealed class ProxyOptionsValidator : IValidateOptions<ProxyOptions>
 {
@@ -51,10 +52,19 @@ internal sealed class ProxyOptionsValidator : IValidateOptions<ProxyOptions>
             failures.Add($"{ProxyOptions.SectionName}:{nameof(ProxyOptions.RequestTimeout)} must be greater than zero.");
         }
 
-        if (options.WatchTimeoutCap < TimeSpan.FromSeconds(1) || options.WatchTimeoutCap.Ticks % TimeSpan.TicksPerSecond != 0
-            || options.WatchTimeoutCap.TotalSeconds > int.MaxValue)
+        if (!IsWholeSecondsCap(options.WatchTimeoutCap))
         {
             failures.Add($"{ProxyOptions.SectionName}:{nameof(ProxyOptions.WatchTimeoutCap)} must be a whole number of seconds, at least 1 s.");
+        }
+
+        if (options.StreamIdleSlack < TimeSpan.Zero)
+        {
+            failures.Add($"{ProxyOptions.SectionName}:{nameof(ProxyOptions.StreamIdleSlack)} must not be negative.");
+        }
+
+        if (!IsWholeSecondsCap(options.ExecSessionCap))
+        {
+            failures.Add($"{ProxyOptions.SectionName}:{nameof(ProxyOptions.ExecSessionCap)} must be a whole number of seconds, at least 1 s.");
         }
 
         if (options.MaxMutationBodyBytes <= 0)
@@ -64,4 +74,8 @@ internal sealed class ProxyOptionsValidator : IValidateOptions<ProxyOptions>
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
+
+    // At least one second, whole seconds, and representable as int seconds (the watch cap is forwarded as one).
+    private static bool IsWholeSecondsCap(TimeSpan cap) =>
+        cap >= TimeSpan.FromSeconds(1) && cap.Ticks % TimeSpan.TicksPerSecond == 0 && cap.TotalSeconds <= int.MaxValue;
 }
