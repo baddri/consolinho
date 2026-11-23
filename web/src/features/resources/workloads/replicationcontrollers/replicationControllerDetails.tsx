@@ -73,8 +73,12 @@ export function ReplicationControllerDetails({ obj }: { obj: ReplicationControll
           <Status status={phase} />
         </DetailsItem>
       )}
-      <DetailsItem label="Current count">{replicationControllerCurrent(obj)}</DetailsItem>
-      <DetailsItem label="Desired count">{replicationControllerDesired(obj)}</DetailsItem>
+      <DetailsItem label="Current count" path="status.replicas">
+        {replicationControllerCurrent(obj)}
+      </DetailsItem>
+      <DetailsItem label="Desired count" path="spec.replicas">
+        {replicationControllerDesired(obj)}
+      </DetailsItem>
     </>
   );
 }

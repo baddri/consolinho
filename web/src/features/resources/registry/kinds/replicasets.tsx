@@ -44,8 +44,8 @@ function RevisionRow({ obj }: { obj: ReplicaSetResource }) {
 function ReplicaSetDetails({ obj }: { obj: ReplicaSetResource }) {
   return (
     <>
-      <DetailsItem label="Current count">{current(obj)}</DetailsItem>
-      <DetailsItem label="Desired count">{obj.spec?.replicas ?? 0}</DetailsItem>
+      <DetailsItem label="Current count" path="status.replicas">{current(obj)}</DetailsItem>
+      <DetailsItem label="Desired count" path="spec.replicas">{obj.spec?.replicas ?? 0}</DetailsItem>
     </>
   );
 }

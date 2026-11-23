@@ -34,16 +34,24 @@ function ScaleTargetLink({ obj }: { obj: HorizontalPodAutoscalerResource }) {
 function HorizontalPodAutoscalerDetails({ obj }: { obj: HorizontalPodAutoscalerResource }) {
   return (
     <>
-      <DetailsItem label="Scale target">
+      <DetailsItem label="Scale target" path="spec.scaleTargetRef">
         <ScaleTargetLink obj={obj} />
       </DetailsItem>
-      <DetailsItem label="Min replicas">{numberText(obj.spec?.minReplicas)}</DetailsItem>
-      <DetailsItem label="Max replicas">{numberText(obj.spec?.maxReplicas)}</DetailsItem>
-      <DetailsItem label="Last scale time">
+      <DetailsItem label="Min replicas" path="spec.minReplicas">
+        {numberText(obj.spec?.minReplicas)}
+      </DetailsItem>
+      <DetailsItem label="Max replicas" path="spec.maxReplicas">
+        {numberText(obj.spec?.maxReplicas)}
+      </DetailsItem>
+      <DetailsItem label="Last scale time" path="status.lastScaleTime">
         <Timestamp value={obj.status?.lastScaleTime} />
       </DetailsItem>
-      <DetailsItem label="Current replicas">{numberText(obj.status?.currentReplicas)}</DetailsItem>
-      <DetailsItem label="Desired replicas">{numberText(obj.status?.desiredReplicas)}</DetailsItem>
+      <DetailsItem label="Current replicas" path="status.currentReplicas">
+        {numberText(obj.status?.currentReplicas)}
+      </DetailsItem>
+      <DetailsItem label="Desired replicas" path="status.desiredReplicas">
+        {numberText(obj.status?.desiredReplicas)}
+      </DetailsItem>
     </>
   );
 }

@@ -150,25 +150,31 @@ export function PodDetails({ obj, status }: PodDetailsProps) {
       <DetailsItem label="Status">
         {status}
       </DetailsItem>
-      <DetailsItem label="Restart policy">
+      <DetailsItem label="Restart policy" path="spec.restartPolicy">
         {RESTART_POLICIES[obj.spec?.restartPolicy ?? 'Always'] ?? obj.spec?.restartPolicy}
       </DetailsItem>
-      <DetailsItem label="Active deadline seconds">
+      <DetailsItem label="Active deadline seconds" path="spec.activeDeadlineSeconds">
         {deadline ? `${String(deadline)} ${deadline === 1 ? 'second' : 'seconds'}` : 'Not configured'}
       </DetailsItem>
-      <DetailsItem label={podIPs && podIPs.length > 1 ? 'Pod IPs' : 'Pod IP'}>
+      <DetailsItem
+        label={podIPs && podIPs.length > 1 ? 'Pod IPs' : 'Pod IP'}
+        path={podIPs && podIPs.length > 1 ? 'status.podIPs' : 'status.podIP'}
+      >
         {ipsText(podIPs, obj.status?.podIP)}
       </DetailsItem>
-      <DetailsItem label={hostIPs && hostIPs.length > 1 ? 'Host IPs' : 'Host IP'}>
+      <DetailsItem
+        label={hostIPs && hostIPs.length > 1 ? 'Host IPs' : 'Host IP'}
+        path={hostIPs && hostIPs.length > 1 ? 'status.hostIPs' : 'status.hostIP'}
+      >
         {ipsText(hostIPs, obj.status?.hostIP)}
       </DetailsItem>
       {obj.spec?.nodeName && (
-        <DetailsItem label="Node">
+        <DetailsItem label="Node" path="spec.nodeName">
           <BadgedName badge={{ kind: 'Node', abbr: 'N' }}>{obj.spec.nodeName}</BadgedName>
         </DetailsItem>
       )}
       {pullSecrets.length > 0 && (
-        <DetailsItem label="Image pull secret">
+        <DetailsItem label="Image pull secret" path="spec.imagePullSecrets">
           <List isPlain>
             {pullSecrets.map((secret) => (
               <ListItem key={secret.name}>

@@ -31,6 +31,7 @@ export {
   type DetailsColumnProps,
   type DetailsItemProps,
 } from './page/DetailsGrid';
+export { FieldHelpContext, type FieldHelp } from './page/FieldHelpContext';
 export {
   EnvironmentLabel,
   environmentLabel,

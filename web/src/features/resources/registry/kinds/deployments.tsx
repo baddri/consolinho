@@ -90,21 +90,23 @@ function DeploymentDetails({ obj }: { obj: DeploymentResource }) {
   const replicas = desired(obj);
   return (
     <>
-      <DetailsItem label="Update strategy">{type}</DetailsItem>
+      <DetailsItem label="Update strategy" path="spec.strategy.type">{type}</DetailsItem>
       {type === 'RollingUpdate' && (
         <>
-          <DetailsItem label="Max unavailable">
+          <DetailsItem label="Max unavailable" path="spec.strategy.rollingUpdate.maxUnavailable">
             {`${String(strategy?.rollingUpdate?.maxUnavailable ?? 1)} of ${String(replicas)} ${pods(replicas)}`}
           </DetailsItem>
-          <DetailsItem label="Max surge">
+          <DetailsItem label="Max surge" path="spec.strategy.rollingUpdate.maxSurge">
             {`${String(strategy?.rollingUpdate?.maxSurge ?? 1)} greater than ${String(replicas)} ${pods(replicas)}`}
           </DetailsItem>
         </>
       )}
-      <DetailsItem label="Progress deadline seconds">
+      <DetailsItem label="Progress deadline seconds" path="spec.progressDeadlineSeconds">
         {secondsText(obj.spec?.progressDeadlineSeconds)}
       </DetailsItem>
-      <DetailsItem label="Min ready seconds">{secondsText(obj.spec?.minReadySeconds)}</DetailsItem>
+      <DetailsItem label="Min ready seconds" path="spec.minReadySeconds">
+        {secondsText(obj.spec?.minReadySeconds)}
+      </DetailsItem>
     </>
   );
 }

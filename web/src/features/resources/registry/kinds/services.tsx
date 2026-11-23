@@ -88,14 +88,19 @@ function PortsTable({ service }: { service: Service }) {
 function ServiceDetails({ obj }: { obj: ServiceResource }) {
   return (
     <>
-      <DetailsItem label="Type">{serviceType(obj)}</DetailsItem>
-      <DetailsItem label={(obj.spec?.clusterIPs?.length ?? 0) > 1 ? 'Cluster IPs' : 'Cluster IP'}>
+      <DetailsItem label="Type" path="spec.type">{serviceType(obj)}</DetailsItem>
+      <DetailsItem
+        label={(obj.spec?.clusterIPs?.length ?? 0) > 1 ? 'Cluster IPs' : 'Cluster IP'}
+        path={(obj.spec?.clusterIPs?.length ?? 0) > 1 ? 'spec.clusterIPs' : 'spec.clusterIP'}
+      >
         {clusterIPs(obj)}
       </DetailsItem>
-      <DetailsItem label="Pod selector">
+      <DetailsItem label="Pod selector" path="spec.selector">
         <PodSelectorLink namespace={obj.metadata.namespace} matchLabels={obj.spec?.selector} />
       </DetailsItem>
-      <DetailsItem label="Session affinity">{obj.spec?.sessionAffinity ?? 'None'}</DetailsItem>
+      <DetailsItem label="Session affinity" path="spec.sessionAffinity">
+        {obj.spec?.sessionAffinity ?? 'None'}
+      </DetailsItem>
     </>
   );
 }

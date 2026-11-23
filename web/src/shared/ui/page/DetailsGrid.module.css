@@ -1,0 +1,4 @@
+/* OCP public/style/_common.scss `.co-pre-line`: keep the schema description's line breaks. */
+.description {
+  white-space: pre-line;
+}

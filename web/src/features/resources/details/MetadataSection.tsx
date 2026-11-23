@@ -66,17 +66,19 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
   const namespaceModel = useNamespaceModel(cluster);
   const { model, summary } = descriptor;
   const { name, namespace, labels = {}, annotations = {}, creationTimestamp } = obj.metadata;
+  // OCP `getTolerationsPath` / `PodResourceSummary`: a Pod's own spec, every other kind's pod template.
+  const podSpecPath = model.kind === 'Pod' ? 'spec' : 'spec.template.spec';
   return (
     <>
-      <DetailsItem label="Name">{name}</DetailsItem>
+      <DetailsItem label="Name" path="metadata.name">{name}</DetailsItem>
       {namespace !== undefined && (
-        <DetailsItem label="Namespace">
+        <DetailsItem label="Namespace" path="metadata.namespace">
           <BadgedName badge={NamespaceModel}>
             <Link to={resourcePath(cluster, namespaceModel, { name: namespace })}>{namespace}</Link>
           </BadgedName>
         </DetailsItem>
       )}
-      <DetailsItem label="Labels">
+      <DetailsItem label="Labels" path="metadata.labels">
         <ResourceLabels
           labels={labels}
           color={kindLabelColor(model.kind)}
@@ -86,29 +88,29 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
         />
       </DetailsItem>
       {summary?.podSelector && (
-        <DetailsItem label="Pod selector">
+        <DetailsItem label="Pod selector" path="spec.selector">
           <PodSelectorLink namespace={namespace} matchLabels={summary.podSelector(obj)} />
         </DetailsItem>
       )}
       {summary?.nodeSelector && (
-        <DetailsItem label="Node selector">
+        <DetailsItem label="Node selector" path={`${podSpecPath}.nodeSelector`}>
           <NodeSelector selector={summary.nodeSelector(obj)} />
         </DetailsItem>
       )}
       {summary?.tolerations && (
-        <DetailsItem label="Tolerations">
+        <DetailsItem label="Tolerations" path={`${podSpecPath}.tolerations`}>
           {countText(summary.tolerations(obj)?.length ?? 0, 'toleration')}
         </DetailsItem>
       )}
-      <DetailsItem label="Annotations">
+      <DetailsItem label="Annotations" path="metadata.annotations">
         <Annotations annotations={annotations} />
       </DetailsItem>
       {/* Rendered as a component (not called) so it may use hooks. */}
       {summary?.Extra && <summary.Extra obj={obj} />}
-      <DetailsItem label="Created at">
+      <DetailsItem label="Created at" path="metadata.creationTimestamp">
         <Timestamp value={creationTimestamp} />
       </DetailsItem>
-      <DetailsItem label="Owner">
+      <DetailsItem label="Owner" path="metadata.ownerReferences">
         <OwnerReferences obj={obj} />
       </DetailsItem>
     </>

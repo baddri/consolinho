@@ -47,8 +47,12 @@ export function DaemonSetDetailsTop({ obj }: { obj: DaemonSetResource }) {
 export function DaemonSetDetailsList({ obj }: { obj: DaemonSetResource }) {
   return (
     <>
-      <DetailsItem label="Current count">{daemonSetCurrent(obj)}</DetailsItem>
-      <DetailsItem label="Desired count">{daemonSetDesired(obj)}</DetailsItem>
+      <DetailsItem label="Current count" path="status.currentNumberScheduled">
+        {daemonSetCurrent(obj)}
+      </DetailsItem>
+      <DetailsItem label="Desired count" path="status.desiredNumberScheduled">
+        {daemonSetDesired(obj)}
+      </DetailsItem>
     </>
   );
 }
