@@ -1,8 +1,18 @@
+import type { AdminConfigurationSource } from '@/shared/api';
 import type { MockUser } from './types';
 import { daysAgo, minutesAgo } from './time';
 
 /** Configuration source of the dev admin group (contract §11: `Auth:AdminGroups = ["fleetconsole-admins"]`). */
-export const ADMIN_GROUP_SOURCE = 'group fleetconsole-admins';
+export const ADMIN_GROUP_SOURCE: AdminConfigurationSource = { kind: 'group', group: 'fleetconsole-admins' };
+
+/**
+ * The text the backend persists and writes to audit details and problem messages for a source
+ * (`AdminConfigurationSource.ToString()`): "user list" or "group <name>". Never shown to users by the SPA.
+ */
+export function adminSourceAuditText(source: AdminConfigurationSource | null): string | null {
+  if (source === null) return null;
+  return source.kind === 'group' ? `group ${source.group ?? ''}` : 'user list';
+}
 
 /**
  * Users of the mock backend, one per persona the UI must handle:

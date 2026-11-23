@@ -1,6 +1,6 @@
 import type { UserRole } from '@/shared/api';
 import { actorName, findUser, isAdmin, mockDb, recordAudit } from '../db';
-import type { MockUser } from '../fixtures';
+import { adminSourceAuditText, type MockUser } from '../fixtures';
 import { conflictProblem, problem } from '../problem';
 import { bindBody, bindVersion, type BodyBinder, type EnumValues } from './body';
 import { http } from './http';
@@ -149,7 +149,7 @@ export const userHandlers = [
         user.isAdminByAssignment = true;
         commitUserChange(user, 'user.promoted', `${actor} promoted ${user.username} to administrator.`, {
           source: 'manual',
-          configurationSource: user.adminConfigurationSource,
+          configurationSource: adminSourceAuditText(user.adminConfigurationSource),
         });
       }
       return response(200).json(toUserDetail(user));
@@ -159,7 +159,7 @@ export const userHandlers = [
     if (user.adminConfigurationSource !== null) {
       return problem(409, {
         code: 'Users.AdminViaConfiguration',
-        detail: `Admin granted by configuration (${user.adminConfigurationSource}). Change the configuration to remove.`,
+        detail: `Admin granted by configuration (${adminSourceAuditText(user.adminConfigurationSource)}). Change the configuration to remove.`,
       });
     }
     if (user.username === actor) return selfChangeProblem();

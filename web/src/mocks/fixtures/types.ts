@@ -1,5 +1,6 @@
 import type {
   AccessMode,
+  AdminConfigurationSource,
   CapabilityLevel,
   ClusterDistribution,
   ClusterEnvironment,
@@ -17,8 +18,11 @@ export interface MockUser {
   username: string;
   displayName: string | null;
   isAdminByAssignment: boolean;
-  /** e.g. `group fleetconsole-admins`; `null` when configuration does not make the user admin (ADR-0009). */
-  adminConfigurationSource: string | null;
+  /**
+   * The wire shape (POL-4), e.g. `{ kind: 'group', group: 'fleetconsole-admins' }`; `null` when configuration does
+   * not make the user admin (ADR-0009).
+   */
+  adminConfigurationSource: AdminConfigurationSource | null;
   status: UserStatus;
   isReadOnly: boolean;
   lastLoginAt: string | null;

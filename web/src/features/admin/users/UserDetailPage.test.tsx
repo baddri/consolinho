@@ -89,7 +89,7 @@ describe('UserDetailPage (T-0032)', () => {
   it('USR-6: an admin from the deployment user list and a read-only admin', async () => {
     const ines = mockDb.users.find((u) => u.username === 'ines');
     if (!ines) throw new Error('no ines fixture');
-    ines.adminConfigurationSource = 'user list';
+    ines.adminConfigurationSource = { kind: 'userList', group: null };
     renderApp('/fleet/admin/users/ines');
     await findDetails();
 

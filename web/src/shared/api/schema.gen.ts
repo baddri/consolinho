@@ -581,6 +581,18 @@ export interface components {
             /** @description Optional namespaces (up to 10) the connection test lists the token's rules in; saved on the credential. */
             inspectNamespaces?: null | string[];
         };
+        /** @description Why configuration makes a user an administrator. */
+        AdminConfigurationSource: {
+            /** @description userList: listed in the bootstrap admin users; group: member of a configured admin group. */
+            kind: components["schemas"]["AdminConfigurationSourceKind"];
+            /** @description The admin group name when kind is group; null otherwise. */
+            group: null | string;
+        };
+        /**
+         * @description The kind of configuration that makes a user an administrator (ADR-0009, USR-6).
+         * @enum {string}
+         */
+        AdminConfigurationSourceKind: "userList" | "group";
         /**
          * @description Coarse grouping of audit entries for the audit-log filter (AUD-4). Derived from the action prefix by
          *     AuditEntry AuditEntry.Record(AuditActor actor, string action, AuditTargetType targetType, string? targetId, string targetName, string? clusterName, string summary, string? correlationId, string detailsJson, DateTimeOffset occurredAt, string? relatedUsername = null), never chosen by callers, so category and action cannot disagree.
@@ -1038,8 +1050,8 @@ export interface components {
             groups: string[];
             /** @description Whether configuration (user list or admin group) makes the user an administrator. */
             isAdminViaConfiguration: boolean;
-            /** @description Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't. */
-            adminConfigurationSource: null | string;
+            /** @description Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't. */
+            adminConfigurationSource: null | components["schemas"]["AdminConfigurationSource"];
         };
         /**
          * @description A user's access to one cluster through a ServiceAccount credential, with the state of user, cluster and credential
@@ -1310,8 +1322,8 @@ export interface components {
             isAdminViaConfiguration: boolean;
             /** @description Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false. */
             isAdminByAssignment: boolean;
-            /** @description Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't. */
-            adminConfigurationSource: null | string;
+            /** @description Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't. */
+            adminConfigurationSource: null | components["schemas"]["AdminConfigurationSource"];
             /** @description pending (never logged in), active, or deactivated. */
             status: components["schemas"]["UserStatus"];
             /** @description Whether the user is globally read-only. */
@@ -1353,8 +1365,8 @@ export interface components {
             isAdminViaConfiguration: boolean;
             /** @description Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false. */
             isAdminByAssignment: boolean;
-            /** @description Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't. */
-            adminConfigurationSource: null | string;
+            /** @description Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't. */
+            adminConfigurationSource: null | components["schemas"]["AdminConfigurationSource"];
             /** @description pending (never logged in), active, or deactivated. */
             status: components["schemas"]["UserStatus"];
             /** @description Whether the user is globally read-only. */
