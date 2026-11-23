@@ -195,6 +195,28 @@ CONNECT/200 branch once T-0091 pins HTTP/1.1.
 - **QGB-1** Gates green; Api tests for Job create (CJ-2) RW/RO; e2e: Start Job → lands on Job; Search by label returns Deployment + Pods + Service sections; Secret masked by default.
 - **QGB-2** Parity rows for every new list/details page `match` at accept.
 
+### 4b.7 Task breakdown (frontend-architect, 2026-11-23)
+Order and lanes (≤3 engineers at once; each task's `paths` are disjoint from its parallel lanes):
+- **First:** T-0189 foundation (models, mocks, nav order WL-1, tab slots, minimal descriptors) ∥ T-0199 CP4a chores
+  (shared `TogglePlay`, `@xterm/*` import rule).
+- **Lane A (scale kit → workloads):** T-0190 shared scale/count/restart + HPA-aware ring → T-0191 StatefulSets/DaemonSets
+  → T-0192 standalone RS/RC (+ `name: ''` SSAR fix) → T-0193 DeploymentConfigs.
+- **Lane B (config → HPA → jobs):** T-0196 ConfigMaps/Secrets → T-0195 HPA pages → T-0194 Jobs/CronJobs (also needs T-0190).
+- **Lane C (search):** T-0197 Search page → T-0198 label chips → Search.
+- **Last:** T-0200 QA (QGB e2e, carried CP4a e2e, parity rows).
+
+Design deviations (follow OCP source; accepted by the orchestrator 2026-11-23 per the UI north star, PO re-checks at ACCEPT): **HPA-1** — with an HPA the ring shows "Autoscaled" without
+arrows and "Edit Pod count" is hidden (OCP), not a warning in the modal; **SRCH-1** — Resources lists kinds that have a
+descriptor and are served, not every discovered kind (others have no pages yet); **WL-3/4** — Restart rollout on
+StatefulSets/DaemonSets is a fleet addition (OCP has none); **WL-6** — the DC deprecation alert sits on the list page (OCP),
+RC "Cancel rollout" is not in scope; HPA edit/remove actions on workloads (OCP dev-console) not in scope.
+Deferred to CP4c POL: ui-probe of Terminal at 1280×800 and Update strategy modal (ux-designer); `matchExpressions` in owner
+selectors; UX.md §2a band wording; drop the CONNECT/200 branch after T-0091 (BE); readable audit labels for
+`instantiate`/`rollback` (with POL-3).
+Backend asks (backend-architect): `ProxyMutationVerbTests` rows for POST `deploymentconfigs/<n>/instantiate` and
+`…/rollback`, PUT deploymentconfigs, PATCH secrets; an Api test that Secret data never reaches audit/logs (CFG-4, extend
+`ProxyTokenLeakSweepTests`). Job create RW/RO (QGB-1) is already covered.
+
 ---
 
 ## CP4c — Schema, forms and polish
