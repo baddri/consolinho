@@ -3,10 +3,12 @@ import { DeploymentModel, type Deployment, type K8sResource } from '@/shared/k8s
 import { DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
 import { ConditionsTable } from '../../components/ConditionsTable';
 import { ContainersTable } from '../../components/ContainersTable';
+import { useActionAccess } from '../../actions/useActionAccess';
 import { PodRing } from '../../components/PodRing';
 import { VolumesTable } from '../../components/VolumesTable';
 import { DeploymentPausedAlert } from '../../workloads/deployments/DeploymentPausedAlert';
 import { useDeploymentActions } from '../../workloads/deployments/useDeploymentActions';
+import { useScaleDeployment } from '../../workloads/deployments/useScaleDeployment';
 import {
   PodSelectorLink,
   ReplicasCountLink,
@@ -65,8 +67,34 @@ function DeploymentDetailsTop({ obj }: { obj: DeploymentResource }) {
   return (
     <>
       <DeploymentPausedAlert cluster={cluster} deployment={obj} />
-      <PodRing cluster={cluster} workload={obj} selector={obj.spec?.selector.matchLabels} />
+      <DeploymentPodRing cluster={cluster} obj={obj} />
     </>
+  );
+}
+
+/**
+ * The deployment's ring with OCP's scale arrows (DEP-5): one `…/scale` PATCH per burst of clicks via
+ * `useScaleDeployment` (failures toast), the arrows gated by `patch deployments/scale` like Edit Pod count.
+ */
+function DeploymentPodRing({ cluster, obj }: { cluster: string; obj: DeploymentResource }) {
+  const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
+  const scale = useScaleDeployment(cluster, { toastErrors: { action: 'Scale' } });
+  const access = useActionAccess(
+    cluster,
+    { verb: 'patch', model: DeploymentModel, subresource: 'scale', ...target },
+    true,
+  );
+  return (
+    <PodRing
+      cluster={cluster}
+      workload={obj}
+      selector={obj.spec?.selector.matchLabels}
+      scale={{
+        desired: desired(obj),
+        onScale: (replicas) => scale.mutateAsync({ ...target, replicas }),
+        disabled: access,
+      }}
+    />
   );
 }
 
