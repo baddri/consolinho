@@ -43,7 +43,10 @@ web/src/
     resources/            # generic resource browser — the core engine
       registry/           # ResourceDescriptor per kind: columns, detail tabs, actions, status getter
       ResourceListPage.tsx  ResourceDetailsPage.tsx  ResourceYamlTab.tsx  ResourceEventsTab.tsx
-      workloads/          # kind extras inside the engine (ADR-0037 §1): logs/, terminal/, pods/, deployments/, replicasets/
+      workloads/          # kind extras inside the engine (ADR-0037 §1): logs/, terminal/, pods/, deployments/, replicasets/,
+                          #   scale/ (count modal, ring, restart — any scalable kind), statefulsets/, daemonsets/,
+                          #   deploymentconfigs/, jobs/, cronjobs/, hpa/, config/ (ConfigMap/Secret data) (CP4b)
+      search/             # Home → Search (CP4b SRCH): kinds × label/name, one-shot lists
     networking/  storage/  compute/  home/ (overview, search, events)
     admin/                # routes.tsx (lazy route objects), RequireAdmin, useAdminAccess, queryKeys.ts
       users/ clusters/ credentials/ connection-test/ grants/ audit/   # one folder per area: api.ts (hooks), pages, dialogs
@@ -64,9 +67,11 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 /c/:cluster/k8s/:plural                        # NamespaceRedirect → last project of this cluster, else all-namespaces
 /c/:cluster/k8s/all-namespaces/:plural         # list, all namespaces   ?name=&label=&status=|type=
 /c/:cluster/k8s/ns/:namespace/:plural          # list, one namespace
-/c/:cluster/k8s/ns/:namespace/:plural/:name[/yaml|/replicasets|/pods|/logs|/events|/terminal]   # details tabs (ADR-0037 §2)
+/c/:cluster/k8s/ns/:namespace/:plural/:name[/yaml|/replicasets|/replicationcontrollers|/pods|/jobs|/logs|/events|/terminal]   # details tabs (ADR-0037 §2)
 /c/:cluster/k8s/cluster/:plural[/:name[/yaml|/events]]       # cluster-scoped kinds (projects, namespaces, nodes…)
-/c/:cluster/overview | /c/:cluster/search      # placeholders, not in the nav until CP5
+/c/:cluster/search                             # → search/ns/<last project> or search/all-namespaces (CP4b)
+/c/:cluster/search/(ns/:namespace|all-namespaces)   # ?kind=<ref>,<ref>&q=<k=v>,<k=v>&name=  (OCP params; ref = group~version~Kind, core = `core`)
+/c/:cluster/overview                           # placeholder, not in the nav until CP5
 /fleet                                         # → /fleet/admin/users; /fleet/<unknown> → 404  (ADR-0033)
 /fleet/admin/users                             # ?q=&role=&status=&readOnly=
 /fleet/admin/users/:username[/access]          # tabs: details (index) | access; username URL-encoded
@@ -133,6 +138,9 @@ with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (reg
   (one per key per tab) patches it; 410 → relist; errors → backoff 1 s → 30 s with a "Paused — retrying" status in the heading (nothing is shown while live, CP3.5).
   Kubernetes `Status` errors map to `ApiError` with `code = "Kubernetes.<reason>"`; proxy errors keep their `Proxy.*`
   code. Big lists paginate client-side (PF `Pagination`), no virtualisation.
+- Exception (CP4b, SRCH-5): Search result sections are **one-shot lists** (`k8sListAll`, no watch, `staleTime` 30 s,
+  key `['k8s', cluster, 'search', modelKey, ns, labelSelector]`), at most 6 requests in flight through one shared
+  `p-limit(6)` limiter — N live watches would hold N long-lived connections (HTTP/1.1 allows 6 per origin).
 - Mutations invalidate/update the relevant query keys; show PatternFly alerts for success/failure.
 - A 403 from the MutationGuard policy shows its `detail` ("Your access to cluster X is read-only").
 - All non-GET `/api` requests send `X-Console-Request: 1` (CSRF defence, see SECURITY.md).

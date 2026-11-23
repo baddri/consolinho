@@ -24,7 +24,7 @@ function PausedAlert({ cluster, deployment }: DeploymentPausedAlertProps) {
   const namespace = deployment.metadata.namespace;
   const name = deployment.metadata.name ?? '';
   const access = useActionAccess(cluster, { verb: 'patch', model: DeploymentModel, namespace, name }, true);
-  const togglePaused = useTogglePaused(cluster, deployment);
+  const togglePaused = useTogglePaused(cluster, DeploymentModel, deployment);
 
   const link = (
     <AlertActionLink

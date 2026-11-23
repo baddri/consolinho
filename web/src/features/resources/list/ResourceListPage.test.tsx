@@ -282,7 +282,7 @@ describe('resource list filters and sorting (UI-3)', () => {
     await within(await findTable('Pods')).findByText(CRASHING_POD);
 
     await chooseFilter(user, 'Label');
-    await user.type(screen.getByRole('textbox', { name: 'Filter by label' }), 'app');
+    await user.type(screen.getByRole('textbox', { name: 'Filter by label' }), 'app=w');
     await user.click(await screen.findByRole('button', { name: 'app=web' }));
 
     await waitFor(() =>
@@ -359,7 +359,7 @@ describe('resource list filters and sorting (UI-3)', () => {
   });
 
   it('has no Namespace column in one namespace', async () => {
-    renderApp('/c/dev-1/k8s/ns/shop/pods');
+    renderApp('/c/dev-1/k8s/ns/shop/pods?label=app%3Dweb');
     const table = await findTable('Pods');
     await within(table).findByText(CRASHING_POD);
 

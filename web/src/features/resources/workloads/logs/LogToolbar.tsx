@@ -18,13 +18,11 @@ import {
   RhUiDownloadIcon,
   RhUiExpandIcon,
   RhUiExternalLinkIcon,
-  RhUiPauseFillIcon,
-  RhUiPlayFillIcon,
   RhUiSearchIcon,
 } from '@patternfly/react-icons';
 import { LogViewerSearch } from '@patternfly/react-log-viewer';
-import { css } from '@patternfly/react-styles';
 import { useState, type ReactNode, type Ref } from 'react';
+import { TogglePlay } from '@/shared/ui';
 import type { PodLogStatus } from './usePodLog';
 import styles from './PodLogsTab.module.css';
 
@@ -61,19 +59,6 @@ export interface LogToolbarProps {
   onToggleExpand: () => void;
 }
 
-/** OCP `TogglePlay`: round pause/play button with a green ring while streaming. */
-function TogglePlay({ active, onClick }: { active: boolean; onClick: () => void }) {
-  return (
-    <Button
-      variant="plain"
-      icon={active ? <RhUiPauseFillIcon /> : <RhUiPlayFillIcon />}
-      className={css(styles.togglePlay, active && styles.togglePlayActive)}
-      onClick={onClick}
-      aria-label={active ? 'Pause event streaming' : 'Start streaming events'}
-    />
-  );
-}
-
 /** OCP `playPauseButton`: a spinner while loading, play/pause while streaming, nothing at the end (the banner says it). */
 function StreamControl({
   status,
@@ -92,7 +77,7 @@ function StreamControl({
   return (
     <ToolbarItem>
       <Tooltip content={STATUS_MESSAGES[status]}>
-        <TogglePlay active={status === 'streaming'} onClick={onTogglePlay} />
+        <TogglePlay active={status === 'streaming'} onClick={onTogglePlay} className={styles.togglePlay} />
       </Tooltip>
     </ToolbarItem>
   );

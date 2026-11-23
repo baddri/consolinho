@@ -1,0 +1,32 @@
+/* OCP `co-search-group__accordion-label`: the plural label, then `group/version` (small, subtle) on the same line. */
+.toggleText {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+/* OCP `co-search-group__filter`: the Label/Name filter grows into the rest of the toolbar row. */
+.filter {
+  flex: 1 0 auto;
+}
+
+/* OCP `co-resource-item` in the resource dropdown: kind badge before the kind. */
+.kindOption {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--pf-t--global--spacer--xs);
+}
+
+/* OCP `co-resource-item` (no gap) in the resource dropdown options. */
+.kindItem {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+/* OCP `co-resource-icon--fixed-width`: a 54px centred badge column so the kind names line up. */
+.kindIcon {
+  display: flex;
+  justify-content: center;
+  width: 54px;
+}

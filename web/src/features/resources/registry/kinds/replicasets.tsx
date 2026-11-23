@@ -73,7 +73,7 @@ function ReplicaSetSections({ obj }: { obj: ReplicaSetResource }) {
  */
 export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
   model: ReplicaSetModel,
-  nav: { section: 'workloads', order: 40 },
+  nav: { section: 'workloads', order: 100 },
   status,
   hideHeadingStatus: true,
   summary: {

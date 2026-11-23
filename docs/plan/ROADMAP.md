@@ -94,6 +94,7 @@ Human directive (2026-11-23). Shell and data changes that every CP4/CP5 page bui
 ## CP4 — Workloads day-2 operations
 Spec `docs/specs/CP4-workloads.md` (2026-11-23): split **CP4a** Pods + Deployments → **CP4b** other kinds, Jobs/CronJobs,
 HPA, ConfigMaps/Secrets, Search → **CP4c** cluster OpenAPI, field help, Edit forms, polish. Tag + merge per sub-checkpoint.
+**CP4a DONE (tag cp-4a). CP4b DONE (tag cp-4b, accepted 2026-11-23, spec §4b.8; CP4c follow-ups listed there).**
 PO Q1–Q8 recommendations accepted by the orchestrator (Secret reveal without modal = OCP parity; exec 60-min cap).
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
@@ -136,6 +137,8 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP4 spec) Multi-pod aggregated logs for a Deployment.
 - (CP4 spec) Recent resources per cluster; keyboard shortcuts `l`/`t`/`y` on details pages; Secret create forms.
 - OIDC/SSO login (groups for grants → CP4.5).
+- (CP4b ACCEPT) OCP-style error modal for modal-less actions (we toast today).
+- (CP4b ACCEPT) RC Cancel rollout; merge DC/Deployment paused alerts into `WorkloadPausedAlert`.
 - Fleet-wide search ("where is image X running?").
 - Change windows policy (block mutations on prod outside business hours).
 - Per-cluster favourites and pinned resources.

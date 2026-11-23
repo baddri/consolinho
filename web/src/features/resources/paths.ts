@@ -4,10 +4,18 @@ import type { K8sModel } from '@/shared/k8s';
 export const ALL_NAMESPACES = 'all';
 
 /**
- * Details tab segments; the Details tab itself has none. `replicasets`, `logs` and `terminal` exist only for kinds
- * that opt in (`ResourceDescriptor.extraTabs`, ADR-0037 §2).
+ * Details tab segments; the Details tab itself has none. `replicasets`, `replicationcontrollers`, `jobs`, `logs` and
+ * `terminal` exist only for kinds that opt in (`ResourceDescriptor.extraTabs`, ADR-0037 §2).
  */
-export type DetailsTab = 'yaml' | 'replicasets' | 'pods' | 'logs' | 'events' | 'terminal';
+export type DetailsTab =
+  | 'yaml'
+  | 'replicasets'
+  | 'replicationcontrollers'
+  | 'pods'
+  | 'jobs'
+  | 'logs'
+  | 'events'
+  | 'terminal';
 
 /** Options of {@link resourcePath}. */
 export interface ResourcePathOptions {

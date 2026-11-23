@@ -86,7 +86,7 @@ describe('Events page as the OCP event stream (T-0124)', () => {
     await waitFor(() => expect(messages()).toHaveLength(3));
 
     await user.click(screen.getByRole('combobox', { name: 'Resources' }));
-    await user.click(await screen.findByRole('checkbox', { name: /Deployment/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /Deployment$/ }));
     expect(await screen.findByText('No matching events')).toBeInTheDocument();
     expect(screen.getByText('4 events exist, but none match the current filter')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Clear resource filter/ }));

@@ -29,7 +29,9 @@ const TAB_TITLES: Record<ResourceTab, string> = {
   details: 'Details',
   yaml: 'YAML',
   replicasets: 'ReplicaSets',
+  replicationcontrollers: 'ReplicationControllers',
   pods: 'Pods',
+  jobs: 'Jobs',
   logs: 'Logs',
   events: 'Events',
   terminal: 'Terminal',
@@ -37,15 +39,17 @@ const TAB_TITLES: Record<ResourceTab, string> = {
 
 /**
  * Whether `descriptor`'s details page has the tab `tab`: Pods only with a pod selector, Events unless opted out, the
- * kind tabs (ReplicaSets, Logs, Terminal) only when listed in `extraTabs` (ADR-0037 §2).
+ * kind tabs (ReplicaSets, ReplicationControllers, Jobs, Logs, Terminal) only when listed in `extraTabs` (ADR-0037 §2).
  */
 function hasTab(descriptor: ResourceDescriptor, tab: ResourceTab): boolean {
   switch (tab) {
     case 'pods':
-      return descriptor.podsSelector !== undefined;
+      return descriptor.podsSelector !== undefined || descriptor.PodsTab !== undefined;
     case 'events':
       return descriptor.hasEventsTab !== false;
     case 'replicasets':
+    case 'replicationcontrollers':
+    case 'jobs':
     case 'logs':
     case 'terminal':
       return descriptor.extraTabs?.includes(tab) ?? false;
@@ -189,6 +193,7 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
         actions={
           obj && <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />
         }
+        alert={descriptor.HeadingAlert && <descriptor.HeadingAlert cluster={cluster} />}
       />
       {body}
     </>

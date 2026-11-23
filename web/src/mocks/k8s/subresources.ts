@@ -1,9 +1,15 @@
 import { applyPatch, JsonPatchError, type Operation } from 'fast-json-patch';
 import { HttpResponse } from 'msw';
-import type { K8sModel, K8sResource } from '@/shared/k8s';
+import {
+  ReplicationControllerModel,
+  type DeploymentConfig,
+  type K8sModel,
+  type K8sResource,
+  type ReplicationController,
+} from '@/shared/k8s';
 import { podLog } from './podLogs';
 import { notFound, statusResponse } from './status';
-import { getObject, upsertObject } from './store';
+import { getObject, listObjects, upsertObject } from './store';
 
 /**
  * Subresources of the mock API server (T-0174, ADR-0037 §8) and the JSON Patch engine every mock PATCH uses. Each
@@ -116,16 +122,31 @@ interface Scale {
 
 /** The replica-count fields of a scalable workload. */
 interface Scalable extends K8sResource {
-  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } };
+  /** A `LabelSelector` (apps kinds) or a plain label map (ReplicationController, DeploymentConfig). */
+  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } | Record<string, string> };
   status?: { replicas?: number };
 }
 
-/** `<group>/<plural>` of the kinds with a `scale` subresource. */
-const SCALABLE = new Set(['apps/deployments', 'apps/replicasets', 'apps/statefulsets']);
+/** `<group>/<plural>` of the kinds with a `scale` subresource (Jobs have none: parallelism is a plain PATCH). */
+const SCALABLE = new Set([
+  'apps/deployments',
+  'apps/replicasets',
+  'apps/statefulsets',
+  '/replicationcontrollers',
+  'apps.openshift.io/deploymentconfigs',
+]);
+
+/** The equality labels of a workload's selector, whichever of the two shapes it has. */
+function selectorLabels(selector: NonNullable<Scalable['spec']>['selector']): [string, string][] {
+  if (!selector) return [];
+  const { matchLabels } = selector;
+  if (typeof matchLabels === 'object') return Object.entries(matchLabels);
+  return Object.entries(selector).filter((entry): entry is [string, string] => typeof entry[1] === 'string');
+}
 
 function scaleOf(object: Scalable): Scale {
   const { name, namespace, uid, resourceVersion, creationTimestamp } = object.metadata;
-  const labels = Object.entries(object.spec?.selector?.matchLabels ?? {});
+  const labels = selectorLabels(object.spec?.selector);
   return {
     apiVersion: 'autoscaling/v1',
     kind: 'Scale',
@@ -170,5 +191,132 @@ const scale: SubresourceHandler = {
   },
 };
 
+/** Whether `model` is OpenShift's DeploymentConfig, the only kind with `instantiate` and `rollback`. */
+function isDeploymentConfig(model: K8sModel): boolean {
+  return model.group === 'apps.openshift.io' && model.plural === 'deploymentconfigs';
+}
+
+/** 405 for a verb a POST-only subresource does not serve. */
+function postOnly(): Response {
+  return statusResponse(405, 'MethodNotAllowed', 'the server does not allow this method on the requested resource');
+}
+
+/** Label (and annotation) the deployer stamps on a DeploymentConfig's RCs. */
+const DC_NAME_LABEL = 'openshift.io/deployment-config.name';
+
+/** The ReplicationControllers a DeploymentConfig created (one per rollout), by the deployer's name label. */
+function controllersOf(cluster: string, dc: DeploymentConfig): ReplicationController[] {
+  return listObjects(cluster, ReplicationControllerModel, dc.metadata.namespace).filter(
+    (rc) => rc.metadata.labels?.[DC_NAME_LABEL] === dc.metadata.name,
+  ) as ReplicationController[];
+}
+
+/**
+ * `POST deploymentconfigs/<name>/instantiate` (a `DeploymentRequest`, OCP "Start rollout"): bumps
+ * `status.latestVersion`, adds RC `<name>-<version>` running the DC's template and scales the older RCs to 0 — the
+ * end state of a completed rollout. Answers 201 with the updated DeploymentConfig.
+ */
+const instantiate: SubresourceHandler = {
+  appliesTo: isDeploymentConfig,
+  serve({ cluster, model, namespace, name, verb }) {
+    if (verb !== 'create') return postOnly();
+    const dc = getObject(cluster, model, namespace, name) as DeploymentConfig | undefined;
+    if (!dc) return notFound(model.plural, name, model.group);
+    const version = (dc.status?.latestVersion ?? 0) + 1;
+    const replicas = dc.spec?.replicas ?? 1;
+    for (const old of controllersOf(cluster, dc)) {
+      upsertObject(cluster, { ...old, spec: { ...old.spec, replicas: 0 }, status: { replicas: 0 } } as K8sResource);
+    }
+    const rcName = `${name}-${String(version)}`;
+    const labels = { ...dc.spec?.selector, deployment: rcName };
+    const template = structuredClone(dc.spec?.template ?? {});
+    template.metadata = { ...template.metadata, labels: { ...template.metadata?.labels, deployment: rcName } };
+    const controller: ReplicationController = {
+      apiVersion: 'v1',
+      kind: 'ReplicationController',
+      metadata: {
+        name: rcName,
+        namespace,
+        labels: { ...dc.metadata.labels, [DC_NAME_LABEL]: name },
+        annotations: {
+          [DC_NAME_LABEL]: name,
+          'openshift.io/deployment-config.latest-version': String(version),
+          'openshift.io/deployment.phase': 'Complete',
+        },
+        ownerReferences: [
+          {
+            apiVersion: 'apps.openshift.io/v1',
+            kind: 'DeploymentConfig',
+            name,
+            uid: dc.metadata.uid ?? '',
+            controller: true,
+            blockOwnerDeletion: true,
+          },
+        ],
+      },
+      spec: { replicas, selector: labels, template },
+      status: { replicas, readyReplicas: replicas, availableReplicas: replicas },
+    };
+    upsertObject(cluster, controller as K8sResource);
+    const updated = upsertObject(cluster, {
+      ...dc,
+      status: { ...dc.status, latestVersion: version, details: { message: 'manual change' } },
+    } as K8sResource);
+    return HttpResponse.json(updated, { status: 201 });
+  },
+};
+
+/** The body of `POST …/rollback`, as far as the mock reads it. */
+interface DeploymentConfigRollback {
+  kind?: string;
+  spec?: { from?: { name?: string }; revision?: number; includeReplicationMeta?: boolean };
+}
+
+/**
+ * `POST deploymentconfigs/<name>/rollback` (a `DeploymentConfigRollback`): answers 200 with the DeploymentConfig as it
+ * would be rolled back — the RC's pod template without the deployer's `deployment` label (plus its replicas with
+ * `includeReplicationMeta`) — without storing it; the client then PUTs the answer (OCP `rollback-modal.tsx`). The RC
+ * is found by `spec.revision`, else by `spec.from.name`.
+ */
+const rollback: SubresourceHandler = {
+  appliesTo: isDeploymentConfig,
+  async serve({ cluster, request, model, namespace, name, verb }) {
+    if (verb !== 'create') return postOnly();
+    const dc = getObject(cluster, model, namespace, name) as DeploymentConfig | undefined;
+    if (!dc) return notFound(model.plural, name, model.group);
+    let body: DeploymentConfigRollback;
+    try {
+      body = (await request.json()) as DeploymentConfigRollback;
+    } catch {
+      return statusResponse(400, 'BadRequest', 'the rollback request is not valid JSON');
+    }
+    if (body.kind !== 'DeploymentConfigRollback') {
+      return statusResponse(400, 'BadRequest', `expected kind DeploymentConfigRollback, got ${String(body.kind)}`);
+    }
+    const rcName =
+      body.spec?.revision ? `${name}-${String(body.spec.revision)}` : body.spec?.from?.name;
+    const rc =
+      rcName === undefined
+        ? undefined
+        : (getObject(cluster, ReplicationControllerModel, namespace, rcName) as ReplicationController | undefined);
+    if (!rc) {
+      return invalidStatus({ name, group: model.group, kind: 'DeploymentConfigRollback' }, [
+        ['spec.revision', `couldn't find deployment for rollback`],
+      ]);
+    }
+    const template = structuredClone(rc.spec?.template ?? {});
+    if (template.metadata?.labels) delete template.metadata.labels.deployment;
+    const rolledBack: DeploymentConfig = {
+      ...dc,
+      spec: {
+        ...dc.spec,
+        template,
+        ...(body.spec?.includeReplicationMeta ? { replicas: rc.spec?.replicas ?? 1 } : {}),
+      },
+    };
+    return HttpResponse.json(rolledBack);
+  },
+};
+
 /** Subresources the mock serves, by URL segment. */
-export const SUBRESOURCES: Record<string, SubresourceHandler> = { scale, log: podLog };
+export const SUBRESOURCES: Record<string, SubresourceHandler> = { scale, log: podLog, instantiate, rollback };

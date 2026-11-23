@@ -30,10 +30,10 @@ function terms(list: HTMLElement): string[] {
     .map((term) => term.textContent);
 }
 
-/** The table row whose name link is `name`. */
+/** The table row whose name link is `name` (the first such link: an HPA's scale target can share the name). */
 async function findRow(table: HTMLElement, name: string): Promise<HTMLElement> {
-  const link = await within(table).findByRole('link', { name });
-  const row = link.closest('tr');
+  const [link] = await within(table).findAllByRole('link', { name });
+  const row = link?.closest('tr');
   if (!row) throw new Error(`no row for ${name}`);
   return row;
 }
@@ -97,9 +97,9 @@ describe('deployments (QG-3)', () => {
         'href',
         PODS_OF_WEB,
       );
-      // OCP `LabelList`: kind-coloured labels, each linking (no Search page) to this kind's list filtered by it.
+      // OCP `LabelList` (SRCH-4): kind-coloured labels, each linking to Search with it and this kind preselected.
       const label = within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' });
-      expect(label).toHaveAttribute('href', '/c/dev-1/k8s/ns/shop/deployments?label=app%3Dweb');
+      expect(label).toHaveAttribute('href', '/c/dev-1/search/ns/shop?kind=apps~v1~Deployment&q=app%3Dweb');
       expect(label.closest('.pf-v6-c-label')).toHaveClass('pf-m-blue');
     },
   );
@@ -146,12 +146,12 @@ describe('deployments (QG-3)', () => {
       'Created at',
       'Owner',
     ]);
-    // The label links to deployments with that label, the pod selector to the matching pods.
+    // The label links to Search for deployments with it (SRCH-4), the pod selector to the matching pods.
     expect(
       within(metadata)
         .getAllByRole('link', { name: 'app=web' })
         .map((link) => link.getAttribute('href')),
-    ).toEqual(['/c/dev-1/k8s/ns/shop/deployments?label=app%3Dweb', PODS_OF_WEB]);
+    ).toEqual(['/c/dev-1/search/ns/shop?kind=apps~v1~Deployment&q=app%3Dweb', PODS_OF_WEB]);
     // 2 of 3 replicas available: still rolling out.
     expect(within(metadata).getByText('Updating')).toBeInTheDocument();
     // OCP counts ready + failed pods: 2 ready + 1 crash-looping.
@@ -182,7 +182,7 @@ describe('services (QG-3)', () => {
     const row = await findRow(table, 'web');
     expect(within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
       'href',
-      '/c/dev-1/k8s/ns/shop/services?label=app%3Dweb',
+      '/c/dev-1/search/ns/shop?kind=core~v1~Service&q=app%3Dweb',
     );
     expect(within(cell(row, 'Pod selector')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
       'href',
@@ -192,13 +192,13 @@ describe('services (QG-3)', () => {
     expect(within(row).getByText(/^172\.30\.\d+\.17:80$/)).toBeInTheDocument();
   });
 
-  it('links labels to the list in the same scope (all projects)', async () => {
+  it('links labels to Search in the same scope (all projects)', async () => {
     renderApp('/c/dev-1/k8s/all-namespaces/services');
 
     const row = await findRow(await screen.findByRole('grid', { name: 'Services' }), 'web');
     expect(within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
       'href',
-      '/c/dev-1/k8s/all-namespaces/services?label=app%3Dweb',
+      '/c/dev-1/search/all-namespaces?kind=core~v1~Service&q=app%3Dweb',
     );
   });
 
@@ -283,5 +283,49 @@ describe('navigation (UI-2)', () => {
     const items = await navItems(user);
     expect(items).toContain('Namespaces');
     expect(items).not.toContain('Projects');
+  });
+});
+
+describe('CP4b kinds (T-0189 foundation)', () => {
+  it.each([
+    ['statefulsets', 'StatefulSets', 'db'],
+    ['daemonsets', 'DaemonSets', 'node-agent'],
+    ['replicationcontrollers', 'ReplicationControllers', 'legacy-rc'],
+    ['deploymentconfigs', 'DeploymentConfigs', 'frontend'],
+    ['jobs', 'Jobs', 'migrate-db'],
+    ['cronjobs', 'CronJobs', 'nightly-report'],
+    ['horizontalpodautoscalers', 'HorizontalPodAutoscalers', 'worker'],
+    ['secrets', 'Secrets', 'db-credentials'],
+  ])('lists %s from the fixtures and opens the details page', async (plural, title, name) => {
+    const { user, router } = renderApp(`/c/dev-1/k8s/ns/shop/${plural}`);
+
+    const table = await screen.findByRole('grid', { name: title }, { timeout: COLD_START_TIMEOUT_MS });
+    const [nameLink] = within(await findRow(table, name)).getAllByRole('link', { name });
+    if (!nameLink) throw new Error(`no name link for ${name}`);
+    await user.click(nameLink);
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/c/dev-1/k8s/ns/shop/${plural}/${name}`),
+    );
+    expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(name);
+  });
+
+  it.each([
+    ['cronjobs/nightly-report/jobs', 'Jobs'],
+    ['deploymentconfigs/frontend/replicationcontrollers', 'ReplicationControllers'],
+  ])('resolves the kind tab %s', async (path, tab) => {
+    const { router } = renderApp(`/c/dev-1/k8s/ns/shop/${path}`);
+
+    expect(await screen.findByRole('tab', { name: tab, selected: true })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/c/dev-1/k8s/ns/shop/${path}`);
+  });
+
+  it.each(['jobs', 'replicationcontrollers'])('redirects a pod %s tab to Details', async (tab) => {
+    const pod = `/c/dev-1/k8s/ns/shop/pods/${WEB_PODS[0] ?? ''}`;
+    const { router } = renderApp(`${pod}/${tab}`);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(pod));
+    expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
   });
 });

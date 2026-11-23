@@ -3,7 +3,7 @@ import { RedirectKeepingQuery } from '@/shared/routing';
 import { adminRoute, legacyAdminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
-import { OverviewPage, SearchPage } from '@/features/home';
+import { OverviewPage } from '@/features/home';
 import { preferencesRoute } from '@/features/preferences';
 import { resourceRoutes } from '@/features/resources';
 import { NotFoundPage } from '@/shared/ui';
@@ -36,7 +36,6 @@ export const routes: RouteObject[] = [
               ...resourceRoutes,
               // Unlisted placeholders until CP5.
               { path: 'overview', element: <OverviewPage /> },
-              { path: 'search', element: <SearchPage /> },
             ],
           },
           {

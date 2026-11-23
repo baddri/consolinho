@@ -183,6 +183,11 @@ export default defineConfig(({ command, mode }) => {
       setupFiles: ['./src/test/setup.ts'],
       css: false,
       restoreMocks: true,
+      // Vitest defaults to one worker per core, and each worker's V8 adds its own GC/compiler threads, so a run pegged
+      // every core (~930% CPU on 10 cores). Measured on 10 cores: 4 workers with one V8 helper thread finish in the
+      // same wall time (~80 s) at ~5 cores, leaving the machine usable. Override per run with `--maxWorkers=N`.
+      maxWorkers: '40%',
+      execArgv: ['--v8-pool-size=1'],
     },
   };
 });

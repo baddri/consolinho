@@ -10,6 +10,7 @@ export {
   k8sPatch,
   k8sDelete,
   k8sCreate,
+  k8sCreateSubresource,
   LIST_PAGE_SIZE,
   type ListOptions,
   type K8sListData,

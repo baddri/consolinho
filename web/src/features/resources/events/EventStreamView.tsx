@@ -1,7 +1,7 @@
-import { Bullseye, Button, EmptyState, EmptyStateBody, Spinner } from '@patternfly/react-core';
-import { RhUiPauseFillIcon, RhUiPlayFillIcon } from '@patternfly/react-icons';
+import { Bullseye, EmptyState, EmptyStateBody, Spinner } from '@patternfly/react-core';
 import type { ReactNode } from 'react';
 import { EventModel } from '@/shared/k8s';
+import { TogglePlay } from '@/shared/ui';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { EventCard } from './EventCard';
 import { MAX_EVENTS, type EventFilters } from './eventStream';
@@ -10,19 +10,6 @@ import { useEventStream } from './useEventStream';
 
 /** OCP `NoEvents` text (`events.tsx`). */
 export const NO_EVENTS = 'No events';
-
-/** OCP `TogglePlay` (`public/components/utils/toggle-play.tsx`): round pause/play button, green ring while active. */
-function TogglePlay({ active, onClick }: { active: boolean; onClick: () => void }) {
-  return (
-    <Button
-      variant="plain"
-      icon={active ? <RhUiPauseFillIcon /> : <RhUiPlayFillIcon />}
-      className={`${styles.togglePlay} ${active ? styles.togglePlayActive : ''} ${styles.timelineButton}`}
-      onClick={onClick}
-      aria-label={active ? 'Pause event streaming' : 'Start streaming events'}
-    />
-  );
-}
 
 /** OCP `ConsoleEmptyState` (`variant sm`, `pf-v6-u-pt-xl-on-md`) as the stream uses it. */
 function StreamEmptyState({ title, children }: { title?: string; children: ReactNode }) {
@@ -115,7 +102,7 @@ export function EventStreamView({
         </div>
       </div>
       <div className={`${styles.timeline} ${count === 0 ? styles.timelineEmpty : ''}`}>
-        <TogglePlay active={stream.isActive} onClick={stream.toggle} />
+        <TogglePlay active={stream.isActive} onClick={stream.toggle} className={styles.timelineButton} />
         <div className={styles.endMessage}>Older events are not stored.</div>
       </div>
       {count > 0 && (

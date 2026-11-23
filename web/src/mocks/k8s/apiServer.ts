@@ -54,8 +54,11 @@ interface ResourceTarget {
 
 const AUTHORIZATION_GROUP = 'authorization.k8s.io';
 
+/** API groups only OpenShift serves; vanilla clusters (`servesProjects` false) lack them in discovery and URLs. */
+const OPENSHIFT_GROUPS: ReadonlySet<string> = new Set(['project.openshift.io', 'apps.openshift.io']);
+
 function servedModels(cluster: string): K8sModel[] {
-  return K8S_MODELS.filter((model) => model.group !== 'project.openshift.io' || servesProjects(cluster));
+  return K8S_MODELS.filter((model) => !OPENSHIFT_GROUPS.has(model.group) || servesProjects(cluster));
 }
 
 function versionInfo(): Response {
@@ -77,14 +80,17 @@ function coreVersions(): Response {
 }
 
 function groupList(cluster: string): Response {
-  const groups = [...new Set(servedModels(cluster).map((model) => model.group))].filter(
-    (group) => group !== '',
+  // Group → its version (one per group here, e.g. `autoscaling` → `v2`).
+  const groups = new Map(
+    servedModels(cluster)
+      .filter((model) => model.group !== '')
+      .map((model) => [model.group, model.version]),
   );
   const body: APIGroupList & { kind: 'APIGroupList'; apiVersion: 'v1' } = {
     kind: 'APIGroupList',
     apiVersion: 'v1',
-    groups: groups.map((name) => {
-      const version = { groupVersion: `${name}/v1`, version: 'v1' };
+    groups: [...groups].map(([name, versionName]) => {
+      const version = { groupVersion: `${name}/${versionName}`, version: versionName };
       return { name, versions: [version], preferredVersion: version };
     }),
   };
@@ -466,7 +472,11 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
   if (target === 'unknown' || target.model === SelfSubjectAccessReviewModel) return unknownResource();
 
   const watch = ['1', 'true'].includes(api.query.get('watch') ?? '');
-  const verb = verbOf(method, target.name !== undefined, watch);
+  // POST to an object's subresource (DeploymentConfig `instantiate`, `rollback`) is a `create` of that subresource.
+  const verb =
+    method === 'POST' && target.subresource !== undefined && target.name !== undefined
+      ? 'create'
+      : verbOf(method, target.name !== undefined, watch);
   if (!verb) return methodNotAllowed();
   const { model, namespace, name, subresource } = target;
   const handler = subresource === undefined ? undefined : SUBRESOURCES[subresource];

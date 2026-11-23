@@ -172,10 +172,10 @@ CONNECT/200 branch once T-0091 pins HTTP/1.1.
 - **JOB-1** Job list/details (Details, YAML, Pods, Events); details show Completions, Parallelism, Active deadline, Succeeded/Failed/Active pods; "Edit parallelism" (count modal, OCP copy) + common actions.
 - **CJ-1** CronJob tabs: Details, YAML, Pods, Jobs, Events (OCP order); details show Schedule, Concurrency policy, Starting deadline, Last schedule time, Suspend.
 - **CJ-2** "Start Job" creates a Job from `spec.jobTemplate` with name `<cronjob>-<timestamp>`, the CronJob's annotations plus `cronjob.kubernetes.io/instantiate: manual`, and an ownerReference to the CronJob; on success navigates to the new Job (OCP); on failure a warning toast "Failed to start a Job." with the message.
-- **CJ-3** "Suspend" / "Resume" *(fleet; OCP has no menu item, users edit YAML)* toggles `spec.suspend`; the list shows a "Suspended" status; RO/ACT rules apply.
+- **CJ-3** "Suspend" / "Resume" *(fleet; OCP has no menu item, users edit YAML)* toggles `spec.suspend`; the list keeps OCP's Suspend (True/False) column and the details heading shows "Suspended" (amended at CP4b accept); RO/ACT rules apply.
 
 ### 4b.3 HPA (HPA)
-- **HPA-1** HorizontalPodAutoscalers list (Name, Namespace, Labels, Scale target link, Min/Max pods) and details (Details, YAML, Events) with OCP's metrics table (current vs target); common actions. A Deployment/StatefulSet targeted by an HPA shows OCP's "managed by HPA" hint and the count modal warns that the HPA overrides manual scaling.
+- **HPA-1** HorizontalPodAutoscalers list (Name, Namespace, Labels, Scale target link, Min/Max pods) and details (Details, YAML, Events) with OCP's metrics table (current vs target); common actions. A Deployment/StatefulSet targeted by an HPA shows OCP's "Autoscaled" ring without arrows and hides "Edit Pod count" (OCP; amended at CP4b accept, was a count-modal warning).
 
 ### 4b.4 ConfigMaps and Secrets (CFG)
 - **CFG-1** ConfigMap details show Data and Binary data sections (OCP `ConfigMapData`), each value copyable; "Edit ConfigMap" → YAML (form in CP4c only if cheap, else backlog).
@@ -185,7 +185,7 @@ CONNECT/200 branch once T-0091 pins HTTP/1.1.
 - **CFG-5** RO users can reveal (it's a read their SA already performed) but every edit action is disabled per ACT-4.
 
 ### 4b.5 Search (SRCH)
-- **SRCH-1** A "Search" page under Home (OCP) at `/c/<cluster>/search[/ns/<ns>]` with the project selector, a Resources multi-select (all kinds the cluster serves from discovery, typeahead), a Label filter (`key=value`, multiple, AND), a Name filter, chips and "Clear all filters".
+- **SRCH-1** A "Search" page under Home (OCP) at `/c/<cluster>/search[/ns/<ns>]` with the project selector, a Resources multi-select (kinds the cluster serves that have a FleetConsole descriptor, typeahead; amended at CP4b accept), a Label filter (`key=value`, multiple, AND), a Name filter, chips and "Clear all filters".
 - **SRCH-2** Results: one expandable section per selected kind, each a compact list (Name, Namespace, Labels, Created) using the kind's descriptor; empty kinds show "No `<kinds>` found"; nothing selected shows "No resources selected" / "Select one or more resources from the dropdown."
 - **SRCH-3** State lives in the URL (`?kind=<ref>,<ref>&q=<label>&name=<n>`, OCP params) so a search is shareable and survives cluster switch where the kinds exist.
 - **SRCH-4** Label chips on every list and details page now link to Search with that label and the current kind preselected (OCP); built by one shared path helper (T-0136 nit) with unit tests for encoding (`=`, `/`, `.` in keys).
@@ -194,6 +194,48 @@ CONNECT/200 branch once T-0091 pins HTTP/1.1.
 ### 4b.6 Quality gates (QGB)
 - **QGB-1** Gates green; Api tests for Job create (CJ-2) RW/RO; e2e: Start Job → lands on Job; Search by label returns Deployment + Pods + Service sections; Secret masked by default.
 - **QGB-2** Parity rows for every new list/details page `match` at accept.
+
+### 4b.7 Task breakdown (frontend-architect, 2026-11-23)
+Order and lanes (≤3 engineers at once; each task's `paths` are disjoint from its parallel lanes):
+- **First:** T-0189 foundation (models, mocks, nav order WL-1, tab slots, minimal descriptors) ∥ T-0199 CP4a chores
+  (shared `TogglePlay`, `@xterm/*` import rule).
+- **Lane A (scale kit → workloads):** T-0190 shared scale/count/restart + HPA-aware ring → T-0191 StatefulSets/DaemonSets
+  → T-0192 standalone RS/RC (+ `name: ''` SSAR fix) → T-0193 DeploymentConfigs.
+- **Lane B (config → HPA → jobs):** T-0196 ConfigMaps/Secrets → T-0195 HPA pages → T-0194 Jobs/CronJobs (also needs T-0190).
+- **Lane C (search):** T-0197 Search page → T-0198 label chips → Search.
+- **Last:** T-0200 QA (QGB e2e, carried CP4a e2e, parity rows).
+
+Design deviations (follow OCP source; accepted by the orchestrator 2026-11-23 per the UI north star, PO re-checks at ACCEPT): **HPA-1** — with an HPA the ring shows "Autoscaled" without
+arrows and "Edit Pod count" is hidden (OCP), not a warning in the modal; **SRCH-1** — Resources lists kinds that have a
+descriptor and are served, not every discovered kind (others have no pages yet); **WL-3/4** — Restart rollout on
+StatefulSets/DaemonSets is a fleet addition (OCP has none); **WL-6** — the DC deprecation alert sits on the list page (OCP),
+RC "Cancel rollout" is not in scope; HPA edit/remove actions on workloads (OCP dev-console) not in scope.
+Deferred to CP4c POL: ui-probe of Terminal at 1280×800 and Update strategy modal (ux-designer); `matchExpressions` in owner
+selectors; UX.md §2a band wording; drop the CONNECT/200 branch after T-0091 (BE); readable audit labels for
+`instantiate`/`rollback` (with POL-3).
+Backend asks (backend-architect): `ProxyMutationVerbTests` rows for POST `deploymentconfigs/<n>/instantiate` and
+`…/rollback`, PUT deploymentconfigs, PATCH secrets; an Api test that Secret data never reaches audit/logs (CFG-4, extend
+`ProxyTokenLeakSweepTests`). Job create RW/RO (QGB-1) is already covered.
+
+### 4b.8 CP4b acceptance (2026-11-23, product owner) — **ACCEPTED**
+All 4b criteria met on evidence: T-0189–T-0200 (all `done`, ACs ticked, reviews APPROVE); FE 1128/1128, BE 333+711+849,
+e2e 29/29 (CP4b group 12/12 on `--repeat-each=2`, no `fixme`): Start Job → Job, Search `app=web` → Deployment/Pod/Service,
+Secret masked + RO reveal (QGB-1); Job create RW/RO = `ProxyMutationVerbTests` `POST …/jobs`; CFG-4 =
+`ProxyTokenLeakSweepTests` (T-0201); 13 CP4b rows in `docs/architecture/ocp-parity.md` (rows 69–81), each `match` with
+recorded deviations (QGB-2). WL-1–6, JOB-1, CJ-1/2, HPA-1, CFG-1–5, SRCH-1–4 met. SRCH-5 **partially**: one list per
+kind with server-side `labelSelector` is tested; the 6-request cap is `pLimit(6)` in `useSearchResults.ts`, untested.
+Amended at accept to what was delivered: CJ-3 (OCP Suspend column kept, "Suspended" in heading), HPA-1 (Autoscaled ring,
+Edit Pod count hidden), SRCH-1 (descriptor-backed kinds). Accepted deviations: Restart rollout on StatefulSets/DaemonSets
+and CronJob Suspend/Resume are fleet additions; RC "Cancel rollout" deferred; the DC ReplicationControllers tab uses a
+Revision column instead of OCP's Owner (consistent with the Deployment ReplicaSets tab; the owner is the page itself);
+workload Pods tabs show Owner instead of OCP's Node (`showNodes`); Environment tab absent on all workloads (§6); modal-less
+actions report errors in a toast instead of OCP's ErrorModal (project convention); DC "Learn more" shown on all clusters.
+DEP-9/10 rewording from 4a.9 confirmed in place.
+Follow-ups for CP4c POL (`later`): unit test that Search issues ≤6 concurrent list requests (SRCH-5); Node column on
+workload Pods tabs (OCP `showNodes`, day-2 triage value); RC "Cancel rollout"; e2e for DC Start rollout + RC Rollback and
+StatefulSet ring scale; readable audit labels for `instantiate`/`rollback`/`jobs` create (with POL-3); live OCP
+side-by-side ui-probe of the CP4b pages (T-0200 verdicts are source-based); plus the §4b.7 deferrals (Terminal/strategy
+ui-probe, `matchExpressions`, UX.md §2a, CONNECT/200). Backlog (ROADMAP): Environment tab for workloads; ErrorModal parity.
 
 ---
 

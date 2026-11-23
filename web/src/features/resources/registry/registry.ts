@@ -1,12 +1,20 @@
 import { apiVersionOf } from '@/shared/k8s';
 import { configMapDescriptor } from './kinds/configmaps';
+import { cronJobDescriptor } from './kinds/cronjobs';
+import { daemonSetDescriptor } from './kinds/daemonsets';
+import { deploymentConfigDescriptor } from './kinds/deploymentconfigs';
 import { deploymentDescriptor } from './kinds/deployments';
 import { eventDescriptor } from './kinds/events';
+import { horizontalPodAutoscalerDescriptor } from './kinds/horizontalpodautoscalers';
+import { jobDescriptor } from './kinds/jobs';
 import { namespaceDescriptor } from './kinds/namespaces';
 import { podDescriptor } from './kinds/pods';
 import { projectDescriptor } from './kinds/projects';
 import { replicaSetDescriptor } from './kinds/replicasets';
+import { replicationControllerDescriptor } from './kinds/replicationcontrollers';
+import { secretDescriptor } from './kinds/secrets';
 import { serviceDescriptor } from './kinds/services';
+import { statefulSetDescriptor } from './kinds/statefulsets';
 import type { ResourceDescriptor } from './types';
 
 /**
@@ -20,10 +28,19 @@ export function resourceDescriptors(): readonly ResourceDescriptor[] {
   registry ??= [
     projectDescriptor,
     eventDescriptor,
+    // Workloads in OCP nav order (WL-1).
     podDescriptor,
     deploymentDescriptor,
+    deploymentConfigDescriptor,
+    statefulSetDescriptor,
+    secretDescriptor,
     configMapDescriptor,
+    cronJobDescriptor,
+    jobDescriptor,
+    daemonSetDescriptor,
     replicaSetDescriptor,
+    replicationControllerDescriptor,
+    horizontalPodAutoscalerDescriptor,
     serviceDescriptor,
     namespaceDescriptor,
   ];

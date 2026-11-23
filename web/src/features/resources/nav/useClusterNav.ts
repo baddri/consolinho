@@ -1,5 +1,6 @@
 import { useK8sDiscovery } from '@/shared/k8s';
 import { resourcePath } from '../paths';
+import { searchPath } from '../search/searchPath';
 import { resourceDescriptors } from '../registry/registry';
 import type { NavSectionId } from '../registry/types';
 
@@ -26,6 +27,26 @@ const SECTIONS: readonly { id: NavSectionId; title: string }[] = [
   { id: 'administration', title: 'Administration' },
 ];
 
+/** A sidebar item that isn't a kind's list, placed among the registry items of its section by `order`. */
+interface StaticNavItem {
+  section: NavSectionId;
+  order: number;
+  label: string;
+  path: (cluster: string) => string;
+  isActive: (pathname: string) => boolean;
+}
+
+/** OCP Home: Overview, Projects, Search, API Explorer, Events — Search sits between Projects (10) and Events (20). */
+const STATIC_ITEMS: readonly StaticNavItem[] = [
+  {
+    section: 'home',
+    order: 15,
+    label: 'Search',
+    path: (cluster) => searchPath(cluster),
+    isActive: (pathname) => /^\/c\/[^/]+\/search(?:\/|$)/.test(pathname),
+  },
+];
+
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Active for `k8s/<plural>` and any list or details path of the kind: `k8s/(ns/<x>|all-namespaces|cluster)/<plural>…`. */
@@ -38,7 +59,8 @@ function kindMatcher(plural: string): (pathname: string) => boolean {
 /**
  * The cluster's sidebar sections, derived from the registry and discovery (ADR-0023 §5, UI-2/DATA-2): each
  * descriptor with `nav` becomes an item in its section (by `order`), kinds the cluster doesn't serve are hidden (e.g.
- * Projects on vanilla Kubernetes) and empty sections are dropped. Namespaced kinds link to `k8s/<plural>` (the
+ * Projects on vanilla Kubernetes) and empty sections are dropped. Pages that aren't a kind's list (Search) are
+ * {@link STATIC_ITEMS} slotted in by order. Namespaced kinds link to `k8s/<plural>` (the
  * namespace redirect), cluster-scoped ones to `k8s/cluster/<plural>`.
  */
 export function useClusterNav(cluster: string): NavSection[] {
@@ -49,13 +71,23 @@ export function useClusterNav(cluster: string): NavSection[] {
   return SECTIONS.map((section) => ({
     id: section.id,
     title: section.title,
-    items: navigable
-      .filter((descriptor) => descriptor.nav?.section === section.id)
-      .sort((a, b) => (a.nav?.order ?? 0) - (b.nav?.order ?? 0))
-      .map(({ model }) => ({
-        label: model.labelPlural,
-        to: resourcePath(cluster, model),
-        isActive: kindMatcher(model.plural),
+    items: [
+      ...navigable
+        .filter((descriptor) => descriptor.nav?.section === section.id)
+        .map(({ model, nav }) => ({
+          order: nav?.order ?? 0,
+          label: model.labelPlural,
+          to: resourcePath(cluster, model),
+          isActive: kindMatcher(model.plural),
+        })),
+      ...STATIC_ITEMS.filter((item) => item.section === section.id).map((item) => ({
+        order: item.order,
+        label: item.label,
+        to: item.path(cluster),
+        isActive: item.isActive,
       })),
+    ]
+      .sort((a, b) => a.order - b.order)
+      .map(({ label, to, isActive }) => ({ label, to, isActive })),
   })).filter((section) => section.items.length > 0);
 }

@@ -4,8 +4,9 @@ import { useActiveCluster } from '@/features/cluster-context';
 import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
 import { kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
-import { resourcePath } from '../paths';
+import { ALL_NAMESPACES, resourcePath } from '../paths';
 import { useResourceRoute } from '../resourceRoute';
+import { searchPath } from '../search/searchPath';
 import styles from './columns.module.css';
 import type { ColumnDef } from './types';
 
@@ -130,23 +131,24 @@ export function ReplicasCountLink({ model, obj, title }: ReplicasCountLinkProps)
 
 /** Props for {@link ListLabels}. */
 interface ListLabelsProps {
-  /** The listed kind: labels take its colour and link to its list. */
+  /** The listed kind: labels take its colour and preselect it on Search. */
   model: K8sModel;
   labels: Readonly<Record<string, string>>;
 }
 
 /**
  * A list row's labels as OCP `LabelList` (`public/components/utils/label-list.tsx`): the shared unboxed
- * `ResourceLabels` in the kind's colour. OCP links each label to Search; we have no Search page, so each links to this
- * kind's list in the current scope (namespace or all namespaces) filtered by it (`?label=key=value`, ADR-0023), the
- * same result for one kind. Plain labels outside a cluster route.
+ * `ResourceLabels` in the kind's colour, each linking to Search with that label and this kind preselected
+ * ({@link searchPath}, SRCH-4) in the list's scope, as OCP's Search opens in the current namespace: the project, or
+ * all namespaces in an all-projects list or for a cluster-scoped kind. Plain labels outside a cluster route.
  */
 function ListLabels({ model, labels }: ListLabelsProps) {
   const { cluster, namespace } = useResourceRoute();
   const linkTo = (key: string, value: string) =>
-    resourcePath(cluster, model, {
-      namespace: model.namespaced ? namespace : undefined,
-      search: new URLSearchParams({ label: `${key}=${value}` }).toString(),
+    searchPath(cluster, {
+      namespace: model.namespaced && namespace !== undefined ? namespace : ALL_NAMESPACES,
+      kinds: [model],
+      labels: [`${key}=${value}`],
     });
   return (
     <div className={styles.labels}>

@@ -58,7 +58,7 @@ export interface SummaryFields<T> {
 }
 
 /** A details tab only some kinds have, opted in by {@link ResourceDescriptor.extraTabs}. */
-export type KindTab = 'replicasets' | 'logs' | 'terminal';
+export type KindTab = 'replicasets' | 'replicationcontrollers' | 'jobs' | 'logs' | 'terminal';
 
 /**
  * One resource action (ADR-0037 §3). Assignable to PatternFly's `IAction` as is (row `ActionsColumn`); the details
@@ -111,6 +111,8 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * bivariant like the other callbacks.
    */
   DetailsSection?(props: { obj: T }): ReactNode;
+  /** Heading over the {@link DetailsSection} column, e.g. OCP's "Job status"; none when unset. */
+  detailsTitle?: string;
   /**
    * Further full-width sections below the details grid (Containers, Conditions, Ports, Data), each a
    * `DetailsSubsection` with its own heading. Same component shape as {@link DetailsSection}.
@@ -121,6 +123,12 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * that match, and is where the "N of M pods" status links.
    */
   podsSelector?(obj: T): Record<string, string> | undefined;
+  /**
+   * The Pods tab's content for a kind whose pods no label selector expresses (CronJob: the pods of the Jobs it owns,
+   * OCP `CronJobPodsComponent`). Declaring it adds the Pods tab like {@link podsSelector}; same component shape as
+   * {@link DetailsSection}.
+   */
+  PodsTab?(props: { cluster: string; obj: T }): ReactNode;
   /**
    * How the list page renders: `table` (default, `ConsoleDataView`) or `eventStream`, OCP's live stream of event cards
    * with its own toolbar (Event only, `UX.md` §6a).
@@ -141,4 +149,9 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   useKindActions?(args: KindActionArgs<T>): KindActions;
   /** Delete asks to type the name (Namespace, Project). */
   deleteRequiresName?: boolean;
+  /**
+   * An alert under the list and details page headings (OCP `ListPage` / `DetailsPage` `helpAlert`), e.g.
+   * DeploymentConfig's deprecation notice. Same component shape as {@link DetailsSection}.
+   */
+  HeadingAlert?(props: { cluster: string }): ReactNode;
 }

@@ -93,6 +93,7 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
       <PageHeading
         title={model.labelPlural}
         status={liveStatus === 'paused' ? <LiveIndicator status={liveStatus} /> : undefined}
+        alert={descriptor.HeadingAlert && <descriptor.HeadingAlert cluster={cluster} />}
       />
       <PageBody>{dataView}</PageBody>
     </>

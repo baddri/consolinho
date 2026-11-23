@@ -15,7 +15,7 @@ import { ResourceActionsMenu } from '../../actions/ResourceActionsMenu';
 import { deploymentDescriptor } from '../../registry/kinds/deployments';
 import { resourceRoutes } from '../../routes';
 import { RESTART_PAUSED_REASON } from './useDeploymentActions';
-import { RESTARTED_AT_ANNOTATION, restartRolloutPatch } from './useDeploymentRollout';
+import { RESTARTED_AT_ANNOTATION, restartRolloutPatch } from '../scale/useRestartRollout';
 
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const SSAR_PATH = '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews';

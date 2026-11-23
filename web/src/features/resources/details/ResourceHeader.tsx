@@ -18,6 +18,8 @@ export interface ResourceHeaderProps {
   status?: ResourceStatus;
   /** Right-aligned actions (T-0076: the Actions dropdown). */
   actions?: ReactNode;
+  /** The descriptor's heading alert (OCP `DetailsPage` `helpAlert`), shown on every tab. */
+  alert?: ReactNode;
 }
 
 /**
@@ -25,7 +27,7 @@ export interface ResourceHeaderProps {
  * details` (the list in the object's namespace, or the cluster-scoped list), kind badge + name as `h1`, the status as
  * an outlined label and the actions on the right. Rendered in every state of the page (loading, not found, errors).
  */
-export function ResourceHeader({ cluster, model, namespace, name, status, actions }: ResourceHeaderProps) {
+export function ResourceHeader({ cluster, model, namespace, name, status, actions, alert }: ResourceHeaderProps) {
   return (
     <PageHeading
       breadcrumbs={[
@@ -36,6 +38,7 @@ export function ResourceHeader({ cluster, model, namespace, name, status, action
       title={name}
       status={status && <ResourceStatusLabel status={status} asLabel />}
       actions={actions}
+      alert={alert}
     />
   );
 }

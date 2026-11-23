@@ -107,6 +107,103 @@ export const ConfigMapModel: K8sModel = {
   abbr: 'CM',
 };
 
+export const StatefulSetModel: K8sModel = {
+  group: 'apps',
+  version: 'v1',
+  kind: 'StatefulSet',
+  plural: 'statefulsets',
+  namespaced: true,
+  label: 'StatefulSet',
+  labelPlural: 'StatefulSets',
+  abbr: 'SS',
+  propagationPolicy: 'Foreground',
+};
+
+export const DaemonSetModel: K8sModel = {
+  group: 'apps',
+  version: 'v1',
+  kind: 'DaemonSet',
+  plural: 'daemonsets',
+  namespaced: true,
+  label: 'DaemonSet',
+  labelPlural: 'DaemonSets',
+  abbr: 'DS',
+  propagationPolicy: 'Foreground',
+};
+
+/** Core replication controller; also what an OpenShift DeploymentConfig rolls out (one per version). */
+export const ReplicationControllerModel: K8sModel = {
+  group: '',
+  version: 'v1',
+  kind: 'ReplicationController',
+  plural: 'replicationcontrollers',
+  namespaced: true,
+  label: 'ReplicationController',
+  labelPlural: 'ReplicationControllers',
+  abbr: 'RC',
+  propagationPolicy: 'Foreground',
+};
+
+/** OpenShift-only (`apps.openshift.io`): hidden where discovery lacks the group. */
+export const DeploymentConfigModel: K8sModel = {
+  group: 'apps.openshift.io',
+  version: 'v1',
+  kind: 'DeploymentConfig',
+  plural: 'deploymentconfigs',
+  namespaced: true,
+  label: 'DeploymentConfig',
+  labelPlural: 'DeploymentConfigs',
+  abbr: 'DC',
+  propagationPolicy: 'Foreground',
+};
+
+export const JobModel: K8sModel = {
+  group: 'batch',
+  version: 'v1',
+  kind: 'Job',
+  plural: 'jobs',
+  namespaced: true,
+  label: 'Job',
+  labelPlural: 'Jobs',
+  abbr: 'J',
+  propagationPolicy: 'Foreground',
+};
+
+export const CronJobModel: K8sModel = {
+  group: 'batch',
+  version: 'v1',
+  kind: 'CronJob',
+  plural: 'cronjobs',
+  namespaced: true,
+  label: 'CronJob',
+  labelPlural: 'CronJobs',
+  abbr: 'CJ',
+  propagationPolicy: 'Foreground',
+};
+
+/** `autoscaling/v2`, as OCP: metrics are a list of typed sources, not v1's single CPU target. */
+export const HorizontalPodAutoscalerModel: K8sModel = {
+  group: 'autoscaling',
+  version: 'v2',
+  kind: 'HorizontalPodAutoscaler',
+  plural: 'horizontalpodautoscalers',
+  namespaced: true,
+  label: 'HorizontalPodAutoscaler',
+  labelPlural: 'HorizontalPodAutoscalers',
+  abbr: 'HPA',
+};
+
+export const SecretModel: K8sModel = {
+  group: '',
+  version: 'v1',
+  kind: 'Secret',
+  plural: 'secrets',
+  namespaced: true,
+  label: 'Secret',
+  labelPlural: 'Secrets',
+  abbr: 'S',
+};
+
 /** Core `v1` events (what `oc get events` and the OpenShift console show), not `events.k8s.io`. */
 export const EventModel: K8sModel = {
   group: '',
@@ -142,6 +239,14 @@ export const K8S_MODELS: readonly K8sModel[] = [
   ConfigMapModel,
   EventModel,
   SelfSubjectAccessReviewModel,
+  StatefulSetModel,
+  DaemonSetModel,
+  ReplicationControllerModel,
+  DeploymentConfigModel,
+  JobModel,
+  CronJobModel,
+  HorizontalPodAutoscalerModel,
+  SecretModel,
 ];
 
 /** The `apiVersion` of objects of `model`: `v1` for the core group, `<group>/<version>` otherwise. */

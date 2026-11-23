@@ -5,9 +5,10 @@ import { NamespaceModel, type K8sResource } from '@/shared/k8s';
 import { DetailsItem, kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { OwnerReferences } from '../components/ObjectReferenceLink';
 import { BadgedName } from '../components/ResourceLink';
-import { resourcePath } from '../paths';
+import { ALL_NAMESPACES, resourcePath } from '../paths';
 import { PodSelectorLink, labelSelectorString } from '../registry/columns';
 import type { ResourceDescriptor } from '../registry/types';
+import { searchPath } from '../search/searchPath';
 import { useNamespaceModel } from './useNamespaceModel';
 
 /** "1 annotation" / "N annotations" (and tolerations): OCP's `{{count}} annotation` plural. */
@@ -57,7 +58,7 @@ export interface MetadataSectionProps {
 
 /**
  * Left column of the Details tab, OCP `ResourceSummary` (`details-page.tsx`, `UX.md` §6): Name, Namespace (`NS` badge,
- * linking to the project/namespace), Labels (kind-coloured, each linking to the kind's list filtered by it), the
+ * linking to the project/namespace), Labels (kind-coloured, each linking to Search with it and the kind preselected, SRCH-4), the
  * descriptor's optional Pod selector / Node selector / Tolerations, Annotations, its `Extra` rows, "Created at" and
  * Owner. Renders `DetailsItem`s only; the caller supplies the vertical `DescriptionList`.
  */
@@ -80,10 +81,7 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
           labels={labels}
           color={kindLabelColor(model.kind)}
           linkTo={(key, value) =>
-            resourcePath(cluster, model, {
-              namespace,
-              search: new URLSearchParams({ label: `${key}=${value}` }).toString(),
-            })
+            searchPath(cluster, { namespace: namespace ?? ALL_NAMESPACES, kinds: [model], labels: [`${key}=${value}`] })
           }
         />
       </DetailsItem>

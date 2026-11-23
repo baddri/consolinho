@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Bullseye, Button, Split, SplitItem } from '@patternfly/react-core';
 import { RhUiCaretDownIcon, RhUiCaretUpIcon } from '@patternfly/react-icons';
 import { useDebouncedCallback } from 'use-debounce';
-import { useK8sList, PodModel, type Pod } from '@/shared/k8s';
+import { useK8sList, PodModel, type HorizontalPodAutoscaler, type Pod } from '@/shared/k8s';
 import { labelSelectorString } from '../registry/columns';
 import {
+  hpaPodRingLabel,
   podRingLabel,
   ringPodStatus,
   RING_COLORS,
@@ -151,12 +152,13 @@ function ScaleArrows({ count, change }: { count: number; change: (delta: number)
 /** {@link PodRing} with arrows: the ring labelled with the pending count, the arrows beside it. */
 function ScalablePodRing({ scale, ...props }: PodRingProps & { scale: PodRingScale }) {
   const { count, change } = usePendingScale(scale);
+  const autoscaled = props.hpa !== undefined;
   return (
     <Split>
       <SplitItem>
-        <RingView {...props} replicas={count} />
+        <RingView {...props} replicas={autoscaled ? undefined : count} />
       </SplitItem>
-      {scale.allowed && (
+      {scale.allowed && !autoscaled && (
         <SplitItem>
           <ScaleArrows count={count} change={change} />
         </SplitItem>
@@ -177,12 +179,18 @@ export interface PodRingProps {
    * scale request 1 s after the last click. Without it the ring is read-only.
    */
   scale?: PodRingScale;
+  /**
+   * The HPA scaling the workload, if any (OCP `useRelatedHPA`): the label becomes "Autoscaled" / "Autoscaling" and
+   * "to N Pods", and the scale arrows are hidden, as the autoscaler owns the count.
+   */
+  hpa?: HorizontalPodAutoscaler;
 }
 
 /**
  * Read-only OCP `PodRingSet` (`console-shared/src/components/pod/PodRingSet.tsx`) above a workload's details grid: a
- * donut of its live pods coloured by status, with the pod count ("2" / "Pods", "Scaling to 3") in the middle, and scale
- * arrows beside it when `scale` is given. The ring is an accessible image named by the label and the per-status counts.
+ * donut of its live pods coloured by status, with the pod count ("2" / "Pods", "Scaling to 3"; "Autoscaled" /
+ * "to 2 Pods" under an HPA) in the middle, and scale arrows beside it when `scale` is given and no HPA scales the
+ * workload. The ring is an accessible image named by the label and the per-status counts.
  */
 export function PodRing({ scale, ...props }: PodRingProps) {
   return scale ? <ScalablePodRing {...props} scale={scale} /> : <RingView {...props} />;
@@ -193,6 +201,7 @@ function RingView({
   cluster,
   workload,
   selector,
+  hpa,
   replicas,
 }: Omit<PodRingProps, 'scale'> & { replicas?: number }) {
   const pods = useK8sList<Pod>(cluster, PodModel, {
@@ -202,7 +211,7 @@ function RingView({
   });
   const list = pods.data ?? [];
   const shown = replicas === undefined ? workload : { ...workload, spec: { ...workload.spec, replicas } };
-  const { title, subTitle } = podRingLabel(shown, list);
+  const { title, subTitle } = hpa ? hpaPodRingLabel(workload, hpa, list) : podRingLabel(shown, list);
   const counts = segments(list)
     .map(([status, count]) => `${String(count)} ${status}`)
     .join(', ');
