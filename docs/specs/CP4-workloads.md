@@ -267,6 +267,30 @@ ui-probe, `matchExpressions`, UX.md §2a, CONNECT/200). Backlog (ROADMAP): Envir
 - **QGC-1** Gates green; e2e: edit a Deployment image in Form view, switch to YAML, see the change, Save; YAML schema hover shows a field description.
 - **QGC-2** `ocp-parity.md` has no `gap` rows left from CP3.6 waivers W1/W3/W4.
 
+### 4c.6 Task breakdown (frontend-architect, 2026-11-24)
+ADR-0038 (cluster OpenAPI v3: lazy per group-version, per-cluster TanStack cache, main-thread parse under a budget
+test, `monaco-yaml`, one path resolver). Order and lanes (≤3 engineers at once; parallel lanes have disjoint `paths`):
+- **Lane A (schema):** T-0210 OpenAPI data layer + mocks → T-0211 monaco-yaml validation/hover/completion → T-0212 YAML
+  schema sidebar (W1) → T-0213 field-help popovers on every resource `DetailsItem` (W3; also waits for T-0214).
+- **Lane B (form):** T-0214 Edit Deployment page (route `/form`, Configure via toggle, sync, Save/Reload/Cancel, RO,
+  Advanced options = Pause rollouts + Scaling) → T-0215 Strategy + Images → T-0216 Environment Variables (+ form YAML
+  schema, needs T-0211).
+- **Lane C (polish):** T-0220 POL-3 audit labels → T-0219 RC Cancel rollout + SRCH-5 concurrency test → T-0221 POL-4 FE
+  (after BE T-0232) → T-0217 Node column on DaemonSet/Job Pods tabs (after T-0213/T-0214) → T-0218 `matchExpressions`
+  selectors (after T-0213/T-0214/T-0217 and ux T-0204).
+- **Last:** T-0222 ux (Terminal/strategy-modal probe, live side-by-side of CP4b pages, UX.md §2a) after the ux shell
+  tasks T-0203…T-0209 → T-0223 QA (QGC-1/2, carried CP4b e2e, POL evidence).
+
+Decisions: **Q5** — Advanced options ship exactly as OCP's `AdvancedSection` (ProgressiveList: Pause rollouts + Scaling).
+OCP's Edit Deployment form has no resource-limits section (that is OCP's separate "Edit resource limits" action, §6 out of
+scope), so FORM-2's "Advanced options (resource limits)" is read as OCP's Advanced options; nothing is deferred.
+**HELP-1** popover content follows OCP `DetailsItem` (label header, description, `Kind › path` breadcrumb, no type line).
+**FORM-2 Images**: image name per container only; image-stream-tag source and auto-deploy triggers are omitted (no
+ImageStream pages), recorded in the parity note. **POL-2** is already met by `ResourceYamlTab` (Save · Reload · Cancel
+with guard · Download); QA records evidence. **POL-5** is met (shared `Timestamp`/`DetailsSubsection` with tests,
+`test/sidebar.ts`); QA records evidence. **POL-1**: T-0118 items map to T-0119/T-0121/T-0122/T-0126; QA closes it per item.
+W4 (ring scale) is already `match` (T-0184/T-0188); T-0133 is closed by T-0213. CONNECT/200 removal stays with T-0091 (BE).
+
 ## 5. UX notes
 
 - **Tabs and URLs** follow OCP (`/logs`, `/terminal`, `/replicasets`, `/jobs`, `/form`). Tab order is OCP's minus tabs we don't ship (Metrics, Environment).
@@ -295,7 +319,7 @@ create wizards (image pull / source / key-value); multi-pod aggregated logs; log
 | Q2 | Confirm Restart rollout / Pause / ring scale on production clusters? | **No** (OCP parity, muscle memory); cluster-naming toasts + production band. Revisit with the "change windows" backlog item. |
 | Q3 | Exec session cap? | **60 min hard cap**, configurable; reconnect re-checks access (TERM-8). Mirrors the 300 s watch cap's purpose (bounded life for revoked users) without breaking real debugging. |
 | Q4 | Logs over WebSocket (OCP) or streaming HTTP `fetch`? | **Streaming `fetch`** of `…/log?follow=true` (ReadableStream): same proxy path as other GETs, no Origin/upgrade path, RO-safe; architects may choose WebSocket if they find a concrete gap. Either way LOG-6/7 hold. |
-| Q5 | Ship the Advanced (resource limits) section of the Deployment form in CP4c? | **Defer** to backlog unless the form framework makes it < 1 task; strategy, images, env, scaling, pause cover 90 % of edits. |
+| Q5 | Ship the Advanced (resource limits) section of the Deployment form in CP4c? | **Defer** to backlog unless the form framework makes it < 1 task; strategy, images, env, scaling, pause cover 90 % of edits. **Decided (§4c.6):** OCP's form has no resource limits; Advanced options = Pause rollouts + Scaling, as OCP. |
 | Q6 | DEP-2: link failing status to Logs or OCP's status popover? | **OCP's popover** (with a "View logs" link inside) — parity first. |
 | Q7 | Split CP4 into a/b/c with separate tags? | **Yes**, as §1; CP4a first. Each gets QA verify + PO accept; one merge to `main` at CP4c, or per sub-checkpoint if the orchestrator prefers smaller merges (recommended: merge per sub). |
 | Q8 | DeploymentConfigs are deprecated in OCP 4.14+; still ship WL-6? | **Yes, minimal** (Start rollout, pause, scale, rollback): many of the 40 clusters still run DC-based apps. |

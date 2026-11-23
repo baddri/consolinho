@@ -50,7 +50,11 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   search. On fleet pages the toggle shows the globe + "Fleet management" (`Title h2 md`, no labels) and that entry is
   selected. On other non-cluster pages (Preferences) it shows the cluster the cluster nav links point to.
 - Project selector = OCP namespace bar (`public/components/namespace-bar.tsx`): first row of the main area, above the
-  page heading, on namespaced list **and** details pages; `Project: <name>` toggle, then a divider.
+  page heading, on namespaced list **and** details pages; `Project: <name>` toggle, then a divider. The toggle has no
+  hover/pressed background and no border (OCP `NamespaceDropdown.scss` `.co-namespace-dropdown__menu-toggle`).
+- Fixed top, scrolling body (OCP `app-contents.tsx`: banners + namespace bar in one no-gap section, the rest in
+  `#content-scrollable`, `overflow: auto`): the environment band and the project bar never scroll; only the content
+  below them does (T-0204).
 - The main area is filled to the bottom of the viewport (`Page isContentFilled`); the white inset card never ends
   mid-screen.
 - Environment band (fleet): PF `Banner` (prod `red`, staging `orange`) with centred text, first thing in the main card,
@@ -91,10 +95,15 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
 - Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
   the theme uses no red/orange; the band (first row of the main card, below the navy masthead; red-20 vs navy 8.3:1 light, 6.7:1 dark — T-0172) stays the dominant cue.
-- Icons (generic PF, `aria-hidden`, distinct shapes): OpenShift `ClusterIcon` (today's icon), Kubernetes `CubesIcon`,
-  Fleet management `GlobeIcon` (round). Not `OpenshiftIcon`/`DharmachakraIcon` (logo look-alikes).
-- Type tag: `<Label isCompact>` default grey, filled (own surface, readable on navy and in menus), text `OCP` / `K8s`.
-  Order (SW-5): menu item `[type] [environment] [Read only]`; toggle `[type] [environment]`.
+- Icons (`aria-hidden`, distinct shapes): OpenShift `OpenshiftIcon` from `@patternfly/react-icons`, Kubernetes
+  `CubesIcon` (generic until CP5.5: PF ships no Kubernetes logo icon), Fleet management `GlobeIcon` (round).
+  **Logo exception (human directive, 2026-11-24, T-0203):** `OpenshiftIcon` is allowed **only** as the cluster type
+  icon in the cluster switcher (menu items and toggle). It is the icon PF itself ships, never a copied asset. Everywhere
+  else the "no Red Hat/OpenShift logos" rule stands (masthead, login, favicon, admin pages). No `DharmachakraIcon`.
+- Type tag: `<Label isCompact>` default grey, filled (own surface, readable on navy and in menus). Only Kubernetes
+  clusters get a tag (`K8s`); OpenShift is the default and shows none, the icon marks it (T-0203). Order (SW-5): menu
+  item `[K8s] [environment] [Read only]`; toggle `[K8s] [environment]`. The Fleet admin clusters table keeps its
+  Type column (`OCP` / `K8s`).
 
 ## 3. Page heading (every page)
 OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps component-groups `PageHeader`):

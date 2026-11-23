@@ -11,8 +11,8 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 3 | Deploy to OpenShift | done (tag cp-3) |
 | 3.5 | OCP look & feel | done (tag cp-3.5) |
 | 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
-| 3.7 | Fleet foundations | planned (next) |
-| 4 | Workloads day-2 operations | planned |
+| 3.7 | Fleet foundations | done (tag cp-3.7) |
+| 4 | Workloads day-2 operations | in_progress (tags cp-4a, cp-4b; CP4c next) |
 | 4.5 | Access at scale (groups + cache) | planned |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 5.5 | Kubernetes clusters | planned |
