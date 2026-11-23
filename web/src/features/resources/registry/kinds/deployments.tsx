@@ -3,7 +3,7 @@ import { DeploymentModel, type Deployment, type K8sResource } from '@/shared/k8s
 import { DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
 import { ConditionsTable } from '../../components/ConditionsTable';
 import { ContainersTable } from '../../components/ContainersTable';
-import { useActionAccess } from '../../actions/useActionAccess';
+import { useResourceAccess } from '../../actions/useResourceAccess';
 import { PodRing } from '../../components/PodRing';
 import { VolumesTable } from '../../components/VolumesTable';
 import { DeploymentPausedAlert } from '../../workloads/deployments/DeploymentPausedAlert';
@@ -74,16 +74,20 @@ function DeploymentDetailsTop({ obj }: { obj: DeploymentResource }) {
 
 /**
  * The deployment's ring with OCP's scale arrows (DEP-5): one `…/scale` PATCH per burst of clicks via
- * `useScaleDeployment` (failures toast), the arrows gated by `patch deployments/scale` like Edit Pod count.
+ * `useScaleDeployment` (failures toast). As OCP's `isScalingAllowed`, the arrows render only once `patch
+ * deployments/scale` is allowed: absent while the review is pending (so they never flash for a read-only user) and
+ * when denied.
  */
 function DeploymentPodRing({ cluster, obj }: { cluster: string; obj: DeploymentResource }) {
   const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
   const scale = useScaleDeployment(cluster, { toastErrors: { action: 'Scale' } });
-  const access = useActionAccess(
-    cluster,
-    { verb: 'patch', model: DeploymentModel, subresource: 'scale', ...target },
-    true,
-  );
+  const access = useResourceAccess(cluster, {
+    verb: 'patch',
+    model: DeploymentModel,
+    subresource: 'scale',
+    ...target,
+  });
+
   return (
     <PodRing
       cluster={cluster}
@@ -92,7 +96,7 @@ function DeploymentPodRing({ cluster, obj }: { cluster: string; obj: DeploymentR
       scale={{
         desired: desired(obj),
         onScale: (replicas) => scale.mutateAsync({ ...target, replicas }),
-        disabled: access,
+        allowed: !access.isChecking && access.disabledReason === undefined,
       }}
     />
   );

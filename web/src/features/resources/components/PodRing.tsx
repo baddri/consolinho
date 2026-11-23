@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Bullseye, Button, Split, SplitItem, Tooltip, type ButtonProps } from '@patternfly/react-core';
+import { Bullseye, Button, Split, SplitItem } from '@patternfly/react-core';
 import { RhUiCaretDownIcon, RhUiCaretUpIcon } from '@patternfly/react-icons';
 import { useDebouncedCallback } from 'use-debounce';
 import { useK8sList, PodModel, type Pod } from '@/shared/k8s';
-import type { DisabledActionProps } from '@/shared/ui';
 import { labelSelectorString } from '../registry/columns';
 import {
   podRingLabel,
@@ -83,8 +82,11 @@ export interface PodRingScale {
    * on rejection the ring shows `desired` again.
    */
   onScale: (replicas: number) => Promise<unknown>;
-  /** From `useActionAccess`: aria-disables both arrows with the reason (read-only, RBAC). */
-  disabled?: DisabledActionProps;
+  /**
+   * Whether the user may scale (OCP `isScalingAllowed`); the arrows are absent otherwise (DEP-5). A flag rather than
+   * omitting `scale`, so the ring is not remounted when the access answer arrives.
+   */
+  allowed: boolean;
 }
 
 /**
@@ -119,44 +121,27 @@ function usePendingScale({ desired, onScale }: PodRingScale) {
   return { count, change };
 }
 
-/** A plain caret arrow; aria-disabled with a tooltip giving the reason when the user may not scale. */
-function ScaleArrow({ access, ...props }: ButtonProps & { access: DisabledActionProps | undefined }) {
-  const button = <Button variant="plain" isBlock {...props} isAriaDisabled={access?.isAriaDisabled} />;
-  return access?.tooltipProps ? <Tooltip {...access.tooltipProps}>{button}</Tooltip> : button;
-}
-
 /** OCP `PodRing` scale arrows: up, then down (disabled at 0), centred beside the ring. */
-function ScaleArrows({
-  count,
-  change,
-  disabled,
-}: {
-  count: number;
-  change: (delta: number) => void;
-  disabled?: DisabledActionProps;
-}) {
-  const blocked = disabled?.isAriaDisabled === true;
+function ScaleArrows({ count, change }: { count: number; change: (delta: number) => void }) {
   return (
     <Bullseye>
       <div>
-        <ScaleArrow
+        <Button
+          variant="plain"
+          isBlock
           icon={<RhUiCaretUpIcon />}
           aria-label="Increase the Pod count"
-          title={blocked ? undefined : 'Increase the Pod count'}
-          access={disabled}
-          onClick={() => {
-            if (!blocked) change(1);
-          }}
+          title="Increase the Pod count"
+          onClick={() => change(1)}
         />
-        <ScaleArrow
+        <Button
+          variant="plain"
+          isBlock
           icon={<RhUiCaretDownIcon />}
           aria-label="Decrease the Pod count"
-          title={blocked ? undefined : 'Decrease the Pod count'}
-          access={disabled}
-          isDisabled={!blocked && count <= 0}
-          onClick={() => {
-            if (!blocked) change(-1);
-          }}
+          title="Decrease the Pod count"
+          isDisabled={count <= 0}
+          onClick={() => change(-1)}
         />
       </div>
     </Bullseye>
@@ -171,9 +156,11 @@ function ScalablePodRing({ scale, ...props }: PodRingProps & { scale: PodRingSca
       <SplitItem>
         <RingView {...props} replicas={count} />
       </SplitItem>
-      <SplitItem>
-        <ScaleArrows count={count} change={change} disabled={scale.disabled} />
-      </SplitItem>
+      {scale.allowed && (
+        <SplitItem>
+          <ScaleArrows count={count} change={change} />
+        </SplitItem>
+      )}
     </Split>
   );
 }

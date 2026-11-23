@@ -1,5 +1,4 @@
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
-import { disabledActionProps } from '@/shared/ui';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { http } from 'msw';
 import { problem, setMockUser } from '@/test/handlers';
@@ -12,7 +11,8 @@ const UP = 'Increase the Pod count';
 const DOWN = 'Decrease the Pod count';
 
 /** A ring for a deployment wanting `desired` pods; no selector, so it lists no pods (and sends no requests). */
-function renderRing(scale: PodRingScale) {
+function renderRing(options: Omit<PodRingScale, 'allowed'>) {
+  const scale = { ...options, allowed: true };
   const workload = { metadata: { namespace: 'shop' }, spec: { replicas: scale.desired } };
   return renderWithProviders(
     <PodRing cluster="dev-1" workload={workload} selector={undefined} scale={scale} />,
@@ -58,6 +58,21 @@ describe('PodRing scale arrows (T-0184)', () => {
     expect(onScale).toHaveBeenCalledWith(0);
   });
 
+  it('DEP-5: without scale access the arrows are absent, not disabled', () => {
+    renderWithProviders(
+      <PodRing
+        cluster="dev-1"
+        workload={{ metadata: { namespace: 'shop' }, spec: { replicas: 2 } }}
+        selector={undefined}
+        scale={{ desired: 2, onScale: () => Promise.resolve(), allowed: false }}
+      />,
+    );
+
+    expect(screen.getByRole('img', { name: /^0 Scaling to 2/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: UP })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: DOWN })).not.toBeInTheDocument();
+  });
+
   it('unmounting during the debounce window still scales', () => {
     vi.useFakeTimers();
     const onScale = vi.fn(() => Promise.resolve());
@@ -67,25 +82,6 @@ describe('PodRing scale arrows (T-0184)', () => {
     unmount();
     expect(onScale).toHaveBeenCalledTimes(1);
     expect(onScale).toHaveBeenCalledWith(1);
-  });
-
-  it('RO/RBAC: both arrows are aria-disabled with the reason, and clicks do nothing', async () => {
-    const onScale = vi.fn(() => Promise.resolve());
-    const { user } = renderRing({
-      desired: 2,
-      onScale,
-      disabled: disabledActionProps('Your account is read-only.'),
-    });
-
-    const up = screen.getByRole('button', { name: UP });
-    expect(up).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('button', { name: DOWN })).toHaveAttribute('aria-disabled', 'true');
-    await user.hover(up);
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Your account is read-only.');
-    await user.click(up);
-    expect(screen.getByRole('img', { name: /^0 Scaling to 2/ })).toBeInTheDocument();
-    await new Promise((resolve) => setTimeout(resolve, SCALE_DEBOUNCE_MS + 100));
-    expect(onScale).not.toHaveBeenCalled();
   });
 });
 
@@ -108,11 +104,9 @@ describe('Deployment details ring (T-0184)', () => {
     return patches;
   }
 
-  /** The ring's up arrow once its access review allowed it. */
-  async function enabledUp(): Promise<HTMLElement> {
-    const up = await screen.findByRole('button', { name: UP }, { timeout: COLD_START_TIMEOUT_MS });
-    await waitFor(() => expect(up).not.toHaveAttribute('aria-disabled', 'true'));
-    return up;
+  /** The ring's up arrow, rendered once its access review allowed scaling. */
+  function enabledUp(): Promise<HTMLElement> {
+    return screen.findByRole('button', { name: UP }, { timeout: COLD_START_TIMEOUT_MS });
   }
 
   it(
@@ -141,19 +135,18 @@ describe('Deployment details ring (T-0184)', () => {
   );
 
   it(
-    'RO: on a read-only grant the arrows say why and send nothing',
+    'DEP-5 RO: on a read-only grant the ring has no arrows (OCP isScalingAllowed)',
     async () => {
       setMockUser('alice');
-      const patches = recordPatches();
-      const { user } = renderApp('/c/prod-eu-1/k8s/ns/shop/deployments/web');
+      renderApp('/c/prod-eu-1/k8s/ns/shop/deployments/web');
 
-      const up = await screen.findByRole('button', { name: UP }, { timeout: COLD_START_TIMEOUT_MS });
-      await user.hover(up);
-      expect(await screen.findByRole('tooltip')).toHaveTextContent('Your access to prod-eu-1 is read-only.');
-      expect(screen.getByRole('button', { name: DOWN })).toHaveAttribute('aria-disabled', 'true');
-      await user.click(up);
-      await new Promise((resolve) => setTimeout(resolve, SCALE_DEBOUNCE_MS + 100));
-      expect(patches).toEqual([]);
+      expect(
+        await screen.findByRole('img', { name: /Pods/ }, { timeout: COLD_START_TIMEOUT_MS }),
+      ).toBeInTheDocument();
+      // Long enough for the access review to have answered: the arrows must still be absent.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(screen.queryByRole('button', { name: UP })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: DOWN })).not.toBeInTheDocument();
     },
     COLD_START_TEST_TIMEOUT_MS,
   );

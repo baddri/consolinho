@@ -268,7 +268,7 @@ test.describe('read-write user on a production cluster', () => {
 });
 
 test.describe('read-only user on a production cluster', () => {
-  test('ACT-4/DEP-5: every mutating action is aria-disabled with the reason; the ring cannot scale', async ({
+  test('ACT-4: every mutating action is aria-disabled with the reason and sends nothing', async ({
     page,
   }) => {
     await openAs(page, RO_USER, deploymentPath());
@@ -280,32 +280,25 @@ test.describe('read-only user on a production cluster', () => {
       'Edit update strategy',
       'Edit labels',
       'Edit annotations',
+      'Edit Deployment',
       'Delete Deployment',
     ]) {
       await expect(page.getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true');
     }
     await page.getByRole('menuitem', { name: 'Edit labels' }).hover();
     await expect(page.getByText(`Your access to ${cluster} is read-only.`)).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('img', { name: /1/ }).first()).toBeVisible();
-    for (const name of ['Increase the Pod count', 'Decrease the Pod count']) {
-      const arrow = page.getByRole('button', { name });
-      await expect(arrow).toHaveAttribute('aria-disabled', 'true');
-      await arrow.click({ force: true });
-    }
-    await page.waitForTimeout(1_500); // longer than the ring's debounce, so a leaked PATCH would have been sent
+    await page.getByRole('menuitem', { name: 'Delete Deployment' }).click({ force: true });
+    await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(mutations()).toEqual([]);
   });
 
-  // T-0188: the ring shows aria-disabled arrows to a read-only user; DEP-5 and OCP's PodRing omit them.
-  test.fixme('DEP-5: the ring has no scale arrows for a read-only user', async ({ page }) => {
+  test('DEP-5: the ring has no scale arrows for a read-only user', async ({ page }) => {
     await openAs(page, RO_USER, deploymentPath());
     await expect(page.getByRole('img', { name: /1/ }).first()).toBeVisible();
     await expect(page.getByRole('button', { name: 'Increase the Pod count' })).toHaveCount(0);
   });
 
-  // T-0187: "Edit Deployment" stays enabled for read-only users (opens YAML), against ACT-4 and OCP's `update` gate.
-  test.fixme('ACT-4: Edit Deployment is aria-disabled for a read-only user', async ({ page }) => {
+  test('ACT-4: Edit Deployment is aria-disabled for a read-only user', async ({ page }) => {
     await openAs(page, RO_USER, deploymentPath());
     await page.getByRole('button', { name: 'Actions' }).click();
     await expect(page.getByRole('menuitem', { name: 'Edit Deployment' })).toHaveAttribute('aria-disabled', 'true');

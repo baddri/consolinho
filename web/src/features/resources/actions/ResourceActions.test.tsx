@@ -151,6 +151,25 @@ describe('resource actions (UI-8)', () => {
     },
   );
 
+  it(
+    'ACT-4 alice: details "Edit Pod" is aria-disabled with the read-only-grant tooltip and opens nothing',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      setMockUser('alice');
+      const { user, router } = renderApp(`/c/prod-eu-1/k8s/ns/shop/pods/${POD}`);
+
+      await user.click(
+        await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
+      );
+      const edit = screen.getByRole('menuitem', { name: 'Edit Pod' });
+      await waitFor(() => expect(edit).toHaveAttribute('aria-disabled', 'true'));
+      await user.hover(edit);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Your access to prod-eu-1 is read-only.');
+      await user.click(edit);
+      expect(router.state.location.pathname).toBe(`/c/prod-eu-1/k8s/ns/shop/pods/${POD}`);
+    },
+  );
+
   it('while the access review is pending, Delete is disabled without a tooltip', async () => {
     server.use(
       http.post(PROXY, async ({ request }) => {
@@ -168,15 +187,15 @@ describe('resource actions (UI-8)', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('rows of one namespace share a single access review per verb (patch, delete)', async () => {
+  it('rows of one namespace share a single access review per verb (patch, update, delete)', async () => {
     const reviews = recordAccessReviews();
     renderApp(POD_LIST);
 
     await findRow(POD);
-    await waitFor(() => expect(reviews).toHaveLength(2));
+    await waitFor(() => expect(reviews).toHaveLength(3));
     // The rows' checks are namespace-level: no name in the review.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(reviews).toHaveLength(2);
+    expect(reviews).toHaveLength(3);
   });
 
   it('deletes a pod from the list: the modal names namespace, cluster and environment; the row goes', async () => {
@@ -288,7 +307,9 @@ describe('resource actions (UI-8)', () => {
     const { user, router } = renderApp(POD_LIST);
 
     await user.click(within(await findRow(POD)).getByRole('button', { name: 'Kebab toggle' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Edit Pod' }));
+    const edit = await screen.findByRole('menuitem', { name: 'Edit Pod' });
+    await waitFor(() => expect(edit).not.toHaveAttribute('aria-disabled', 'true'));
+    await user.click(edit);
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`${POD_LIST}/${POD}/yaml`));
   });

@@ -46,8 +46,8 @@ function noKindActions(): KindActions {
  * Builds the actions of one object (ADR-0037 §3, UI-8/9) and owns the dialogs they open, so the row kebab and the
  * details Actions menu offer the same items: the kind's own items (`descriptor.useKindActions`) first, then OCP's
  * common actions in `useCommonActions` order, worded as OCP and in normal colour — "Edit labels" and "Edit annotations"
- * (modals, gated by `patch`), "Edit <Kind>" (opens the YAML tab; always enabled, the tab explains read-only itself) and
- * "Delete <Kind>" (gated by `delete`), each write gated by {@link useActionAccess}.
+ * (modals, gated by `patch`), "Edit <Kind>" (opens the YAML tab, gated by `update` as OCP's) and "Delete <Kind>" (gated
+ * by `delete`), each write gated by {@link useActionAccess} (ACT-4).
  *
  * Callers key the menu by `modelKey(descriptor.model)`, so the kind hook runs on every render of one instance and a
  * kind change remounts the menu instead of swapping hooks (rules of hooks).
@@ -70,6 +70,7 @@ export function useResourceActions({
     : noKindActions();
   const [open, setOpen] = useState<CommonDialog | null>(null);
   const patchAccess = useActionAccess(cluster, { verb: 'patch', model, namespace, name }, reviewByName);
+  const updateAccess = useActionAccess(cluster, { verb: 'update', model, namespace, name }, reviewByName);
   const deleteAccess = useActionAccess(cluster, { verb: 'delete', model, namespace, name }, reviewByName);
   const close = () => setOpen(null);
 
@@ -93,7 +94,10 @@ export function useResourceActions({
     {
       itemKey: 'edit',
       title: `Edit ${model.kind}`,
-      onClick: () => void navigate(resourcePath(cluster, model, { namespace, name, tab: 'yaml' })),
+      onClick: () => {
+        if (!updateAccess.isAriaDisabled) void navigate(resourcePath(cluster, model, { namespace, name, tab: 'yaml' }));
+      },
+      ...updateAccess,
     },
     {
       itemKey: 'delete',
