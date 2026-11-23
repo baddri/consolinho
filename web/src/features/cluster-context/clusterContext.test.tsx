@@ -325,6 +325,41 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(longName);
   });
 
+  it('wraps the label group under the name instead of squeezing it (FND-2)', async () => {
+    const displayName = 'Production Kubernetes Frankfurt 1';
+    server.use(
+      http.get('*/api/clusters', () =>
+        HttpResponse.json([
+          {
+            name: 'prod-k8s-1',
+            displayName,
+            environment: 'production',
+            distribution: 'kubernetes',
+            accessMode: 'readOnly',
+            webConsoleUrl: null,
+          } satisfies AccessibleCluster,
+        ]),
+      ),
+    );
+    const { user } = renderApp('/c/prod-k8s-1/overview');
+
+    const option = optionOf(
+      await openSwitcher(user, `Cluster ${displayName} (prod-k8s-1, K8s, prod, read only), switch cluster`),
+      'prod-k8s-1',
+    );
+    // jsdom has no layout: assert the structure that lets the labels wrap as one group (wrap modifier, separate item).
+    const nameItem = within(option).getByText(displayName).closest('.pf-v6-c-truncate')?.parentElement;
+    const row = nameItem?.parentElement;
+    expect(row).toHaveClass('pf-v6-l-flex', 'pf-m-wrap');
+    expect(nameItem).toHaveClass('pf-m-flex-1');
+    const typeTag = within(option).getByText('K8s');
+    const labelGroup = typeTag.closest('.pf-v6-l-flex');
+    expect(labelGroup).not.toBe(row);
+    expect(labelGroup?.parentElement?.parentElement).toBe(row);
+    for (const tag of ['K8s', 'prod', 'Read only']) expect(labelGroup).toContainElement(within(option).getByText(tag));
+    expect(nameItem).not.toContainElement(typeTag);
+  });
+
   it.each([
     ['k8s', ['prod-k8s-1', 'dev-2', 'lab-1']],
     ['kubernetes', ['prod-k8s-1', 'dev-2', 'lab-1']],
