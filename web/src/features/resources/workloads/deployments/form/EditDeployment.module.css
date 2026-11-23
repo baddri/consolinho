@@ -10,10 +10,12 @@
    between dividers; $pf-v6-global-gutter-x is the page section's inline padding. */
 .editorToggle {
   --fc-gutter-x: calc(
-    var(--pf-v6-c-page__main-section--PaddingInlineStart) - var(--pf-v6-c-page__main-container--BorderInlineStartWidth)
+    var(--pf-v6-c-page__main-section--PaddingInlineStart) -
+      var(--pf-v6-c-page__main-container--BorderInlineStartWidth)
   );
 
-  border-block: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default);
+  border-block: var(--pf-t--global--border--width--divider--default) solid
+    var(--pf-t--global--border--color--default);
   margin-inline: calc(var(--fc-gutter-x) * -1);
   padding: var(--pf-t--global--spacer--sm) var(--fc-gutter-x);
 }
@@ -94,4 +96,9 @@
 .fullscreen {
   background: var(--pf-t--global--background--image--default)
     var(--pf-t--global--background--color--secondary--default);
+}
+
+/* OCP ContainerField: "Container: [C] name" in bold. */
+.containerName {
+  font-weight: var(--pf-t--global--font--weight--body--bold);
 }

@@ -51,7 +51,11 @@ export interface DeploymentEditor {
  *   YAML tab's `parseEdited`) into a new working object and form values, or raises the invalid-YAML warning.
  * - **Save** sends one PUT of the current view's object; success hands the saved object to the page.
  */
-export function useDeploymentEditor(cluster: string, live: DeploymentObject, isEditable: boolean): DeploymentEditor {
+export function useDeploymentEditor(
+  cluster: string,
+  live: DeploymentObject,
+  isEditable: boolean,
+): DeploymentEditor {
   const [view, setView] = useEditorType();
   const [base, setBase] = useState(live);
   const [working, setWorking] = useState(live);
@@ -66,12 +70,14 @@ export function useDeploymentEditor(cluster: string, live: DeploymentObject, isE
     disabled: !isEditable,
     mode: 'onChange',
   });
+  // Subscribes to every value change; `getValues` then gives complete values (useWatch's are deep-partial).
   const values = useWatch({ control: form.control });
 
   const baseText = useMemo(() => toEditorText(base), [base]);
   const formText = useMemo(
-    () => toEditorText(applyFormValues(working, { ...toFormValues(working), ...values })),
-    [working, values],
+    () => toEditorText(applyFormValues(working, form.getValues())),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `values` is the change signal for `getValues`.
+    [working, values, form],
   );
   const isDirty = isEditable && (view === 'yaml' ? yamlText : formText) !== baseText;
   const isStale =

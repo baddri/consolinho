@@ -68,6 +68,29 @@ function alertOf(title: HTMLElement): HTMLElement {
   return alert;
 }
 
+/** `deployment` with a second container, `sidecar`, after `web`. */
+function withSidecar(deployment: DeploymentObject): DeploymentObject {
+  const { spec } = deployment;
+  if (!spec?.template.spec) throw new Error('fixture has no pod template');
+  const sidecar = { name: 'sidecar', image: 'quay.io/example/proxy:1' };
+  return {
+    ...deployment,
+    spec: {
+      ...spec,
+      template: {
+        ...spec.template,
+        spec: { ...spec.template.spec, containers: [...spec.template.spec.containers, sidecar] },
+      },
+    },
+  };
+}
+
+/** Picks `option` from the PF Select whose toggle is labelled `label`. */
+async function pick(user: UserEvent, label: string, option: string): Promise<void> {
+  await user.click(screen.getByRole('button', { name: label }));
+  await user.click(await screen.findByRole('option', { name: option }));
+}
+
 const editorText = () => screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'YAML editor' }).value;
 
 describe('deploymentFormValues', () => {
@@ -79,10 +102,35 @@ describe('deploymentFormValues', () => {
 
   it('writes only the fields the form owns', () => {
     const d = stored();
-    const next = applyFormValues(d, { paused: true, replicas: 5 });
+    const next = applyFormValues(d, { ...toFormValues(d), paused: true, replicas: 5 });
     expect(next.spec).toEqual({ ...d.spec, paused: true, replicas: 5 });
     expect(next.metadata).toBe(d.metadata);
     expect(next.status).toBe(d.status);
+  });
+
+  it('writes the strategy: bounds parsed, Recreate drops rollingUpdate', () => {
+    const d = stored();
+    const rolling = applyFormValues(d, { ...toFormValues(d), maxSurge: ' 1 ', maxUnavailable: '' });
+    expect(rolling.spec?.strategy).toEqual({
+      type: 'RollingUpdate',
+      rollingUpdate: { maxSurge: 1, maxUnavailable: '25%' },
+    });
+    const recreate = applyFormValues(d, { ...toFormValues(d), strategyType: 'Recreate' });
+    expect(recreate.spec?.strategy).toEqual({ type: 'Recreate' });
+    expect(recreate.spec?.template).toBe(d.spec?.template);
+  });
+
+  it("writes one container's image by name; the others stay the same objects", () => {
+    const d = withSidecar(stored());
+    const [web, sidecar] = d.spec?.template.spec?.containers ?? [];
+    const next = applyFormValues(d, {
+      ...toFormValues(d),
+      images: [{ name: 'sidecar', image: 'quay.io/example/proxy:2' }],
+    });
+    const containers = next.spec?.template.spec?.containers;
+    expect(containers?.[0]).toBe(web);
+    expect(containers?.[1]).toEqual({ ...sidecar, image: 'quay.io/example/proxy:2' });
+    expect(next.spec?.strategy).toBe(d.spec?.strategy);
   });
 });
 
@@ -236,11 +284,107 @@ describe('EditDeploymentPage', () => {
         ),
       ).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-    // OCP's DeploymentPage has no project bar.
-    expect(screen.queryByRole('button', { name: /^Project:/ })).not.toBeInTheDocument();
+      // OCP's DeploymentPage has no project bar.
+      expect(screen.queryByRole('button', { name: /^Project:/ })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Strategy type' })).toBeDisabled();
+      expect(screen.getByRole('textbox', { name: /Image Name/ })).toBeDisabled();
       expect(screen.queryByText('Saving to prod-eu-1')).not.toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Scaling' }));
       expect(screen.getByRole('spinbutton', { name: 'Replicas' })).toBeDisabled();
+    },
+  );
+
+  it(
+    "FORM-2: the strategy and one container's image reach YAML and the PUT; the other container is untouched",
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      mockK8s.upsert('dev-1', withSidecar(stored()));
+      const before = stored();
+      const puts = recordPuts();
+      const { user, router } = renderApp(FORM);
+      const strategy = await screen.findByRole(
+        'button',
+        { name: 'Strategy type' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      await waitFor(() => expect(strategy).toBeEnabled());
+      expect(strategy).toHaveTextContent('Rolling Update');
+      expect(screen.getByText(/The rolling strategy will wait/)).toBeInTheDocument();
+
+      const surge = screen.getByRole('textbox', { name: 'Maximum number of surge Pods' });
+      await user.clear(surge);
+      await user.type(surge, '1');
+      await user.click(screen.getByRole('radio', { name: 'YAML view' }));
+      expect((parse(editorText()) as DeploymentObject).spec?.strategy).toEqual({
+        type: 'RollingUpdate',
+        rollingUpdate: { maxSurge: 1, maxUnavailable: '25%' },
+      });
+      await user.click(screen.getByRole('radio', { name: 'Form view' }));
+
+      await pick(user, 'Strategy type', 'Recreate');
+      expect(screen.getByText('The recreate strategy has basic rollout behavior.')).toBeInTheDocument();
+      expect(screen.queryByRole('textbox', { name: 'Maximum number of surge Pods' })).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Image Name/ })).toHaveValue(
+        'quay.io/example/web:1.5.0-rc.1',
+      );
+      await pick(user, 'Container', 'sidecar');
+      const image = screen.getByRole('textbox', { name: /Image Name/ });
+      expect(image).toHaveValue('quay.io/example/proxy:1');
+      await user.clear(image);
+      await user.type(image, 'quay.io/example/proxy:2');
+
+      const [web, sidecar] = before.spec?.template.spec?.containers ?? [];
+      const expected = {
+        ...before.spec,
+        strategy: { type: 'Recreate' },
+        template: {
+          ...before.spec?.template,
+          spec: {
+            ...before.spec?.template.spec,
+            containers: [web, { ...sidecar, image: 'quay.io/example/proxy:2' }],
+          },
+        },
+      };
+      await user.click(screen.getByRole('radio', { name: 'YAML view' }));
+      expect((parse(editorText()) as DeploymentObject).spec).toEqual(expected);
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe(DETAILS));
+      expect(puts).toHaveLength(1);
+      expect(puts[0]?.spec).toEqual(expected);
+    },
+  );
+
+  it(
+    'FORM-2 zod: an empty image and an invalid bound show inline errors and disable Save',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const { user } = renderApp(FORM);
+      const image = await screen.findByRole(
+        'textbox',
+        { name: /Image Name/ },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      await waitFor(() => expect(image).toBeEnabled());
+      const save = screen.getByRole('button', { name: 'Save' });
+
+      await user.clear(image);
+      expect(await screen.findByText('Required')).toBeInTheDocument();
+      expect(image).toHaveAttribute('aria-invalid', 'true');
+      expect(save).toBeDisabled();
+      await user.type(image, 'quay.io/example/web:2');
+      await waitFor(() => expect(save).toBeEnabled());
+
+      const unavailable = screen.getByRole('textbox', { name: 'Maximum number of unavailable Pods' });
+      await user.clear(unavailable);
+      await user.type(unavailable, 'ten');
+      expect(
+        await screen.findByText('Enter a whole number of pods or a percentage, e.g. 25%.'),
+      ).toBeInTheDocument();
+      expect(save).toBeDisabled();
+      // The bounds don't apply to Recreate, so they stop blocking Save.
+      await pick(user, 'Strategy type', 'Recreate');
+      await waitFor(() => expect(save).toBeEnabled());
     },
   );
 });

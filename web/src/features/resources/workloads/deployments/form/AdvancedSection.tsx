@@ -1,39 +1,9 @@
-import { Button, FormGroup, FormHelperText, FormSection, NumberInput } from '@patternfly/react-core';
-import { css } from '@patternfly/react-styles';
+import { Button, FormGroup, NumberInput } from '@patternfly/react-core';
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
-import { useController, type Control } from 'react-hook-form';
+import { useController } from 'react-hook-form';
 import { CheckboxField, FieldHelperText, fieldA11y } from '@/shared/forms';
-import type { DeploymentFormValues } from './deploymentFormSchema';
+import { DeploymentFormSection, type DeploymentSectionProps } from './DeploymentFormSection';
 import styles from './EditDeployment.module.css';
-
-/** Props of the form's sections: the Edit Deployment form's control. */
-export interface DeploymentSectionProps {
-  control: Control<DeploymentFormValues>;
-}
-
-/** An OCP dev-console `FormSection`: `h2` title, optional helper sub-title, capped at 650px unless `fullWidth`. */
-function DeploymentFormSection({
-  title,
-  subTitle,
-  fullWidth = false,
-  children,
-}: {
-  title: string;
-  subTitle?: string;
-  fullWidth?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <FormSection
-      title={title}
-      titleElement="h2"
-      className={css(styles.section, !fullWidth && styles.paneForm)}
-    >
-      {subTitle && <FormHelperText>{subTitle}</FormHelperText>}
-      {children}
-    </FormSection>
-  );
-}
 
 /** "Pause rollouts" (OCP `PauseRolloutsSection`): `spec.paused`. */
 function PauseRolloutsSection({ control }: DeploymentSectionProps) {

@@ -5,7 +5,8 @@ import { mockK8s } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
 import { resourceRoutes } from '../../routes';
-import { ConfigureUpdateStrategyModal, toDeploymentStrategy } from './ConfigureUpdateStrategyModal';
+import { ConfigureUpdateStrategyModal } from './ConfigureUpdateStrategyModal';
+import { toDeploymentStrategy } from './deploymentStrategy';
 
 const DETAILS = '/c/dev-1/k8s/ns/shop/deployments/web';
 
