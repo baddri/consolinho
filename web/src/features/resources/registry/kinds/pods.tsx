@@ -1,7 +1,8 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
 import { OwnerReferences } from '../../components/ObjectReferenceLink';
-import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
 import { PodDetails, PodSections } from '../../details/sections/PodDetails';
+import { PodStatus } from '../../workloads/pods/PodStatus';
+import { podStatus } from '../../workloads/pods/podStatus';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor, ResourceStatus } from '../types';
 
@@ -11,18 +12,8 @@ export type PodResource = Pod & K8sResource;
 /** Status words the status filter offers; anything else is filtered as `Unknown`. */
 const FILTER_STATUSES = ['Running', 'Pending', 'Failed', 'Succeeded', 'CrashLoopBackOff'];
 
-/**
- * The status the OpenShift console shows for a pod: `Terminating` while being deleted, else the first container's
- * waiting or terminated reason (`CrashLoopBackOff`, `ContainerCreating`, `Completed`), else `status.phase`.
- */
-export function podStatus(pod: Pod): string {
-  if (pod.metadata?.deletionTimestamp) return 'Terminating';
-  for (const container of pod.status?.containerStatuses ?? []) {
-    const reason = container.state?.waiting?.reason ?? container.state?.terminated?.reason;
-    if (reason) return reason;
-  }
-  return pod.status?.phase ?? 'Unknown';
-}
+// Lives with `PodStatus` (no import cycle); re-exported for the registry's callers.
+export { podStatus };
 
 /** Bucket of the status filter: the shown status if it is a filter option, else the phase if it is, else `Unknown`. */
 function filterStatus(pod: Pod): string {
@@ -48,9 +39,9 @@ function status(pod: PodResource): ResourceStatus {
   return { title: podStatus(pod) };
 }
 
-/** The Details tab's pod fields with the same status as the title. */
+/** The Details tab's pod fields; Status as OCP `PodStatus` (popover for problem states, DEP-2). */
 function PodDetailsSection({ obj }: { obj: PodResource }) {
-  return <PodDetails obj={obj} status={status(obj)} />;
+  return <PodDetails obj={obj} status={<PodStatus pod={obj} />} />;
 }
 
 /**
@@ -75,7 +66,8 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
       title: 'Status',
       // A status (`CrashLoopBackOff`, `ContainerCreating`) doesn't wrap: start wide enough for it.
       width: 170,
-      cell: (pod) => <ResourceStatusLabel status={status(pod)} />,
+      // OCP `PodStatus`: a popover explains problem states (DEP-2).
+      cell: (pod) => <PodStatus pod={pod} />,
       sortValue: podStatus,
     },
     {
