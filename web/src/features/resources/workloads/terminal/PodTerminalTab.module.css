@@ -1,0 +1,34 @@
+/*
+ * OCP `PodConnectLoader` + `terminal.tsx`: toolbar, then the terminal sized to the rest of the viewport (OCP measures
+ * `page.bottom - top`). The body has no intrinsic height (basis 0, terminal absolutely placed), so the filled tab body
+ * never grows past the viewport and the page does not scroll.
+ */
+.connect {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* OCP `.co-fullscreen`: the expanded terminal covers the screen on the page background. */
+.connect:fullscreen {
+  padding: var(--pf-t--global--spacer--md);
+  background-color: var(--pf-t--global--background--color--primary--default);
+}
+
+.body {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 15rem;
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+}
+
+/* OCP `LoadingBox` while connecting, covering the (still empty) terminal. */
+.loading {
+  position: absolute;
+  inset: 0;
+  background-color: var(--pf-t--global--background--color--primary--default);
+}

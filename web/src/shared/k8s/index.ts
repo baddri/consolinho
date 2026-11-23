@@ -31,3 +31,14 @@ export {
   type LogLine,
   type PodLogOptions,
 } from './logStream';
+export {
+  execUrl,
+  encodeStdin,
+  encodeResize,
+  decodeFrame,
+  execFailureMessage,
+  EXEC_SUBPROTOCOL,
+  EXEC_SHELL_COMMAND,
+  type ExecFrame,
+  type ExecOptions,
+} from './exec';

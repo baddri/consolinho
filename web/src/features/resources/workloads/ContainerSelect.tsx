@@ -26,8 +26,8 @@ export interface ContainerSelectProps {
   isOptionDisabled?: (name: string) => boolean;
 }
 
-/** OCP `ContainerLabel`: the container kind badge ("C") and the name. */
-function ContainerLabel({ name }: { name: string }) {
+/** OCP `ContainerLabel`: the container kind badge ("C") and the name (also shown alone for a single container). */
+export function ContainerLabel({ name }: { name: string }) {
   return (
     <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
       <KindBadge kind="Container" />

@@ -1,12 +1,12 @@
 ---
 id: T-0180
 title: Pod Terminal tab — exec WebSocket protocol, xterm wrapper, mock echo shell
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4a
 depends_on: [T-0174, T-0175]
 paths: [web/src/shared/k8s/exec.ts, web/src/shared/k8s/exec.test.ts, web/src/shared/k8s/index.ts, web/src/shared/ui/terminal, web/src/features/resources/workloads/terminal, web/src/mocks/k8s/exec.ts, web/src/mocks/handlers.ts, docs/architecture/UX.md]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -49,16 +49,52 @@ against an MSW `ws` echo shell.
   `public/components/terminal.tsx` L35 `Terminal`; `public/components/pod.tsx` L463 `PodConnectLoader`.
 
 ## Acceptance criteria
-- [ ] TERM-1: Terminal tab opens a session to the selected running container; typed input echoes (MSW ws test).
-- [ ] TERM-2: container switch closes the old socket and opens a new one; `?container=` honoured.
-- [ ] TERM-3: server close (1006 / cap) → "The connection was closed." + Reconnect re-opens.
-- [ ] TERM-4: RO grant / no `create pods/exec` → spec copy, no WebSocket opened (test).
-- [ ] TERM-5: non-running pod → empty state, no socket. TERM-9: resize frames sent on fit. TERM-10: socket closed on unmount/tab change.
-- [ ] Codec round-trips UTF-8 (unit test); only `XTerm.tsx` imports `@xterm/*` (lint `no-restricted-imports` if cheap).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] TERM-1: Terminal tab opens a session to the selected running container; typed input echoes (MSW ws test).
+- [x] TERM-2: container switch closes the old socket and opens a new one; `?container=` honoured.
+- [x] TERM-3: server close (1006 / cap) → "The connection was closed." + Reconnect re-opens.
+- [x] TERM-4: RO grant / no `create pods/exec` → spec copy, no WebSocket opened (test).
+- [x] TERM-5: non-running pod → empty state, no socket. TERM-9: resize frames sent on fit. TERM-10: socket closed on unmount/tab change.
+- [x] Codec round-trips UTF-8 (unit test); only `XTerm.tsx` imports `@xterm/*` (lint `no-restricted-imports` if cheap).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23: exec codec/URL (`shared/k8s/exec.ts`) and `XTerm` wrapper (`shared/ui/terminal`). Also `useExecSession`, the PodTerminalTab and the MSW `ws.link` echo shell with its own `create pods/exec` check and handshake audit. Tests: codec (8) and tab (8, TERM-1..5/9/10). UX.md §12 note added. Status: in_review.
+- 2026-11-23 fix round 1: the terminal now sizes to the viewport (basis-0 body, absolutely placed xterm); the probe was not run because :5199 was off-limits. Changed: RhUi expand icons, empty-state icons with no Bullseye, single-container copy without "choose", Expand hidden with no terminal, spinner until the socket opens. The mock close is deferred behind its output. `ContainerLabel` is now exported from ContainerSelect. 4 tests added. Gate: 986/986, build ok.
 
 ## Review
+### Round 1 UX (ux-designer, 2026-11-23): CHANGES_REQUESTED
+OK: toolbar "Connecting to" + `ContainerLabel`/`ContainerSelect` (Flex column/row-on-sm, 16px gap, disabled non-running option, `?container=` kept), switching container refocuses a new shell, xterm Red Hat Mono 16px white on black with 10px inset, closed Alert warning inline + Reconnect, Expand hidden on close. All match OCP `public/components/pod-connect.tsx` L248-320, `terminal.tsx` L9-10, `_terminal.scss`.
+1. Pod terminal at 1280×800: the terminal does not fit the viewport. It is 548px tall (xterm's intrinsic 24 rows) and ends at y=901 while main ends at 783, so the page scrolls 134px. At 1920×1080 it fits. Cause: `PageSection pf-m-fill` is `flex: 1 0 auto` and grows to the content. OCP `terminal.tsx` L53-63 sizes the terminal to `page.bottom - top - 52` and never scrolls. Fix: let the fill chain shrink (`min-height: 0` / basis 0 on the tab body) so `.body` takes the remaining height. Probe: `.xterm` bottom ≤ main bottom at 1280×800.
+2. Toolbar Expand uses FontAwesome `ExpandIcon`/`CompressIcon`. OCP `pod-connect.tsx` L296 uses `RhUiExpandIcon`, and our `YamlEditor.tsx` uses `RhUiExpandIcon`/`RhUiCompressIcon`. Fix: use the RhUi icons.
+3. Crash-looping single-container pod (`web-…-tq5wn`): the body says "Choose a running container." although there is no picker, and Expand is shown with no terminal to expand. Fix: drop the second sentence when there is only one container, and hide Expand when there is no terminal (OCP hides it on `error`, L286).
+4. TERM-4/5 and not-running EmptyStates have no icon (UX.md §10 "EmptyState with a PF icon"), and `Bullseye` places them about 220px down the panel. Fix: add an icon (e.g. `LockIcon` for no access, `InfoCircleIcon`/`CubesIcon` for not running) and drop the full-height Bullseye, so the state sits at the top of the tab like other tab empty states.
+5. While connecting, an empty black box is shown with no feedback. OCP shows `LoadingBox` until `open` (`pod-connect.tsx` L235-240). Fix: show a Spinner/Skeleton in the body while `state === 'connecting'`.
+6. (minor, mock) `exit` + Enter renders "$ exitThe terminal connection has closed." on one line because the echo shell sends no CRLF for the final Enter. Fix it in `mocks/k8s/exec.ts`. Real shells echo the newline.
+- Note, not blocking (shared `useResourceAccess`, out of paths): the RBAC reason "The service account for prod-eu-1 cannot create pods/exec in shop (cluster RBAC)." uses internal wording. Candidate follow-up.
+Round 1 (frontend-architect, 2026-11-23): **APPROVE**
+- Protocol: `base64.channel.k8s.io` + `sh -i -c "TERM=xterm sh"` match TERM-1/ADR-0037 §5 and OCP L123-132 (no v4/v5 needed). Codec 0/3/4 correct, UTF-8 round-trip tested.
+- Lifecycle: `useExecSession` keys the socket on `url`+generation; cleanup nulls handlers and closes (container switch, reconnect, unmount). Resize is remembered and resent on open. Any close → `closed`, no auto-reconnect (OCP).
+- DOM/lazy: only `XTerm.tsx` touches xterm/DOM; xterm (~350 KB) is only in the `PodTerminalTab` lazy chunk (checked dist); the main chunk holds only the codec.
+- Deviations accepted: the close copy follows spec TERM-3/OCP (the task AC text was wrong). The `mocks/handlers/index.ts` + `mocks/k8s/index.ts` edits are required (the task listed a nonexistent path).
+- TERM-1..5, 9, 10 covered (TERM-10 keyboard documented in UX.md §12). TERM-6/7/8 are BE (T-0157).
+- Gate: lint/typecheck/build ok; 3 timeouts (AuditLogPage x2, projectSelector) unrelated, pass when run alone.
+- Follow-up (file as a small FE task): export `ContainerLabel` from `workloads/ContainerSelect.tsx` and drop the copy at `PodTerminalTab.tsx` `ContainerLabel`. Add an `eslint.config.js` `no-restricted-imports` rule for `@xterm/*` (allowed only in `shared/ui/terminal`).
+- Nit (optional): the "Pod is not running" / "Container is not running" copy is ours (the spec has none). Have UX confirm it in the parity pass.
+### Round 2 UX (ux-designer, 2026-11-23): APPROVE
+1. Fixed. At 1280×800, `.xterm` ends at 767 and main at 783, and main scrollHeight = clientHeight (693), also with the closed Alert shown. At 1920×1080 it ends at 1047 against 1063, no scroll.
+2. Fixed. `RhUiExpandIcon`/`RhUiCompressIcon`.
+3. Fixed. A single-container crash loop says "Container web is not running." and Expand is hidden.
+4. Fixed. `CubesIcon`/`LockIcon` EmptyStates sit at the top of the tab, no Bullseye.
+5. Fixed. A Spinner overlay shows while `state === 'connecting'` (code-checked; the mock opens instantly).
+6. Fixed. `exit` prints the close message on its own line.
+No regressions in the RO, RBAC, multi-container switch or Reconnect paths.
 
 ## Handover notes
+- Close copy follows OCP/spec, "The terminal connection has closed.", not the AC's "The connection was closed.". A server close reason (e.g. the 60-min cap) replaces it as the Alert title. Reconnect opens a new upgrade, and the proxy re-checks access.
+- TERM-4/TERM-5 are EmptyStates (spec); a non-running container in a multi-container pod is an EmptyState, and that option is disabled in the select.
+- Outside listed paths, all required: `mocks/handlers/index.ts` (no `mocks/handlers.ts` exists) registers `execHandler`; `mocks/k8s/index.ts` merges `mockExec` into `mockK8s`.
+- `no-restricted-imports` for `@xterm/*` was not added (`eslint.config.js` is outside paths). Today only `XTerm.tsx` imports xterm. Follow-up.
+- `shared/ui/terminal` is deliberately not re-exported from `shared/ui/index.ts`, so xterm stays in the lazy terminal chunk.
+- CSP: `default-src 'self'` covers same-origin ws(s) in CSP3 browsers. If a `connect-src` is ever added, it must include `'self'`.
+- Height: `.body` has `flex-basis: 0` and `min-height: 15rem`, so the filled tab body doesn't grow past the viewport. A probe check at 1280×800 is still pending.
+- Tests stub `XTerm` (no canvas in jsdom). Fullscreen Expand is hidden when the Fullscreen API is unsupported (jsdom).

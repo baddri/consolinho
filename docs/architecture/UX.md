@@ -205,3 +205,5 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - One `h1` per page; heading levels follow the hierarchy (heading h1 → section h2 → card/modal h3 is not needed).
 - Focus: skip-to-content first; switcher toggle → search on open → Escape returns focus to the toggle.
 - Every icon-only button has an `aria-label`; status icons have text next to them. Contrast checked in both themes.
+- Pod Terminal (T-0180, OCP `pod-connect.tsx`): xterm in Red Hat Mono 16px, black background and white text, fills the tab
+  to the bottom. A focused terminal keeps Tab for the shell (TERM-10). To leave it, use Expand/Collapse or click outside and then press Tab.
