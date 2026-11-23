@@ -11,5 +11,5 @@ export function SearchRedirect() {
   const { cluster = '' } = useParams();
   const { search } = useLocation();
   const [lastNamespace] = useLastNamespace(cluster);
-  return <Navigate replace to={searchPath(cluster, lastNamespace ?? ALL_NAMESPACES, search)} />;
+  return <Navigate replace to={searchPath(cluster, { namespace: lastNamespace ?? ALL_NAMESPACES, search })} />;
 }

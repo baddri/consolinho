@@ -97,9 +97,9 @@ describe('deployments (QG-3)', () => {
         'href',
         PODS_OF_WEB,
       );
-      // OCP `LabelList`: kind-coloured labels, each linking (no Search page) to this kind's list filtered by it.
+      // OCP `LabelList` (SRCH-4): kind-coloured labels, each linking to Search with it and this kind preselected.
       const label = within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' });
-      expect(label).toHaveAttribute('href', '/c/dev-1/k8s/ns/shop/deployments?label=app%3Dweb');
+      expect(label).toHaveAttribute('href', '/c/dev-1/search/ns/shop?kind=apps~v1~Deployment&q=app%3Dweb');
       expect(label.closest('.pf-v6-c-label')).toHaveClass('pf-m-blue');
     },
   );
@@ -146,12 +146,12 @@ describe('deployments (QG-3)', () => {
       'Created at',
       'Owner',
     ]);
-    // The label links to deployments with that label, the pod selector to the matching pods.
+    // The label links to Search for deployments with it (SRCH-4), the pod selector to the matching pods.
     expect(
       within(metadata)
         .getAllByRole('link', { name: 'app=web' })
         .map((link) => link.getAttribute('href')),
-    ).toEqual(['/c/dev-1/k8s/ns/shop/deployments?label=app%3Dweb', PODS_OF_WEB]);
+    ).toEqual(['/c/dev-1/search/ns/shop?kind=apps~v1~Deployment&q=app%3Dweb', PODS_OF_WEB]);
     // 2 of 3 replicas available: still rolling out.
     expect(within(metadata).getByText('Updating')).toBeInTheDocument();
     // OCP counts ready + failed pods: 2 ready + 1 crash-looping.
@@ -182,7 +182,7 @@ describe('services (QG-3)', () => {
     const row = await findRow(table, 'web');
     expect(within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
       'href',
-      '/c/dev-1/k8s/ns/shop/services?label=app%3Dweb',
+      '/c/dev-1/search/ns/shop?kind=core~v1~Service&q=app%3Dweb',
     );
     expect(within(cell(row, 'Pod selector')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
       'href',
@@ -192,13 +192,13 @@ describe('services (QG-3)', () => {
     expect(within(row).getByText(/^172\.30\.\d+\.17:80$/)).toBeInTheDocument();
   });
 
-  it('links labels to the list in the same scope (all projects)', async () => {
+  it('links labels to Search in the same scope (all projects)', async () => {
     renderApp('/c/dev-1/k8s/all-namespaces/services');
 
     const row = await findRow(await screen.findByRole('grid', { name: 'Services' }), 'web');
     expect(within(cell(row, 'Labels')).getByRole('link', { name: 'app=web' })).toHaveAttribute(
       'href',
-      '/c/dev-1/k8s/all-namespaces/services?label=app%3Dweb',
+      '/c/dev-1/search/all-namespaces?kind=core~v1~Service&q=app%3Dweb',
     );
   });
 

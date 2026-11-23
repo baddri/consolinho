@@ -82,7 +82,7 @@ export function SearchPage() {
       <ProjectBar
         cluster={cluster}
         namespace={namespace}
-        pathFor={(next, search) => searchPath(cluster, next ?? ALL_NAMESPACES, search)}
+        pathFor={(next, search) => searchPath(cluster, { namespace: next ?? ALL_NAMESPACES, search })}
       />
       <PageHeading title="Search" />
       <PageSection hasBodyWrapper={false}>
