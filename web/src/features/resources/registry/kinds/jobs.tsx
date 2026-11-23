@@ -39,6 +39,8 @@ export const jobDescriptor: ResourceDescriptor<JobResource> = {
   DetailsSection: JobDetails,
   ExtraSections: JobSections,
   podsSelector: (job) => job.spec?.selector?.matchLabels,
+  // OCP `JobPods`: `showNodes`.
+  podsShowNodes: true,
   useKindActions: useJobActions,
   columns: [
     nameColumn(JobModel),

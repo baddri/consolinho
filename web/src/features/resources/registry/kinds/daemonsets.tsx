@@ -40,6 +40,8 @@ export const daemonSetDescriptor: ResourceDescriptor<DaemonSetResource> = {
   DetailsSection: DaemonSetDetailsList,
   ExtraSections: DaemonSetSections,
   podsSelector: (daemonSet) => daemonSet.spec?.selector.matchLabels,
+  // OCP `DaemonSetPods`: `showNodes`.
+  podsShowNodes: true,
   useKindActions: useDaemonSetActions,
   columns: [
     nameColumn(DaemonSetModel),

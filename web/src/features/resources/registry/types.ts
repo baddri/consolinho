@@ -124,6 +124,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    */
   podsSelector?(obj: T): Record<string, string> | undefined;
   /**
+   * The Pods tab shows Node instead of Owner (OCP `showNodes`): set where the owner is the page itself and the node is
+   * what triage needs (DaemonSet, Job).
+   */
+  podsShowNodes?: true;
+  /**
    * The Pods tab's content for a kind whose pods no label selector expresses (CronJob: the pods of the Jobs it owns,
    * OCP `CronJobPodsComponent`). Declaring it adds the Pods tab like {@link podsSelector}; same component shape as
    * {@link DetailsSection}.
