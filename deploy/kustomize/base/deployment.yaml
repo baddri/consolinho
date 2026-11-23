@@ -7,7 +7,7 @@ metadata:
   labels:
     app.kubernetes.io/component: server
 spec:
-  replicas: 1
+  # No spec.replicas: the HPA (hpa.yaml) owns the count (ADR-0030 Amendment 2026-11-24; check-deploy.sh enforces).
   revisionHistoryLimit: 5
   selector:
     matchLabels:
@@ -31,6 +31,17 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      # Spread the pods over nodes (three on one node would defeat min 3). Labels are written out: kustomize does not
+      # inject them here. pod-template-hash limits the skew calculation to the current ReplicaSet during rollouts.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: consolinho
+              app.kubernetes.io/component: server
+          matchLabelKeys: [pod-template-hash]
       initContainers:
         # ADR-0027: idempotent migrations under an advisory lock, before the server starts. Gets only the DB
         # connection string — no OAuth secret, no DP keys.
@@ -83,6 +94,11 @@ spec:
                 secretKeyRef:
                   name: consolinho-oauth
                   key: client-secret
+          # Let the router drop the endpoint before SIGTERM (default 30 s grace period).
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: 5
           # ADR-0028 §2: /alive checks only the process (PRB-2: a DB outage never restarts the pod);
           # /health includes the database, so readiness drops the pod from the Service instead.
           startupProbe:
@@ -105,8 +121,9 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 2
-          # Sized for one replica / ~50 users, mostly I/O and long-lived watch streams. No CPU limit (throttling
-          # would stall streams); the memory limit bounds a leak.
+          # Mostly I/O and long-lived watch streams (100m was sized for ~50 users on one pod). The CPU request is the
+          # HPA denominator (75 % of it), so changing it moves the scaling point. No CPU limit (throttling would stall
+          # streams); the memory limit bounds a leak.
           resources:
             requests:
               cpu: 100m

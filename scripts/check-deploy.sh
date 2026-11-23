@@ -83,6 +83,35 @@ containers_report() {
   ' "$1"
 }
 
+# Prints the scaling objects of consolinho in a rendered stream (ADR-0030 Amendment 2026-11-24), one line each:
+#   HorizontalPodAutoscaler <apiVersion> <scaleTargetRef.kind> <scaleTargetRef.name> <minReplicas> <maxReplicas>
+#   Deployment replicas=<0|1>        (1 = spec.replicas is set, which would fight the HPA)
+#   PodDisruptionBudget
+# Same normalised-output assumptions as containers_report; missing fields print as "-".
+scaling_report() {
+  awk '
+    function flush() {
+      if (name == "consolinho") {
+        if (kind == "HorizontalPodAutoscaler") print kind, api, tkind, tname, mn, mx
+        else if (kind == "Deployment") print kind, "replicas=" reps
+        else if (kind == "PodDisruptionBudget") print kind
+      }
+      kind = ""; name = ""; api = "-"; tkind = "-"; tname = "-"; mn = "-"; mx = "-"; reps = 0; top = ""; sub1 = ""
+    }
+    BEGIN { flush() }
+    /^---$/ { flush(); next }
+    /^[a-zA-Z]/ { top = $1; if ($1 == "kind:") kind = $2; if ($1 == "apiVersion:") api = $2; next }
+    top == "metadata:" && /^  name: / { name = $2 }
+    top == "spec:" && /^  [a-zA-Z]/ { sub1 = $1 }
+    top == "spec:" && /^  replicas: / { reps = 1 }
+    top == "spec:" && /^  minReplicas: / { mn = $2 }
+    top == "spec:" && /^  maxReplicas: / { mx = $2 }
+    top == "spec:" && sub1 == "scaleTargetRef:" && /^    kind: / { tkind = $2 }
+    top == "spec:" && sub1 == "scaleTargetRef:" && /^    name: / { tname = $2 }
+    END { flush() }
+  ' "$1"
+}
+
 # Value of a data key of the rendered ConfigMap consolinho-config (generated name carries a hash suffix).
 config_value() {
   awk -v want="$2" '
@@ -140,6 +169,31 @@ for r in "${ROUTE_RENDERS[@]}"; do
   if [[ -z $host || $host != "$want" ]]; then
     fail "$r Route host '$host' != PublicOrigin host '$want'"
   fi
+done
+
+# ADR-0030 Amendment (2026-11-24): an autoscaling/v2 HPA (min >= 3) owns the replica count, the Deployment sets no
+# spec.replicas (else every apply would fight the HPA), and a PDB bounds voluntary disruptions.
+for r in "${ROUTE_RENDERS[@]}"; do
+  out="$LOGS/render-${r//\//-}.yaml"; [[ -s $out ]] || continue
+  scaling="$(scaling_report "$out")"; echo "$scaling" > "$out.scaling"
+  hpas="$(grep -c '^HorizontalPodAutoscaler ' <<< "$scaling")"
+  if [[ $hpas != 1 ]]; then
+    fail "$r renders $hpas HorizontalPodAutoscaler consolinho (want exactly 1)"
+  else
+    read -r _ api tkind tname mn mx <<< "$(grep '^HorizontalPodAutoscaler ' <<< "$scaling")"
+    hpa_ok=1
+    [[ $api == autoscaling/v2 ]] || { fail "$r HPA consolinho apiVersion '$api' != autoscaling/v2"; hpa_ok=0; }
+    if [[ $tkind != Deployment || $tname != consolinho ]]; then
+      fail "$r HPA consolinho scaleTargetRef '$tkind/$tname' != Deployment/consolinho"; hpa_ok=0
+    fi
+    if ! [[ $mn =~ ^[0-9]+$ && $mn -ge 3 ]]; then fail "$r HPA consolinho minReplicas '$mn' < 3"; hpa_ok=0; fi
+    if ! [[ $mx =~ ^[0-9]+$ && $mn =~ ^[0-9]+$ && $mx -ge $mn ]]; then
+      fail "$r HPA consolinho maxReplicas '$mx' < minReplicas '$mn'"; hpa_ok=0
+    fi
+    [[ $hpa_ok == 1 ]] && echo "HPA: $r ok (min=$mn max=$mx)"
+  fi
+  grep -qx 'Deployment replicas=1' <<< "$scaling" && fail "$r Deployment consolinho sets spec.replicas (the HPA owns it)"
+  grep -qx 'PodDisruptionBudget' <<< "$scaling" || fail "$r renders no PodDisruptionBudget consolinho"
 done
 
 # --- kubeconform -----------------------------------------------------------------------------------------------

@@ -1,0 +1,13 @@
+# ADR-0030 Amendment (2026-11-24): voluntary disruptions (node drains, upgrades) evict at most one pod at a time.
+# maxUnavailable (not minAvailable) stays valid while the HPA moves the replica count.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: consolinho
+  labels:
+    app.kubernetes.io/component: server
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: server

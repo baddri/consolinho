@@ -1,0 +1,40 @@
+# ADR-0030 Amendment (2026-11-24): the HPA owns the replica count of consolinho (the Deployment sets no
+# spec.replicas). Min 3 for availability and node spread; max 6 bounds Postgres connections
+# (maxReplicas x Npgsql Maximum Pool Size + 5 <= max_connections, see the runbook).
+# CPU only: the server is I/O-bound (watch/log streams) and .NET's GC keeps its heap after a burst, so a memory target
+# would scale up and never back down; the memory limit stays the leak guard. 75 % is of the 100m CPU request.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: consolinho
+  labels:
+    app.kubernetes.io/component: server
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: consolinho
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      selectPolicy: Max
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    # Slow on purpose: every removed pod cuts its open exec sessions and log/watch streams.
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300

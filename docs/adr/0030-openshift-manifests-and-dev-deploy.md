@@ -13,7 +13,8 @@ frequently reinstalled test cluster, and a production path for operators using k
 - `overlays/dev/` — `namespace: consolinho`; Postgres StatefulSet + Service `postgres` + its NetworkPolicy; smoke SA;
   committed placeholder values (`https://consolinho.apps.dev.invalid`, admin `REPLACE_ME`); image
   `image-registry.openshift-image-registry.svc:5000/consolinho/consolinho:latest`.
-- `overlays/production/` — `namespace: consolinho`, replicas 2 + PDB `minAvailable: 1`, `images:` placeholder
+- `overlays/production/` — `namespace: consolinho`, replicas 2 + PDB `minAvailable: 1` (superseded: HPA + PDB in base, see
+  Amendment 2026-11-24), `images:` placeholder
   (`registry.example.com/consolinho/consolinho:REPLACE_ME`), placeholder ConfigMap values, `secrets.example.yaml`
   (not referenced by the kustomization; documents Secret keys with obviously fake values). No Postgres, no build
   objects.
@@ -53,7 +54,7 @@ and `scripts/check-deploy.sh` asserts Route `spec.host` == the PublicOrigin host
   2 s, failureThreshold 3), readiness `/health` (period 5 s, timeout 3 s, failureThreshold 2).
 - **Resources** (one replica, ~50 users; mostly I/O and long-lived watch streams): `server` requests 100m/256Mi, limit
   memory 768Mi; `migrate` 50m/128Mi, limit 512Mi; Postgres (dev) 100m/256Mi, limit 1Gi, PVC 5Gi RWO (default
-  StorageClass); build pod 500m/1Gi, limit 4Gi. No CPU limits.
+  StorageClass); build pod 500m/1Gi, limit 4Gi. No CPU limits. (scaling: see Amendment 2026-11-24)
 - **Route**: edge TLS, `insecureEdgeTerminationPolicy: Redirect`, annotations
   `haproxy.router.openshift.io/timeout: 330s` (> 300 s watch cap) and `haproxy.router.openshift.io/hsts_header:
   max-age=31536000` (no `includeSubDomains`/`preload`: never affect other apps on the apps domain).
@@ -94,3 +95,39 @@ for the human is written to `${XDG_CACHE_HOME:-$HOME/.cache}/consolinho/ca-bundl
 - Egress by port still allows any IP on 443/6443; per-IP egress is impossible for 40 clusters with unknown IPs.
 - `kube-root-ca.crt` must cover the external API URL used for SMK-1; if the cluster serves a custom named certificate,
   the human adds its CA to the uploaded bundle (runbook).
+
+## Amendment (2026-11-24, CP4c, T-0230/T-0231) — horizontal scaling (HPA, min 3 replicas)
+Human directive: "add hpa to our deployment, min replica 3". Supersedes the fixed `replicas` (base 1, production 2),
+the production-only PDB (`minAvailable: 1`) and the "one replica" sizing note under *Workloads*.
+- **HPA in base** (`autoscaling/v2`, `consolinho` → Deployment `consolinho`), so dev and production both run it:
+  `minReplicas: 3`, `maxReplicas: 6`, one metric: CPU `Utilization` `averageUtilization: 75` (of the 100m request).
+  *Why CPU only:* the server is I/O-bound (watch/log streams); .NET's GC keeps its heap after a burst, so a memory
+  target would scale up and never back down; the 768Mi memory limit stays the leak guard. *Why max 6:* the 100m request
+  was sized for ~50 users on one pod (6x headroom over that sizing), every proxied request runs one Postgres
+  authorization query until the CP4.5 cache (ADR-0035), so pods beyond the DB's capacity buy nothing, and
+  `maxReplicas x Npgsql Maximum Pool Size (default 100) + 5` must stay ≤ Postgres `max_connections` (runbook rule;
+  actual use is far lower, connections are held only per query).
+  `behavior`: scale-up stabilization 60 s, at most +2 pods per 60 s; scale-down stabilization 600 s, at most −1 pod per
+  300 s — each removed pod cuts its open exec sessions and log/watch streams (the SPA re-lists/re-watches, a terminal
+  shows "closed"), so shrinking is deliberately slow.
+- **Deployment has no `spec.replicas`** (the HPA owns it; `check-deploy.sh` enforces). Requests stay
+  `server` 100m/256Mi, `migrate` 50m/128Mi (HPA needs the CPU request; a change to it changes the scaling point).
+  `topologySpreadConstraints`: `kubernetes.io/hostname`, `maxSkew: 1`, `whenUnsatisfiable: ScheduleAnyway`,
+  `matchLabelKeys: [pod-template-hash]` (three pods on one node would defeat the point). `lifecycle.preStop.sleep`
+  5 s so the router drops the endpoint before SIGTERM; default 30 s grace.
+- **PDB in base**: `maxUnavailable: 1` (valid for any replica count, unlike `minAvailable` against a moving count).
+- **Replica-safety inventory** (verified 2026-11-24): session/OAuth correlation cookies are stateless and protected by
+  the shared DB key ring (ADR-0028 §6, same application name) — no affinity needed; no `ITicketStore`, no session
+  middleware; authorization is one DB query per request with no cache (ADR-0019; the CP4.5 cache must keep the Redis
+  backplane of ADR-0035); the per-cluster invoker pool compares settings by value on every lookup (ADR-0036); audit
+  rows go straight to Postgres; migrations are serialised by the advisory lock (ADR-0027 §4); WebSocket exec/log
+  streams are single connections pinned to one pod by TCP (no cross-pod state). **One gap, fixed by T-0231:** on an
+  empty key ring, concurrent cold starts each create an *active* key and cache only their own until the 24 h ring
+  refresh, so a token/cookie protected by one pod is unreadable on another. Rule: the first key is created under a
+  Postgres advisory lock (key distinct from the migration lock), and readiness (`/health`) includes a `keyring` check
+  that is Healthy only after the key ring was loaded, so a pod takes no traffic before that. Later rotations are safe
+  (DP creates successor keys 2 days ahead of activation).
+- **Rollout of the change**: `oc apply` of a manifest that drops `spec.replicas` resets it to 1 until the HPA acts
+  (~15–30 s). The runbook documents the one-time `view-last-applied | del(.spec.replicas) | set-last-applied` step for
+  production; dev (1 replica today) needs nothing. `oc scale --replicas=0` still works for maintenance (the HPA does
+  not act on a target scaled to 0); restore with `--replicas=3`.

@@ -290,6 +290,11 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - Logs: JSON console outside Development; the request-line log category is capped at Warning in code.
 - Manifests and the configuration contract (env keys, Secret/ConfigMap names): ADR-0030, `deploy/kustomize/`;
   operations: `docs/ops/RUNBOOK.md`.
+- **Always ≥ 3 replicas** behind an HPA (ADR-0030 amendment 2026-11-24). Nothing that affects correctness may live in
+  one pod's memory: state goes to Postgres, caches need a cross-replica invalidation path (ADR-0035 backplane),
+  one-time initialisation (migrations, the first Data Protection key) runs under a Postgres advisory lock, and a pod
+  only turns ready once it can serve every request. Per-pod caches of *derived, value-compared* data (the cluster
+  invoker pool) are fine.
 
 ## Testing
 
