@@ -32,7 +32,13 @@ namespace FleetConsole.Api.Proxy;
 /// <param name="target">The authorized cluster and the user's SA token.</param>
 /// <param name="request">The validated, classified request.</param>
 /// <param name="watchTimeoutCapSeconds">The <c>timeoutSeconds</c> cap for watches (<see cref="ProxyOptions.WatchTimeoutCapSeconds"/>).</param>
-internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequest request, int watchTimeoutCapSeconds)
+/// <param name="onSwitchingProtocols">
+/// Awaited once with the upstream status when the cluster accepts a protocol upgrade (exec/attach), before YARP answers
+/// the client and relays any frame, so the endpoint can write the session's audit entry at the handshake (ADR-0036 §3);
+/// <see langword="null"/> for none.
+/// </param>
+internal sealed class KubernetesRequestTransformer(
+    ProxyTarget target, ProxyRequest request, int watchTimeoutCapSeconds, Func<int, ValueTask>? onSwitchingProtocols = null)
     : HttpTransformer
 {
     private static readonly string[] StrippedHeaders =
@@ -101,6 +107,14 @@ internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequ
                 await ProxyProblems.WriteAsync(httpContext, ProxyErrors.CredentialRejected(target.ClusterName)).ConfigureAwait(false);
                 return false;
             }
+
+            // YARP calls this before it completes the client's handshake and starts relaying, so awaiting here means no
+            // frame passes before the audit entry is written (ADR-0036 §3). A refusal (403/400/404 Status) is not an
+            // accepted upgrade and is audited by the endpoint after SendAsync instead.
+            if (onSwitchingProtocols is not null && IsAcceptedUpgrade(httpContext, proxyResponse))
+            {
+                await onSwitchingProtocols(UpstreamStatusCode.Value).ConfigureAwait(false);
+            }
         }
 
         var proceed = await base.TransformResponseAsync(httpContext, proxyResponse, cancellationToken).ConfigureAwait(false);
@@ -120,6 +134,13 @@ internal sealed class KubernetesRequestTransformer(ProxyTarget target, ProxyRequ
 
         return proceed;
     }
+
+    // 101 for an HTTP/1.1 Upgrade (kube-apiserver). While upgrades may still reach the cluster as an HTTP/2 extended
+    // CONNECT (RFC 8441; pinning to HTTP/1.1 is T-0091), a 200 to that CONNECT is the same accepted handshake.
+    private static bool IsAcceptedUpgrade(HttpContext httpContext, HttpResponseMessage proxyResponse) =>
+        KubernetesProxyEndpoint.IsUpgradeRequest(httpContext)
+        && (proxyResponse.StatusCode == HttpStatusCode.SwitchingProtocols
+            || (proxyResponse.StatusCode == HttpStatusCode.OK && proxyResponse.RequestMessage?.Method == HttpMethod.Connect));
 
     // The header names the client listed in Connection (RFC 9110 §7.6.1): they apply to the client's hop only, and
     // YARP's default copy drops only its static hop-by-hop list. Upgrade stays: YARP forwards it for WebSocket

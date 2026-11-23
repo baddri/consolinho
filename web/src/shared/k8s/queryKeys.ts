@@ -10,6 +10,8 @@ export interface AccessReview {
   model: K8sModel;
   namespace?: string | undefined;
   name?: string | undefined;
+  /** Subresource (`scale`, `exec`, `log`): `patch deployments/scale` is narrower than `patch deployments`. */
+  subresource?: string | undefined;
 }
 
 /**
@@ -45,6 +47,7 @@ export const k8sQueryKeys = {
       review.verb,
       review.model.group,
       review.model.plural,
+      review.subresource ?? '',
       review.namespace ?? '',
       review.name ?? '',
     ] as const,

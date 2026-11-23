@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-23 (CP3.7 CLOSED) · **Current checkpoint:** CP4 — Workloads day-2 (SPEC) ·
-**Branch:** `main` (CP4 work goes on `cp/4-workloads`)
+**Last updated:** 2026-11-23 (CP3.7 CLOSED) · **Current checkpoint:** CP4a — Pods + Deployments (BUILD) ·
+**Branch:** `cp/4-workloads`
 
 ## Where we are
 - CP0–CP3.5 DONE (tags cp-0..cp-3, cp-3.5). Test deployment was torn down (CP3 H7); redeploy with
@@ -18,7 +18,10 @@
 - **Human approval (2026-11-23):** after CP3.7 closes (merge + tag), continue straight into **CP4** without stopping to report; still report CP3.7 delivery in the session summary.
 - **CP3.7 DONE** (tag cp-3.7, merged to main): T-0139…T-0154; QA PASS 40/40 (`docs/specs/CP3.7-verify.md`; BE 1830,
   FE 891, e2e 10/10); PO ACCEPT WITH FOLLOW-UPS (`docs/specs/CP3.7-acceptance.md`, in ROADMAP §CP4/§CP5.5).
-- **CP4 next:** SPEC with `ocp-product-owner` on branch `cp/4-workloads` (item 1 below + CP3.7 follow-ups in ROADMAP §CP4).
+- **CP4 SPEC done** (`docs/specs/CP4-workloads.md`, split CP4a/b/c, Q1–Q8 recommendations accepted). CP4a DESIGN done: BE T-0155→T-0156→T-0157 (ADR-0036),
+  FE T-0170…T-0186 (ADR-0037, lanes in the tasks). ACT-4 tooltip keeps UI-9 copy (orchestrator). Done: T-0170 (aada516; admin's first cluster is now prod-k8s-1), T-0174 (e0eb834; new deps → `npm ci`), T-0155 (97a1cac;
+  new `Proxy:StreamIdleSlack`), T-0171 (3586b61), T-0175 (159c25d), T-0173 (1370ab7; gen:api no diff), T-0156 (909f7c3; exec audited at handshake, EventId 2403 session end), T-0172 (6bce4d5; band contrast OK), T-0176 (abc0f99; `useActionAccess`, `useResourceMutation`, `ResourceMutationModal`), T-0178 (a57aaa4; `streamPodLog`, `usePodLog`, mock `mockK8s.appendLog/cutLog`), T-0157 (3693683; BE lane DONE; Api 836), T-0182 (2cdb2a7; modal `description`/`elementToFocus`). T-0177 (a9285bc; modal `variant`/`isSaveDisabled`; plain closable labels per OCP). T-0180 (600796b; exec over `base64.channel.k8s.io`, xterm lazy chunk). T-0183 (bfb764d). T-0179 (f5c4d55; `useFullscreen` moved to `shared/hooks`). T-0181 (39afbfd; `PodStatus` popover; tests mounting Logs need `stubLogViewerLayout`). T-0185 (33ca1c7; `rowFilter` on ResourceDataView; PO to reword DEP-9/10: Rollback hidden while RS has pods, no Pods column). T-0184 (cc34f63; `PodRing` scale arrows, 1 s debounce, rollback on failure). FE build lane DONE. In progress:
+  T-0186 (a2535ef; e2e `web/e2e/workloads.e2e.ts`, parity rows). T-0187+T-0188 (e1ee330; Edit <Kind> gated on `update`, ring arrows omitted for RO; e2e 11/11). In progress: CP4a ACCEPT (PO). Next: tag cp-4a, merge; follow-up: `TogglePlay` copied from events → shared/ui (T-0179); follow-up: eslint rule only `shared/ui/terminal` imports `@xterm/*` (T-0180 review); follow-up: shared no-exec reason copy is internal wording (T-0180 UX). Follow-up: T-0183 item sits after Restart rollout (task text said after Edit Pod count). Follow-up: RO tooltip uses cluster name, modal/toast display name (T-0176 UX). cp-3.7 DEPLOYED to ns consolinho (2026-11-23, Route consolinho.apps.<current cluster>). Merge + tag per sub-checkpoint (cp-4a…).
 0. **CP3.6 DONE** (tag cp-3.6, merged to main). Look = OpenShift glass + felt. Tasks T-0119…T-0136; matrix
    `docs/architecture/ocp-parity.md` all `match`; QA PASS (`docs/specs/CP3.6-verify.md`), PO ACCEPT; human accepted
    waivers W1–W5 (`docs/specs/CP3.6-acceptance.md`). Rule stays: every FE task = engineer → frontend-architect (code) +
@@ -46,6 +49,8 @@
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` (T-0054 worktree) — safe to remove.
 
 ## Follow-ups (optional, not filed)
+- `scripts/ui-probe.mjs` uses one `/tmp` PID file for every worktree → a stale :5199 server from another worktree blocks the probe (T-0175); make it per-worktree.
+- T-0174 review: move mock-only cases (400/422, scale validation) from `shared/k8s/client.test.ts` to the mock test file.
 - T-0147 review: prettier printWidth 110 vs code ~120 → one-commit reformat or set 120 (churn on every touched file).
 - T-0090 review: explicit `proxyResponse is not null` in flush condition; tests watch→unreachable (502), watch→401.
 - T-0093 review: extend Connection test with `Authorization` nominated, assert bearer still sent.

@@ -7,10 +7,12 @@ import { mockK8s, problem, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
 import { deploymentDescriptor } from '../registry/kinds/deployments';
+import { podDescriptor } from '../registry/kinds/pods';
 import { projectDescriptor } from '../registry/kinds/projects';
 import { resourceRoutes } from '../routes';
 import { DeleteResourceModal } from './DeleteResourceModal';
 import { useResourceAccess } from './useResourceAccess';
+import { useResourceActions } from './useResourceActions';
 
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const SSAR_PATH = '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews';
@@ -48,6 +50,17 @@ function AccessProbe({
 }) {
   const { isChecking, disabledReason } = useResourceAccess(cluster, { verb: 'delete', model, namespace });
   return <p>{isChecking ? 'checking' : (disabledReason ?? 'allowed')}</p>;
+}
+
+/** Lists the item keys {@link useResourceActions} returns for a pod. */
+function ActionKeysProbe() {
+  const { items } = useResourceActions({
+    cluster: 'dev-1',
+    descriptor: podDescriptor,
+    obj: { apiVersion: 'v1', kind: 'Pod', metadata: { name: POD, namespace: 'shop' } },
+    reviewByName: false,
+  });
+  return <p>{items.map((item) => item.itemKey).join(',')}</p>;
 }
 
 /** The row of `name` in the pods table. */
@@ -138,6 +151,25 @@ describe('resource actions (UI-8)', () => {
     },
   );
 
+  it(
+    'ACT-4 alice: details "Edit Pod" is aria-disabled with the read-only-grant tooltip and opens nothing',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      setMockUser('alice');
+      const { user, router } = renderApp(`/c/prod-eu-1/k8s/ns/shop/pods/${POD}`);
+
+      await user.click(
+        await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
+      );
+      const edit = screen.getByRole('menuitem', { name: 'Edit Pod' });
+      await waitFor(() => expect(edit).toHaveAttribute('aria-disabled', 'true'));
+      await user.hover(edit);
+      expect(await screen.findByRole('tooltip')).toHaveTextContent('Your access to prod-eu-1 is read-only.');
+      await user.click(edit);
+      expect(router.state.location.pathname).toBe(`/c/prod-eu-1/k8s/ns/shop/pods/${POD}`);
+    },
+  );
+
   it('while the access review is pending, Delete is disabled without a tooltip', async () => {
     server.use(
       http.post(PROXY, async ({ request }) => {
@@ -155,15 +187,15 @@ describe('resource actions (UI-8)', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
-  it('rows of one namespace share a single access review', async () => {
+  it('rows of one namespace share a single access review per verb (patch, update, delete)', async () => {
     const reviews = recordAccessReviews();
     renderApp(POD_LIST);
 
     await findRow(POD);
-    await waitFor(() => expect(reviews).toHaveLength(1));
+    await waitFor(() => expect(reviews).toHaveLength(3));
     // The rows' checks are namespace-level: no name in the review.
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(reviews).toHaveLength(1);
+    expect(reviews).toHaveLength(3);
   });
 
   it('deletes a pod from the list: the modal names namespace, cluster and environment; the row goes', async () => {
@@ -174,12 +206,12 @@ describe('resource actions (UI-8)', () => {
     await user.click(del);
     const dialog = await screen.findByRole('dialog', { name: 'Delete Pod? dev' });
     expect(dialog).toHaveTextContent(
-      `Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`,
+      `Are you sure you want to delete ${POD} in namespace shop on cluster Development 1?`,
     );
     expect(within(dialog).getByText(POD, { selector: 'strong' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('link', { name: POD })).not.toBeInTheDocument());
     expect(mockK8s.get('dev-1', PodModel, 'shop', POD)).toBeUndefined();
   });
@@ -214,7 +246,7 @@ describe('resource actions (UI-8)', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
@@ -228,7 +260,7 @@ describe('resource actions (UI-8)', () => {
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => expect(screen.queryByRole('link', { name: POD })).not.toBeInTheDocument());
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
   });
 
   it('details: returns to the list when the object vanished first and DELETE answers 404', async () => {
@@ -245,26 +277,39 @@ describe('resource actions (UI-8)', () => {
 
     // The watch turns the page "not found" (dropping the Actions menu and its dialog) before the DELETE answers.
     expect(await screen.findByText(new RegExp(`Pod ${POD} was not found on dev-1\\.`))).toBeInTheDocument();
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
-  it('words the items as OCP: "Edit <Kind>", "Delete <Kind>", in order and in normal colour', async () => {
+  it('words the items as OCP: "Edit labels", "Edit annotations", "Edit <Kind>", "Delete <Kind>", in order and in normal colour', async () => {
     const { user } = renderApp(`${POD_LIST}/${POD}`);
 
     await user.click(
       await screen.findByRole('button', { name: 'Actions' }, { timeout: COLD_START_TIMEOUT_MS }),
     );
     const items = screen.getAllByRole('menuitem');
-    expect(items.map((item) => item.textContent)).toEqual(['Edit Pod', 'Delete Pod']);
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Edit labels',
+      'Edit annotations',
+      'Edit Pod',
+      'Delete Pod',
+    ]);
     for (const item of items) expect(item.closest('li')).not.toHaveClass('pf-m-danger');
+  });
+
+  it('keys the items as OCP (edit-labels, edit-annotations, edit, delete)', () => {
+    renderWithProviders(<ActionKeysProbe />);
+
+    expect(screen.getByText('edit-labels,edit-annotations,edit,delete')).toBeInTheDocument();
   });
 
   it('Edit Pod opens the YAML tab', async () => {
     const { user, router } = renderApp(POD_LIST);
 
     await user.click(within(await findRow(POD)).getByRole('button', { name: 'Kebab toggle' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Edit Pod' }));
+    const edit = await screen.findByRole('menuitem', { name: 'Edit Pod' });
+    await waitFor(() => expect(edit).not.toHaveAttribute('aria-disabled', 'true'));
+    await user.click(edit);
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`${POD_LIST}/${POD}/yaml`));
   });
@@ -283,7 +328,7 @@ describe('DeleteResourceModal', () => {
     );
 
     const dialog = await screen.findByRole('dialog', { name: 'Delete Project? dev' });
-    expect(dialog).toHaveTextContent('Are you sure you want to delete shop on cluster dev-1?');
+    expect(dialog).toHaveTextContent('Are you sure you want to delete shop on cluster Development 1?');
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
     expect(confirm).toBeDisabled();
     await user.click(within(dialog).getByRole('textbox'));

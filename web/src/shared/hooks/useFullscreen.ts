@@ -14,7 +14,7 @@ export interface FullscreenControls {
 
 /** What {@link useFullscreen} returns: the element to show full screen and its controls. */
 export interface Fullscreen<T extends HTMLElement = HTMLDivElement> extends FullscreenControls {
-  /** Attach to the element that fills the screen (the YAML editor with its button bar, like OCP). */
+  /** Attach to the element that fills the screen (e.g. the YAML editor with its button bar, the log viewer; like OCP). */
   ref: RefObject<T | null>;
 }
 
@@ -29,8 +29,8 @@ const isSupportedNow = () => Boolean(document.fullscreenEnabled as boolean | und
 
 /**
  * The browser Fullscreen API for one element (OCP `console-shared/src/hooks/useFullscreen.ts`), behind the YAML
- * editor's "Toggle fullscreen mode" control. The only module of the feature allowed to touch `document`
- * (`eslint.config.js`): full screen state and exit live on the document, not on an element. Errors (the browser
+ * editor's "Toggle fullscreen mode" and the Logs tab's "Expand". Allowed to touch `document` (`eslint.config.js`):
+ * full screen state and exit live on the document, not on an element. Errors (the browser
  * refused) are ignored; the state follows the `fullscreenchange` event either way.
  */
 export function useFullscreen<T extends HTMLElement = HTMLDivElement>(): Fullscreen<T> {

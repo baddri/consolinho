@@ -1,0 +1,21 @@
+/* OCP `_terminal.scss` `.co-terminal`: a black area filling its parent. */
+.terminal {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  background-color: var(--pf-t--color--black);
+  position: relative;
+}
+
+/* OCP `.co-terminal > .terminal`: white text, 10px inset, black even in the light theme. */
+.terminal > :global(.terminal) {
+  height: 100%;
+  padding: 10px;
+  color: var(--pf-t--color--white);
+  background-color: var(--pf-t--color--black);
+}
+
+/* OCP `_overrides.scss`: avoids a 1px white stripe atop the terminal in Firefox for macOS (xterm.js#1974). */
+.terminal :global(.xterm .xterm-screen canvas) {
+  border-right: 1px solid transparent;
+}

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using FleetConsole.Application.Abstractions.Kubernetes;
+using FleetConsole.Application.Proxy;
 using FleetConsole.Domain.Clusters;
 using Microsoft.Extensions.Logging;
 
@@ -15,7 +16,7 @@ namespace FleetConsole.Infrastructure.Kubernetes;
 /// (value equality: URL, CA PEM, skip flag) replaces the entry, so an admin edit takes effect on the next request with
 /// no invalidation events. Lookups of an unchanged cluster are lock-free; building takes a per-cluster lock so
 /// concurrent first requests build one handler.</para>
-/// <para>A replaced entry may still carry open watches, so it is disposed only after
+/// <para>A replaced entry may still carry open streams (watches, followed logs, exec sessions), so it is disposed only after
 /// <see cref="RetiredHandlerGracePeriod"/>, via a <see cref="TimeProvider"/> timer. Deleted clusters keep their entry
 /// until shutdown (at most ~40, accepted by ADR-0020). <see cref="Dispose"/> disposes everything.</para>
 /// </remarks>
@@ -26,8 +27,26 @@ internal sealed partial class ClusterForwardingClientPool(
     ClusterTlsHandlerFactory factory, TimeProvider time, ILogger<ClusterForwardingClientPool> logger)
     : IClusterForwardingClients, IDisposable
 {
-    /// <summary>Default for <see cref="RetiredHandlerGracePeriod"/>: the 5-minute watch cap plus an idle margin.</summary>
-    public static readonly TimeSpan DefaultRetiredHandlerGracePeriod = TimeSpan.FromMinutes(6);
+    /// <summary>
+    /// Default for <see cref="RetiredHandlerGracePeriod"/> when the pool is built without options (tests): the default
+    /// longest stream lifetime, the 60-minute exec session cap, plus the margin. DI uses <see cref="GracePeriodFor"/>.
+    /// </summary>
+    public static readonly TimeSpan DefaultRetiredHandlerGracePeriod = TimeSpan.FromMinutes(61);
+
+    /// <summary>
+    /// The grace period that lets every stream opened before a cluster edit run to its own hard lifetime on the old
+    /// handler (ADR-0036 §2): the longest lifetime, <c>max(StreamIdleTimeout, ExecSessionCap)</c>, plus one minute.
+    /// </summary>
+    /// <param name="options">The validated proxy options.</param>
+    /// <returns>How long a replaced handler stays alive.</returns>
+    public static TimeSpan GracePeriodFor(ProxyOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var longest = options.StreamLifetime(isUpgrade: false) > options.StreamLifetime(isUpgrade: true)
+            ? options.StreamLifetime(isUpgrade: false)
+            : options.StreamLifetime(isUpgrade: true);
+        return longest + TimeSpan.FromMinutes(1);
+    }
 
     private readonly ConcurrentDictionary<ClusterId, Entry> _entries = new();
     private readonly ConcurrentDictionary<ClusterId, Lock> _buildLocks = new();
@@ -39,8 +58,8 @@ internal sealed partial class ClusterForwardingClientPool(
     private volatile bool _disposed;
 
     /// <summary>
-    /// How long a replaced handler stays alive so in-flight requests and open watches can finish. Independent of the
-    /// proxy options on purpose (they arrive later and only bound the default).
+    /// How long a replaced handler stays alive so in-flight requests and open streams can finish. Set from the proxy
+    /// options by the DI registration (<see cref="GracePeriodFor"/>); tests override it.
     /// </summary>
     public TimeSpan RetiredHandlerGracePeriod { get; init; } = DefaultRetiredHandlerGracePeriod;
 

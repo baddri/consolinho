@@ -1,6 +1,6 @@
 import { useCurrentUser } from '@/features/auth';
 import { useAccessibleClusters } from '@/features/cluster-context';
-import { useCanI, type K8sModel } from '@/shared/k8s';
+import { useCanI, type AccessVerb, type K8sModel } from '@/shared/k8s';
 
 /** UI-9 reason 1, identical to the proxy's 403 `Proxy.UserReadOnly` detail. */
 export const USER_READ_ONLY_REASON = 'Your account is read-only.';
@@ -10,16 +10,28 @@ export function readOnlyGrantReason(cluster: string): string {
   return `Your access to ${cluster} is read-only.`;
 }
 
-/** UI-9 reason 3: the cluster's RBAC denies the grant's ServiceAccount; no "in <ns>" for cluster-scoped checks. */
-export function rbacDeniedReason(cluster: string, verb: string, model: K8sModel, namespace?: string): string {
+/**
+ * UI-9 reason 3: the cluster's RBAC denies the grant's ServiceAccount; no "in <ns>" for cluster-scoped checks. A
+ * subresource is named the RBAC way, e.g. "cannot patch deployments/scale in shop".
+ */
+export function rbacDeniedReason(
+  cluster: string,
+  verb: string,
+  model: K8sModel,
+  namespace?: string,
+  subresource?: string,
+): string {
   const where = model.namespaced && namespace ? ` in ${namespace}` : '';
-  return `The service account for ${cluster} cannot ${verb} ${model.plural}${where} (cluster RBAC).`;
+  const resource = subresource ? `${model.plural}/${subresource}` : model.plural;
+  return `The service account for ${cluster} cannot ${verb} ${resource}${where} (cluster RBAC).`;
 }
 
 /** The write a control would perform; see {@link useResourceAccess}. */
 export interface ResourceAccessReview {
-  verb: 'update' | 'delete';
+  verb: AccessVerb;
   model: K8sModel;
+  /** E.g. `scale` (`patch deployments/scale`) or `exec` (`create pods/exec`). */
+  subresource?: string;
   /** Ignored for cluster-scoped kinds. */
   namespace?: string;
   /** Omitted by list rows: one namespace-level check serves every row (ADR-0022 §9). */
@@ -43,7 +55,7 @@ export interface ResourceAccess {
 export function useResourceAccess(cluster: string, review: ResourceAccessReview): ResourceAccess {
   const { data: me } = useCurrentUser();
   const { data: clusters } = useAccessibleClusters();
-  const { verb, model, name } = review;
+  const { verb, model, name, subresource } = review;
   const namespace = model.namespaced ? review.namespace : undefined;
 
   let fleetReason: string | undefined;
@@ -54,7 +66,11 @@ export function useResourceAccess(cluster: string, review: ResourceAccessReview)
   }
   // Ask the cluster only once FleetConsole's own gates are known to pass.
   const needsReview = fleetReason === undefined && me !== undefined && clusters !== undefined;
-  const { allowed } = useCanI(cluster, { verb, model, namespace, name }, { enabled: needsReview });
+  const { allowed } = useCanI(
+    cluster,
+    { verb, model, namespace, name, subresource },
+    { enabled: needsReview },
+  );
 
   if (fleetReason !== undefined) {
     return { isChecking: false, disabledReason: fleetReason };
@@ -64,6 +80,6 @@ export function useResourceAccess(cluster: string, review: ResourceAccessReview)
   }
   return {
     isChecking: false,
-    disabledReason: allowed ? undefined : rbacDeniedReason(cluster, verb, model, namespace),
+    disabledReason: allowed ? undefined : rbacDeniedReason(cluster, verb, model, namespace, subresource),
   };
 }

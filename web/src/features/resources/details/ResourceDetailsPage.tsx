@@ -24,19 +24,34 @@ import type { ResourceDetailsContext } from './detailsContext';
 import { ResourceHeader } from './ResourceHeader';
 import { RESOURCE_TABS, useResourceTab, type ResourceTab } from './useResourceTab';
 
-/** Tab titles, also the accessible names of their panels. No Logs/Terminal before CP4 (spec §5). */
+/** Tab titles, also the accessible names of their panels (OCP copy). */
 const TAB_TITLES: Record<ResourceTab, string> = {
   details: 'Details',
   yaml: 'YAML',
+  replicasets: 'ReplicaSets',
   pods: 'Pods',
+  logs: 'Logs',
   events: 'Events',
+  terminal: 'Terminal',
 };
 
-/** Whether `descriptor`'s details page has the tab `tab` (Pods only with a pod selector; Events unless opted out). */
+/**
+ * Whether `descriptor`'s details page has the tab `tab`: Pods only with a pod selector, Events unless opted out, the
+ * kind tabs (ReplicaSets, Logs, Terminal) only when listed in `extraTabs` (ADR-0037 §2).
+ */
 function hasTab(descriptor: ResourceDescriptor, tab: ResourceTab): boolean {
-  if (tab === 'pods') return descriptor.podsSelector !== undefined;
-  if (tab === 'events') return descriptor.hasEventsTab !== false;
-  return true;
+  switch (tab) {
+    case 'pods':
+      return descriptor.podsSelector !== undefined;
+    case 'events':
+      return descriptor.hasEventsTab !== false;
+    case 'replicasets':
+    case 'logs':
+    case 'terminal':
+      return descriptor.extraTabs?.includes(tab) ?? false;
+    default:
+      return true;
+  }
 }
 
 /** Full-page empty state (unsupported or unserved kind). */
@@ -53,7 +68,7 @@ function PageEmptyState({ title, body }: { title: string; body: string }) {
 }
 
 /**
- * Details layout of every registered kind (UI-4/5/10, ADR-0023 §1) at `k8s/ns/:namespace/:plural/:name[/yaml|/events]`
+ * Details layout of every registered kind (UI-4/5/10, ADR-0023 §1) at `k8s/ns/:namespace/:plural/:name[/<tab>]`
  * and `k8s/cluster/:plural/:name[/…]`. Resolves the descriptor like the list page (unknown plural → "Kind not supported
  * yet", wrong scope → redirect, unserved → "aren't available"), then renders {@link ResourceDetails}. Lazy-loaded by
  * `routes.tsx`; the tab panels are its lazy child routes.
@@ -172,14 +187,7 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
         name={name}
         status={obj && !descriptor.hideHeadingStatus ? descriptor.status?.(obj) : undefined}
         actions={
-          obj && (
-            <ResourceActionsMenu
-              cluster={cluster}
-              descriptor={descriptor}
-              namespace={namespace}
-              name={name}
-            />
-          )
+          obj && <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />
         }
       />
       {body}
@@ -188,10 +196,10 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 }
 
 /**
- * URL-driven Details · YAML · Pods · Events tabs (Pods only with a `podsSelector`, Events unless `hasEventsTab ===
- * false`) as `PageTabs` aligned with the heading, then the active tab's content labelled by the tab: Details in a
- * `PageGroup` of its own bordered sections, YAML in a filled unpadded section (the editor reaches the bottom), the
- * others in a `PageBody`.
+ * URL-driven tabs in `RESOURCE_TABS` order, filtered by {@link hasTab}, as `PageTabs` aligned with the heading, then
+ * the active tab's content labelled by the tab: Details in a `PageGroup` of its own bordered sections, YAML in a
+ * filled unpadded section (the editor reaches the bottom), Logs and Terminal in a filled `PageBody`, the others in a
+ * `PageBody`.
  */
 function ResourceTabs({
   descriptor,
@@ -227,7 +235,12 @@ function ResourceTabs({
           {children}
         </PageSection>
       ) : (
-        <PageBody role="tabpanel" aria-label={TAB_TITLES[tab]}>
+        // Logs and Terminal fill the page like OCP's `PaneBody fullHeight` (the viewer/terminal reach the bottom).
+        <PageBody
+          isFilled={tab === 'logs' || tab === 'terminal'}
+          role="tabpanel"
+          aria-label={TAB_TITLES[tab]}
+        >
           {children}
         </PageBody>
       )}

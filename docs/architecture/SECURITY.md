@@ -89,14 +89,20 @@ it holds, so these rules are strict.
 - TLS to clusters validates against the cluster's CA bundle (only that cluster's pool uses it); `SkipTlsVerify` is
   allowed but flagged loudly in the admin UI.
 - Limits: non-streaming requests idle-time out (30 s → 504); watches are capped at `timeoutSeconds` 300, which also
-  bounds how long a revoked user's open read stream lives; mutation bodies ≤ 10 MiB (413).
+  bounds how long a revoked user's open read stream lives; every other stream has a hard lifetime enforced by the
+  endpoint (ADR-0036): followed logs end at the stream lifetime (watch cap + `Proxy:StreamIdleSlack` 30 s = 330 s),
+  exec/attach sessions at `Proxy:ExecSessionCap` (60 min; never cut for idling before). Both re-authorize on reconnect, so revocation,
+  deactivation and cluster disable reach open streams at the next cap; mutation bodies ≤ 10 MiB (413).
 - Access is resolved per request (no cache in CP2): revoking a grant, deactivating a user or disabling a cluster takes
   effect on the next request.
 
 ## Audit
 - Admin commands and all proxy mutations (allowed and denied) write `AuditEntry` (user, cluster, verb, path, status, timestamp, correlation id).
   Proxy entries are written after the response in their own unit of work; a failed audit write is logged at Error and
-  does not affect the response (ADR-0021). GETs/watches are not audited (traces only).
+  does not affect the response (ADR-0021). GETs/watches/log reads are not audited (traces only). Exec/attach sessions
+  are audited **at the handshake** (before any frame is relayed, so an open shell always has its entry) with the
+  container; the exec `command` is never recorded or logged. The session's end is a log line with duration and cause
+  (`cap` | `client` | `upstream`), not a second entry (ADR-0036 §3–5).
 - Admin-action audit entries are written **in the same database transaction** as the change (ADR-0008): no change
   without its entry, no entry without its change. Auth events (login, login denied with reason, logout) are audited too.
 - Append-only: no API updates or deletes entries. Entries never contain tokens, OAuth codes or cookie values (fingerprints

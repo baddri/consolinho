@@ -188,6 +188,29 @@ public sealed class ProxyRequestTests
         request.FieldManager.ShouldBe(fieldManager);
     }
 
+    // ADR-0036 §5: exec/attach record the container (first decoded value); the command is never parsed.
+    [Theory]
+    [InlineData("/api/v1/namespaces/shop/pods/web-1/exec", "?command=sh&container=app%20x&container=other", "app x")]
+    [InlineData("/api/v1/namespaces/shop/pods/web-1/attach", "?container=sidecar&stdin=1", "sidecar")]
+    [InlineData("/api/v1/namespaces/shop/pods/web-1/exec", "?command=sh&Container=app", null)]
+    [InlineData("/api/v1/namespaces/shop/pods/web-1/exec", "?command=sh", null)]
+    public void Container_IsParsedForConnect(string path, string query, string? container)
+    {
+        var request = Create("GET", path, query, isUpgrade: true);
+
+        request.Verb.ShouldBe(KubernetesVerb.Connect);
+        request.Container.ShouldBe(container);
+    }
+
+    [Fact]
+    public void Container_IsNullForALogRead()
+    {
+        var request = Create("GET", "/api/v1/namespaces/shop/pods/web-1/log", "?container=app&follow=true");
+
+        request.Verb.ShouldBe(KubernetesVerb.Get);
+        request.Container.ShouldBeNull();
+    }
+
     [Fact]
     public void AuditFields_AreNullWhenAbsent()
     {

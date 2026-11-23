@@ -34,4 +34,46 @@ internal static partial class ProxyLog
         Message = "Forwarding {Method} {Cluster} {Path} failed: {ForwarderError} ({ExceptionType}, {HttpRequestError})")]
     public static partial void ForwardFailed(
         ILogger logger, string method, string cluster, string path, ForwarderError forwarderError, string? exceptionType, HttpRequestError? httpRequestError);
+
+    /// <summary>
+    /// A proxied stream (watch, followed log, exec/attach) reached its hard lifetime and was ended by the proxy
+    /// (ADR-0036 §1). Expected — the client reconnects and is re-authorized — so Debug, not Warning.
+    /// </summary>
+    /// <param name="logger">The proxy logger.</param>
+    /// <param name="method">HTTP method.</param>
+    /// <param name="cluster">Cluster name.</param>
+    /// <param name="path">Forwarded path, without query.</param>
+    [LoggerMessage(EventId = 2402, Level = LogLevel.Debug,
+        Message = "Proxied stream {Method} {Cluster} {Path} reached its lifetime and was closed")]
+    public static partial void StreamLifetimeReached(ILogger logger, string method, string cluster, string path);
+
+    /// <summary>
+    /// An exec/attach session that was audited at the handshake has ended (ADR-0036 §4). Information, because the end
+    /// is operational data, not an audit fact: the audit entry was written when the session opened. Carries no query,
+    /// so no <c>command</c> value (users type secrets into it) and no token.
+    /// </summary>
+    /// <param name="logger">The proxy logger.</param>
+    /// <param name="cluster">Cluster name.</param>
+    /// <param name="namespace">The pod's namespace.</param>
+    /// <param name="pod">The pod name.</param>
+    /// <param name="container">The requested container, or <see langword="null"/> for the pod's default.</param>
+    /// <param name="durationMs">Time from the accepted handshake to the end, in milliseconds.</param>
+    /// <param name="cause">Why it ended: the session cap, the client leaving, or the cluster closing it.</param>
+    [LoggerMessage(EventId = 2403, Level = LogLevel.Information,
+        Message = "Exec session on {Cluster} {Namespace}/{Pod} container {Container} ended after {DurationMs} ms ({Cause})")]
+    public static partial void ExecSessionEnded(
+        ILogger logger, string cluster, string? @namespace, string? pod, string? container, long durationMs, ExecSessionEndCause cause);
+}
+
+/// <summary>Why a proxied exec/attach session ended (<see cref="ProxyLog.ExecSessionEnded"/>, ADR-0036 §4).</summary>
+internal enum ExecSessionEndCause
+{
+    /// <summary><c>Proxy:ExecSessionCap</c> was reached while the client was still connected.</summary>
+    Cap,
+
+    /// <summary>The browser closed or dropped the socket.</summary>
+    Client,
+
+    /// <summary>The cluster closed the session (the shell exited, or the connection to it failed).</summary>
+    Upstream,
 }

@@ -167,7 +167,7 @@ describe('User actions (T-0031)', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Deactivate' }));
     const dialog = await screen.findByRole('dialog', { name: 'Deactivate alice?' });
     expect(dialog).toHaveTextContent(
-      'alice will be logged out within a minute and lose access to 3 clusters. Their grants are kept and return if ' +
+      'alice will be logged out within a minute and lose access to 4 clusters. Their grants are kept and return if ' +
         'reactivated.',
     );
     // The body doesn't repeat the title's question.

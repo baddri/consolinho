@@ -75,14 +75,16 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         user,
         'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
       );
-      expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1', 'lab-1']);
-      const [prod, staging] = options as [HTMLElement, HTMLElement];
+      expect(optionNames(options)).toEqual(['prod-eu-1', 'prod-k8s-1', 'staging-eu-1', 'lab-1']);
+      const [prod, prodK8s, staging] = options as [HTMLElement, HTMLElement, HTMLElement];
       expect(within(prod).getByText('prod')).toBeInTheDocument();
       expect(within(prod).getByText('Read only')).toBeInTheDocument();
       expect(within(prod).getByText('Production EU 1')).toBeInTheDocument();
       expect(within(prod).getByText('OCP')).toBeInTheDocument();
       // Labels in UX.md §2a order: type, environment, Read only (SW-5).
       expect(prod).toHaveTextContent(/OCP\s*prod\s*Read only/);
+      // FND-1: the production Kubernetes cluster alice reads read-only.
+      expect(prodK8s).toHaveTextContent(/K8s\s*prod\s*Read only/);
       expect(within(staging).getByText('staging')).toBeInTheDocument();
       expect(within(staging).queryByText('Read only')).not.toBeInTheDocument();
     },
@@ -143,7 +145,7 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
       user,
       'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
     );
-    expect(optionNames(options)).toEqual(['prod-eu-1', 'staging-eu-1', 'lab-1']);
+    expect(optionNames(options)).toEqual(['prod-eu-1', 'prod-k8s-1', 'staging-eu-1', 'lab-1']);
   });
 
   it('shows a disabled "No clusters" toggle to a user without grants', async () => {
@@ -323,9 +325,44 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(longName);
   });
 
+  it('wraps the label group under the name instead of squeezing it (FND-2)', async () => {
+    const displayName = 'Production Kubernetes Frankfurt 1';
+    server.use(
+      http.get('*/api/clusters', () =>
+        HttpResponse.json([
+          {
+            name: 'prod-k8s-1',
+            displayName,
+            environment: 'production',
+            distribution: 'kubernetes',
+            accessMode: 'readOnly',
+            webConsoleUrl: null,
+          } satisfies AccessibleCluster,
+        ]),
+      ),
+    );
+    const { user } = renderApp('/c/prod-k8s-1/overview');
+
+    const option = optionOf(
+      await openSwitcher(user, `Cluster ${displayName} (prod-k8s-1, K8s, prod, read only), switch cluster`),
+      'prod-k8s-1',
+    );
+    // jsdom has no layout: assert the structure that lets the labels wrap as one group (wrap modifier, separate item).
+    const nameItem = within(option).getByText(displayName).closest('.pf-v6-c-truncate')?.parentElement;
+    const row = nameItem?.parentElement;
+    expect(row).toHaveClass('pf-v6-l-flex', 'pf-m-wrap');
+    expect(nameItem).toHaveClass('pf-m-flex-1');
+    const typeTag = within(option).getByText('K8s');
+    const labelGroup = typeTag.closest('.pf-v6-l-flex');
+    expect(labelGroup).not.toBe(row);
+    expect(labelGroup?.parentElement?.parentElement).toBe(row);
+    for (const tag of ['K8s', 'prod', 'Read only']) expect(labelGroup).toContainElement(within(option).getByText(tag));
+    expect(nameItem).not.toContainElement(typeTag);
+  });
+
   it.each([
-    ['k8s', ['dev-2', 'lab-1']],
-    ['kubernetes', ['dev-2', 'lab-1']],
+    ['k8s', ['prod-k8s-1', 'dev-2', 'lab-1']],
+    ['kubernetes', ['prod-k8s-1', 'dev-2', 'lab-1']],
     ['ocp', ['prod-eu-1', 'prod-us-1', 'staging-eu-1', 'dev-1']],
     ['OpenShift', ['prod-eu-1', 'prod-us-1', 'staging-eu-1', 'dev-1']],
   ])('filters by cluster type "%s"', async (text, expected) => {
@@ -492,11 +529,11 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
   });
 
   it('has no Recent group when it would repeat All clusters', async () => {
-    localStorage.setItem(recentKey('admin'), JSON.stringify(['dev-1', 'lab-1']));
+    localStorage.setItem(recentKey('admin'), JSON.stringify(['prod-k8s-1', 'dev-1', 'lab-1']));
     const { user } = renderApp('/c/dev-1/overview');
 
     const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
-    expect(optionNames(options)).toEqual(['dev-1', 'lab-1']);
+    expect(optionNames(options)).toEqual(['prod-k8s-1', 'dev-1', 'lab-1']);
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
   });
 
@@ -516,7 +553,10 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     localStorage.setItem(recentKey('alice'), JSON.stringify(['dev-1']));
     const { user } = renderApp('/user-preferences/general');
 
-    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
+    await openSwitcher(
+      user,
+      'Cluster Production Kubernetes Frankfurt 1 (prod-k8s-1, K8s, prod), switch cluster',
+    );
     expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Recent' })).not.toBeInTheDocument();
   });
@@ -812,7 +852,8 @@ describe('landing on / (SW-3/SW-4)', () => {
     expect(await screen.findByText('Could not load your clusters')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/c/dev-1/k8s/cluster/projects'));
+    // admin's first granted cluster is the Kubernetes prod-k8s-1, which lands on Namespaces.
+    await waitFor(() => expect(router.state.location.pathname).toBe('/c/prod-k8s-1/k8s/cluster/namespaces'));
   });
 });
 
@@ -916,7 +957,7 @@ describe('useAccessibleClusters (SW-6)', () => {
   it('refetches on window focus and every 5 minutes', async () => {
     const { queryClient } = renderWithProviders(<ClustersProbe />);
 
-    expect(await screen.findByText('2 clusters')).toBeInTheDocument();
+    expect(await screen.findByText('3 clusters')).toBeInTheDocument();
     const query = queryClient.getQueryCache().find({ queryKey: accessibleClustersQueryKey, exact: true });
     expect(accessibleClustersQueryKey).toEqual(['api', 'clusters']);
     expect(query?.options).toMatchObject({

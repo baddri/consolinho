@@ -13,7 +13,9 @@ export const FAKE_CA_BUNDLE = [
  * `staging-eu-1` with skip-TLS (its connection settings changed after the last test → stale summary), `dev-1`,
  * `dev-2` (disabled) and `lab-1` (one untested credential, granted to admin and alice). `lab-1` is declared
  * Kubernetes and serves no OpenShift APIs (`k8s/fixtures.ts:VANILLA_CLUSTERS`); `dev-2` is declared Kubernetes but
- * serves OpenShift APIs — the DIST-5 mismatch demo (discovery wins, ADR-0032).
+ * serves OpenShift APIs — the DIST-5 mismatch demo (discovery wins, ADR-0032). `prod-k8s-1` is a production
+ * Kubernetes cluster with a long display name (FND-1/FND-2): alice reads it read-only, admin read-write. It follows
+ * `prod-us-1` so the production group stays together in the switcher.
  */
 export const clusterFixtures: readonly MockCluster[] = [
   {
@@ -47,6 +49,24 @@ export const clusterFixtures: readonly MockCluster[] = [
     isEnabled: true,
     connectionSettingsChangedAt: daysAgo(95),
     createdAt: daysAgo(95),
+    createdBy: 'admin',
+    updatedAt: null,
+    updatedBy: null,
+    version: 1,
+  },
+  {
+    name: 'prod-k8s-1',
+    displayName: 'Production Kubernetes Frankfurt 1',
+    environment: 'production',
+    distribution: 'kubernetes',
+    apiUrl: 'https://api.prod-k8s-1.example.com:6443',
+    webConsoleUrl: null,
+    description: 'Upstream Kubernetes production cluster, Frankfurt.',
+    caBundle: FAKE_CA_BUNDLE,
+    skipTlsVerify: false,
+    isEnabled: true,
+    connectionSettingsChangedAt: daysAgo(30),
+    createdAt: daysAgo(30),
     createdBy: 'admin',
     updatedAt: null,
     updatedBy: null,

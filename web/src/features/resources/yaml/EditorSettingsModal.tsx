@@ -14,12 +14,7 @@ import {
   type MenuToggleElement,
   type ModalProps,
 } from '@patternfly/react-core';
-import {
-  FontIcon,
-  MouseIcon,
-  RhUiAutoLightDarkModeIcon,
-  RhUiCommentIcon,
-} from '@patternfly/react-icons';
+import { FontIcon, MouseIcon, RhUiAutoLightDarkModeIcon, RhUiCommentIcon } from '@patternfly/react-icons';
 import { useState, type ReactNode, type Ref } from 'react';
 import styles from './EditorSettingsModal.module.css';
 import { MIN_FONT_SIZE, type EditorColorScheme, type EditorSettings } from './useEditorSettings';
@@ -126,7 +121,16 @@ export interface EditorSettingsModalProps {
  * colour scheme (Default follows the console theme), font size, tooltips and sticky scroll, applied immediately.
  */
 export function EditorSettingsModal({ isOpen, onClose, settings, appendTo }: EditorSettingsModalProps) {
-  const { colorScheme, setColorScheme, fontSize, setFontSize, showTooltips, setShowTooltips, stickyScroll, setStickyScroll } = settings;
+  const {
+    colorScheme,
+    setColorScheme,
+    fontSize,
+    setFontSize,
+    showTooltips,
+    setShowTooltips,
+    stickyScroll,
+    setStickyScroll,
+  } = settings;
   return (
     <Modal
       variant="small"
@@ -149,7 +153,11 @@ export function EditorSettingsModal({ isOpen, onClose, settings, appendTo }: Edi
             title="Color scheme"
             description="Select the code editor color scheme"
           >
-            <ColorSchemeSelect id={`${MODAL_ID}-color-scheme`} value={colorScheme} onChange={setColorScheme} />
+            <ColorSchemeSelect
+              id={`${MODAL_ID}-color-scheme`}
+              value={colorScheme}
+              onChange={setColorScheme}
+            />
           </SettingItem>
           <SettingItem
             id={`${MODAL_ID}-font-size`}

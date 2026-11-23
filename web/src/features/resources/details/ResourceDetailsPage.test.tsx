@@ -10,6 +10,7 @@ import {
 } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { mockDb, mockK8s, problem } from '@/test/handlers';
+import { stubLogViewerLayout } from '@/test/logViewer';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { NO_EVENTS } from '../events/EventStreamView';
@@ -23,6 +24,7 @@ const POD_PATH = `/c/dev-1/k8s/ns/shop/pods/${CRASHING_POD}`;
 beforeAll(() => preloadLazyRoutes(resourceRoutes));
 
 beforeEach(() => {
+  stubLogViewerLayout(); // the Logs tab (LOG-1) mounts PF LogViewer
   onTestFinished(
     setWatchTimingForTests({ flushMs: 10, initialBackoffMs: 20, maxBackoffMs: 40, minStreamMs: 100 }),
   );
@@ -138,7 +140,7 @@ describe('pod details (UI-4)', () => {
       expect(within(metadata).getByTitle('Namespace')).toHaveTextContent('NS');
 
       const tabs = screen.getAllByRole('tab').map((tab) => tab.textContent);
-      expect(tabs).toEqual(['Details', 'YAML', 'Events']);
+      expect(tabs).toEqual(['Details', 'YAML', 'Logs', 'Events', 'Terminal']);
     },
   );
 
@@ -242,6 +244,37 @@ describe('details tabs (URL segments)', () => {
     const yaml = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: 'YAML editor' });
     expect(yaml.value).toContain('kind: ConfigMap');
     expect(yaml.value).toContain('manager: kubectl');
+  });
+});
+
+describe('kind tabs (ADR-0037 §2)', () => {
+  const tabNames = () => screen.getAllByRole('tab').map((tab) => tab.textContent);
+
+  it('gives a pod Details, YAML, Logs, Events, Terminal and deep-links Logs with ?container= (LOG-1)', async () => {
+    const { router } = renderApp(`${POD_PATH}/logs?container=web`);
+
+    expect(await screen.findByRole('tabpanel', { name: 'Logs' })).toBeInTheDocument();
+    expect(tabNames()).toEqual(['Details', 'YAML', 'Logs', 'Events', 'Terminal']);
+    expect(screen.getByRole('tab', { name: 'Logs' })).toHaveAttribute('aria-selected', 'true');
+    expect(router.state.location.pathname).toBe(`${POD_PATH}/logs`);
+    expect(router.state.location.search).toBe('?container=web');
+  });
+
+  it('gives a deployment Details, YAML, ReplicaSets, Pods, Events (DEP-9)', async () => {
+    renderApp('/c/dev-1/k8s/ns/shop/deployments/web/replicasets');
+
+    expect(await screen.findByRole('tabpanel', { name: 'ReplicaSets' })).toBeInTheDocument();
+    expect(tabNames()).toEqual(['Details', 'YAML', 'ReplicaSets', 'Pods', 'Events']);
+  });
+
+  it('keeps other kinds unchanged and redirects a kind tab they lack to Details', async () => {
+    const { router } = renderApp('/c/dev-1/k8s/ns/shop/configmaps/web-config/terminal');
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/c/dev-1/k8s/ns/shop/configmaps/web-config'),
+    );
+    expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
+    expect(tabNames()).toEqual(['Details', 'YAML', 'Events']);
   });
 });
 

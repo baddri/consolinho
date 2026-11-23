@@ -202,9 +202,11 @@ Application/Abstractions/Kubernetes/
   IClusterForwardingClients    // TryGetInvoker(clusterId, ClusterConnection) — the pool port
 Infrastructure/Kubernetes/
   ClusterTlsHandlerFactory     // Create (probes, records TLS failures, ADR-0011) / CreateForwarding (pool, records nothing)
-  ClusterForwardingClientPool  // one invoker per cluster, rebuilt when the ClusterConnection value changes
+  ClusterForwardingClientPool  // one invoker per cluster, rebuilt when the ClusterConnection value changes; the old one
+                               //   lives on for the longest stream lifetime + 1 min, so edits never cut open streams
 Api/Proxy/
-  KubernetesProxyEndpoint      // raw path → authorize query → IHttpForwarder → audit; ProblemDetails via ProxyProblems
+  KubernetesProxyEndpoint      // raw path → authorize query → IHttpForwarder → audit; ProblemDetails via ProxyProblems;
+                               //   streams get a hard lifetime (ProxyOptions.StreamLifetime, linked into RequestAborted; ADR-0036)
   KubernetesRequestTransformer // header stripping + bearer injection + exact URI; upstream 401 → 502 CredentialRejected
 ```
 

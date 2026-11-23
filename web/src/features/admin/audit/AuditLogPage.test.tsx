@@ -174,7 +174,7 @@ describe('AuditLogPage', () => {
     // Arrow keys move the highlight (focus stays in the input); Enter applies the highlighted suggestion.
     await user.click(cluster);
     await user.paste('prod');
-    await user.keyboard('{ArrowDown}{ArrowDown}');
+    await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
     expect(cluster).toHaveAttribute('aria-activedescendant', screen.getByRole('option', { name: 'prod-us-1' }).id);
     await user.keyboard('{Enter}');
     await waitFor(() => expect(lastRequest(requests).get('cluster')).toBe('prod-us-1'));

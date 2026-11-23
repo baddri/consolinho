@@ -2,7 +2,7 @@ import type { ThProps } from '@patternfly/react-table';
 import type { ReactNode } from 'react';
 import type { K8sModel, K8sResource } from '@/shared/k8s';
 import type { FilterOption } from '@/shared/table';
-import type { DataViewColumn } from '@/shared/ui';
+import type { DataViewColumn, DisabledActionProps } from '@/shared/ui';
 
 /**
  * Descriptor shape of the resource registry (ADR-0023 §3).
@@ -57,6 +57,38 @@ export interface SummaryFields<T> {
   Extra?(props: { obj: T }): ReactNode;
 }
 
+/** A details tab only some kinds have, opted in by {@link ResourceDescriptor.extraTabs}. */
+export type KindTab = 'replicasets' | 'logs' | 'terminal';
+
+/**
+ * One resource action (ADR-0037 §3). Assignable to PatternFly's `IAction` as is (row `ActionsColumn`); the details
+ * Actions dropdown maps it to `DropdownItem`s. Disabled items stay visible, with a tooltip once the reason is known.
+ */
+export interface ResourceActionItem extends DisabledActionProps {
+  /**
+   * Unique per kind: kind items use kebab-case keys of their own; the common ones are `edit-labels`,
+   * `edit-annotations`, `edit` and `delete` (OCP `useCommonActions` ids).
+   */
+  itemKey: string;
+  title: string;
+  onClick: () => void;
+}
+
+/** What a kind's {@link ResourceDescriptor.useKindActions} hook gets. */
+export interface KindActionArgs<T extends K8sResource = K8sResource> {
+  cluster: string;
+  obj: T;
+  /** Whether access checks name the object (details page) or stay namespace-level (list rows, ADR-0022 §9). */
+  reviewByName: boolean;
+}
+
+/** A kind's own actions: menu items shown before the common ones, and the one dialog they may have open. */
+export interface KindActions {
+  items: ResourceActionItem[];
+  /** The open kind dialog, or `null`. */
+  dialog: ReactNode;
+}
+
 /** Everything the generic pages need to render one kind. */
 export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   model: K8sModel;
@@ -94,8 +126,19 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * with its own toolbar (Event only, `UX.md` §6a).
    */
   listLayout?: 'table' | 'eventStream';
+  /**
+   * Kind-specific details tabs (ADR-0037 §2): Deployment `['replicasets']`, Pod `['logs', 'terminal']`. Their position
+   * comes from `RESOURCE_TABS`, not from this list.
+   */
+  extraTabs?: readonly KindTab[];
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
+  /**
+   * The kind's own actions (ADR-0037 §3), listed before the common ones in the row kebab and the details Actions
+   * menu. A hook: it is called on every render of the menu, which is keyed by the model so a kind change remounts.
+   * Every mutating item gates itself with `useActionAccess`.
+   */
+  useKindActions?(args: KindActionArgs<T>): KindActions;
   /** Delete asks to type the name (Namespace, Project). */
   deleteRequiresName?: boolean;
 }

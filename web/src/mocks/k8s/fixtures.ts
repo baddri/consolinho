@@ -20,7 +20,7 @@ import { FIXTURE_NOW } from '../fixtures/time';
  */
 
 /** Clusters that are vanilla Kubernetes: no `project.openshift.io` group in discovery. */
-export const VANILLA_CLUSTERS: ReadonlySet<string> = new Set(['lab-1']);
+export const VANILLA_CLUSTERS: ReadonlySet<string> = new Set(['lab-1', 'prod-k8s-1']);
 
 /** Whether `cluster` serves OpenShift's `project.openshift.io/v1`. */
 export function servesProjects(cluster: string): boolean {

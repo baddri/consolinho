@@ -61,7 +61,7 @@ describe('UserDetailPage (T-0032)', () => {
         Status: 'Active',
         'Display name': 'Alice Example',
         'Groups last seen': 'sre',
-        'Cluster grants': '3',
+        'Cluster grants': '4',
       });
       expect(values['Read only']).toBe(
         "NoRead-only users can't change anything on any cluster or in Fleet administration.",

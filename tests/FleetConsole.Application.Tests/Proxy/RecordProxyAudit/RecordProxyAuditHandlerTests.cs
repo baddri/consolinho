@@ -17,7 +17,7 @@ public sealed class RecordProxyAuditHandlerTests
     private static readonly string[] ContractKeys =
     [
         "method", "path", "group", "version", "resource", "subresource", "namespace", "name",
-        "dryRun", "fieldManager", "statusCode", "outcome", "reason",
+        "dryRun", "fieldManager", "container", "statusCode", "outcome", "reason",
     ];
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -53,6 +53,7 @@ public sealed class RecordProxyAuditHandlerTests
         details.Str("name").ShouldBe("web");
         details.Str("dryRun").ShouldBe("All");
         details.Str("fieldManager").ShouldBe("kubectl-edit");
+        details.IsNull("container").ShouldBeTrue();
         details.GetProperty("statusCode").GetInt32().ShouldBe(200);
         details.Str("outcome").ShouldBe("allowed");
         details.IsNull("reason").ShouldBeTrue();
@@ -78,6 +79,27 @@ public sealed class RecordProxyAuditHandlerTests
         details.GetProperty("statusCode").GetInt32().ShouldBe(403);
         details.IsNull("dryRun").ShouldBeTrue();
         details.IsNull("fieldManager").ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Exec_RecordsTheContainer_AndNeverTheCommand()
+    {
+        var audit = new RecordingAuditTrail();
+        var request = Create("GET", "/api/v1/namespaces/shop/pods/web-1/exec",
+            "?command=sh&command=-c&command=echo%20fake-secret&container=app&stdin=1&tty=1", isUpgrade: true);
+
+        await Handle(audit, FakeCurrentUser.SignedIn(UserRole.User, username: "sam"),
+            new ProxyAuditRecord("dev-1", request, 101, ProxyAuditOutcome.Allowed, null));
+
+        var record = audit.Single;
+        record.Action.ShouldBe("proxy.connect");
+        var details = AuditDetails.Of(record).ShouldHaveExactly(ContractKeys);
+        details.Str("subresource").ShouldBe("exec");
+        details.Str("container").ShouldBe("app");
+        details.GetProperty("statusCode").GetInt32().ShouldBe(101);
+        details.GetRawText().ShouldNotContain("fake-secret");
+        details.GetRawText().ShouldNotContain("command");
+        record.Summary.ShouldNotContain("fake-secret");
     }
 
     [Fact]
@@ -209,9 +231,9 @@ public sealed class RecordProxyAuditHandlerTests
     private static Task<Domain.Common.Result> Handle(RecordingAuditTrail audit, ICurrentUser currentUser, ProxyAuditRecord record) =>
         new RecordProxyAuditHandler(audit, currentUser).Handle(new RecordProxyAuditCommand(record), Ct);
 
-    private static ProxyRequest Create(string method, string path, string query = "")
+    private static ProxyRequest Create(string method, string path, string query = "", bool isUpgrade = false)
     {
         ProxyPath.TryParse(path, out var proxyPath).ShouldBeTrue();
-        return ProxyRequest.Create(method, proxyPath, query, isUpgrade: false, contentLength: null);
+        return ProxyRequest.Create(method, proxyPath, query, isUpgrade, contentLength: null);
     }
 }

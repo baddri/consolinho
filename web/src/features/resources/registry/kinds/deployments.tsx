@@ -3,8 +3,12 @@ import { DeploymentModel, type Deployment, type K8sResource } from '@/shared/k8s
 import { DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
 import { ConditionsTable } from '../../components/ConditionsTable';
 import { ContainersTable } from '../../components/ContainersTable';
+import { useResourceAccess } from '../../actions/useResourceAccess';
 import { PodRing } from '../../components/PodRing';
 import { VolumesTable } from '../../components/VolumesTable';
+import { DeploymentPausedAlert } from '../../workloads/deployments/DeploymentPausedAlert';
+import { useDeploymentActions } from '../../workloads/deployments/useDeploymentActions';
+import { useScaleDeployment } from '../../workloads/deployments/useScaleDeployment';
 import {
   PodSelectorLink,
   ReplicasCountLink,
@@ -56,11 +60,46 @@ function pods(count: number): string {
   return count === 1 ? 'pod' : 'pods';
 }
 
-/** OCP's ring above the grid: the deployment's live pods. */
-function DeploymentPodRing({ obj }: { obj: DeploymentResource }) {
+/** Above the grid, as OCP `DeploymentDetails`: the paused alert (when paused), then the ring of the live pods. */
+function DeploymentDetailsTop({ obj }: { obj: DeploymentResource }) {
   const cluster = useActiveCluster();
   if (cluster === undefined) return null;
-  return <PodRing cluster={cluster} workload={obj} selector={obj.spec?.selector.matchLabels} />;
+  return (
+    <>
+      <DeploymentPausedAlert cluster={cluster} deployment={obj} />
+      <DeploymentPodRing cluster={cluster} obj={obj} />
+    </>
+  );
+}
+
+/**
+ * The deployment's ring with OCP's scale arrows (DEP-5): one `…/scale` PATCH per burst of clicks via
+ * `useScaleDeployment` (failures toast). As OCP's `isScalingAllowed`, the arrows render only once `patch
+ * deployments/scale` is allowed: absent while the review is pending (so they never flash for a read-only user) and
+ * when denied.
+ */
+function DeploymentPodRing({ cluster, obj }: { cluster: string; obj: DeploymentResource }) {
+  const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
+  const scale = useScaleDeployment(cluster, { toastErrors: { action: 'Scale' } });
+  const access = useResourceAccess(cluster, {
+    verb: 'patch',
+    model: DeploymentModel,
+    subresource: 'scale',
+    ...target,
+  });
+
+  return (
+    <PodRing
+      cluster={cluster}
+      workload={obj}
+      selector={obj.spec?.selector.matchLabels}
+      scale={{
+        desired: desired(obj),
+        onScale: (replicas) => scale.mutateAsync({ ...target, replicas }),
+        allowed: !access.isChecking && access.disabledReason === undefined,
+      }}
+    />
+  );
 }
 
 /** "Status" row of the metadata column (OCP shows it there rather than in the heading). */
@@ -132,10 +171,13 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
     tolerations: (deployment) => deployment.spec?.template.spec?.tolerations,
     Extra: DeploymentStatusRow,
   },
-  DetailsTop: DeploymentPodRing,
+  DetailsTop: DeploymentDetailsTop,
   DetailsSection: DeploymentDetails,
   ExtraSections: DeploymentSections,
   podsSelector: (deployment) => deployment.spec?.selector.matchLabels,
+  // OCP Deployment tabs: Details, YAML, ReplicaSets, Pods, Events.
+  extraTabs: ['replicasets'],
+  useKindActions: useDeploymentActions,
   columns: [
     nameColumn(DeploymentModel),
     namespaceColumn(DeploymentModel),

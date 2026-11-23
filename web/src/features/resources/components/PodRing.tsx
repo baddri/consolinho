@@ -1,3 +1,7 @@
+import { useState } from 'react';
+import { Bullseye, Button, Split, SplitItem } from '@patternfly/react-core';
+import { RhUiCaretDownIcon, RhUiCaretUpIcon } from '@patternfly/react-icons';
+import { useDebouncedCallback } from 'use-debounce';
 import { useK8sList, PodModel, type Pod } from '@/shared/k8s';
 import { labelSelectorString } from '../registry/columns';
 import {
@@ -66,6 +70,101 @@ function Ring({ pods }: { pods: readonly Pod[] }) {
   );
 }
 
+/** One scale request 1 s after the last arrow click (ADR-0037 §7; OCP sends on the first click instead). */
+export const SCALE_DEBOUNCE_MS = 1000;
+
+/** Scale arrows of {@link PodRing}; see {@link PodRingProps.scale}. */
+export interface PodRingScale {
+  /** The workload's current `spec.replicas`, as the watch reports it. */
+  desired: number;
+  /**
+   * Sends the scale request; called once per burst of clicks, 1 s after the last one. Settles when the request does;
+   * on rejection the ring shows `desired` again.
+   */
+  onScale: (replicas: number) => Promise<unknown>;
+  /**
+   * Whether the user may scale (OCP `isScalingAllowed`); the arrows are absent otherwise (DEP-5). A flag rather than
+   * omitting `scale`, so the ring is not remounted when the access answer arrives.
+   */
+  allowed: boolean;
+}
+
+/**
+ * The pending pod count of the ring arrows: each click moves it at once, one debounced `onScale` follows the last
+ * click (`flushOnExit`, so leaving the page still scales). It snaps back to `desired` whenever the watch reports a
+ * new `spec.replicas` (the scale landed, or someone else scaled), as OCP's `PodRing` `prevReplicas` reset.
+ */
+function usePendingScale({ desired, onScale }: PodRingScale) {
+  // The count the user clicked to, until the watch reports a new `spec.replicas` or the scale fails.
+  const [pending, setPending] = useState<number>();
+  const [previous, setPrevious] = useState(desired);
+  if (previous !== desired) {
+    setPrevious(desired);
+    setPending(undefined);
+  }
+  const send = useDebouncedCallback(
+    (replicas: number) => {
+      // The mutation already toasts the failure; dropping `pending` shows the latest `desired` again.
+      onScale(replicas).catch(() => {
+        setPending(undefined);
+      });
+    },
+    SCALE_DEBOUNCE_MS,
+    { flushOnExit: true },
+  );
+  const count = pending ?? desired;
+  const change = (delta: number) => {
+    const next = Math.max(count + delta, 0);
+    setPending(next);
+    send(next);
+  };
+  return { count, change };
+}
+
+/** OCP `PodRing` scale arrows: up, then down (disabled at 0), centred beside the ring. */
+function ScaleArrows({ count, change }: { count: number; change: (delta: number) => void }) {
+  return (
+    <Bullseye>
+      <div>
+        <Button
+          variant="plain"
+          isBlock
+          icon={<RhUiCaretUpIcon />}
+          aria-label="Increase the Pod count"
+          title="Increase the Pod count"
+          onClick={() => change(1)}
+        />
+        <Button
+          variant="plain"
+          isBlock
+          icon={<RhUiCaretDownIcon />}
+          aria-label="Decrease the Pod count"
+          title="Decrease the Pod count"
+          isDisabled={count <= 0}
+          onClick={() => change(-1)}
+        />
+      </div>
+    </Bullseye>
+  );
+}
+
+/** {@link PodRing} with arrows: the ring labelled with the pending count, the arrows beside it. */
+function ScalablePodRing({ scale, ...props }: PodRingProps & { scale: PodRingScale }) {
+  const { count, change } = usePendingScale(scale);
+  return (
+    <Split>
+      <SplitItem>
+        <RingView {...props} replicas={count} />
+      </SplitItem>
+      {scale.allowed && (
+        <SplitItem>
+          <ScaleArrows count={count} change={change} />
+        </SplitItem>
+      )}
+    </Split>
+  );
+}
+
 /** Props for {@link PodRing}. */
 export interface PodRingProps {
   cluster: string;
@@ -73,21 +172,37 @@ export interface PodRingProps {
   workload: ReplicatedWorkload & { metadata?: { namespace?: string } };
   /** Its pod selector (`spec.selector.matchLabels`). */
   selector: Record<string, string> | undefined;
+  /**
+   * Adds OCP's scale arrows (Deployments, DEP-5). Clicks change the shown count at once ("Scaling to n") and send one
+   * scale request 1 s after the last click. Without it the ring is read-only.
+   */
+  scale?: PodRingScale;
 }
 
 /**
  * Read-only OCP `PodRingSet` (`console-shared/src/components/pod/PodRingSet.tsx`) above a workload's details grid: a
- * donut of its live pods coloured by status, with the pod count ("2" / "Pods", "Scaling to 3") in the middle. No scale
- * arrows — FleetConsole has no scale action. An accessible image named by the label and the per-status counts.
+ * donut of its live pods coloured by status, with the pod count ("2" / "Pods", "Scaling to 3") in the middle, and scale
+ * arrows beside it when `scale` is given. The ring is an accessible image named by the label and the per-status counts.
  */
-export function PodRing({ cluster, workload, selector }: PodRingProps) {
+export function PodRing({ scale, ...props }: PodRingProps) {
+  return scale ? <ScalablePodRing {...props} scale={scale} /> : <RingView {...props} />;
+}
+
+/** The labelled donut; `replicas` overrides the desired count shown (the arrows' pending count). */
+function RingView({
+  cluster,
+  workload,
+  selector,
+  replicas,
+}: Omit<PodRingProps, 'scale'> & { replicas?: number }) {
   const pods = useK8sList<Pod>(cluster, PodModel, {
     namespace: workload.metadata?.namespace,
     labelSelector: labelSelectorString(selector),
     enabled: selector !== undefined,
   });
   const list = pods.data ?? [];
-  const { title, subTitle } = podRingLabel(workload, list);
+  const shown = replicas === undefined ? workload : { ...workload, spec: { ...workload.spec, replicas } };
+  const { title, subTitle } = podRingLabel(shown, list);
   const counts = segments(list)
     .map(([status, count]) => `${String(count)} ${status}`)
     .join(', ');

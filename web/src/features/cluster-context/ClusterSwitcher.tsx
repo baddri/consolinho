@@ -31,6 +31,7 @@ import {
   EnvironmentLabel,
   environmentLabel,
 } from '@/shared/ui';
+import styles from './ClusterSwitcher.module.css';
 import { useClusterSwitcherOpenRequest } from './clusterSwitcherRequest';
 import { clusterSwitchPath } from './clusterSwitchPath';
 import { NoMatchStatus } from './NoMatchStatus';
@@ -75,14 +76,27 @@ function ClusterLabels({ cluster, placement }: { cluster: AccessibleCluster; pla
   );
 }
 
-/** Menu item content: display name then labels on one line; a long name truncates (full name in a tooltip). */
+/**
+ * Menu item content: display name then labels. The labels sit together in one nested flex item, so when the name
+ * would keep fewer than 12 characters (FND-2) the whole group wraps onto its own line under the name instead of
+ * squeezing it; a longer name still truncates (full name in a tooltip).
+ */
 function ClusterBadges({ cluster }: { cluster: AccessibleCluster }) {
   return (
-    <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
-      <FlexItem flex={{ default: 'flex_1' }} className="pf-v6-u-min-width">
+    <Flex
+      spaceItems={{ default: 'spaceItemsSm' }}
+      flexWrap={{ default: 'wrap' }}
+      alignItems={{ default: 'alignItemsCenter' }}
+      rowGap={{ default: 'rowGapXs' }}
+    >
+      <FlexItem flex={{ default: 'flex_1' }} className={styles.name}>
         <Truncate content={cluster.displayName} />
       </FlexItem>
-      <ClusterLabels cluster={cluster} placement="menu" />
+      <FlexItem>
+        <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
+          <ClusterLabels cluster={cluster} placement="menu" />
+        </Flex>
+      </FlexItem>
     </Flex>
   );
 }

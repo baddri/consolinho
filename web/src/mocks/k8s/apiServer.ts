@@ -13,7 +13,7 @@ import {
 } from '@/shared/k8s';
 import type { MockCredential } from '../fixtures';
 import { servesProjects } from './fixtures';
-import { forbiddenMessage, isAllowed, profileOf } from './rbac';
+import { forbiddenMessage, isAllowed, profileOf, rbacResource } from './rbac';
 import { parseFieldSelector, parseLabelSelector, type ObjectPredicate } from './selectors';
 import { notFound, statusResponse, unknownResource } from './status';
 import {
@@ -24,12 +24,13 @@ import {
   removeObject,
   upsertObject,
 } from './store';
+import { applyJsonPatch, invalidStatus, SUBRESOURCES } from './subresources';
 import { MAX_WATCH_SECONDS, watchResponse } from './watch';
 
 /**
  * The mock Kubernetes API server behind the mock proxy (T-0070): discovery, list (paging, selectors), get, watch,
- * create, update (PUT with optimistic concurrency), delete and SelfSubjectAccessReview, with RBAC from the grant's
- * credential. Error bodies are Kubernetes `Status` objects, as the proxy passes them through (contract §4).
+ * create, update (PUT with optimistic concurrency), JSON Patch (T-0174), delete, subresources (`subresources.ts`) and
+ * SelfSubjectAccessReview, with RBAC from the grant's credential. Error bodies are Kubernetes `Status` objects, as the proxy passes them through (contract §4).
  */
 
 /** A request that passed the proxy's checks. */
@@ -47,6 +48,8 @@ interface ResourceTarget {
   model: K8sModel;
   namespace: string | undefined;
   name: string | undefined;
+  /** E.g. `scale`; only with a `name`. */
+  subresource: string | undefined;
 }
 
 const AUTHORIZATION_GROUP = 'authorization.k8s.io';
@@ -242,6 +245,18 @@ function validationErrors(
   else if (urlName !== undefined && name !== urlName) {
     errors.push(['metadata.name', `Invalid value: "${name}": field is immutable`]);
   }
+  for (const field of ['labels', 'annotations'] as const) {
+    const map: unknown = object.metadata[field];
+    if (map === undefined || map === null) continue;
+    if (typeof map !== 'object' || Array.isArray(map)) {
+      errors.push([`metadata.${field}`, 'Invalid value: must be an object']);
+      continue;
+    }
+    for (const [key, value] of Object.entries(map)) {
+      if (typeof value !== 'string')
+        errors.push([`metadata.${field}[${key}]`, 'Invalid value: must be a string']);
+    }
+  }
   const data = (object as { data?: unknown }).data;
   if (model.kind === 'ConfigMap' && data !== undefined && data !== null) {
     if (typeof data !== 'object') errors.push(['data', 'Invalid value: must be an object']);
@@ -255,17 +270,7 @@ function validationErrors(
 }
 
 function invalid(model: K8sModel, name: string, errors: [string, string][]): Response {
-  return statusResponse(
-    422,
-    'Invalid',
-    `${model.kind} "${name}" is invalid: ${errors.map(([field, message]) => `${field}: ${message}`).join(', ')}`,
-    {
-      name,
-      group: model.group,
-      kind: model.kind,
-      causes: errors.map(([field, message]) => ({ reason: 'FieldValueInvalid', field, message })),
-    },
-  );
+  return invalidStatus({ name, group: model.group, kind: model.kind }, errors);
 }
 
 /** Turns a request body into an object of `target.model` (type meta filled in), or an error response. */
@@ -326,15 +331,45 @@ async function update(api: ApiServerRequest, target: ResourceTarget, name: strin
   const expected = read.object.metadata.resourceVersion;
   // No resourceVersion in the body = unconditional update, like the real API server.
   if (expected !== undefined && expected !== stored.metadata.resourceVersion) {
-    return statusResponse(
-      409,
-      'Conflict',
-      `Operation cannot be fulfilled on ${target.model.plural}${target.model.group ? `.${target.model.group}` : ''} ` +
-        `"${name}": the object has been modified; please apply your changes to the latest version and try again`,
-      { name, group: target.model.group, kind: target.model.plural },
-    );
+    return conflict(target.model, name);
   }
   return HttpResponse.json(upsertObject(api.cluster, read.object));
+}
+
+function conflict(model: K8sModel, name: string): Response {
+  return statusResponse(
+    409,
+    'Conflict',
+    `Operation cannot be fulfilled on ${model.plural}${model.group ? `.${model.group}` : ''} ` +
+      `"${name}": the object has been modified; please apply your changes to the latest version and try again`,
+    { name, group: model.group, kind: model.plural },
+  );
+}
+
+/**
+ * `PATCH` with a JSON Patch (ADR-0037 §4): applies the ops to the stored object, validates the result like a PUT
+ * (type meta and name are immutable; a patched `resourceVersion` makes it conditional), then stores it — new
+ * `resourceVersion`, watch MODIFIED — and answers the stored object.
+ */
+async function patch(api: ApiServerRequest, target: ResourceTarget, name: string): Promise<Response> {
+  const { model } = target;
+  const stored = getObject(api.cluster, model, target.namespace, name);
+  if (!stored) return notFound(model.plural, name, model.group);
+  const result = await applyJsonPatch(api.request, stored, { name, group: model.group, kind: model.kind });
+  if ('error' in result) return result.error;
+  const patched = result.patched;
+  // A patch may remove or retype `metadata`; the static type no longer holds then.
+  const metadata: unknown = patched.metadata;
+  if (typeof metadata !== 'object' || metadata === null) {
+    return invalid(model, name, [['metadata', 'Required value']]);
+  }
+  const errors = validationErrors(model, patched, name);
+  if (patched.apiVersion !== stored.apiVersion || patched.kind !== stored.kind) {
+    errors.push(['kind', 'Invalid value: apiVersion and kind are immutable']);
+  }
+  if (errors.length > 0) return invalid(model, name, errors);
+  if (patched.metadata.resourceVersion !== stored.metadata.resourceVersion) return conflict(model, name);
+  return HttpResponse.json(upsertObject(api.cluster, patched));
 }
 
 function remove(api: ApiServerRequest, target: ResourceTarget, name: string): Response {
@@ -384,9 +419,8 @@ function parseTarget(
   const model = servedModels(cluster).find(
     (candidate) => candidate.group === group && candidate.version === version && candidate.plural === plural,
   );
-  // Subresources (log, exec, status, scale) are not mocked yet.
-  if (!model || subresource.length > 0 || (namespace !== undefined && !model.namespaced)) return 'unknown';
-  return { model, namespace, name };
+  if (!model || subresource.length > 1 || (namespace !== undefined && !model.namespaced)) return 'unknown';
+  return { model, namespace, name, subresource: subresource[0] };
 }
 
 /** Serves one request against the mock cluster `api.cluster`. */
@@ -434,18 +468,33 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
   const watch = ['1', 'true'].includes(api.query.get('watch') ?? '');
   const verb = verbOf(method, target.name !== undefined, watch);
   if (!verb) return methodNotAllowed();
-  const { model, namespace, name } = target;
-  if (!isAllowed(profileOf(api.credential), verb, model.plural)) {
+  const { model, namespace, name, subresource } = target;
+  const handler = subresource === undefined ? undefined : SUBRESOURCES[subresource];
+  if (subresource !== undefined && !handler?.appliesTo(model)) return unknownResource();
+  const resource = rbacResource(model.plural, subresource);
+  if (!isAllowed(profileOf(api.credential), verb, resource)) {
     return statusResponse(
       403,
       'Forbidden',
-      forbiddenMessage(api.credential, verb, model.plural, model.group, namespace, name),
+      forbiddenMessage(api.credential, verb, resource, model.group, namespace, name),
       {
         ...(name === undefined ? {} : { name }),
         group: model.group,
         kind: model.plural,
       },
     );
+  }
+
+  if (handler && name !== undefined) {
+    return handler.serve({
+      cluster: api.cluster,
+      request: api.request,
+      query: api.query,
+      model,
+      namespace,
+      name,
+      verb,
+    });
   }
 
   switch (verb) {
@@ -476,10 +525,12 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
       return create(api, target);
     case 'update':
       return update(api, target, name ?? '');
+    case 'patch':
+      return patch(api, target, name ?? '');
     case 'delete':
       return remove(api, target, name ?? '');
     default:
-      // patch and deletecollection are not used by the console yet.
+      // deletecollection is not used by the console.
       return methodNotAllowed();
   }
 }

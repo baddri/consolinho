@@ -12,6 +12,7 @@ export const credentialIds = {
   dev1Edit: mockGuid(0x106),
   dev2View: mockGuid(0x107),
   lab1Edit: mockGuid(0x108),
+  prodK8sEdit: mockGuid(0x109),
 } as const;
 
 /** Builds a JWT-derived credential record; `sa` is `<namespace>/<name>`. */
@@ -51,7 +52,8 @@ function jwtCredential(
  * (staging-eu-1) — with and without a last test: a stale one (staging-eu-1, tested before the cluster's settings
  * changed) and failed ones (prod-us-1 authentication, dev-1 TLS reachability). staging-eu-1 has a saved
  * inspect-namespaces list (`team-a`, `team-b`, NST-6). `lab-1` (Kubernetes) has one untested
- * edit credential so the K8s switcher/theme cases have a grant to show.
+ * edit credential so the K8s switcher/theme cases have a grant to show; the production Kubernetes `prod-k8s-1`
+ * has one successfully tested edit credential (FND-1).
  */
 export const credentialFixtures: readonly MockCredential[] = [
   jwtCredential({
@@ -149,6 +151,16 @@ export const credentialFixtures: readonly MockCredential[] = [
     issuedDaysAgo: 20,
     expiresAt: daysFromNow(300),
     lastTest: null,
+    testScenario: 'edit',
+  }),
+  jwtCredential({
+    id: credentialIds.prodK8sEdit,
+    clusterName: 'prod-k8s-1',
+    name: 'fleet-edit',
+    sa: 'fleetconsole/fleet-edit',
+    issuedDaysAgo: 30,
+    expiresAt: daysFromNow(330),
+    lastTest: { testedAt: daysAgo(1), succeeded: true, failedStep: null, headline: 'clusterWideEdit' },
     testScenario: 'edit',
   }),
 ];

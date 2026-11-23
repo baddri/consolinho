@@ -17,6 +17,7 @@ async function reviewAccess(cluster: string, review: AccessReview): Promise<bool
         verb: review.verb,
         group: review.model.group,
         resource: review.model.plural,
+        ...(review.subresource ? { subresource: review.subresource } : {}),
         ...(review.namespace ? { namespace: review.namespace } : {}),
         ...(review.name ? { name: review.name } : {}),
       },

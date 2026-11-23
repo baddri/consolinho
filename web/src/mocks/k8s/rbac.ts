@@ -19,10 +19,21 @@ export function profileOf(credential: MockCredential): RbacProfile {
   return 'view';
 }
 
-/** Whether `profile` may `verb` on `resource` (plural). */
+/**
+ * Whether `profile` may `verb` on `resource` — a plural, or `plural/subresource` as RBAC names it. A subresource
+ * follows its resource: reading it (`get pods/log`, `get deployments/scale`) is allowed to every profile, writing it
+ * (`patch deployments/scale`, `create pods/exec`) only where the resource itself is writable, so `view` may neither
+ * patch nor write any subresource.
+ */
 export function isAllowed(profile: RbacProfile, verb: string, resource: string): boolean {
   if (READ_VERBS.has(verb) || profile === 'admin') return true;
-  return profile === 'edit' && !CLUSTER_SCOPED.has(resource);
+  const [plural = ''] = resource.split('/');
+  return profile === 'edit' && !CLUSTER_SCOPED.has(plural);
+}
+
+/** The RBAC resource name of `plural` with an optional subresource, e.g. `deployments/scale`. */
+export function rbacResource(plural: string, subresource: string | undefined): string {
+  return subresource ? `${plural}/${subresource}` : plural;
 }
 
 /** The ServiceAccount user name the cluster sees, for apiserver-style denial messages. */

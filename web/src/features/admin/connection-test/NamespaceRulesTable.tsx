@@ -1,6 +1,6 @@
 import { Alert, Stack, StackItem } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import type { NamespaceRulesResult } from '@/shared/api';
+import type { NamespaceRules } from '@/shared/api';
 
 /** Shown when the cluster flagged its rule list as incomplete (TEST-3). */
 export const INCOMPLETE_RULES_TEXT = 'The cluster reported an incomplete rule list.';
@@ -15,7 +15,7 @@ function joined(values: readonly string[], empty = '—'): string {
  * per rule with verbs, API groups (`""` shown as "core"), resources and resource names (empty = all). An incomplete
  * list adds a warning; the cluster's `evaluationError` is shown verbatim.
  */
-export function NamespaceRulesTable({ rules }: { rules: NamespaceRulesResult }) {
+export function NamespaceRulesTable({ rules }: { rules: NamespaceRules }) {
   // A reviewed entry always has rules; an error entry is rendered by the caller instead (NST-3).
   const list = rules.rules ?? [];
   return (

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '@/shared/api';
 import { k8sDelete, k8sQueryKeys, type K8sModel, type PropagationPolicy } from '@/shared/k8s';
 import { useToast } from '@/shared/ui';
+import { useClusterDisplayName } from './useClusterDisplayName';
 
 /** The object {@link useDeleteResource} deletes. */
 export interface DeleteTarget {
@@ -27,7 +28,7 @@ function isAlreadyGone(error: unknown): boolean {
 }
 
 /**
- * Deletes one object of `model` on `cluster` through the proxy (UI-8), toasts "<name> deleted from <cluster>" and
+ * Deletes one object of `model` on `cluster` through the proxy (UI-8), toasts "<name> deleted from <cluster display name>" and
  * runs `onDeleted`. Both run from the `useMutation` options, not `mutate()`'s: the watch's DELETED event can unmount
  * the dialog (list row removed, details page turned "not found") before the DELETE response arrives, and TanStack
  * skips `mutate()`-level callbacks of an unmounted observer. On success the object's `get` query is dropped so a later
@@ -41,6 +42,7 @@ export function useDeleteResource(
 ) {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const displayName = useClusterDisplayName(cluster);
   return useMutation({
     mutationFn: async ({ namespace, name, propagationPolicy }: DeleteTarget) => {
       try {
@@ -51,7 +53,7 @@ export function useDeleteResource(
     },
     onSuccess: (_result, { namespace, name }) => {
       queryClient.removeQueries({ queryKey: k8sQueryKeys.get(cluster, model, namespace, name), exact: true });
-      toast.success(`${name} deleted from ${cluster}`);
+      toast.success(`${name} deleted from ${displayName}`);
       onDeleted?.();
     },
   });

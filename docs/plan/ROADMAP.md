@@ -92,6 +92,9 @@ Human directive (2026-11-23). Shell and data changes that every CP4/CP5 page bui
 6. ADRs: cluster type vs API discovery; Fleet perspective; groups and grant priority (CP4.5); access cache (CP4.5).
 
 ## CP4 — Workloads day-2 operations
+Spec `docs/specs/CP4-workloads.md` (2026-11-23): split **CP4a** Pods + Deployments → **CP4b** other kinds, Jobs/CronJobs,
+HPA, ConfigMaps/Secrets, Search → **CP4c** cluster OpenAPI, field help, Edit forms, polish. Tag + merge per sub-checkpoint.
+PO Q1–Q8 recommendations accepted by the orchestrator (Secret reveal without modal = OCP parity; exec 60-min cap).
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
 (trigger now, suspend), ConfigMaps/Secrets (reveal with confirm, edit), HPA. Search across kinds by label.
@@ -127,6 +130,11 @@ Caching of discovery (access caching moved to CP4.5), rate limiting, security re
 dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 
 ## Backlog / ideas (product owner adds here)
+- (CP4 spec) Environment tab (env editor) for Pods/Deployments/StatefulSets/DaemonSets.
+- (CP4 spec) Debug container ("Debug in terminal" for CrashLoopBackOff pods).
+- (CP4 spec) Add HorizontalPodAutoscaler / Edit resource limits / Add storage actions.
+- (CP4 spec) Multi-pod aggregated logs for a Deployment.
+- (CP4 spec) Recent resources per cluster; keyboard shortcuts `l`/`t`/`y` on details pages; Secret create forms.
 - OIDC/SSO login (groups for grants → CP4.5).
 - Fleet-wide search ("where is image X running?").
 - Change windows policy (block mutations on prod outside business hours).

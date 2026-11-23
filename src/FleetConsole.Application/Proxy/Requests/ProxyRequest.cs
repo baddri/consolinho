@@ -25,6 +25,12 @@ namespace FleetConsole.Application.Proxy.Requests;
 /// <param name="ContentLength">The declared request body length, if any (used by the body-size policy).</param>
 /// <param name="DryRun">First decoded <c>dryRun</c> value (case-sensitive key), for audit; <see langword="null"/> if absent.</param>
 /// <param name="FieldManager">First decoded <c>fieldManager</c> value (case-sensitive key), for audit; <see langword="null"/> if absent.</param>
+/// <param name="Container">
+/// First decoded <c>container</c> value for a <see cref="KubernetesVerb.Connect"/> request (exec/attach), for audit;
+/// otherwise <see langword="null"/>. Only connect requests carry it into audit: a log read's <c>container</c> is never
+/// audited (LOG-9), and every other verb has no such parameter. The exec <c>command</c> values are deliberately never
+/// parsed or recorded — users type secrets into them (ADR-0036 §5).
+/// </param>
 public sealed record ProxyRequest(
     string Method,
     ProxyPath Path,
@@ -36,7 +42,8 @@ public sealed record ProxyRequest(
     bool IsStreaming,
     long? ContentLength,
     string? DryRun,
-    string? FieldManager)
+    string? FieldManager,
+    string? Container)
 {
     private const string TimeoutSecondsParameter = "timeoutSeconds";
 
@@ -77,7 +84,8 @@ public sealed record ProxyRequest(
 
         return new ProxyRequest(
             method, path, queryString, info, verb, isMutation, isWatch, isStreaming, contentLength,
-            KubernetesQuery.First(queryString, "dryRun"), KubernetesQuery.First(queryString, "fieldManager"));
+            KubernetesQuery.First(queryString, "dryRun"), KubernetesQuery.First(queryString, "fieldManager"),
+            verb == KubernetesVerb.Connect ? KubernetesQuery.First(queryString, "container") : null);
     }
 
     /// <summary>

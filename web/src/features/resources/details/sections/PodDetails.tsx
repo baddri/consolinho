@@ -1,13 +1,12 @@
 import { List, ListItem } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
+import type { ReactNode } from 'react';
 import type { Pod } from '@/shared/k8s';
 import { DetailsItem, DetailsSubsection, Status, Timestamp } from '@/shared/ui';
 import { ConditionsTable } from '../../components/ConditionsTable';
 import { ObjectReferenceLink } from '../../components/ObjectReferenceLink';
-import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
 import { BadgedName } from '../../components/ResourceLink';
 import { VolumesTable } from '../../components/VolumesTable';
-import type { ResourceStatus } from '../../registry/types';
 
 type ContainerStatus = NonNullable<NonNullable<Pod['status']>['containerStatuses']>[number];
 type ContainerState = NonNullable<ContainerStatus['state']>;
@@ -132,8 +131,8 @@ function ipsText(ips: { ip?: string }[] | undefined, ip: string | undefined): st
 /** Props for {@link PodDetails}. */
 export interface PodDetailsProps {
   obj: Pod;
-  /** The descriptor's pod status (same as the title's), passed in so this module needn't import the descriptor. */
-  status: ResourceStatus;
+  /** The rendered pod status (OCP `PodStatus`), passed in so this module needn't import the descriptor. */
+  status: ReactNode;
 }
 
 /**
@@ -149,7 +148,7 @@ export function PodDetails({ obj, status }: PodDetailsProps) {
   return (
     <>
       <DetailsItem label="Status">
-        <ResourceStatusLabel status={status} />
+        {status}
       </DetailsItem>
       <DetailsItem label="Restart policy">
         {RESTART_POLICIES[obj.spec?.restartPolicy ?? 'Always'] ?? obj.spec?.restartPolicy}

@@ -88,9 +88,9 @@ describe('UsersListPage (USR-1)', () => {
     expect(within(rowOf(table, 'ines')).getByText('Read only')).toBeInTheDocument();
     expect(within(rowOf(table, 'bob')).queryByText('Read only')).not.toBeInTheDocument();
 
-    // alice: grants on prod-eu-1, staging-eu-1 and lab-1; five groups collapse after three.
+    // alice: grants on prod-eu-1, prod-k8s-1, staging-eu-1 and lab-1; five groups collapse after three.
     const aliceRow = within(rowOf(table, 'alice'));
-    expect(aliceRow.getByRole('cell', { name: '3' })).toBeInTheDocument();
+    expect(aliceRow.getByRole('cell', { name: '4' })).toBeInTheDocument();
     const groups = aliceRow.getByRole('list', { name: 'Groups of alice' });
     expect(within(groups).getByText('platform')).toBeInTheDocument();
     expect(within(groups).queryByText('dba')).not.toBeInTheDocument();

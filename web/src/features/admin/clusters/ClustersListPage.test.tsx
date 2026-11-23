@@ -9,7 +9,7 @@ import { checkFilterOption } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
 
 /** All fixture cluster names in display order (sorted by name). */
-const ALL_CLUSTERS = ['dev-1', 'dev-2', 'lab-1', 'prod-eu-1', 'prod-us-1', 'staging-eu-1'];
+const ALL_CLUSTERS = ['dev-1', 'dev-2', 'lab-1', 'prod-eu-1', 'prod-k8s-1', 'prod-us-1', 'staging-eu-1'];
 
 /** Waits until the clusters table shows data rows and returns it (`timeout` for the file's cold start). */
 async function findClustersTable(timeout?: number) {
@@ -104,7 +104,7 @@ describe('ClustersListPage (CLU-7)', () => {
 
     await user.click(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('api.prod');
-    await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-us-1']));
+    await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-k8s-1', 'prod-us-1']));
     expect(router.state.location.search).toBe('?q=api.prod');
 
     await user.clear(screen.getByRole('textbox', { name: 'Filter by name' }));
@@ -123,7 +123,7 @@ describe('ClustersListPage (CLU-7)', () => {
     renderApp('/fleet/admin/clusters?env=production');
     const table = await findClustersTable();
 
-    await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-us-1']));
+    await waitFor(() => expect(visibleClusters(table)).toEqual(['prod-eu-1', 'prod-k8s-1', 'prod-us-1']));
     expect(within(screen.getByRole('list', { name: 'Environment' })).getByText('Production')).toBeInTheDocument();
   });
 

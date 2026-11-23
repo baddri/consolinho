@@ -111,7 +111,7 @@ export type CapabilitySummary = schemas['CapabilitySummary'];
 /** One capability check (render whatever list the Api returns). */
 export type CapabilityCheckResult = schemas['CapabilityCheckResult'];
 /** One inspected namespace of a connection test (NST-3): exactly one of `rules` / `error` is non-null. */
-export type NamespaceRulesResult = schemas['NamespaceRules'];
+export type NamespaceRules = schemas['NamespaceRules'];
 /** One RBAC resource rule. */
 export type ResourceRule = schemas['ResourceRule'];
 /** Advice derived from test result and grants (TEST-4). */
