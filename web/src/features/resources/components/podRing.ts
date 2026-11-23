@@ -1,4 +1,4 @@
-import type { Pod } from '@/shared/k8s';
+import type { HorizontalPodAutoscaler, Pod } from '@/shared/k8s';
 
 /** The replica fields of a Deployment or ReplicaSet the ring label needs. */
 export interface ReplicatedWorkload {
@@ -72,5 +72,26 @@ export function podRingLabel(workload: ReplicatedWorkload, pods: readonly Pod[])
   return {
     title: String(current),
     subTitle: current === desired ? (current === 1 ? 'Pod' : 'Pods') : scaling,
+  };
+}
+
+/**
+ * OCP `hpaPodRingLabel` (`pod-ring-utils.ts`): the label while an HPA scales the workload — "Autoscaling" while the HPA
+ * reports no current replicas yet or some pod is not Running, else "Autoscaled"; the sub-label is "to N Pod(s)" with
+ * the HPA's desired replicas (the workload's own `spec.replicas` until the HPA reports one).
+ */
+export function hpaPodRingLabel(
+  workload: ReplicatedWorkload,
+  hpa: HorizontalPodAutoscaler,
+  pods: readonly Pod[],
+): PodRingLabel {
+  // A 0 from the HPA means "not computed yet", as OCP's `||`.
+  const hpaDesired = hpa.status?.desiredReplicas ?? 0;
+  const desired = hpaDesired > 0 ? hpaDesired : (workload.spec?.replicas ?? 1);
+  const current = hpa.status?.currentReplicas;
+  const scaling = (!current && desired > 0) || !pods.every((pod) => pod.status?.phase === 'Running');
+  return {
+    title: scaling ? 'Autoscaling' : 'Autoscaled',
+    subTitle: `to ${String(desired)} ${desired === 1 ? 'Pod' : 'Pods'}`,
   };
 }

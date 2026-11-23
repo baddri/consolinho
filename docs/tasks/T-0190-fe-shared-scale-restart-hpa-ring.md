@@ -1,7 +1,7 @@
 ---
 id: T-0190
 title: Shared scale / Edit Pod count / restart for any scalable kind, HPA-aware ring
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4b
 depends_on: [T-0189]
@@ -54,14 +54,43 @@ change (CP4a e2e stays green).
   `packages/console-shared/src/components/pod/PodRingSet.tsx`; `packages/console-app/src/actions/providers/deploymentconfig-provider.ts`.
 
 ## Acceptance criteria
-- [ ] Deployments behave as in CP4a: existing Deployment action/ring tests pass unchanged apart from imports.
-- [ ] HPA-1 (part 2): Deployment `worker` (HPA) shows ring "Autoscaled to 2 Pods" without arrows and no "Edit Pod count" item; `web` still has both (test).
-- [ ] `ConfigureCountModal` with `field="parallelism"` sends one `replace /spec/parallelism` PATCH (test).
-- [ ] ACT-4: RO → Edit count / restart aria-disabled with reason (one test on a non-Deployment model, e.g. StatefulSet).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Deployments behave as in CP4a: existing Deployment action/ring tests pass unchanged apart from imports.
+- [x] HPA-1 (part 2): Deployment `worker` (HPA) shows ring "Autoscaled to 2 Pods" without arrows and no "Edit Pod count" item; `web` still has both (test).
+- [x] `ConfigureCountModal` with `field="parallelism"` sends one `replace /spec/parallelism` PATCH (test).
+- [x] ACT-4: RO → Edit count / restart aria-disabled with reason (one test on a non-Deployment model, e.g. StatefulSet).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 frontend-engineer: lifted scale hook, count modal (+ `parallelism`), Edit count / Restart items, HPA lookup
+  and `WorkloadPodRing` into `workloads/scale/`; Deployments use them; `PodRing` gains `hpa` (OCP `hpaPodRingLabel`).
+  New `scale/scale.test.tsx` (HPA worker/web, parallelism PATCH, StatefulSet RO). Gate green.
+- 2026-11-23 frontend-engineer (round 1 fix): `useRelatedHPA` takes `{ enabled }`; `useEditCountAction` enables it
+  only for `reviewByName && field === 'replicas'`, so list-row kebabs open no HPA watch and keep the access-gated
+  item. New test: row kebab on `worker` sends no HPA request (fails without the fix). Targeted check-fe green.
 
 ## Review
+- 2026-11-23 ux-designer round 1: **APPROVE** (mock :5241, dev-1/shop, admin, 1280 light).
+- worker ring: "Autoscaled" / "to 2 Pods", no arrows, aria "Autoscaled to 2 Pods 2 Running" — OCP `pod-ring-utils.ts:hpaPodRingLabel` L191-209, `PodRing.tsx` L82-85 — OK.
+- worker Actions: no "Edit Pod count"; web keeps it first and keeps its arrows — OCP `deployment-provider.ts` L46 — OK.
+- Edit Pod count modal: PF small (560 px), title, description "Deployments maintain the desired number of healthy pods.", NumberInput focused, Save/Cancel — OCP `configure-count-modal.tsx` — unchanged from CP4a, OK. Parallelism variant not reachable yet (Jobs); copy checked against OCP `configureJobParallelismModal` in source only.
+- Note (no change): OCP hides Edit Pod count until the HPA list loads (`relatedHPAs?.length === 0`); ours shows it until loaded (handover note). Accepted for stable menu order.
 
 ## Handover notes
+- Signatures differ slightly from the contract: `useEditCountAction(args, model, { field })` and
+  `useRestartAction(args, model, { blockedReason })` take the model explicitly (args carry none);
+  `useEditCountAction` lives in a `.tsx` (it returns the dialog). `useTogglePaused(cluster, model, workload)`.
+- `WorkloadPodRing` takes an optional `selector` (DCs/RCs use `spec.selector`, not `matchLabels`).
+- Edit Pod count is shown until the HPA list loads, hidden only once an HPA matches (keeps menu order stable);
+  HPA match compares the group of `scaleTargetRef.apiVersion`, not the version.
+- New `useSetParallelism` (JSON patch `replace /spec/parallelism`, toast "<name> parallelism set to N").
+- `restartRolloutPatch` is generic (lint-disable with reason) so the unchanged DEP-7 test literal still compiles.
+- UI probe not run: it hardcodes port 5199, which this run was told not to use; only ring label text changed
+  (existing styles), copy per OCP `pod-ring-utils.ts` ("Autoscaled"/"Autoscaling", "to N Pod(s)").
+- 2026-11-23 frontend-architect, round 1: **CHANGES_REQUESTED**
+  - web/src/features/resources/workloads/scale/useEditCountAction.tsx:33 — `useRelatedHPA` runs in every mounted row kebab (`ResourceRowActions` mounts `useResourceActions` per rendered row), so an all-namespaces Deployments page opens one HPA list+watch per distinct namespace; FRONTEND.md L141-143 forbids N live watches (6 HTTP/1.1 connections per origin) — required fix: add `{ enabled }` to `useRelatedHPA` (pass through to `useK8sList`) and enable it only when `reviewByName` (details Actions menu); rows keep the item (gated by access as today). Note the row/details divergence in the TSDoc and add one test that a row kebab on `worker` triggers no HPA list request.
+  - Deviations accepted: explicit `model` arg on `useEditCountAction`/`useRestartAction`, `.tsx`, optional `selector` on `WorkloadPodRing`, `useSetParallelism`, `useTogglePaused(cluster, model, workload)`, group-only HPA match (= OCP `doesHpaMatch`).
+  - Nit (optional): "shown until HPA list loads" differs from OCP (`relatedHPAs?.length === 0` hides until loaded); acceptable, keep the TSDoc note.
+  - Nit (optional): useRestartRollout.ts:25 — the generic + eslint-disable exists only for a test literal; prefer a plain `TemplatedWorkload` param and a typed fixture variable in the test in a later touch.
+- 2026-11-23 frontend-architect, round 2: **APPROVE**
+  - Round-1 finding fixed: `useRelatedHPA` takes `{ enabled }` → `useK8sList`; `useEditCountAction.tsx:33` enables it only for `reviewByName && field === 'replicas'`; TSDoc documents row/details divergence; `scale.test.tsx:97` asserts no HPA request from a `worker` row kebab. `check-fe.sh src/features/resources/workloads/scale` green (lint, typecheck, 5 tests).
+  - Nit (optional): scale.test.tsx:99 — `server.events.on` listener is never removed (global setup does not call `server.events.removeAllListeners()`); add `afterEach(() => server.events.removeAllListeners())` as in `ClusterActions.test.tsx:48`.

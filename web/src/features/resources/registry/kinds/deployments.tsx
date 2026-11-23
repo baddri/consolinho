@@ -3,12 +3,10 @@ import { DeploymentModel, type Deployment, type K8sResource } from '@/shared/k8s
 import { DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
 import { ConditionsTable } from '../../components/ConditionsTable';
 import { ContainersTable } from '../../components/ContainersTable';
-import { useResourceAccess } from '../../actions/useResourceAccess';
-import { PodRing } from '../../components/PodRing';
 import { VolumesTable } from '../../components/VolumesTable';
 import { DeploymentPausedAlert } from '../../workloads/deployments/DeploymentPausedAlert';
 import { useDeploymentActions } from '../../workloads/deployments/useDeploymentActions';
-import { useScaleDeployment } from '../../workloads/deployments/useScaleDeployment';
+import { WorkloadPodRing } from '../../workloads/scale/WorkloadPodRing';
 import {
   PodSelectorLink,
   ReplicasCountLink,
@@ -67,38 +65,8 @@ function DeploymentDetailsTop({ obj }: { obj: DeploymentResource }) {
   return (
     <>
       <DeploymentPausedAlert cluster={cluster} deployment={obj} />
-      <DeploymentPodRing cluster={cluster} obj={obj} />
+      <WorkloadPodRing cluster={cluster} model={DeploymentModel} obj={obj} />
     </>
-  );
-}
-
-/**
- * The deployment's ring with OCP's scale arrows (DEP-5): one `…/scale` PATCH per burst of clicks via
- * `useScaleDeployment` (failures toast). As OCP's `isScalingAllowed`, the arrows render only once `patch
- * deployments/scale` is allowed: absent while the review is pending (so they never flash for a read-only user) and
- * when denied.
- */
-function DeploymentPodRing({ cluster, obj }: { cluster: string; obj: DeploymentResource }) {
-  const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
-  const scale = useScaleDeployment(cluster, { toastErrors: { action: 'Scale' } });
-  const access = useResourceAccess(cluster, {
-    verb: 'patch',
-    model: DeploymentModel,
-    subresource: 'scale',
-    ...target,
-  });
-
-  return (
-    <PodRing
-      cluster={cluster}
-      workload={obj}
-      selector={obj.spec?.selector.matchLabels}
-      scale={{
-        desired: desired(obj),
-        onScale: (replicas) => scale.mutateAsync({ ...target, replicas }),
-        allowed: !access.isChecking && access.disabledReason === undefined,
-      }}
-    />
   );
 }
 
