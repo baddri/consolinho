@@ -1,16 +1,71 @@
-import { StatefulSetModel, type StatefulSet, type K8sResource } from '@/shared/k8s';
-import { ageColumn, nameColumn, namespaceColumn } from '../columns';
+import { StatefulSetModel } from '@/shared/k8s';
+import {
+  StatefulSetDetailsTop,
+  StatefulSetSections,
+  statefulSetCurrent,
+  statefulSetDesired,
+  statefulSetStatus,
+  useStatefulSetActions,
+  type StatefulSetResource,
+} from '../../workloads/statefulsets/statefulSetDetails';
+import {
+  PodSelectorLink,
+  ReplicasCountLink,
+  labelSelectorString,
+  labelsColumn,
+  nameColumn,
+  namespaceColumn,
+} from '../columns';
 import type { ResourceDescriptor } from '../types';
 
-/** A listed StatefulSet (`metadata` always present). */
-export type StatefulSetResource = StatefulSet & K8sResource;
+export type { StatefulSetResource };
 
 /**
- * StatefulSets (WL-1, OCP `stateful-set.tsx`): minimal descriptor from the CP4b foundation (T-0189) — Name, Namespace, Created. Columns,
- * details and actions are filled in by T-0191.
+ * StatefulSets (WL-2/3, OCP `stateful-set.tsx`). List: Name, Namespace, Status ("N of M pods" → Pods tab), Labels,
+ * Pod selector. Details: scalable ring, metadata with pod/node selector and tolerations, Containers, Volumes; tabs
+ * Details, YAML, Pods, Events. Kind actions: Edit Pod count, Restart rollout.
  */
 export const statefulSetDescriptor: ResourceDescriptor<StatefulSetResource> = {
   model: StatefulSetModel,
   nav: { section: 'workloads', order: 40 },
-  columns: [nameColumn(StatefulSetModel), namespaceColumn(StatefulSetModel), ageColumn()],
+  status: statefulSetStatus,
+  hideHeadingStatus: true,
+  summary: {
+    podSelector: (statefulSet) => statefulSet.spec?.selector.matchLabels,
+    nodeSelector: (statefulSet) => statefulSet.spec?.template.spec?.nodeSelector,
+    tolerations: (statefulSet) => statefulSet.spec?.template.spec?.tolerations,
+  },
+  DetailsTop: StatefulSetDetailsTop,
+  ExtraSections: StatefulSetSections,
+  podsSelector: (statefulSet) => statefulSet.spec?.selector.matchLabels,
+  useKindActions: useStatefulSetActions,
+  columns: [
+    nameColumn(StatefulSetModel),
+    namespaceColumn(StatefulSetModel),
+    {
+      id: 'status',
+      title: 'Status',
+      cell: (statefulSet) => (
+        <ReplicasCountLink
+          model={StatefulSetModel}
+          obj={statefulSet}
+          title={statefulSetStatus(statefulSet).title}
+        />
+      ),
+      sortValue: (statefulSet) =>
+        statefulSetCurrent(statefulSet) / Math.max(statefulSetDesired(statefulSet), 1),
+    },
+    labelsColumn(StatefulSetModel),
+    {
+      id: 'selector',
+      title: 'Pod selector',
+      cell: (statefulSet) => (
+        <PodSelectorLink
+          namespace={statefulSet.metadata.namespace}
+          matchLabels={statefulSet.spec?.selector.matchLabels}
+        />
+      ),
+      sortValue: (statefulSet) => labelSelectorString(statefulSet.spec?.selector.matchLabels),
+    },
+  ],
 };
