@@ -23,8 +23,10 @@ export interface K8sListData<T> {
 
 /** Request options of {@link k8sFetch}. */
 interface K8sRequestInit {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
+  /** `Content-Type` of a JSON body; default `application/json` (PATCH sends `application/json-patch+json`). */
+  contentType?: string;
   signal?: AbortSignal | undefined;
 }
 
@@ -35,7 +37,7 @@ interface K8sRequestInit {
  */
 export async function k8sFetch(path: string, init: K8sRequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (init.body !== undefined) headers['Content-Type'] = 'application/json';
+  if (init.body !== undefined) headers['Content-Type'] = init.contentType ?? 'application/json';
   const request = withCsrfHeader(
     new Request(new URL(path, globalThis.location.origin), {
       method: init.method ?? 'GET',
@@ -137,6 +139,40 @@ export async function k8sUpdate<T extends K8sResource>(cluster: string, model: K
     name: obj.metadata.name,
   });
   return readJson<T>(await k8sFetch(path, { method: 'PUT', body: obj }));
+}
+
+/** One RFC 6902 JSON Patch operation, as OCP's actions send them (ADR-0037 §4). `path` is a JSON Pointer. */
+export interface JsonPatchOp {
+  op: 'add' | 'replace' | 'remove' | 'test';
+  path: string;
+  value?: unknown;
+}
+
+/** The object (or one of its subresources) a {@link k8sPatch} targets. */
+export interface PatchTarget {
+  /** Ignored for cluster-scoped kinds. */
+  namespace?: string | undefined;
+  name: string;
+  /** E.g. `scale`: narrower RBAC (`patch deployments/scale`) than patching the object. */
+  subresource?: string | undefined;
+}
+
+/**
+ * Applies a JSON Patch (`application/json-patch+json`) to an object or its subresource and returns the server's
+ * answer — the patched object, or e.g. an `autoscaling/v1 Scale` for `scale`. Explicit `add`/`replace`/`remove` ops
+ * per path make every action's intent reviewable; a `test` op makes it conditional (fails with 422 when it does
+ * not hold). Every failure is an {@link ApiError}.
+ */
+export async function k8sPatch<T>(
+  cluster: string,
+  model: K8sModel,
+  target: PatchTarget,
+  patch: JsonPatchOp[],
+): Promise<T> {
+  const path = resourceApiPath(cluster, model, target);
+  return readJson<T>(
+    await k8sFetch(path, { method: 'PATCH', body: patch, contentType: 'application/json-patch+json' }),
+  );
 }
 
 /**

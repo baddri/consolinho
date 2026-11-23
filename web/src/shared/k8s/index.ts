@@ -7,11 +7,14 @@ export {
   k8sListAll,
   k8sGet,
   k8sUpdate,
+  k8sPatch,
   k8sDelete,
   k8sCreate,
   LIST_PAGE_SIZE,
   type ListOptions,
   type K8sListData,
+  type JsonPatchOp,
+  type PatchTarget,
 } from './client';
 export { k8sErrorFromResponse } from './errors';
 export { k8sQueryKeys, type AccessReview, type AccessVerb } from './queryKeys';
