@@ -74,7 +74,7 @@ describe('Bulk grant wizard (T-0040)', () => {
 
       // Already granted and credential-less clusters are listed but not selectable.
       expect(checkboxOf(dialog, 'prod-eu-1')).toBeDisabled();
-      expect(within(dialog).getAllByText('already has access')).toHaveLength(2);
+      expect(within(dialog).getAllByText('already has access')).toHaveLength(3);
       expect(checkboxOf(dialog, 'lab-1')).toBeDisabled();
       expect(within(dialog).getByText('no credentials')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Next' })).toBeDisabled();
@@ -136,7 +136,7 @@ describe('Bulk grant wizard (T-0040)', () => {
             .getAllByRole('link')
             .map((link) => link.textContent)
             .sort(),
-        ).toEqual(['dev-1', 'dev-2', 'prod-eu-1', 'prod-us-1', 'staging-eu-1']),
+        ).toEqual(['dev-1', 'dev-2', 'prod-eu-1', 'prod-k8s-1', 'prod-us-1', 'staging-eu-1']),
       );
     },
   );
@@ -168,12 +168,12 @@ describe('Bulk grant wizard (T-0040)', () => {
     await footer(user, dialog, 'Next');
 
     expect(
-      within(dialog).getByText('This user will be able to change production clusters: prod-eu-1, prod-us-1.'),
+      within(dialog).getByText('This user will be able to change production clusters: prod-eu-1, prod-k8s-1, prod-us-1.'),
     ).toBeInTheDocument();
     const highlighted = reviewRows(dialog)
       .filter((row) => row.classList.contains('pf-m-selected'))
       .map((row) => within(row).getAllByRole('cell')[0]?.textContent);
-    expect(highlighted).toEqual(['prod-eu-1', 'prod-us-1']);
+    expect(highlighted).toEqual(['prod-eu-1', 'prod-k8s-1', 'prod-us-1']);
   });
 
   it('GRANT-4: a 400 on items[1].credentialId marks row 2, keeps the selection and creates nothing', async () => {

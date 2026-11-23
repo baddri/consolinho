@@ -16,6 +16,7 @@ const SERVER_ORDER = [
   'prod-eu-1/fleet-view',
   'lab-1/fleet-edit',
   'dev-2/fleet-view',
+  'prod-k8s-1/fleet-edit',
   'prod-us-1/legacy-token',
   'staging-eu-1/fleet-admin',
 ];
@@ -115,6 +116,7 @@ describe('CredentialsListPage (CRED-7)', () => {
       'lab-1',
       'prod-eu-1',
       'prod-eu-1',
+      'prod-k8s-1',
       'prod-us-1',
       'prod-us-1',
       'staging-eu-1',
@@ -130,7 +132,12 @@ describe('CredentialsListPage (CRED-7)', () => {
     await user.click(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('fleetconsole/fleet-edit');
     await waitFor(() =>
-      expect(visibleRows(table)).toEqual(['prod-eu-1/fleet-edit', 'dev-1/fleet-edit', 'lab-1/fleet-edit']),
+      expect(visibleRows(table)).toEqual([
+        'prod-eu-1/fleet-edit',
+        'dev-1/fleet-edit',
+        'lab-1/fleet-edit',
+        'prod-k8s-1/fleet-edit',
+      ]),
     );
 
     await checkFilterOption(user, 'Environment', 'Development');

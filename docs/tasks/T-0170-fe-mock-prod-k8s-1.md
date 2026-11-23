@@ -1,7 +1,7 @@
 ---
 id: T-0170
 title: Mock cluster prod-k8s-1 (Kubernetes, production, alice read-only)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4a
 depends_on: []
@@ -32,12 +32,22 @@ seed half is a backend task (BE "dev seed prod-k8s-1").
   `grep -rln "lab-1\|toHaveLength(6)\|6 clusters" web/src --include=*.test.tsx`.
 
 ## Acceptance criteria
-- [ ] FND-1: `/c/prod-k8s-1/...?mockUser=alice` shows `K8s` tag, production label, navy (Kubernetes) masthead, production band; switcher item shows "Read only".
-- [ ] admin sees it read-write; the k8s store serves at least one Deployment with 2 Pods in a namespace.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] FND-1: `/c/prod-k8s-1/...?mockUser=alice` shows `K8s` tag, production label, navy (Kubernetes) masthead, production band; switcher item shows "Read only".
+- [x] admin sees it read-write; the k8s store serves at least one Deployment with 2 Pods in a namespace.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 frontend-engineer: added `prod-k8s-1` ("Production Kubernetes Frankfurt 1", kubernetes, production, after
+  prod-us-1) + tested `fleet-edit` credential (0x109) + grants alice readOnly (0x20b) / admin readWrite (0x20c); added to
+  `VANILLA_CLUSTERS` so discovery serves no OpenShift groups; shop seed (Deployment `web`, 3 Pods) applies as on every
+  cluster. Updated count/name assertions in 13 test files; `check-fe.sh` green (891 tests).
 
 ## Review
 
 ## Handover notes
+- Behaviour change: admin's first granted cluster is now `prod-k8s-1` (production sorts first), so `/` for admin lands
+  on `/c/prod-k8s-1/k8s/cluster/namespaces`, not dev-1 Projects. The router.test and clusterContext landing tests now expect that.
+- `clusterContext.test` SW-1 also asserts the alice switcher item reads `K8s prod Read only` (FND-1).
+- Not touched (outside paths): `mocks/fixtures/audit.ts` CLUSTERS list has no prod-k8s-1, so there are no audit rows for it. That's harmless.
+  No count tests needed edits under `features/resources/` or the excluded `mocks/k8s/*` files.
+- I did not run the UI probe, because only fixture data changed and no styles did. T-0172 (band review) covers the visuals.

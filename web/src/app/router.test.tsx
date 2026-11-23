@@ -18,7 +18,7 @@ describe('routes', () => {
   // Landing details (last cluster, no clusters) are covered in features/cluster-context.
   // First full-app render of the file: its first wait gets the documented cold-start allowance (T-0046).
   it(
-    "redirects / to the Projects list of the user's first granted cluster",
+    "redirects / to the landing list of the user's first granted cluster",
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const { router } = renderApp('/');
@@ -26,11 +26,12 @@ describe('routes', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { name: 'Projects', level: 1 },
+          // admin's first granted cluster is the Kubernetes prod-k8s-1: Namespaces, not Projects.
+          { name: 'Namespaces', level: 1 },
           { timeout: COLD_START_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
-      expect(router.state.location.pathname).toBe('/c/dev-1/k8s/cluster/projects');
+      expect(router.state.location.pathname).toBe('/c/prod-k8s-1/k8s/cluster/namespaces');
     },
   );
 
