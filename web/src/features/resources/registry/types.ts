@@ -111,6 +111,8 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * bivariant like the other callbacks.
    */
   DetailsSection?(props: { obj: T }): ReactNode;
+  /** Heading over the {@link DetailsSection} column, e.g. OCP's "Job status"; none when unset. */
+  detailsTitle?: string;
   /**
    * Further full-width sections below the details grid (Containers, Conditions, Ports, Data), each a
    * `DetailsSubsection` with its own heading. Same component shape as {@link DetailsSection}.
@@ -121,6 +123,12 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * that match, and is where the "N of M pods" status links.
    */
   podsSelector?(obj: T): Record<string, string> | undefined;
+  /**
+   * The Pods tab's content for a kind whose pods no label selector expresses (CronJob: the pods of the Jobs it owns,
+   * OCP `CronJobPodsComponent`). Declaring it adds the Pods tab like {@link podsSelector}; same component shape as
+   * {@link DetailsSection}.
+   */
+  PodsTab?(props: { cluster: string; obj: T }): ReactNode;
   /**
    * How the list page renders: `table` (default, `ConsoleDataView`) or `eventStream`, OCP's live stream of event cards
    * with its own toolbar (Event only, `UX.md` §6a).

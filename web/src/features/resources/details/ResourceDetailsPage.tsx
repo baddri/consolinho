@@ -44,7 +44,7 @@ const TAB_TITLES: Record<ResourceTab, string> = {
 function hasTab(descriptor: ResourceDescriptor, tab: ResourceTab): boolean {
   switch (tab) {
     case 'pods':
-      return descriptor.podsSelector !== undefined;
+      return descriptor.podsSelector !== undefined || descriptor.PodsTab !== undefined;
     case 'events':
       return descriptor.hasEventsTab !== false;
     case 'replicasets':

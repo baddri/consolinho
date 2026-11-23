@@ -1,11 +1,11 @@
-import { DetailsColumn, DetailsGrid, DetailsSubsection } from '@/shared/ui';
+import { DetailsColumn, DetailsGrid, DetailsSubsection, SectionHeading } from '@/shared/ui';
 import { useResourceDetails } from './detailsContext';
 import { MetadataSection } from './MetadataSection';
 
 /**
  * Details tab (UI-4, OCP `DeploymentDetails`/`PodDetails`, `UX.md` §6): a "<Kind> details" section with the
  * descriptor's `DetailsTop` (pod ring) over two columns — the common {@link MetadataSection} left, the descriptor's
- * `DetailsSection` fields right — then the descriptor's `ExtraSections` (Containers, Volumes, Conditions, …), each its
+ * `DetailsSection` fields right (under its optional `detailsTitle`, OCP "Job status") — then the descriptor's `ExtraSections` (Containers, Volumes, Conditions, …), each its
  * own bordered `DetailsSubsection`. Re-renders on every watch update. Lazy route module.
  */
 export function ResourceDetailsTab() {
@@ -22,6 +22,7 @@ export function ResourceDetailsTab() {
           </DetailsColumn>
           {descriptor.DetailsSection && (
             <DetailsColumn aria-label={`${label} properties`}>
+              {descriptor.detailsTitle && <SectionHeading text={descriptor.detailsTitle} />}
               <descriptor.DetailsSection obj={obj} />
             </DetailsColumn>
           )}

@@ -1,16 +1,56 @@
-import { JobModel, type Job, type K8sResource } from '@/shared/k8s';
-import { ageColumn, nameColumn, namespaceColumn } from '../columns';
-import type { ResourceDescriptor } from '../types';
+import { JobModel } from '@/shared/k8s';
+import {
+  JobCompletionsLink,
+  JobDetails,
+  JobSections,
+  JobSummaryExtra,
+  jobStatus,
+  jobTypeAndCompletions,
+  useJobActions,
+  type JobResource,
+} from '../../workloads/jobs/jobDetails';
+import { ageColumn, labelsColumn, nameColumn, namespaceColumn } from '../columns';
+import type { ColumnDef, ResourceDescriptor } from '../types';
 
-/** A listed Job (`metadata` always present). */
-export type JobResource = Job & K8sResource;
+export type { JobResource };
+
+/** OCP's Completions column: "<succeeded> of <completions>" linking to the Job's Pods tab. */
+export const jobCompletionsColumn: ColumnDef<JobResource> = {
+  id: 'completions',
+  title: 'Completions',
+  cell: (job) => <JobCompletionsLink obj={job} />,
+  sortValue: (job) => job.status?.succeeded ?? 0,
+};
 
 /**
- * Jobs (WL-1, OCP `job.tsx`): minimal descriptor from the CP4b foundation (T-0189) — Name, Namespace, Created. Columns,
- * details and actions are filled in by T-0194.
+ * Jobs (JOB-1, OCP `job.tsx`). List: Name, Namespace, Labels, Completions, Type, Created. Details: metadata with pod
+ * selector plus Desired completions / Parallelism / Active deadline, the "Job status" column, Containers and
+ * Conditions; tabs Details, YAML, Pods, Events. Kind action: Edit parallelism.
  */
 export const jobDescriptor: ResourceDescriptor<JobResource> = {
   model: JobModel,
   nav: { section: 'workloads', order: 80 },
-  columns: [nameColumn(JobModel), namespaceColumn(JobModel), ageColumn()],
+  status: jobStatus,
+  detailsTitle: 'Job status',
+  summary: {
+    podSelector: (job) => job.spec?.selector?.matchLabels,
+    Extra: JobSummaryExtra,
+  },
+  DetailsSection: JobDetails,
+  ExtraSections: JobSections,
+  podsSelector: (job) => job.spec?.selector?.matchLabels,
+  useKindActions: useJobActions,
+  columns: [
+    nameColumn(JobModel),
+    namespaceColumn(JobModel),
+    labelsColumn(JobModel),
+    jobCompletionsColumn,
+    {
+      id: 'type',
+      title: 'Type',
+      cell: (job) => jobTypeAndCompletions(job).type,
+      sortValue: (job) => jobTypeAndCompletions(job).type,
+    },
+    ageColumn(),
+  ],
 };
