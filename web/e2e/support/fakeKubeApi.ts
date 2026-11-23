@@ -23,32 +23,9 @@ export interface FakeKubeApi {
  * a "denied" SelfSubjectAccessReview. Everything else is a Kubernetes-style 404 `Status`.
  */
 export async function startFakeKubeApi(): Promise<FakeKubeApi> {
-  const certDir = mkdtempSync(join(tmpdir(), 'fleetconsole-e2e-'));
-  const keyPath = join(certDir, 'key.pem');
-  const certPath = join(certDir, 'cert.pem');
-  execFileSync(
-    'openssl',
-    [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-nodes',
-      '-days',
-      '1',
-      '-subj',
-      '/CN=127.0.0.1',
-      '-addext',
-      'subjectAltName=IP:127.0.0.1',
-      '-keyout',
-      keyPath,
-      '-out',
-      certPath,
-    ],
-    { stdio: 'ignore' },
-  );
+  const certificate = selfSignedCertificate();
   const server: Server = createServer(
-    { key: readFileSync(keyPath), cert: readFileSync(certPath) },
+    { key: certificate.key, cert: certificate.cert },
     (request, response) => {
       const url = new URL(request.url ?? '/', 'https://fake');
       const json = (status: number, body: unknown) => {
@@ -90,8 +67,51 @@ export async function startFakeKubeApi(): Promise<FakeKubeApi> {
       new Promise<void>((resolve) => {
         server.closeAllConnections();
         server.close(() => resolve());
-        rmSync(certDir, { recursive: true, force: true });
+        certificate.dispose();
       }),
+  };
+}
+
+/** A throw-away self-signed certificate for `127.0.0.1` (PEM) and a `dispose` that deletes its temp files. */
+export interface SelfSignedCertificate {
+  key: Buffer;
+  cert: Buffer;
+  dispose: () => void;
+}
+
+/**
+ * Generates a one-day self-signed certificate for `127.0.0.1` with `openssl`, for the fake API servers (the proxy only
+ * accepts `https://` clusters; the e2e clusters are registered with `skipTlsVerify`).
+ */
+export function selfSignedCertificate(): SelfSignedCertificate {
+  const certDir = mkdtempSync(join(tmpdir(), 'fleetconsole-e2e-'));
+  const keyPath = join(certDir, 'key.pem');
+  const certPath = join(certDir, 'cert.pem');
+  execFileSync(
+    'openssl',
+    [
+      'req',
+      '-x509',
+      '-newkey',
+      'rsa:2048',
+      '-nodes',
+      '-days',
+      '1',
+      '-subj',
+      '/CN=127.0.0.1',
+      '-addext',
+      'subjectAltName=IP:127.0.0.1',
+      '-keyout',
+      keyPath,
+      '-out',
+      certPath,
+    ],
+    { stdio: 'ignore' },
+  );
+  return {
+    key: readFileSync(keyPath),
+    cert: readFileSync(certPath),
+    dispose: () => rmSync(certDir, { recursive: true, force: true }),
   };
 }
 

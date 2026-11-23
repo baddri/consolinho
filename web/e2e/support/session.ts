@@ -1,7 +1,7 @@
 import { type APIRequestContext, type APIResponse, type Page } from '@playwright/test';
 
 /** DevOAuth picker users (src/FleetConsole.DevOAuth/appsettings.json) the smoke uses. */
-export type DevUser = 'admin' | 'alice' | 'e2e-user' | 'e2e-admin';
+export type DevUser = 'admin' | 'alice' | 'bob' | 'e2e-user' | 'e2e-admin';
 
 /**
  * DevOAuth users reserved for the smoke and kept grantless for H4 (`e2e-user` plain, `e2e-admin` in the admin
