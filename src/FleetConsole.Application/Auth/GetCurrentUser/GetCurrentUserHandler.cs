@@ -1,5 +1,6 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
+using FleetConsole.Application.Users;
 using FleetConsole.Domain.Common;
 using FleetConsole.Domain.Users;
 
@@ -41,6 +42,6 @@ internal sealed class GetCurrentUserHandler(ICurrentUser currentUser, IReadModel
             // Already filtered at login; filtering again keeps rows stored before that rule existed clean too.
             OpenShiftGroups.WithoutVirtualGroups(row.Groups),
             IsAdminViaConfiguration: row.AdminConfigurationSource is not null,
-            row.AdminConfigurationSource);
+            AdminConfigurationSourceDto.From(row.AdminConfigurationSource));
     }
 }

@@ -250,6 +250,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   List-valued value objects (e.g. `InspectNamespaces`) are a Postgres array column: a `ValueConverter` to `string[]`
   that re-validates through the VO's `Create`, **plus** an explicit `ValueComparer` (`Converters/ValueObjectConverters.cs`) —
   without it EF picks an array comparer that cannot snapshot the VO.
+  Small structured VOs may instead keep a single text column through a converter that owns the text format, e.g.
+  `AdminConfigurationSource` ↔ `"user list"` / `"group <name>"` (POL-4); unknown stored text throws (corrupt data).
 - Migrations live in `Infrastructure/Persistence/Migrations` (treated as generated code by a nested `.editorconfig`);
   applied on startup in Development by `DevelopmentDatabaseMigrator`; in production by the image's `migrate` mode run
   as an init container (ADR-0027). Both use the same migrator; migrations are forward-only.

@@ -95,7 +95,7 @@ internal static class AuthTestUsers
     }
 
     /// <summary>A user who logged in before with <paramref name="adminSource"/> as configuration source.</summary>
-    public static User LoggedInBefore(string username, string? adminSource, bool assignedAdmin = false)
+    public static User LoggedInBefore(string username, AdminConfigurationSource? adminSource, bool assignedAdmin = false)
     {
         var user = PreCreated(username, assignedAdmin ? UserRole.Admin : UserRole.User);
         user.RecordLogin("Old Name", ["old-group"], adminSource, provisioned: false, Earlier).IsSuccess.ShouldBeTrue();

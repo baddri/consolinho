@@ -127,7 +127,8 @@ public sealed class UsersAdminEndpointsTests(ApiFactory factory)
         user.GetProperty("role").GetString().ShouldBe("admin");
         user.GetProperty("isAdminViaConfiguration").GetBoolean().ShouldBeTrue();
         user.GetProperty("isAdminByAssignment").GetBoolean().ShouldBeFalse();
-        user.GetProperty("adminConfigurationSource").GetString().ShouldBe($"group {TestOAuthServer.AdminGroup}");
+        user.GetProperty("adminConfigurationSource").GetProperty("kind").GetString().ShouldBe("group");
+        user.GetProperty("adminConfigurationSource").GetProperty("group").GetString().ShouldBe(TestOAuthServer.AdminGroup);
         user.GetProperty("groups").EnumerateArray().Select(g => g.GetString()).ShouldContain(TestOAuthServer.AdminGroup);
         user.GetProperty("status").GetString().ShouldBe("active");
         user.GetProperty("createdBy").GetString().ShouldBe(configAdmin); // auto-provisioned

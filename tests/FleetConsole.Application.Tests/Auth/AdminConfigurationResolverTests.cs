@@ -34,7 +34,8 @@ public sealed class AdminConfigurationResolverTests
             options.AdminGroups.Add(group);
         }
 
-        AdminConfigurationResolver.Resolve(username, groups, options).ShouldBe(expected);
+        // Compared by text form: "user list" / "group <name>" (AdminConfigurationSource.ToString).
+        AdminConfigurationResolver.Resolve(username, groups, options)?.ToString().ShouldBe(expected);
     }
 
     [Fact]

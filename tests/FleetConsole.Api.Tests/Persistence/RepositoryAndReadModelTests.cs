@@ -32,12 +32,12 @@ public sealed class RepositoryAndReadModelTests(ApiFactory factory)
 
         var assigned = NewUser(UserRole.Admin);
         var configured = NewUser();
-        configured.RecordLogin(null, ["fleetconsole-admins"], "group fleetconsole-admins", provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        configured.RecordLogin(null, ["fleetconsole-admins"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: false, Now).IsSuccess.ShouldBeTrue();
         var bootstrap = NewUser();
-        bootstrap.RecordLogin(null, [], "user list", provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        bootstrap.RecordLogin(null, [], AdminConfigurationSource.UserList, provisioned: false, Now).IsSuccess.ShouldBeTrue();
         var readOnlyAdmin = NewUser(UserRole.Admin, isReadOnly: true);
         var readOnlyConfigured = NewUser(isReadOnly: true);
-        readOnlyConfigured.RecordLogin(null, [], "user list", provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        readOnlyConfigured.RecordLogin(null, [], AdminConfigurationSource.UserList, provisioned: false, Now).IsSuccess.ShouldBeTrue();
         var deactivatedAdmin = NewUser(UserRole.Admin);
         deactivatedAdmin.Deactivate(UserId.New(), activeWritableAdminCount: 10).IsSuccess.ShouldBeTrue();
         var regular = NewUser();
@@ -158,7 +158,7 @@ public sealed class RepositoryAndReadModelTests(ApiFactory factory)
     {
         var admin = NewUser(UserRole.Admin);
         var configured = NewUser();
-        configured.RecordLogin("Config Admin", ["admins"], "group admins", provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        configured.RecordLogin("Config Admin", ["admins"], AdminConfigurationSource.ForGroup("admins"), provisioned: false, Now).IsSuccess.ShouldBeTrue();
         var regular = NewUser();
         await SaveAsync(sp =>
         {

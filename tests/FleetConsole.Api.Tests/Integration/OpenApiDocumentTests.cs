@@ -168,6 +168,29 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task AdminConfigurationSource_IsANullableObjectWithAKindEnum()
+    {
+        // POL-4: the SPA switches on kind instead of parsing "user list" / "group <name>" text.
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+        foreach (var owner in new[] { "CurrentUser", "UserListItem", "UserDetail" })
+        {
+            var property = schemas.GetProperty(owner).GetProperty("properties").GetProperty("adminConfigurationSource");
+            var variants = property.GetProperty("oneOf").EnumerateArray()
+                .Select(v => v.TryGetProperty("$ref", out var r) ? r.GetString() : v.GetProperty("type").GetString())
+                .ToArray();
+            variants.ShouldBe(["null", "#/components/schemas/AdminConfigurationSource"], ignoreOrder: true, owner);
+        }
+
+        var source = schemas.GetProperty("AdminConfigurationSource");
+        source.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ShouldBe(["kind", "group"], ignoreOrder: true);
+        source.GetProperty("properties").GetProperty("kind").GetProperty("$ref").GetString()
+            .ShouldBe("#/components/schemas/AdminConfigurationSourceKind");
+        schemas.GetProperty("AdminConfigurationSourceKind").GetProperty("enum").EnumerateArray().Select(e => e.GetString())
+            .ShouldBe(["userList", "group"]);
+    }
+
+    [Fact]
     public async Task NamespaceRules_RequiresAllSixFields()
     {
         var document = await GetDocumentAsync();

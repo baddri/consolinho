@@ -1,6 +1,7 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Tests.Audit;
 using FleetConsole.Application.Tests.Auth;
+using FleetConsole.Application.Users;
 using FleetConsole.Application.Users.ChangeUserRole;
 using FleetConsole.Application.Users.CreateUser;
 using FleetConsole.Application.Users.DeactivateUser;
@@ -123,7 +124,7 @@ public sealed class UserHandlerTests
     [Fact]
     public async Task ChangeRole_DemoteConfigurationAdmin_IsAdminViaConfiguration()
     {
-        var configAdmin = AuthTestUsers.LoggedInBefore("ines", "group fleetconsole-admins");
+        var configAdmin = AuthTestUsers.LoggedInBefore("ines", AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         _users.Users.Add(configAdmin);
 
         var result = await new ChangeUserRoleHandler(_users, Actor)
@@ -183,8 +184,8 @@ public sealed class UserHandlerTests
     [Fact]
     public async Task GetUser_ProjectsDerivedValues_AndHidesVirtualGroups()
     {
-        var ines = AuthTestUsers.LoggedInBefore("ines", "group fleetconsole-admins");
-        ines.RecordLogin("Ines", ["ops", "system:authenticated"], "group fleetconsole-admins", provisioned: false, FixedClock.Now)
+        var ines = AuthTestUsers.LoggedInBefore("ines", AdminConfigurationSource.ForGroup("fleetconsole-admins"));
+        ines.RecordLogin("Ines", ["ops", "system:authenticated"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: false, FixedClock.Now)
             .IsSuccess.ShouldBeTrue();
         _readModel.UserRows.Add(ines);
 
@@ -194,7 +195,7 @@ public sealed class UserHandlerTests
         dto.Role.ShouldBe(UserRole.Admin);
         dto.IsAdminViaConfiguration.ShouldBeTrue();
         dto.IsAdminByAssignment.ShouldBeFalse();
-        dto.AdminConfigurationSource.ShouldBe("group fleetconsole-admins");
+        dto.AdminConfigurationSource.ShouldBe(new AdminConfigurationSourceDto(AdminConfigurationSourceKind.Group, "fleetconsole-admins"));
         dto.Status.ShouldBe(UserStatus.Active);
         dto.Groups.ShouldBe(["ops"]);
         dto.CreatedBy.ShouldBe("root");

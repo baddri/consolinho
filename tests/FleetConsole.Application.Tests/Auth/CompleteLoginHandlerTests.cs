@@ -59,7 +59,7 @@ public sealed class CompleteLoginHandlerTests
 
         outcome.User.ShouldNotBeNull().Role.ShouldBe(UserRole.Admin);
         var user = _users.Added.ShouldHaveSingleItem();
-        user.AdminConfigurationSource.ShouldBe("group fleetconsole-admins");
+        user.AdminConfigurationSource.ShouldBe(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         user.IsAdminByAssignment.ShouldBeFalse();
         var change = user.DomainEvents.OfType<UserRoleChanged>().ShouldHaveSingleItem();
         change.Source.ShouldBe(RoleChangeSource.Configuration);
@@ -154,7 +154,7 @@ public sealed class CompleteLoginHandlerTests
         var outcome = await LoginAsync("dave", "Dave", "fleetconsole-admins");
 
         outcome.User.ShouldNotBeNull().Role.ShouldBe(UserRole.Admin);
-        dave.AdminConfigurationSource.ShouldBe("user list", "the user list wins over groups");
+        dave.AdminConfigurationSource.ShouldBe(AdminConfigurationSource.UserList, "the user list wins over groups");
         var change = dave.DomainEvents.OfType<UserRoleChanged>().ShouldHaveSingleItem();
         change.OldRole.ShouldBe(UserRole.User);
         change.NewRole.ShouldBe(UserRole.Admin);
@@ -165,7 +165,7 @@ public sealed class CompleteLoginHandlerTests
     public async Task ConfigurationAdmin_StillInGroup_RaisesNoRoleChange()
     {
         _options.AdminGroups.Add("fleetconsole-admins");
-        var erin = AuthTestUsers.LoggedInBefore("erin", "group fleetconsole-admins");
+        var erin = AuthTestUsers.LoggedInBefore("erin", AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         _users.Users.Add(erin);
 
         var outcome = await LoginAsync("erin", "Erin", "fleetconsole-admins");
@@ -179,7 +179,7 @@ public sealed class CompleteLoginHandlerTests
     public async Task ConfigurationAdmin_RemovedFromGroup_IsBackToUser()
     {
         _options.AdminGroups.Add("fleetconsole-admins");
-        var frank = AuthTestUsers.LoggedInBefore("frank", "group fleetconsole-admins");
+        var frank = AuthTestUsers.LoggedInBefore("frank", AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         _users.Users.Add(frank);
 
         var outcome = await LoginAsync("frank", "Frank", "sre");
@@ -196,7 +196,7 @@ public sealed class CompleteLoginHandlerTests
     public async Task AssignedAdmin_RemovedFromGroup_StaysAdmin_WithoutRoleChange()
     {
         _options.AdminGroups.Add("fleetconsole-admins");
-        var grace = AuthTestUsers.LoggedInBefore("grace", "group fleetconsole-admins", assignedAdmin: true);
+        var grace = AuthTestUsers.LoggedInBefore("grace", AdminConfigurationSource.ForGroup("fleetconsole-admins"), assignedAdmin: true);
         _users.Users.Add(grace);
 
         var outcome = await LoginAsync("grace", "Grace", "sre");

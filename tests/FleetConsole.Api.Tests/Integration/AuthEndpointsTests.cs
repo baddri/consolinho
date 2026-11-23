@@ -203,7 +203,8 @@ public sealed class AuthEndpointsTests(ApiFactory factory)
         me.GetProperty("isReadOnly").GetBoolean().ShouldBeFalse();
         me.GetProperty("groups").EnumerateArray().Select(g => g.GetString()).ShouldBe([TestOAuthServer.AdminGroup]);
         me.GetProperty("isAdminViaConfiguration").GetBoolean().ShouldBeTrue();
-        me.GetProperty("adminConfigurationSource").GetString().ShouldBe($"group {TestOAuthServer.AdminGroup}");
+        me.GetProperty("adminConfigurationSource").GetProperty("kind").GetString().ShouldBe("group");
+        me.GetProperty("adminConfigurationSource").GetProperty("group").GetString().ShouldBe(TestOAuthServer.AdminGroup);
 
         var entries = await factory.Data.AuditEntriesAsync(username);
         entries.Select(e => e.Action).ShouldBe(["user.provisioned", "user.promoted", "auth.login"], ignoreOrder: true);

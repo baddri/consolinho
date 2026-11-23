@@ -68,7 +68,7 @@ public sealed class DomainEventDispatchIntegrationTests(ApiFactory factory)
         // The login flow saves before any session exists (no current user): provisioning and login are attributed to
         // the user, the configuration promotion to "system (config)".
         var user = User.Provision(NewUsername("login"), Now);
-        user.RecordLogin("Login Tester", ["fleetconsole-admins"], "group fleetconsole-admins", provisioned: true, Now).IsSuccess.ShouldBeTrue();
+        user.RecordLogin("Login Tester", ["fleetconsole-admins"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: true, Now).IsSuccess.ShouldBeTrue();
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {

@@ -18,7 +18,7 @@ public sealed class UserErrorsTests
             "You can't demote or deactivate yourself. Ask another administrator."
         },
         {
-            UserErrors.AdminViaConfiguration("group fleetconsole-admins"), "Users.AdminViaConfiguration", ErrorType.Conflict,
+            UserErrors.AdminViaConfiguration(AdminConfigurationSource.ForGroup("fleetconsole-admins")), "Users.AdminViaConfiguration", ErrorType.Conflict,
             "Admin granted by configuration (group fleetconsole-admins). Change the configuration to remove."
         },
         { UserErrors.Deactivated(), "Users.Deactivated", ErrorType.Forbidden, "Your Consolinho account is deactivated." },

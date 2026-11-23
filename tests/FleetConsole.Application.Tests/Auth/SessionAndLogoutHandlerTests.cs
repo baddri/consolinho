@@ -4,6 +4,7 @@ using FleetConsole.Application.Auth.GetCurrentUser;
 using FleetConsole.Application.Auth.GetSessionState;
 using FleetConsole.Application.Auth.LogOut;
 using FleetConsole.Application.Tests.Audit;
+using FleetConsole.Application.Users;
 using FleetConsole.Application.Tests.Behaviors;
 using FleetConsole.Domain.Audit;
 using FleetConsole.Domain.Users;
@@ -23,7 +24,7 @@ public sealed class SessionAndLogoutHandlerTests
     [Fact]
     public async Task SessionState_ReflectsTheDatabase()
     {
-        var admin = AuthTestUsers.LoggedInBefore("ines", "group auditors");
+        var admin = AuthTestUsers.LoggedInBefore("ines", AdminConfigurationSource.ForGroup("auditors"));
         admin.SetReadOnly(true, activeWritableAdminCount: 5);
         _readModel.UserRows.Add(admin);
 
@@ -48,11 +49,18 @@ public sealed class SessionAndLogoutHandlerTests
 
     [Theory]
     [InlineData(false, null)]
-    [InlineData(false, "group admins")]
+    [InlineData(false, AdminConfigurationSourceKind.Group)]
     [InlineData(true, null)]
-    [InlineData(true, "user list")]
-    public async Task SessionState_Role_MatchesUserRole_ForEveryAdminSourceCombination(bool assigned, string? configurationSource)
+    [InlineData(true, AdminConfigurationSourceKind.UserList)]
+    public async Task SessionState_Role_MatchesUserRole_ForEveryAdminSourceCombination(bool assigned, AdminConfigurationSourceKind? kind)
     {
+        var configurationSource = kind switch
+        {
+            AdminConfigurationSourceKind.Group => AdminConfigurationSource.ForGroup("admins"),
+            AdminConfigurationSourceKind.UserList => AdminConfigurationSource.UserList,
+            _ => null,
+        };
+
         // The handler restates User.Role in its projection (Role isn't mapped); this pins the two together.
         var user = AuthTestUsers.LoggedInBefore("role-check", configurationSource, assignedAdmin: assigned);
         _readModel.UserRows.Add(user);
@@ -91,13 +99,13 @@ public sealed class SessionAndLogoutHandlerTests
     public async Task CurrentUser_CombinesSessionRoleWithStoredProfile()
     {
         var user = AuthTestUsers.PreCreated("admin");
-        user.RecordLogin("Fleet Admin", ["fleetconsole-admins", "system:authenticated"], "group fleetconsole-admins", false, FixedClock.Now);
+        user.RecordLogin("Fleet Admin", ["fleetconsole-admins", "system:authenticated"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), false, FixedClock.Now);
         _readModel.UserRows.Add(user);
         var session = new SignedInAs(user.Id, "admin", UserRole.Admin, isReadOnly: true);
 
         var result = await new GetCurrentUserHandler(session, _readModel).Handle(new GetCurrentUserQuery(), Ct);
 
-        result.Value.ShouldBe(new CurrentUserDto("admin", "Fleet Admin", UserRole.Admin, true, result.Value.Groups, true, "group fleetconsole-admins"));
+        result.Value.ShouldBe(new CurrentUserDto("admin", "Fleet Admin", UserRole.Admin, true, result.Value.Groups, true, new AdminConfigurationSourceDto(AdminConfigurationSourceKind.Group, "fleetconsole-admins")));
         result.Value.Groups.ShouldBe(["fleetconsole-admins"], "virtual groups are never shown");
     }
 
@@ -105,7 +113,7 @@ public sealed class SessionAndLogoutHandlerTests
     public async Task CurrentUser_RoleAndReadOnly_ComeFromTheSession()
     {
         // The database already says Admin (promoted < 60 s ago); the session still says User until revalidation.
-        var user = AuthTestUsers.LoggedInBefore("bob", "user list");
+        var user = AuthTestUsers.LoggedInBefore("bob", AdminConfigurationSource.UserList);
         _readModel.UserRows.Add(user);
 
         var result = await new GetCurrentUserHandler(new SignedInAs(user.Id, "bob", UserRole.User), _readModel)

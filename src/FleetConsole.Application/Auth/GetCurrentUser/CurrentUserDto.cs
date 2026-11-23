@@ -1,3 +1,4 @@
+using FleetConsole.Application.Users;
 using FleetConsole.Domain.Users;
 
 namespace FleetConsole.Application.Auth.GetCurrentUser;
@@ -12,7 +13,7 @@ namespace FleetConsole.Application.Auth.GetCurrentUser;
 /// <param name="IsReadOnly">Whether the user is globally read-only (administration changes are refused).</param>
 /// <param name="Groups">The user's OpenShift groups at the last login (virtual system groups are not included).</param>
 /// <param name="IsAdminViaConfiguration">Whether configuration (user list or admin group) makes the user an administrator.</param>
-/// <param name="AdminConfigurationSource">Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't.</param>
+/// <param name="AdminConfigurationSource">Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't.</param>
 public sealed record CurrentUserDto(
     string Username,
     string? DisplayName,
@@ -20,4 +21,4 @@ public sealed record CurrentUserDto(
     bool IsReadOnly,
     IReadOnlyList<string> Groups,
     bool IsAdminViaConfiguration,
-    string? AdminConfigurationSource);
+    AdminConfigurationSourceDto? AdminConfigurationSource);

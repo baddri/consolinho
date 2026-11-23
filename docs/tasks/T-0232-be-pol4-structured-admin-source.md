@@ -1,7 +1,7 @@
 ---
 id: T-0232
 title: POL-4 — serve the admin configuration source as a structured field
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4c
 depends_on: []          # FE follow-up (gen:api, delete users/adminSource.ts parsing) is the frontend-architect's T-021x task, which depends on this
@@ -59,15 +59,31 @@ Model it as a domain value object so no layer parses text except the one EF conv
   (L62–205), `Application.Tests/Users/UserHandlerTests.cs` L197.
 
 ## Acceptance criteria
-- [ ] Domain tests: VO factories/guards/`ToString`; `RecordLogin` events carry the unchanged text.
-- [ ] Converter round-trip test (both kinds + null) against Postgres; unknown text throws.
-- [ ] Api tests: `GET /api/me` (or the current-user route), user list and user detail return the structured object for
+- [x] Domain tests: VO factories/guards/`ToString`; `RecordLogin` events carry the unchanged text.
+- [x] Converter round-trip test (both kinds + null) against Postgres; unknown text throws.
+- [x] Api tests: `GET /api/me` (or the current-user route), user list and user detail return the structured object for
       a user-list admin, a group admin and a non-config user (`null`); audit `details.configurationSource` text unchanged.
-- [ ] No EF migration generated (`dotnet ef migrations add` would be empty — check the model snapshot is untouched).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4): `scripts/check-be.sh`.
+- [x] No EF migration generated (`dotnet ef migrations add` would be empty — check the model snapshot is untouched).
+- [x] Build, lint and tests green (CLAUDE.md rule 4): `scripts/check-be.sh`.
 
 ## Work log
+- 2026-11-24 backend-engineer: started; VO + converter + DTO approach per contract.
+- 2026-11-24 backend-engineer: done. VO `AdminConfigurationSource` + kind enum, `AdminConfigurationSourceConverter` (only
+  text parser), `AdminConfigurationSourceDto` on 3 DTOs; `has-pending-model-changes` = none. Test helpers
+  (`AuthFakes.LoggedInBefore`, `ConfigAdmin`) now take the VO. BACKEND.md § Persistence +2 lines — note that file also
+  carries T-0231's uncommitted hunk (§ probes); stage hunks separately. check-be.sh green (339/711/858).
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. VO/factories/guard, resolver, `RecordLogin`, error message,
+  converter (sole parser, throws on corrupt text), DTO + 3 wire DTOs and OpenAPI shape match the contract; audit text
+  unchanged (`ToString()`), no migration; AC tests present (domain, Postgres round-trip + corrupt, 3-route endpoint, OpenAPI).
+  Optional: `ValueObjectConverters.cs` `GroupPrefix` duplicates the `"group "` literal in `AdminConfigurationSource.ToString`
+  — a shared `internal const` isn't possible across assemblies, so a short cross-reference comment would do.
 
 ## Handover notes
+- Wire: `adminConfigurationSource: { kind: "userList" | "group", group: string | null } | null` on CurrentUser,
+  UserListItem, UserDetail; OpenAPI = `oneOf [null, $ref AdminConfigurationSource]`, enum `AdminConfigurationSourceKind`.
+- Audit text/`UserRoleChanged.ConfigurationSource`/error message unchanged (`VO.ToString()`); same column, no migration.
+- Converter round-trip + corrupt-text tests: `Api.Tests/Persistence/AggregateRoundTripTests`; endpoint shape for all
+  three cases on a variant host (`Auth:BootstrapAdminUsers=[bob]`): `Integration/Admin/Users/AdminConfigurationSourceEndpointsTests`.
+- FE follow-up: `npm run gen:api`, replace `web/src/features/admin/users/adminSource.ts` string parsing with a switch on `kind`.

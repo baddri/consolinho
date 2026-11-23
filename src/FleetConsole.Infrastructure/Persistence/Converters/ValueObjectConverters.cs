@@ -15,6 +15,37 @@ namespace FleetConsole.Infrastructure.Persistence.Converters;
 internal sealed class UsernameConverter()
     : ValueConverter<Username, string>(name => name.Value, value => ValueConverters.Valid(Username.Create(value)));
 
+/// <summary>
+/// Stores an <see cref="AdminConfigurationSource"/> as its text form (<see cref="AdminConfigurationSource.ToString"/>:
+/// <c>"user list"</c> / <c>"group &lt;name&gt;"</c>) in the pre-existing text column, so no migration was needed and
+/// rows written before POL-4 read back unchanged. This is the only place that parses that text.
+/// </summary>
+internal sealed class AdminConfigurationSourceConverter()
+    : ValueConverter<AdminConfigurationSource, string>(source => source.ToString(), value => Parse(value))
+{
+    private const string GroupPrefix = "group ";
+
+    /// <summary>Reads the stored text back; unknown text is corrupt data (the value is rewritten at every login).</summary>
+    /// <param name="value">The stored text.</param>
+    /// <returns>The source.</returns>
+    /// <exception cref="InvalidOperationException">When the text is neither form.</exception>
+    internal static AdminConfigurationSource Parse(string value)
+    {
+        if (value == AdminConfigurationSource.UserList.ToString())
+        {
+            return AdminConfigurationSource.UserList;
+        }
+
+        if (value.StartsWith(GroupPrefix, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(value[GroupPrefix.Length..]))
+        {
+            return AdminConfigurationSource.ForGroup(value[GroupPrefix.Length..]);
+        }
+
+        throw new InvalidOperationException(
+            "A stored AdminConfigurationSource is invalid; the database contains data the Domain rejects.");
+    }
+}
+
 /// <summary>Stores a <see cref="ClusterName"/> as its text.</summary>
 internal sealed class ClusterNameConverter()
     : ValueConverter<ClusterName, string>(name => name.Value, value => ValueConverters.Valid(ClusterName.Create(value)));
