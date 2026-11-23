@@ -285,3 +285,45 @@ describe('navigation (UI-2)', () => {
     expect(items).not.toContain('Projects');
   });
 });
+
+describe('CP4b kinds (T-0189 foundation)', () => {
+  it.each([
+    ['statefulsets', 'StatefulSets', 'db'],
+    ['daemonsets', 'DaemonSets', 'node-agent'],
+    ['replicationcontrollers', 'ReplicationControllers', 'legacy-rc'],
+    ['deploymentconfigs', 'DeploymentConfigs', 'frontend'],
+    ['jobs', 'Jobs', 'migrate-db'],
+    ['cronjobs', 'CronJobs', 'nightly-report'],
+    ['horizontalpodautoscalers', 'HorizontalPodAutoscalers', 'worker'],
+    ['secrets', 'Secrets', 'db-credentials'],
+  ])('lists %s from the fixtures and opens the details page', async (plural, title, name) => {
+    const { user, router } = renderApp(`/c/dev-1/k8s/ns/shop/${plural}`);
+
+    const table = await screen.findByRole('grid', { name: title }, { timeout: COLD_START_TIMEOUT_MS });
+    await user.click(within(await findRow(table, name)).getByRole('link', { name }));
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe(`/c/dev-1/k8s/ns/shop/${plural}/${name}`),
+    );
+    expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(name);
+  });
+
+  it.each([
+    ['cronjobs/nightly-report/jobs', 'Jobs'],
+    ['deploymentconfigs/frontend/replicationcontrollers', 'ReplicationControllers'],
+  ])('resolves the kind tab %s', async (path, tab) => {
+    const { router } = renderApp(`/c/dev-1/k8s/ns/shop/${path}`);
+
+    expect(await screen.findByRole('tab', { name: tab, selected: true })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe(`/c/dev-1/k8s/ns/shop/${path}`);
+  });
+
+  it.each(['jobs', 'replicationcontrollers'])('redirects a pod %s tab to Details', async (tab) => {
+    const pod = `/c/dev-1/k8s/ns/shop/pods/${WEB_PODS[0] ?? ''}`;
+    const { router } = renderApp(`${pod}/${tab}`);
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(pod));
+    expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
+  });
+});

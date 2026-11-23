@@ -116,16 +116,31 @@ interface Scale {
 
 /** The replica-count fields of a scalable workload. */
 interface Scalable extends K8sResource {
-  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } };
+  /** A `LabelSelector` (apps kinds) or a plain label map (ReplicationController, DeploymentConfig). */
+  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } | Record<string, string> };
   status?: { replicas?: number };
 }
 
-/** `<group>/<plural>` of the kinds with a `scale` subresource. */
-const SCALABLE = new Set(['apps/deployments', 'apps/replicasets', 'apps/statefulsets']);
+/** `<group>/<plural>` of the kinds with a `scale` subresource (Jobs have none: parallelism is a plain PATCH). */
+const SCALABLE = new Set([
+  'apps/deployments',
+  'apps/replicasets',
+  'apps/statefulsets',
+  '/replicationcontrollers',
+  'apps.openshift.io/deploymentconfigs',
+]);
+
+/** The equality labels of a workload's selector, whichever of the two shapes it has. */
+function selectorLabels(selector: NonNullable<Scalable['spec']>['selector']): [string, string][] {
+  if (!selector) return [];
+  const { matchLabels } = selector;
+  if (typeof matchLabels === 'object') return Object.entries(matchLabels);
+  return Object.entries(selector).filter((entry): entry is [string, string] => typeof entry[1] === 'string');
+}
 
 function scaleOf(object: Scalable): Scale {
   const { name, namespace, uid, resourceVersion, creationTimestamp } = object.metadata;
-  const labels = Object.entries(object.spec?.selector?.matchLabels ?? {});
+  const labels = selectorLabels(object.spec?.selector);
   return {
     apiVersion: 'autoscaling/v1',
     kind: 'Scale',

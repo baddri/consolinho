@@ -1,7 +1,7 @@
 ---
 id: T-0189
 title: CP4b foundation — models, mock fixtures, nav order, new tab slots, minimal descriptors
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4b
 depends_on: []
@@ -77,15 +77,42 @@ kind (model + nav + Name/Namespace/Created columns). The kind tasks (T-0191…T-
   `console.navigation/resource-ns` items of section `workloads`), `public/models/index.ts`.
 
 ## Acceptance criteria
-- [ ] WL-1: on a mock OpenShift cluster the Workloads nav lists the 12 kinds in the order above; on `lab-1`/`prod-k8s-1` DeploymentConfigs is absent (test in `useClusterNav` tests).
-- [ ] Every new kind's list renders its mock objects at `/k8s/ns/shop/<plural>` and its details page opens (one parameterised test).
-- [ ] `/k8s/ns/shop/cronjobs/nightly-report/jobs` and `/deploymentconfigs/frontend/replicationcontrollers` resolve for those kinds; the same tabs on a Pod redirect to Details (existing `hasTab` rule).
-- [ ] Mock `PATCH …/statefulsets/db/scale` and `…/replicationcontrollers/legacy-rc/scale` work (mock test).
-- [ ] `prod-k8s-1` fixture audit done (Work log lists what changed or "nothing").
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] WL-1: on a mock OpenShift cluster the Workloads nav lists the 12 kinds in the order above; on `lab-1`/`prod-k8s-1` DeploymentConfigs is absent (test in `useClusterNav` tests).
+- [x] Every new kind's list renders its mock objects at `/k8s/ns/shop/<plural>` and its details page opens (one parameterised test).
+- [x] `/k8s/ns/shop/cronjobs/nightly-report/jobs` and `/deploymentconfigs/frontend/replicationcontrollers` resolve for those kinds; the same tabs on a Pod redirect to Details (existing `hasTab` rule).
+- [x] Mock `PATCH …/statefulsets/db/scale` and `…/replicationcontrollers/legacy-rc/scale` work (mock test).
+- [x] `prod-k8s-1` fixture audit done (Work log lists what changed or "nothing").
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 frontend-engineer: 8 models/types, minimal descriptors (+ `extraTabs` on DC/CronJob so the stub tabs
+  resolve), WL-1 orders, tabs `replicationcontrollers`/`jobs` (also `ResourceDetailsPage.tsx` TAB_TITLES + `hasTab`:
+  required by the `Record<ResourceTab>` type and the redirect AC), `workloadFixtures.ts`, scale for RC/DC.
+- Mock discovery fix: `/apis` hard-coded `<group>/v1`; now per-model version (`autoscaling/v2`), `apps.openshift.io`
+  hidden on vanilla. Paging test in `mocks/k8s.test.ts` scoped to `app=web` (more pods in `shop` now).
+- prod-k8s-1 audit: already in `VANILLA_CLUSTERS`; same `shop` objects minus Projects/DCs; nothing else assumed OCP.
 
 ## Review
+- ux-designer r1: **APPROVE** (dev:mock :5243, DOM probe; OCP `packages/console-app/console-extensions.json` L1110-1300).
+- Nav: dev-1 lists Pods…HorizontalPodAutoscalers in exactly OCP's `insertAfter` chain; labels match `%console-app~*%` names.
+- Visibility: DeploymentConfigs absent on prod-k8s-1 and lab-1 (OCP flag `OPENSHIFT_DEPLOYMENTCONFIG`); direct URL shows "aren't available" state.
+- Lists: 8 titles = labelPlural, columns Name/Created in a project (all-ns view not probed), badges SS/DS/RC/DC/J/CJ/HPA/S, mock rows present.
+- Tabs: CronJob Details·YAML·Jobs·Events, DC Details·YAML·ReplicationControllers·Events; Pods tab missing on both is lane-owned (T-0193/T-0194).
+- Follow-up (non-blocking, not T-0189 scope): OCP has `console.navigation/separator` `WorkloadsSeparator` after ConfigMaps (L1200); our nav has no divider there — needs a nav-model change, file a task.
+- 2026-11-23 frontend-architect, round 1: **APPROVE**. Targeted check-fe (registry, nav, mocks) green (66 tests).
+  Deviations accepted: (a) `ResourceDetailsPage.tsx` TAB_TITLES/`hasTab` are forced by `Record<ResourceTab>` + the
+  redirect AC; test edits only narrow to `app=web`/`/Deployment$/`. (b) `extraTabs` on DC/CronJob is needed for the AC,
+  and T-0193/T-0194 own those files. (c) per-group discovery version is the right fix for `autoscaling/v2`. (d) new file as designed.
+  Base for lanes OK: models/types match the contract, registry order = WL-1, tab slots in place, no lane path touched.
+- Nit (optional): `kinds/{cronjobs,deploymentconfigs,secrets,…}.tsx` TSDoc first lines run past 120 cols; rewrap when the lane fills them in.
 
 ## Handover notes
+- Outside `paths` (needed): `details/ResourceDetailsPage.tsx` (TAB_TITLES/`hasTab`), tests adapted to the bigger
+  `shop` seed: `mocks/k8s.test.ts`, `list/ResourceListPage.test.tsx`, `events/EventsPage.test.tsx` (`/Deployment$/`,
+  DeploymentConfig now also matches), `registry/registry.test.ts` (StatefulSet → ControllerRevision as "unknown").
+- New tests: `nav/useClusterNav.test.tsx` (WL-1 order; no DC on lab-1/prod-k8s-1), `kinds.test.tsx` "CP4b kinds".
+- Kind tasks: DC and CronJob descriptors already set `extraTabs`; Job pods carry `batch.kubernetes.io/controller-uid`
+  and `job-name` labels; DC RCs carry `openshift.io/deployment-config.*` annotations; uids of new objects are
+  allocated after the CP2 seed, DC graph last (other uids identical on OpenShift and vanilla).
+- `scaleOf` reads both selector shapes (LabelSelector / plain map). Style probe not run: no styled screen changed
+  (new lists use the generic page; kind tasks probe their pages).

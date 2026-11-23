@@ -12,6 +12,7 @@ import type {
 } from '@/shared/k8s';
 import { fingerprintOf } from '../fixtures/ids';
 import { FIXTURE_NOW } from '../fixtures/time';
+import { workloadObjects } from './workloadFixtures';
 
 /**
  * Seeded Kubernetes fixtures (T-0070). Every cluster gets the same shape — same namespaces, names and labels, so the
@@ -533,5 +534,6 @@ export function seedClusterObjects(cluster: string): K8sResource[] {
     ...projects,
     ...shopObjects(cluster, nextUid),
     ...paymentsObjects(cluster, nextUid),
+    ...workloadObjects(nextUid, servesProjects(cluster)),
   ];
 }

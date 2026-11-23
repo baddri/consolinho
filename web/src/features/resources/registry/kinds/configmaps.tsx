@@ -14,7 +14,7 @@ function keyCount(configMap: ConfigMap): number {
 /** ConfigMaps (UI-3, OCP `configmap.tsx`): Name, Namespace, Size (number of keys), Created. */
 export const configMapDescriptor: ResourceDescriptor<ConfigMapResource> = {
   model: ConfigMapModel,
-  nav: { section: 'workloads', order: 30 },
+  nav: { section: 'workloads', order: 60 },
   ExtraSections: ConfigMapDetails,
   columns: [
     nameColumn(ConfigMapModel),

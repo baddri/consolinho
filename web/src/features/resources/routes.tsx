@@ -26,6 +26,11 @@ const detailsTabs: Record<'details' | DetailsTab, RouteObject['lazy']> = {
     import('./workloads/replicasets/DeploymentReplicaSetsTab').then((m) => ({
       Component: m.DeploymentReplicaSetsTab,
     })),
+  replicationcontrollers: () =>
+    import('./workloads/deploymentconfigs/DeploymentConfigRCsTab').then((m) => ({
+      Component: m.DeploymentConfigRCsTab,
+    })),
+  jobs: () => import('./workloads/cronjobs/CronJobJobsTab').then((m) => ({ Component: m.CronJobJobsTab })),
   logs: () => import('./workloads/logs/PodLogsTab').then((m) => ({ Component: m.PodLogsTab })),
   terminal: () =>
     import('./workloads/terminal/PodTerminalTab').then((m) => ({ Component: m.PodTerminalTab })),
@@ -33,11 +38,21 @@ const detailsTabs: Record<'details' | DetailsTab, RouteObject['lazy']> = {
 
 /**
  * Details layout at `path` (header + tab bar) with one child per tab: the index (Details), `yaml`, `pods` (kinds with
- * a `podsSelector`), `events` and the kind tabs `replicasets`, `logs`, `terminal` (descriptor `extraTabs`). The
- * children's handle `{ scope, tab }` tells `useResourceRoute` / `useResourceTab` the scope and tab.
+ * a `podsSelector`), `events` and the kind tabs `replicasets`, `replicationcontrollers`, `jobs`, `logs`, `terminal`
+ * (descriptor `extraTabs`). The children's handle `{ scope, tab }` tells `useResourceRoute` / `useResourceTab` the
+ * scope and tab.
  */
 function detailsRoutes(path: string, scope: ResourceRouteHandle['scope']): RouteObject[] {
-  const tabs: DetailsTab[] = ['yaml', 'replicasets', 'pods', 'logs', 'events', 'terminal'];
+  const tabs: DetailsTab[] = [
+    'yaml',
+    'replicasets',
+    'replicationcontrollers',
+    'pods',
+    'jobs',
+    'logs',
+    'events',
+    'terminal',
+  ];
   return [
     {
       path,

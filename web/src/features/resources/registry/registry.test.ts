@@ -23,7 +23,7 @@ describe('resource registry', () => {
     expect(descriptorForPlural('nodes')).toBeUndefined();
     expect(descriptorForKind('v1', 'ConfigMap')?.model.plural).toBe('configmaps');
     expect(descriptorForKind('apps/v1', 'ReplicaSet')?.model.plural).toBe('replicasets');
-    expect(descriptorForKind('apps/v1', 'StatefulSet')).toBeUndefined();
+    expect(descriptorForKind('apps/v1', 'ControllerRevision')).toBeUndefined();
     expect(descriptorForKind('v2', 'Pod')).toBeUndefined();
   });
 });

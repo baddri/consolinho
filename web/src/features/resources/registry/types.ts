@@ -58,7 +58,7 @@ export interface SummaryFields<T> {
 }
 
 /** A details tab only some kinds have, opted in by {@link ResourceDescriptor.extraTabs}. */
-export type KindTab = 'replicasets' | 'logs' | 'terminal';
+export type KindTab = 'replicasets' | 'replicationcontrollers' | 'jobs' | 'logs' | 'terminal';
 
 /**
  * One resource action (ADR-0037 §3). Assignable to PatternFly's `IAction` as is (row `ActionsColumn`); the details

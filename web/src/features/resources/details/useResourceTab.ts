@@ -1,14 +1,17 @@
 import { useMatches } from 'react-router';
 
 /**
- * Tabs of the resource details page in display order — OCP's Deployment (Details·YAML·ReplicaSets·Pods·Events) and
+ * Tabs of the resource details page in display order — OCP's Deployment (Details·YAML·ReplicaSets·Pods·Events),
+ * DeploymentConfig (Details·YAML·ReplicationControllers·Pods·Events), CronJob (Details·YAML·Pods·Jobs·Events) and
  * Pod (Details·YAML·Logs·Events·Terminal) orders merged (ADR-0037 §2); `details` is the index route (no URL segment).
  */
 export const RESOURCE_TABS = [
   'details',
   'yaml',
   'replicasets',
+  'replicationcontrollers',
   'pods',
+  'jobs',
   'logs',
   'events',
   'terminal',

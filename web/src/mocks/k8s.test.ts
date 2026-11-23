@@ -113,7 +113,9 @@ describe('mock k8s proxy: guard checks (contract §4 order)', () => {
 
 describe('mock k8s API server: reads', () => {
   it('pages with limit/continue, strips type meta from items and expires compacted tokens', async () => {
-    const first = await json<K8sList<K8sResource>>(await get('dev-1', '/api/v1/pods?limit=2'));
+    const first = await json<K8sList<K8sResource>>(
+      await get('dev-1', '/api/v1/pods?labelSelector=app%3Dweb&limit=2'),
+    );
     expect(first.kind).toBe('PodList');
     expect(first.items.map((pod) => pod.metadata.name)).toEqual([
       'web-7d4b9c8f6d-2xkqp',
@@ -124,14 +126,14 @@ describe('mock k8s API server: reads', () => {
 
     const token = encodeURIComponent(first.metadata.continue ?? '');
     const second = await json<K8sList<K8sResource>>(
-      await get('dev-1', `/api/v1/pods?limit=2&continue=${token}`),
+      await get('dev-1', `/api/v1/pods?labelSelector=app%3Dweb&limit=2&continue=${token}`),
     );
     expect(second.items.map((pod) => pod.metadata.name)).toEqual([CRASHING_POD]);
     expect(second.metadata.continue).toBeUndefined();
     expect(second.metadata.resourceVersion).toBe(first.metadata.resourceVersion);
 
     mockK8s.compact('dev-1');
-    const expired = await get('dev-1', `/api/v1/pods?limit=2&continue=${token}`);
+    const expired = await get('dev-1', `/api/v1/pods?labelSelector=app%3Dweb&limit=2&continue=${token}`);
     expect(expired.status).toBe(410);
     expect(await json<Status>(expired)).toMatchObject({ kind: 'Status', reason: 'Expired', code: 410 });
   });
@@ -185,8 +187,12 @@ describe('mock k8s API server: reads', () => {
     mockDb.grants.push({ ...grant, credentialId: 'lab' } as (typeof mockDb.grants)[number]);
 
     const groups = await groupsOf('lab-1');
-    expect(groups).toEqual(['apps', 'authorization.k8s.io']);
+    expect(groups).toEqual(['apps', 'authorization.k8s.io', 'batch', 'autoscaling']);
     expect((await get('lab-1', '/apis/project.openshift.io/v1/projects')).status).toBe(404);
+    expect((await get('lab-1', '/apis/apps.openshift.io/v1/namespaces/shop/deploymentconfigs')).status).toBe(
+      404,
+    );
+    expect(await listNames('lab-1', `${SHOP}/replicationcontrollers`)).toEqual(['legacy-rc']);
     expect((await json<{ versions: string[] }>(await get('lab-1', '/api'))).versions).toEqual(['v1']);
   });
 });
@@ -217,6 +223,32 @@ describe('mock k8s API server: writes and RBAC', () => {
     expect(await json<Status>(renamed)).toMatchObject({ reason: 'Invalid' });
     const notAString = await send('dev-1', 'PUT', path, { ...body, data: { LOG_LEVEL: 3 } });
     expect(notAString.status).toBe(422);
+  });
+
+  it.each([
+    ['/apis/apps/v1/namespaces/shop/statefulsets/db', 3, 'app=db'],
+    [`${SHOP}/replicationcontrollers/legacy-rc`, 1, 'app=legacy-rc'],
+    [
+      '/apis/apps.openshift.io/v1/namespaces/shop/deploymentconfigs/frontend',
+      2,
+      'app=frontend,deploymentconfig=frontend',
+    ],
+  ])('scales %s through the scale subresource', async (path, replicas, selector) => {
+    const scale = await json<{ spec: { replicas: number }; status: { selector?: string } }>(
+      await get('dev-1', `${path}/scale`),
+    );
+    expect(scale).toMatchObject({ spec: { replicas }, status: { selector } });
+
+    const patched = await fetch(proxyUrl('dev-1', `${path}/scale`), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json-patch+json', 'X-Console-Request': '1' },
+      body: JSON.stringify([{ op: 'replace', path: '/spec/replicas', value: 4 }]),
+    });
+    expect(patched.status).toBe(200);
+    expect(await json<{ spec: { replicas: number } }>(patched)).toMatchObject({ spec: { replicas: 4 } });
+    expect(await json<{ spec: { replicas: number } }>(await get('dev-1', path))).toMatchObject({
+      spec: { replicas: 4 },
+    });
   });
 
   it('deletes (200 Status, then 404) and cascades a namespace', async () => {
