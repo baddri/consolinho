@@ -6,20 +6,34 @@ import { ALL_NAMESPACES, resourcePath } from '../paths';
 import type { ResourceDescriptor } from '../registry/types';
 import styles from './ProjectBar.module.css';
 
-/** Props for {@link ProjectBar}. */
-export interface ProjectBarProps {
-  descriptor: ResourceDescriptor;
+/** Props for {@link ProjectBar}: where selecting a project goes is either a kind's list or a page's own path. */
+export type ProjectBarProps = {
   cluster: string;
   /** A namespace or {@link ALL_NAMESPACES}. */
   namespace: string | undefined;
-}
+} & (
+  | {
+      /** Selecting a project opens this kind's list in it. */
+      descriptor: ResourceDescriptor;
+      pathFor?: never;
+    }
+  | {
+      /**
+       * Path of the page for the selected project (`undefined` = all projects), given the current query string to
+       * keep — e.g. the Search page (`search/ns/<ns>`).
+       */
+      pathFor: (namespace: string | undefined, search: string) => string;
+      descriptor?: never;
+    }
+);
 
 /**
  * OCP namespace bar (`namespace-bar.tsx`, `UX.md` §2): the first row of a namespaced list or details page, above the
  * `PageHeading`, with a divider below; flush-left 16px toggle text and no vertical padding, like OCP. Selecting a project (NS-1/NS-2) navigates to the same kind's list in it (or
- * all projects), keeping the query string; the shown project is remembered for the cluster.
+ * all projects), or to `pathFor`'s path for pages that aren't a kind's list (Search), keeping the query string; the shown project is remembered for the cluster.
  */
-export function ProjectBar({ descriptor, cluster, namespace }: ProjectBarProps) {
+export function ProjectBar(props: ProjectBarProps) {
+  const { cluster, namespace } = props;
   const navigate = useNavigate();
   const { search } = useLocation();
   const [, rememberNamespace] = useLastNamespace(cluster);
@@ -35,7 +49,9 @@ export function ProjectBar({ descriptor, cluster, namespace }: ProjectBarProps) 
           namespace={selected}
           onSelect={(next) =>
             void navigate(
-              resourcePath(cluster, descriptor.model, { namespace: next ?? ALL_NAMESPACES, search }),
+              props.pathFor !== undefined
+                ? props.pathFor(next, search)
+                : resourcePath(cluster, props.descriptor.model, { namespace: next ?? ALL_NAMESPACES, search }),
             )
           }
         />
