@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import { errorMessage, isApiError } from '@/shared/api';
-import type { K8sResource } from '@/shared/k8s';
+import { useOpenApiSchema, type K8sResource } from '@/shared/k8s';
 import { EnvironmentLabel } from '@/shared/ui';
 import { useResourceAccess } from '../actions/useResourceAccess';
 import { useResourceDetails } from '../details/detailsContext';
@@ -30,7 +30,8 @@ const yamlDataUrl = (text: string) => `data:text/yaml;charset=utf-8,${encodeURIC
  * YAML tab (UI-6, UI-7, ADR-0024), OCP's `EditYAML` (`public/components/edit-yaml.tsx`): the live object in the
  * Monaco editor (`metadata.managedFields` folded), alerts, then the button bar Save · Reload · Cancel · Download, all in
  * a full screen capable column. Lazy route module: Monaco (imported by `YamlEditor` via `monacoSetup`) loads only with
- * this tab.
+ * this tab. Once the cluster serves the kind's OpenAPI schema, the editor validates against it and offers hover and
+ * completion (OAPI-3); without one (loading, 403) it works as before.
  *
  * - **Read-only** (UI-9 reason from `useResourceAccess`): info alert with the reason, read-only editor, no Save. While
  *   the access check runs the editor is read-only too.
@@ -57,6 +58,16 @@ export function ResourceYamlTab() {
   const update = useUpdateResource(cluster, model);
   const navigate = useNavigate();
   const { ref: fullscreenRef, ...fullscreen } = useFullscreen();
+  const jsonSchema = useOpenApiSchema(cluster, model)?.jsonSchema;
+  // Memoised so the editor hands the schema to monaco-yaml's worker only when it really changes (ADR-0038 §6).
+  const schema = useMemo(
+    () =>
+      jsonSchema && {
+        uri: `fleetconsole://schema/${cluster}/${model.group || 'core'}/${model.version}/${model.kind}`,
+        schema: jsonSchema,
+      },
+    [cluster, model, jsonSchema],
+  );
 
   const [edit, setEdit] = useState<YamlEdit | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
@@ -119,6 +130,7 @@ export function ResourceYamlTab() {
           isReadOnly={!isEditable || update.isPending}
           onSave={isEditable ? save : undefined}
           fullscreen={fullscreen}
+          schema={schema}
         />
         <div className={styles.buttons}>
           {access.disabledReason !== undefined && (

@@ -37,7 +37,8 @@ already forwards `/openapi/...` (non-resource GET, `ProxyPath` allow-list). The 
    (ADR-0024): `monacoSetup.ts` imports `monaco-yaml/yaml.worker.js?worker`, `MonacoEnvironment.getWorker(_, label)`
    returns it for `label === 'yaml'`, and calls `configureMonacoYaml(monaco, { isKubernetes: true, validate: true,
    hover: true, completion: true, enableSchemaRequest: false, schemas: [] })` **once** per page (module singleton;
-   `monaco-yaml` replaces the basic YAML contribution, so drop that import). The editor component calls
+   `format: { enable: false }`; keep the basic YAML contribution import — `monaco-yaml` has no tokenizer, OCP also
+   loads both; amended in T-0211 review). The editor component calls
    `monacoYaml.update({ schemas: [{ uri: 'fleetconsole://schema/<cluster>/<gvk>', fileMatch: ['*'], schema }] })` when its
    schema prop changes and clears it on unmount — only one YAML editor is mounted at a time. `enableSchemaRequest: false`
    means the worker never fetches anything (CSP `connect-src`, no token leaks). The chunk rule `vendor-monaco` in

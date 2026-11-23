@@ -348,3 +348,30 @@ it('never sends a PUT without resourceVersion', async () => {
     metadata: { resourceVersion: storedConfigMap().metadata.resourceVersion },
   });
 });
+
+describe('YAML tab schema (OAPI-3)', () => {
+  it('hands the editor the schema of the object’s cluster and kind once it loads', async () => {
+    renderApp(CM_YAML);
+
+    const editor = await findEditor();
+    await waitFor(() =>
+      // The editor double exposes the handed-over schema URI as `data-schema-uri`.
+      expect(editor).toHaveAttribute('data-schema-uri', 'fleetconsole://schema/dev-1/core/v1/ConfigMap'),
+    );
+  });
+
+  it('alice on prod-eu-1 (OpenAPI 403): no schema, the editor works as before', async () => {
+    const forbidden = new Promise<void>((resolve) => {
+      server.events.on('response:mocked', ({ request, response }) => {
+        if (new URL(request.url).pathname.endsWith('/openapi/v3') && response.status === 403) resolve();
+      });
+    });
+    setMockUser('alice');
+    renderApp('/c/prod-eu-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp/yaml');
+
+    const editor = await findEditor();
+    await forbidden;
+    expect(editor.value).toContain('kind: Pod');
+    expect(editor).not.toHaveAttribute('data-schema-uri');
+  });
+});

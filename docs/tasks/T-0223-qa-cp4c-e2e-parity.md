@@ -14,7 +14,7 @@ Verify CP4c against §4c.1–4c.5 and the §4b.8 follow-ups, and produce the evi
 
 ## Scope
 - In:
-  - QGC-1 e2e: edit a Deployment image in Form view → switch to YAML → see it → Save; YAML hover shows a field description.
+  - QGC-1 e2e: edit a Deployment image in Form view → switch to YAML → see it → Save; YAML hover shows a field description; an unknown field shows a Monaco warning and completion lists `spec` children (T-0211 AC1).
   - Carried e2e: DC Start rollout, RC Rollback, RC Cancel rollout, StatefulSet ring scale.
   - QGC-2: no `gap` rows left from W1/W3/W4.
   - POL-1: close T-0118 with one line per item 1-10 (done in T-0119/T-0121/T-0122/T-0126, or re-filed with a reason; #4 pagination is now also in the ux tasks).

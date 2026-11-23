@@ -1,12 +1,12 @@
 ---
 id: T-0211
 title: YAML editor schema validation, completion and hover (monaco-yaml)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: CP4c
 depends_on: [T-0210]
 paths: [web/package.json, web/package-lock.json, web/vite.config.ts, web/src/features/resources/yaml/monacoSetup.ts, web/src/features/resources/yaml/YamlEditor.tsx, web/src/features/resources/yaml/__mocks__/YamlEditor.tsx, web/src/features/resources/yaml/ResourceYamlTab.tsx, web/src/features/resources/yaml/ResourceYamlTab.test.tsx]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -41,13 +41,35 @@ ADR-0038 §6-7.
 
 ## Acceptance criteria
 - [ ] OAPI-3 (validation part): in the browser (dev + MSW), an unknown field on a Deployment shows a Monaco warning; hovering `replicas` shows its description; completion lists `spec` children. Record this in the Work log, plus one screenshot clipped to the hover.
-- [ ] Without a schema (403 cluster), the editor works exactly as before, and the console shows no error.
-- [ ] `ResourceYamlTab.test.tsx`: the schema URI for the object's cluster and kind is passed once the schema loads, and no schema is passed for the 403 cluster.
-- [ ] `vendor-monaco` holds monaco-yaml; the entry chunk size does not change (±2 KB; give the numbers in the Work log).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Without a schema (403 cluster), the editor works exactly as before, and the console shows no error.
+- [x] `ResourceYamlTab.test.tsx`: the schema URI for the object's cluster and kind is passed once the schema loads, and no schema is passed for the 403 cluster.
+- [x] `vendor-monaco` holds monaco-yaml; the entry chunk size does not change (±2 KB; give the numbers in the Work log).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: started. Added `monaco-yaml` 5.5.1 (exact; `yaml`/`prettier` dedupe to ours). Kept the
+  basic YAML contribution: monaco-yaml has no tokenizer (OCP also runs both); probe shows key/value colours intact.
+- 2026-11-24: entry graph 1,538,463 → 1,541,170 B (+2.7 KB): k8s chunk +2.0 KB = `useOpenApiSchema` (T-0210) first
+  reached; web +0.65 KB = lazy-route preload list. monaco-yaml itself only in `vendor-monaco` + `yaml.worker` (1.0 MB).
+- CSP: build emits `new Worker('/assets/yaml.worker-*.js')` (same origin, no blob:) → fits `worker-src 'self'`. Probe:
+  dev-1 Deployment and alice/prod-eu-1 (403) YAML tabs render. Interactive hover/warning/completion NOT verified (probe
+  can't type/hover; no ad-hoc Playwright allowed) → AC1 left for QA.
+- 2026-11-24: `scripts/check-fe.sh` green (112 files, 1181 tests, build ok). Status in_review.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. Scoped eslint clean; vitest `resources/yaml` 27/27.
+  - Accepted: basic `yaml.contribution` kept (ADR-0038 §6 amended); `format: { enable: false }`; entry +2.7 KB accepted —
+    the +2.0 KB is `useOpenApiSchema` (T-0210) first reached, the criterion's intent (monaco-yaml stays out of the
+    entry, only `vendor-monaco` + `yaml.worker`) holds; same-origin worker fits `worker-src 'self'`.
+  - AC1 handed off: T-0223 QGC-1 now asserts hover, the unknown-field warning and `spec` completion. AC1 stays unchecked
+    here until T-0223 passes.
+  - Nit (optional): `ResourceYamlTab.test.tsx:366` — the `server.events.on` listener is never removed; use the returned
+    unsubscribe or `server.events.removeAllListeners('response:mocked')` in a `finally`.
 
 ## Handover notes
+- `monacoSetup.ts` exports the `monacoYaml` singleton; `YamlEditor`'s `schema` prop (memoised by the caller) is pushed
+  via `update` and cleared on unmount. ResourceYamlTab URI: `fleetconsole://schema/<cluster>/<group|core>/<v>/<kind>`.
+- Deviation: the basic `yaml.contribution` import stays (removing it loses syntax colours; monaco-yaml has none).
+- `format: { enable: false }` (the option is an object in 5.5.1, not a boolean).
+- Our `JSONSchema` has readonly arrays; YamlEditor casts it to monaco-yaml's type (worker only reads it).
+- AC1 (warning/hover/completion in the browser + hover screenshot) still needs a manual/QA check.

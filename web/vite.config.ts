@@ -38,13 +38,14 @@ const vendorChunks = [
   // Vite's dynamic-import helper, used by the app's lazy routes and by Monaco's lazy YAML tokenizer: claimed here so
   // `vendor-monaco` (which also captures its modules' dependencies) can't pull it in and make the main bundle import it.
   { name: 'vite-preload', test: /vite[\\/]preload-helper/ },
-  // The YAML editor stack — Monaco, its React wrapper, PF's CodeEditor and its upload dependency — is imported only by
+  // The YAML editor stack — Monaco, monaco-yaml (ADR-0038 §6) and its main-thread helpers, its React wrapper, PF's
+  // CodeEditor and its upload dependency — is imported only by
   // the lazy YAML route (ADR-0024 §3). Last on purpose: a group also captures its modules' dependencies, so the groups
   // above must claim React/PatternFly first, or the main bundle would import them from Monaco's chunks. Monaco is
   // ~4 MB: `maxSize` (measured before minification) splits it into parts of at most ~420 kB minified.
   {
     name: 'vendor-monaco',
-    test: /node_modules[\\/](?:monaco-editor|@monaco-editor|@patternfly[\\/]react-code-editor|react-dropzone|file-selector|attr-accept)[\\/]/,
+    test: /node_modules[\\/](?:monaco-editor|@monaco-editor|monaco-yaml|monaco-languageserver-types|monaco-marker-data-provider|monaco-worker-manager|@patternfly[\\/]react-code-editor|react-dropzone|file-selector|attr-accept)[\\/]/,
     maxSize: 1200 * 1024,
   },
 ];

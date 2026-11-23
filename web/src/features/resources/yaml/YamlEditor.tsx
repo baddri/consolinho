@@ -1,10 +1,12 @@
 // First: configures the bundled Monaco before `@monaco-editor/react` could reach for its CDN default (ADR-0024 §2).
-import './monacoSetup';
+import { monacoYaml } from './monacoSetup';
 import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-editor';
 import { RhUiCompressIcon, RhUiExpandIcon, RhUiSettingsIcon } from '@patternfly/react-icons';
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
 import { css } from '@patternfly/react-styles';
 import { useEffect, useRef, useState } from 'react';
+import type { SchemasSettings } from 'monaco-yaml';
+import type { JSONSchema } from '@/shared/k8s';
 import { useTheme } from '@/shared/theme';
 import { EditorSettingsModal } from './EditorSettingsModal';
 import type { FullscreenControls } from '@/shared/hooks';
@@ -24,6 +26,31 @@ export interface YamlEditorProps {
   onSave?: () => void;
   /** The tab's full screen element; the toolbar's "Toggle fullscreen mode" control drives it. */
   fullscreen: FullscreenControls;
+  /**
+   * The object's kind schema (ADR-0038 §6): validation, hover and completion. `uri` identifies it per cluster and kind
+   * (`fleetconsole://schema/<cluster>/<group>/<version>/<kind>`) and is shown as the source in hovers. Omitted while
+   * the schema loads or when the cluster doesn't serve it: the editor then works without them.
+   */
+  schema?: { uri: string; schema: JSONSchema };
+}
+
+/**
+ * Hands `schema` to the page's single `monaco-yaml` instance while the editor is mounted and clears it on unmount;
+ * only one YAML editor is mounted at a time, so it matches every model (`fileMatch: ['*']`). Callers pass a memoised
+ * object, so the worker re-validates only when the schema really changes.
+ */
+function useMonacoYamlSchema(schema: YamlEditorProps['schema']) {
+  useEffect(() => {
+    if (schema === undefined) return undefined;
+    // Our JSONSchema has readonly arrays; the worker only reads it (structured clone), so the cast is safe.
+    const settings: SchemasSettings = {
+      uri: schema.uri,
+      fileMatch: ['*'],
+      schema: schema.schema as unknown as SchemasSettings['schema'],
+    };
+    void monacoYaml.update({ schemas: [settings] });
+    return () => void monacoYaml.update({ schemas: [] });
+  }, [schema]);
 }
 
 /**
@@ -31,12 +58,14 @@ export interface YamlEditorProps {
  * `CodeEditor` on the locally bundled Monaco (`monacoSetup.ts`, imported first by this module, which only the lazy YAML
  * route reaches), full height, in the console theme unless the user's editor colour scheme overrides it. Toolbar like OCP: Copy, Editor settings, Toggle fullscreen
  * mode, and the right-aligned "Shortcuts" popover (hidden in full screen). On mount it takes focus, folds
- * `metadata.managedFields` (OCP `registerAutoFold`) and binds Ctrl/Cmd+S to `onSave`.
+ * `metadata.managedFields` (OCP `registerAutoFold`) and binds Ctrl/Cmd+S to `onSave`. With a `schema`, `monaco-yaml`
+ * validates the text against it and offers hover descriptions and completion (OCP `registerYAMLinMonaco`).
  *
  * The only component that renders `CodeEditor`. Monaco cannot run in jsdom, so `src/test/setup.ts` replaces this module
  * in every test with the `<textarea>` double in `__mocks__/`, keeping Monaco out of the test graph entirely.
  */
-export function YamlEditor({ value, onChange, isReadOnly, onSave, fullscreen }: YamlEditorProps) {
+export function YamlEditor({ value, onChange, isReadOnly, onSave, fullscreen, schema }: YamlEditorProps) {
+  useMonacoYamlSchema(schema);
   const { theme, contrast } = useTheme();
   const settings = useEditorSettings();
   const shortcuts = useShortcutsPopover();
