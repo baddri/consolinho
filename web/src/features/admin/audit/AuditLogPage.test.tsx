@@ -101,6 +101,8 @@ describe('AuditLogPage', () => {
     expect(await screen.findByText(`Showing ${AUDIT_FIXTURE_COUNT} entries`)).toBeInTheDocument();
 
     expect(screen.getByText('End of audit log')).toBeInTheDocument();
+    // T-0205: the footer is not inside a full-height PF Stack (it left a long blank scroll below the table).
+    expect(screen.getByText('End of audit log').closest('.pf-v6-l-stack')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
     expect(entryCount(table)).toBe(AUDIT_FIXTURE_COUNT);
     const times = [...table.querySelectorAll('time')].map((t) => t.getAttribute('dateTime'));

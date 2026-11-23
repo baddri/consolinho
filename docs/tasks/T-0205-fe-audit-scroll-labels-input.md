@@ -1,12 +1,12 @@
 ---
 id: T-0205
 title: Audit log blank scroll after the end; Edit labels input without an inner focus ring
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4c
 depends_on: []
 paths: [web/src/features/admin/audit/AuditLogPage.tsx, web/src/features/admin/audit/AuditLogPage.test.tsx, web/src/features/resources/actions/EditLabelsModal.tsx, web/src/features/resources/actions/EditLabelsModal.module.css]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -59,15 +59,36 @@ flex-grow: 1; outline: none` (browser default padding, no PF control padding). I
   with Tab; read the focused input's `outline-style` and the group's `::before` border.
 
 ## Acceptance criteria
-- [ ] Audit log: scrolling stops at the end of the footer (probe `main.scrollHeight` vs footer bottom), with and
+- [x] Audit log: scrolling stops at the end of the footer (probe `main.scrollHeight` vs footer bottom), with and
       without "Load more", light and dark.
-- [ ] Edit labels: focused input has `outline-style: none`, no inner box; only the outer box border, which shows
+- [x] Edit labels: focused input has `outline-style: none`, no inner box; only the outer box border, which shows
       the hover-colour border while focused; typing/Enter/Backspace/blur behaviour unchanged.
-- [ ] Invalid entry: red input text + existing error helper text and red group border.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Invalid entry: red input text + existing error helper text and red group border.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: audit footer `Stack` → column `Flex` (spaceItemsMd, mt-md); test asserts no
+  `.pf-v6-l-stack` ancestor. Probe 1280 light/dark: last page section 2412px = content (was main.scrollHeight 4831).
+  Labels input CSS in `EditLabelsModal.module.css` (outline none, 1px 2px padding, danger text, focus-within border).
+  Other `Stack`s in features/admin (not fixed, not verified as bugs): AuditLogPage `InvalidFiltersState`,
+  CaCertificatesTable, ClusterDetailsTab, ClusterCredentialsTab, DeleteCredentialModal.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. Audit footer `Stack` → column `Flex` (spaceItemsMd, mt-md) fixes the
+  100%-height blank scroll; `Stack` still used by `InvalidFiltersState`, import correct. Labels CSS checked against PF
+  `text-input-group.css`: all overridden vars live on the group root, `.tagsInput.pf-m-error` (0,2,0) beats PF's root
+  defaults, inline-end padding correctly skipped in error state, `:focus-within` reuses the m-hover border (red when
+  invalid); each rule cites OCP `_label.scss`. Gate: lint/typecheck/build ok; 1 unrelated timeout (`ClusterCredentialsTab.test.tsx:181`, 5s under load) passes in isolation. Visual spot-check of focus/padding left to the UX review.
+- Nit (optional): the `.closest('.pf-v6-l-stack')` test asserts a PF class name (implementation detail); fine as a
+  regression guard.
+- 2026-11-24 ux-designer round 1: **APPROVE**
+- Audit log dark 1280: scroller `scrollHeight` 2504 = footer bottom 2488 + 16px section padding; after Load more 4761 = 4745 + 16 (was 4831 blank). Fixed.
+- Edit labels (pod db-0, Tab focus, dark): input `outline-style: none`, padding `1px 2px`, single outer box with hover border `rgb(146,197,249)` on focus-within — matches `public/components/utils/_label.scss:47-52` plus the agreed a11y cue.
+- Invalid entry: input text danger `rgb(248,155,120)`, group border danger, helper text shown; padding-inline-end 38px reserves the status icon (`_label.scss:54-56`).
 
 ## Handover notes
+- Focus cue uses `--pf-v6-c-text-input-group--m-hover--BorderColor`, which PF resolves to danger-hover in the error
+  state, so invalid entries keep a red border while focused.
+- Inline-end padding override applies only when not `pf-m-error` (PF reserves status-icon room there).
+- The labels modal could not be measured by the probe (it never clicks); CSS is not evaluated in jsdom, so reviewer
+  should spot-check focus ring/padding in the browser.
