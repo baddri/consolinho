@@ -41,3 +41,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0033 | Fleet perspective: `/fleet/admin/*` routes, URL-derived perspective, per-distribution shell theme | Accepted |
 | 0034 | Group grants and grant precedence (decision; CP4.5) | Accepted |
 | 0035 | Access cache: FusionCache behind HybridCache, Redis L2 + backplane (decision; CP4.5) | Accepted |
+| 0036 | Proxy stream lifetimes, exec session cap (60 min) and exec audit at the handshake (amends 0020/0021) | Accepted |
