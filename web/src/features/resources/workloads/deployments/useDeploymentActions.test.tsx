@@ -20,7 +20,7 @@ import { RESTARTED_AT_ANNOTATION, restartRolloutPatch } from './useDeploymentRol
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const SSAR_PATH = '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews';
 const DETAILS = '/c/dev-1/k8s/ns/shop/deployments/web';
-const KIND_ITEMS = ['Edit Pod count', 'Pause rollouts', 'Restart rollout'];
+const KIND_ITEMS = ['Edit Pod count', 'Pause rollouts', 'Restart rollout', 'Edit update strategy'];
 
 beforeAll(() => preloadLazyRoutes(resourceRoutes));
 

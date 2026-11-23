@@ -4,6 +4,7 @@ import { disabledActionProps } from '@/shared/ui';
 import { useActionAccess } from '../../actions/useActionAccess';
 import type { KindActionArgs, KindActions } from '../../registry/types';
 import { ConfigureCountModal } from './ConfigureCountModal';
+import { ConfigureUpdateStrategyModal } from './ConfigureUpdateStrategyModal';
 import { pauseActionLabel, useRestartRollout, useTogglePaused } from './useDeploymentRollout';
 
 /** OCP's tooltip on "Restart rollout" while the deployment is paused. */
@@ -12,8 +13,9 @@ export const RESTART_PAUSED_REASON = 'The deployment is paused and cannot be res
 /**
  * The Deployment's own actions (ADR-0037 §3, OCP `deployment-provider.ts`): "Edit Pod count" (needs
  * `patch deployments/scale`), "Pause rollouts" / "Resume rollouts" and "Restart rollout" (need `patch deployments`;
- * restart is also disabled while paused, as OCP). The common Edit / Delete items follow them. Pause and restart write
- * at once, without a modal; Edit Pod count opens {@link ConfigureCountModal}.
+ * restart is also disabled while paused, as OCP) and "Edit update strategy" (needs `patch deployments`). The common
+ * Edit / Delete items follow them. Pause and restart write at once, without a modal; Edit Pod count opens
+ * {@link ConfigureCountModal}, Edit update strategy {@link ConfigureUpdateStrategyModal}.
  */
 export function useDeploymentActions({
   cluster,
@@ -29,7 +31,8 @@ export function useDeploymentActions({
   const patchAccess = useActionAccess(cluster, { verb: 'patch', model: DeploymentModel, ...target }, reviewByName);
   const togglePaused = useTogglePaused(cluster, obj);
   const restart = useRestartRollout(cluster);
-  const [isCountOpen, setCountOpen] = useState(false);
+  const [dialog, setDialog] = useState<'count' | 'strategy' | null>(null);
+  const close = () => setDialog(null);
   const paused = obj.spec?.paused === true;
   // Access comes first: a denied user learns why they can't write at all, not that the deployment is paused.
   const restartAccess =
@@ -41,7 +44,7 @@ export function useDeploymentActions({
         itemKey: 'edit-pod-count',
         title: 'Edit Pod count',
         onClick: () => {
-          if (!scaleAccess.isAriaDisabled) setCountOpen(true);
+          if (!scaleAccess.isAriaDisabled) setDialog('count');
         },
         ...scaleAccess,
       },
@@ -61,9 +64,20 @@ export function useDeploymentActions({
         },
         ...restartAccess,
       },
+      {
+        itemKey: 'edit-update-strategy',
+        title: 'Edit update strategy',
+        onClick: () => {
+          if (!patchAccess.isAriaDisabled) setDialog('strategy');
+        },
+        ...patchAccess,
+      },
     ],
-    dialog: isCountOpen ? (
-      <ConfigureCountModal cluster={cluster} deployment={obj} onClose={() => setCountOpen(false)} />
-    ) : null,
+    dialog:
+      dialog === 'count' ? (
+        <ConfigureCountModal cluster={cluster} deployment={obj} onClose={close} />
+      ) : dialog === 'strategy' ? (
+        <ConfigureUpdateStrategyModal cluster={cluster} deployment={obj} onClose={close} />
+      ) : null,
   };
 }
