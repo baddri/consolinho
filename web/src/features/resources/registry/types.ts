@@ -57,6 +57,9 @@ export interface SummaryFields<T> {
   Extra?(props: { obj: T }): ReactNode;
 }
 
+/** A details tab only some kinds have, opted in by {@link ResourceDescriptor.extraTabs}. */
+export type KindTab = 'replicasets' | 'logs' | 'terminal';
+
 /** Everything the generic pages need to render one kind. */
 export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   model: K8sModel;
@@ -94,6 +97,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * with its own toolbar (Event only, `UX.md` §6a).
    */
   listLayout?: 'table' | 'eventStream';
+  /**
+   * Kind-specific details tabs (ADR-0037 §2): Deployment `['replicasets']`, Pod `['logs', 'terminal']`. Their position
+   * comes from `RESOURCE_TABS`, not from this list.
+   */
+  extraTabs?: readonly KindTab[];
   /** Whether details get an Events tab; default true (false for Event itself). */
   hasEventsTab?: boolean;
   /** Delete asks to type the name (Namespace, Project). */

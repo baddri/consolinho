@@ -65,6 +65,8 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
   summary: { nodeSelector: (pod) => pod.spec?.nodeSelector, tolerations: (pod) => pod.spec?.tolerations },
   DetailsSection: PodDetailsSection,
   ExtraSections: PodSections,
+  // OCP Pod tabs: Details, YAML, Logs, Events, Terminal.
+  extraTabs: ['logs', 'terminal'],
   columns: [
     nameColumn(PodModel),
     namespaceColumn(PodModel),

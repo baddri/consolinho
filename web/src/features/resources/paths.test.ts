@@ -1,4 +1,4 @@
-import { ConfigMapModel, NamespaceModel } from '@/shared/k8s';
+import { ConfigMapModel, NamespaceModel, PodModel } from '@/shared/k8s';
 import { ALL_NAMESPACES, resourcePath } from './paths';
 
 describe('resourcePath', () => {
@@ -23,6 +23,12 @@ describe('resourcePath', () => {
       '/c/dev-1/k8s/all-namespaces/configmaps?name=x',
     ],
     [ConfigMapModel, { search: '?' }, '/c/dev-1/k8s/configmaps'],
+    [
+      PodModel,
+      { namespace: 'shop', name: 'web-1', tab: 'logs' as const, search: { container: 'side car' } },
+      '/c/dev-1/k8s/ns/shop/pods/web-1/logs?container=side+car',
+    ],
+    [ConfigMapModel, { search: {} }, '/c/dev-1/k8s/configmaps'],
     [NamespaceModel, {}, '/c/dev-1/k8s/cluster/namespaces'],
     [
       NamespaceModel,

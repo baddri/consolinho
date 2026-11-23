@@ -3,8 +3,11 @@ import type { K8sModel } from '@/shared/k8s';
 /** `namespace` value of {@link resourcePath} meaning "all namespaces" (`k8s/all-namespaces/<plural>`). */
 export const ALL_NAMESPACES = 'all';
 
-/** Details tab segments; the Details tab itself has none. */
-export type DetailsTab = 'yaml' | 'pods' | 'events';
+/**
+ * Details tab segments; the Details tab itself has none. `replicasets`, `logs` and `terminal` exist only for kinds
+ * that opt in (`ResourceDescriptor.extraTabs`, ADR-0037 §2).
+ */
+export type DetailsTab = 'yaml' | 'replicasets' | 'pods' | 'logs' | 'events' | 'terminal';
 
 /** Options of {@link resourcePath}. */
 export interface ResourcePathOptions {
@@ -16,8 +19,11 @@ export interface ResourcePathOptions {
   /** Object name → details page. Namespaced kinds need a concrete `namespace` for it. */
   name?: string;
   tab?: DetailsTab;
-  /** Query string to keep (`?label=app%3Dweb` or without the `?`). */
-  search?: string;
+  /**
+   * Query string to keep (`?label=app%3Dweb` or without the `?`), or parameters to encode (`{ container: 'web' }`,
+   * e.g. the Logs tab's deep link, LOG-1).
+   */
+  search?: string | Readonly<Record<string, string>>;
 }
 
 const enc = encodeURIComponent;
@@ -46,8 +52,9 @@ export function resourcePath(
   } else {
     path = `${base}/ns/${enc(namespace)}/${enc(model.plural)}${objectSuffix(name, tab)}`;
   }
-  if (!search || search === '?') return path;
-  return search.startsWith('?') ? `${path}${search}` : `${path}?${search}`;
+  const query = typeof search === 'object' ? new URLSearchParams(search).toString() : search;
+  if (!query || query === '?') return path;
+  return query.startsWith('?') ? `${path}${query}` : `${path}?${query}`;
 }
 
 function objectSuffix(name: string | undefined, tab: DetailsTab | undefined): string {

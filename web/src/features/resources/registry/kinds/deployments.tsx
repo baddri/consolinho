@@ -136,6 +136,8 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   DetailsSection: DeploymentDetails,
   ExtraSections: DeploymentSections,
   podsSelector: (deployment) => deployment.spec?.selector.matchLabels,
+  // OCP Deployment tabs: Details, YAML, ReplicaSets, Pods, Events.
+  extraTabs: ['replicasets'],
   columns: [
     nameColumn(DeploymentModel),
     namespaceColumn(DeploymentModel),

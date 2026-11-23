@@ -21,15 +21,23 @@ const detailsTabs: Record<'details' | DetailsTab, RouteObject['lazy']> = {
   yaml: () => import('./yaml/ResourceYamlTab').then((m) => ({ Component: m.ResourceYamlTab })),
   pods: () => import('./details/ResourcePodsTab').then((m) => ({ Component: m.ResourcePodsTab })),
   events: () => import('./events/ResourceEventsTab').then((m) => ({ Component: m.ResourceEventsTab })),
+  // Kind tabs (ADR-0037 §1-2): only reachable for descriptors listing them in `extraTabs` (`hasTab` redirects).
+  replicasets: () =>
+    import('./workloads/replicasets/DeploymentReplicaSetsTab').then((m) => ({
+      Component: m.DeploymentReplicaSetsTab,
+    })),
+  logs: () => import('./workloads/logs/PodLogsTab').then((m) => ({ Component: m.PodLogsTab })),
+  terminal: () =>
+    import('./workloads/terminal/PodTerminalTab').then((m) => ({ Component: m.PodTerminalTab })),
 };
 
 /**
  * Details layout at `path` (header + tab bar) with one child per tab: the index (Details), `yaml`, `pods` (kinds with
- * a `podsSelector`) and `events`. The
+ * a `podsSelector`), `events` and the kind tabs `replicasets`, `logs`, `terminal` (descriptor `extraTabs`). The
  * children's handle `{ scope, tab }` tells `useResourceRoute` / `useResourceTab` the scope and tab.
  */
 function detailsRoutes(path: string, scope: ResourceRouteHandle['scope']): RouteObject[] {
-  const tabs: DetailsTab[] = ['yaml', 'pods', 'events'];
+  const tabs: DetailsTab[] = ['yaml', 'replicasets', 'pods', 'logs', 'events', 'terminal'];
   return [
     {
       path,
