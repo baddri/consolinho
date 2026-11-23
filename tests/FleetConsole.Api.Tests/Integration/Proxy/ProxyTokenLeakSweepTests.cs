@@ -14,7 +14,8 @@ namespace FleetConsole.Api.Tests.Integration.Proxy;
 /// 500, TLS failure, rejected credential, unreachable cluster, rejected path. Afterwards every response FleetConsole
 /// produced (bodies and headers), the audit entries, the database and every captured log line are scanned for the token
 /// in plain, base64 and base64url form. A second sweep over real sockets covers a followed log and an exec WebSocket
-/// handshake with frames in both directions (CP4a SAFE-3).
+/// handshake with frames in both directions (CP4a SAFE-3). A third sweep (T-0201, CP4b CFG-4) reads and patches a
+/// Secret and checks that its values, plain or base64, reach neither the audit nor the logs.
 /// </summary>
 /// <remarks>
 /// The fake API server never echoes the bearer token here: an upstream body is passed through by design, so echoing
@@ -26,6 +27,7 @@ public sealed class ProxyTokenLeakSweepTests(ApiFactory factory)
     private const string ConfigMap = "/api/v1/namespaces/shop/configmaps/web";
     private const string Failing = "/api/v1/namespaces/shop/configmaps/boom";
     private const string Rejected = "/api/v1/namespaces/shop/secrets";
+    private const string Secret = "/api/v1/namespaces/shop/secrets/db";
     private const string Log = "/api/v1/namespaces/shop/pods/web-1/log";
     private const string Exec = "/api/v1/namespaces/shop/pods/web-1/exec";
     private const string FollowQuery = "?follow=true&tailLines=1000&timestamps=true&container=app";
@@ -142,6 +144,54 @@ public sealed class ProxyTokenLeakSweepTests(ApiFactory factory)
 
         AssertTokenAbsent(token, all);
     }
+
+    // CFG-4: a Secret GET (values come back base64-encoded under data) and a PATCH carrying new values (plain under
+    // stringData, base64 under data) are passed through — the browser needs them — but the values must reach neither
+    // the audit entries (summary, details), any database row, nor any captured log line.
+    [Fact]
+    public async Task NoSecretValue_InAuditEntry_DatabaseRow_OrLogLine_ForSecretGetAndPatch()
+    {
+        var token = $"cfg4-sweep-sa-token.{TestData.Unique()}.not-a-real-signature";
+        var stored = $"cfg4-stored-password-{TestData.Unique()}";
+        var patchedPlain = $"cfg4-new-plain-value-{TestData.Unique()}";
+        var patchedData = $"cfg4-new-data-value-{TestData.Unique()}";
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.Respond("GET", Secret, 200, new { kind = "Secret", metadata = new { name = "db" }, type = "Opaque", data = new { password = Base64(stored) } });
+        server.Respond("PATCH", Secret, 200, new { kind = "Secret", metadata = new { name = "db" }, type = "Opaque", data = new { password = Base64(patchedData), extra = Base64(patchedPlain) } });
+
+        var username = factory.NewUsername();
+        var (cluster, _) = await factory.Data.ProxyClusterAsync(server, username, AccessMode.ReadWrite, token);
+        using var client = await ProxyTestClient.LoginAsync(factory, username);
+
+        using (var get = await client.SendAsync(HttpMethod.Get, cluster.Name, Secret))
+        {
+            get.StatusCode.ShouldBe(HttpStatusCode.OK);
+            (await get.Content.ReadAsStringAsync(Ct)).ShouldContain(Base64(stored), customMessage: "the read is passed through");
+        }
+
+        var patch = $"{{\"data\":{{\"password\":\"{Base64(patchedData)}\"}},\"stringData\":{{\"extra\":\"{patchedPlain}\"}}}}";
+        using var content = new StringContent(patch, Encoding.UTF8, "application/merge-patch+json");
+        content.Headers.ContentType!.CharSet = null;
+        using (var response = await client.SendAsync(HttpMethod.Patch, cluster.Name, Secret, content))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        // The values really travelled: the cluster got the patch body as sent.
+        server.Requests.Single(r => r.Method == "PATCH").Body.ShouldBe(patch);
+
+        var audit = (await factory.Data.AuditEntriesAsync(username)).Where(e => e.Category == AuditCategory.Proxy).ToList();
+        audit.ShouldHaveSingleItem("the PATCH; reads are not audited").Action.ShouldBe("proxy.patch");
+        var database = await TokenLeakScanner.DumpDatabaseAsync(factory.ConnectionString, Ct);
+        string[] all = [.. audit.Select(e => e.DetailsJson), .. audit.Select(e => e.Summary), database, factory.Logs.AllText];
+
+        foreach (var value in new[] { stored, patchedPlain, patchedData })
+        {
+            AssertTokenAbsent(value, all);
+        }
+    }
+
+    private static string Base64(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
 
     // The token in plain, base64 and base64url form must be in none of the haystacks.
     private static void AssertTokenAbsent(string token, string[] haystacks)
