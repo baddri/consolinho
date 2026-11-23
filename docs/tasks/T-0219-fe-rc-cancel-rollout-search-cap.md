@@ -1,12 +1,12 @@
 ---
 id: T-0219
 title: RC "Cancel rollout" action + Search ≤6 concurrent requests test (CP4b follow-ups)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: CP4c
 depends_on: []
 paths: [web/src/features/resources/workloads/replicationcontrollers/, web/src/features/resources/search/useSearchResults.test.ts, web/src/features/resources/search/useSearchResults.ts, docs/architecture/ocp-parity.md]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -41,12 +41,24 @@ Two small §4b.8 follow-ups:
   - `packages/console-app/src/actions/providers/replication-controllers-provider.ts` L15-40.
 
 ## Acceptance criteria
-- [ ] An RC in phase Running shows Cancel rollout. Confirming sends exactly the two-annotation JSON Patch; an RC in phase Complete has no such item; RO shows it disabled with the reason (tests).
-- [ ] SRCH-5: the concurrency test proves at most 6 requests are in flight.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] An RC in phase Running shows Cancel rollout. Confirming sends exactly the two-annotation JSON Patch; an RC in phase Complete has no such item; RO shows it disabled with the reason (tests).
+- [x] SRCH-5: the concurrency test proves at most 6 requests are in flight.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: "Cancel rollout" item (after Edit Pod count, phase New/Pending/Running, `patch` RC
+  review gated by `enabled`) + `CancelRolloutModal` (PF Modal, warning icon, OCP copy, `ClusterContextText` line,
+  inline error) + `useCancelRollout` (2-op JSON Patch). SRCH-5 test holds MSW list responses; no prod change needed.
+  Parity row updated. Probe can't click, so modal not probed; audit cell probed only (T-0220).
 
 ## Review
+**UX round 1 — CHANGES_REQUESTED** (code read; OCP `console-app/src/actions/hooks/useReplicationControllerActions.ts` L44-66, `console-shared/src/hooks/useWarningModal.tsx` → component-groups `WarningModal`)
+- OK: title, body, "Yes, cancel" primary + "No, don't cancel" link, order, `small`, warning icon, one close X, placement after Edit count (`replication-controllers-provider.ts` L35-38), New/Pending/Running gate.
+- CancelRolloutModal footer — `<Flex spaceItemsSm>` gives 8px between buttons; OCP's WarningModal passes `actions` to the PF Modal, so the buttons sit directly in `.pf-v6-c-modal-box__footer` with `margin-inline-end: --pf-t--global--spacer--gap--action-to-action--default` (= spacer--md, 16px) — fix: drop the Flex, put both Buttons directly in `ModalFooter`, and fix the comment (it cites `ModalFooterWithAlerts`, which this modal doesn't use).
 
 ## Handover notes
+- Files: `workloads/replicationcontrollers/{CancelRolloutModal.tsx,useCancelRollout.ts,useReplicationControllerActions.tsx}`.
+- Shared `ConfirmModal` has no cancel-label prop, so the modal is a small PF Modal mirroring OCP `WarningModal`.
+- Tests: `standaloneControllers.test.tsx` "Cancel rollout (T-0219)"; `search/useSearchResults.test.ts` SRCH-5.
+
+- 2026-11-24 orchestrator round 2: UX finding applied verbatim (one-line fix), scoped tests 63/63 + eslint green → APPROVE.
