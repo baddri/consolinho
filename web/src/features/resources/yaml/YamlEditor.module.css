@@ -45,3 +45,8 @@
   --pf-v6-c-code-editor__main--BackgroundColor: var(--pf-t--color--gray--90);
   --pf-v6-c-code-editor__tab--BackgroundColor: var(--pf-t--color--gray--90);
 }
+
+/* OCP ToggleSidebarButton `alignToEnd` (inline `flex-grow: 1` there). */
+.spacer {
+  flex-grow: 1;
+}

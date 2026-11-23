@@ -375,3 +375,96 @@ describe('YAML tab schema (OAPI-3)', () => {
     expect(editor).not.toHaveAttribute('data-schema-uri');
   });
 });
+
+describe('YAML tab schema sidebar (OAPI-3, T-0212)', () => {
+  const DEPLOYMENT_YAML = '/c/dev-1/k8s/ns/shop/deployments/web/yaml';
+
+  /** Opens the sidebar once the schema loaded and returns it. */
+  async function openSidebar(user: UserEvent): Promise<HTMLElement> {
+    await findEditor();
+    await user.click(await screen.findByRole('button', { name: 'Show sidebar' }));
+    return screen.getByRole('region', { name: 'Deployment schema' });
+  }
+
+  const item = (sidebar: HTMLElement, name: string) =>
+    within(sidebar)
+      .getAllByRole('listitem')
+      .find((li) => within(li).queryByRole('heading', { level: 5, name: new RegExp(`^${name}\\b`) }));
+
+  it('is closed by default; the toggle shows the kind description and fields, Close hides it', async () => {
+    const { user } = renderApp(DEPLOYMENT_YAML);
+    await findEditor();
+    expect(screen.queryByRole('region', { name: 'Deployment schema' })).not.toBeInTheDocument();
+
+    const sidebar = await openSidebar(user);
+    expect(within(sidebar).getByRole('heading', { level: 2, name: 'Deployment' })).toBeInTheDocument();
+    expect(within(sidebar).getByRole('tab', { name: 'Schema' })).toHaveAttribute('aria-selected', 'true');
+    expect(within(sidebar).getByText(/Deployment enables declarative updates/)).toBeInTheDocument();
+    expect(item(sidebar, 'spec')).toHaveTextContent('spec object');
+    expect(screen.getByRole('button', { name: 'Hide sidebar' })).toBeInTheDocument();
+
+    await user.click(within(sidebar).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('region', { name: 'Deployment schema' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show sidebar' })).toBeInTheDocument();
+  });
+
+  it('drills spec → template → spec → containers with "View details"; a breadcrumb goes back', async () => {
+    const { user } = renderApp(DEPLOYMENT_YAML);
+    let sidebar = await openSidebar(user);
+
+    for (const name of ['spec', 'template', 'spec', 'containers']) {
+      const field = item(sidebar, name);
+      if (!field) throw new Error(`no ${name} field`);
+      await user.click(within(field).getByRole('button', { name: 'View details' }));
+      sidebar = screen.getByRole('region', { name: 'Deployment schema' });
+    }
+
+    const crumbs = within(sidebar).getByRole('navigation');
+    expect(
+      within(crumbs)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['Deployment', 'spec', 'template', 'spec', 'containers']);
+    expect(item(sidebar, 'image')).toBeDefined();
+    // Container requires `name`: OCP's "– required" after the type.
+    expect(item(sidebar, 'name')).toHaveTextContent(/string – required/);
+    expect(item(sidebar, 'image')).not.toHaveTextContent('required');
+
+    await user.click(within(crumbs).getByRole('button', { name: 'template' }));
+    sidebar = screen.getByRole('region', { name: 'Deployment schema' });
+    expect(within(sidebar).getAllByRole('button', { name: /^(Deployment|spec)$/ })).toHaveLength(2);
+    expect(item(sidebar, 'metadata')).toBeDefined();
+
+    await user.click(within(sidebar).getByRole('button', { name: 'Deployment' }));
+    sidebar = screen.getByRole('region', { name: 'Deployment schema' });
+    expect(within(sidebar).queryByRole('navigation')).not.toBeInTheDocument();
+    expect(item(sidebar, 'spec')).toBeDefined();
+  });
+
+  it('marks the fields the parent requires (DeploymentSpec: selector and template)', async () => {
+    const { user } = renderApp(DEPLOYMENT_YAML);
+    const sidebar = await openSidebar(user);
+    const spec = item(sidebar, 'spec');
+    if (!spec) throw new Error('no spec field');
+    await user.click(within(spec).getByRole('button', { name: 'View details' }));
+
+    const drilled = screen.getByRole('region', { name: 'Deployment schema' });
+    expect(item(drilled, 'selector')).toHaveTextContent('– required');
+    expect(item(drilled, 'template')).toHaveTextContent('– required');
+    expect(item(drilled, 'replicas')).not.toHaveTextContent('required');
+  });
+
+  it('alice on prod-eu-1 (OpenAPI 403): no sidebar toggle', async () => {
+    const forbidden = new Promise<void>((resolve) => {
+      server.events.on('response:mocked', ({ request, response }) => {
+        if (new URL(request.url).pathname.endsWith('/openapi/v3') && response.status === 403) resolve();
+      });
+    });
+    setMockUser('alice');
+    renderApp('/c/prod-eu-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp/yaml');
+
+    await findEditor();
+    await forbidden;
+    expect(screen.queryByRole('button', { name: /sidebar/ })).not.toBeInTheDocument();
+  });
+});

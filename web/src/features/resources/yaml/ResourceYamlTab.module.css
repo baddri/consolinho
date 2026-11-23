@@ -16,7 +16,7 @@
 .yamlEditor {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 2; /* `.co-p-has-sidebar__body` */
   min-width: 0;
   height: 100%;
   padding: var(--pf-t--global--spacer--md);
@@ -70,4 +70,11 @@
 /* Fleet addition (SW-10): "Saving to <cluster> <env>" next to the buttons, centred on them. */
 .target {
   align-self: center;
+}
+
+/* `.co-p-has-sidebar__body--sidebar-open`: two thirds of the row beside the schema sidebar from $screen-md-min. */
+@media (min-width: 768px) {
+  .sidebarOpen {
+    max-width: 66%;
+  }
 }

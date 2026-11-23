@@ -5,8 +5,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import { errorMessage, isApiError } from '@/shared/api';
-import { useOpenApiSchema, type K8sResource } from '@/shared/k8s';
+import { resolveSchemaPath, useOpenApiSchema, type K8sResource } from '@/shared/k8s';
 import { EnvironmentLabel } from '@/shared/ui';
+import { ExploreTypeSidebar } from './ExploreTypeSidebar';
 import { useResourceAccess } from '../actions/useResourceAccess';
 import { useResourceDetails } from '../details/detailsContext';
 import { resourcePath } from '../paths';
@@ -31,7 +32,8 @@ const yamlDataUrl = (text: string) => `data:text/yaml;charset=utf-8,${encodeURIC
  * Monaco editor (`metadata.managedFields` folded), alerts, then the button bar Save · Reload · Cancel · Download, all in
  * a full screen capable column. Lazy route module: Monaco (imported by `YamlEditor` via `monacoSetup`) loads only with
  * this tab. Once the cluster serves the kind's OpenAPI schema, the editor validates against it and offers hover and
- * completion (OAPI-3); without one (loading, 403) it works as before.
+ * completion (OAPI-3), and the toolbar's "Show sidebar" opens the schema sidebar beside it (closed by default, kept in
+ * full screen); without one (loading, 403) it works as before, with no toggle.
  *
  * - **Read-only** (UI-9 reason from `useResourceAccess`): info alert with the reason, read-only editor, no Save. While
  *   the access check runs the editor is read-only too.
@@ -58,7 +60,18 @@ export function ResourceYamlTab() {
   const update = useUpdateResource(cluster, model);
   const navigate = useNavigate();
   const { ref: fullscreenRef, ...fullscreen } = useFullscreen();
-  const jsonSchema = useOpenApiSchema(cluster, model)?.jsonSchema;
+  const openApi = useOpenApiSchema(cluster, model);
+  const jsonSchema = openApi?.jsonSchema;
+  // OCP `showSchema`: the sidebar (and its toggle) exist only for a schema with fields.
+  const hasSidebar = useMemo(
+    () =>
+      openApi !== undefined &&
+      Object.keys(resolveSchemaPath(openApi.doc, openApi.rootName, [])?.properties ?? {}).length > 0,
+    [openApi],
+  );
+  // Closed by default: OCP opens it by default only when creating.
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const showSidebar = hasSidebar && isSidebarOpen;
   // Memoised so the editor hands the schema to monaco-yaml's worker only when it really changes (ADR-0038 §6).
   const schema = useMemo(
     () =>
@@ -123,7 +136,7 @@ export function ResourceYamlTab() {
 
   return (
     <div ref={fullscreenRef} className={css(styles.page, fullscreen.isFullscreen && styles.fullscreen)}>
-      <div className={styles.yamlEditor}>
+      <div className={css(styles.yamlEditor, showSidebar && styles.sidebarOpen)}>
         <YamlEditor
           value={text}
           onChange={onChange}
@@ -131,6 +144,9 @@ export function ResourceYamlTab() {
           onSave={isEditable ? save : undefined}
           fullscreen={fullscreen}
           schema={schema}
+          sidebar={
+            hasSidebar ? { isOpen: isSidebarOpen, onToggle: () => setSidebarOpen(!isSidebarOpen) } : undefined
+          }
         />
         <div className={styles.buttons}>
           {access.disabledReason !== undefined && (
@@ -210,6 +226,9 @@ export function ResourceYamlTab() {
           </Form>
         </div>
       </div>
+      {showSidebar && openApi && (
+        <ExploreTypeSidebar schema={openApi} kindLabel={model.label} onClose={() => setSidebarOpen(false)} />
+      )}
       <UnsavedChangesGuard when={isDirty} name={name} cluster={cluster} />
     </div>
   );

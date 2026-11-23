@@ -1,7 +1,13 @@
 // First: configures the bundled Monaco before `@monaco-editor/react` could reach for its CDN default (ADR-0024 §2).
 import { monacoYaml } from './monacoSetup';
 import { CodeEditor, CodeEditorControl, Language } from '@patternfly/react-code-editor';
-import { RhUiCompressIcon, RhUiExpandIcon, RhUiSettingsIcon } from '@patternfly/react-icons';
+import {
+  RhUiCompressIcon,
+  RhUiExpandIcon,
+  RhUiOpenDrawerRightFillIcon,
+  RhUiOpenDrawerRightIcon,
+  RhUiSettingsIcon,
+} from '@patternfly/react-icons';
 import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
 import { css } from '@patternfly/react-styles';
 import { useEffect, useRef, useState } from 'react';
@@ -32,6 +38,11 @@ export interface YamlEditorProps {
    * the schema loads or when the cluster doesn't serve it: the editor then works without them.
    */
   schema?: { uri: string; schema: JSONSchema };
+  /**
+   * The schema sidebar's state (OCP `ToggleSidebarButton`): with it, a "Show sidebar"/"Hide sidebar" control sits at
+   * the end of the toolbar. Omitted when there is no sidebar to show (no schema with fields).
+   */
+  sidebar?: { isOpen: boolean; onToggle: () => void };
 }
 
 /**
@@ -57,14 +68,22 @@ function useMonacoYamlSchema(schema: YamlEditorProps['schema']) {
  * The YAML editor (UI-6, ADR-0024 §4), OCP's `CodeEditor` (`console-shared/src/components/editor/`): PatternFly
  * `CodeEditor` on the locally bundled Monaco (`monacoSetup.ts`, imported first by this module, which only the lazy YAML
  * route reaches), full height, in the console theme unless the user's editor colour scheme overrides it. Toolbar like OCP: Copy, Editor settings, Toggle fullscreen
- * mode, and the right-aligned "Shortcuts" popover (hidden in full screen). On mount it takes focus, folds
+ * mode, the end-aligned Show/Hide sidebar toggle (with `sidebar`), and the right-aligned "Shortcuts" popover (hidden in full screen). On mount it takes focus, folds
  * `metadata.managedFields` (OCP `registerAutoFold`) and binds Ctrl/Cmd+S to `onSave`. With a `schema`, `monaco-yaml`
  * validates the text against it and offers hover descriptions and completion (OCP `registerYAMLinMonaco`).
  *
  * The only component that renders `CodeEditor`. Monaco cannot run in jsdom, so `src/test/setup.ts` replaces this module
  * in every test with the `<textarea>` double in `__mocks__/`, keeping Monaco out of the test graph entirely.
  */
-export function YamlEditor({ value, onChange, isReadOnly, onSave, fullscreen, schema }: YamlEditorProps) {
+export function YamlEditor({
+  value,
+  onChange,
+  isReadOnly,
+  onSave,
+  fullscreen,
+  schema,
+  sidebar,
+}: YamlEditorProps) {
   useMonacoYamlSchema(schema);
   const { theme, contrast } = useTheme();
   const settings = useEditorSettings();
@@ -108,6 +127,21 @@ export function YamlEditor({ value, onChange, isReadOnly, onSave, fullscreen, sc
       onClick={fullscreen.toggle}
     />,
   ];
+  if (sidebar) {
+    const label = sidebar.isOpen ? 'Hide sidebar' : 'Show sidebar';
+    // OCP `alignToEnd`: a growing spacer puts the toggle at the end of the controls.
+    controls.push(
+      <div key="sidebar-spacer" className={styles.spacer} />,
+      <CodeEditorControl
+        key="sidebar"
+        className="pf-v6-u-mr-xs"
+        icon={sidebar.isOpen ? <RhUiOpenDrawerRightFillIcon /> : <RhUiOpenDrawerRightIcon />}
+        aria-label={label}
+        tooltipProps={{ content: label }}
+        onClick={sidebar.onToggle}
+      />,
+    );
+  }
 
   return (
     <div className={css(styles.editor, isDark && !isHighContrast && styles.dark)}>
