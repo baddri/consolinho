@@ -70,6 +70,10 @@ public sealed class ProxyStreamLifetimeTests(ProxyStreamLifetimeTests.Host fixtu
         await Should.ThrowAsync<WebSocketException>(() => reconnect.ConnectAsync(ExecUri(cluster), Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct));
         reconnect.HttpStatusCode.ShouldBe(HttpStatusCode.NotFound);
         _host.Logs.Entries.ShouldContain(e => e.EventId == 2402 && e.Text.Contains(Exec, StringComparison.Ordinal));
+        // ADR-0036 §4: the session end is logged with cause "cap", without the query.
+        var ended = _host.Logs.Entries.Where(e => e.EventId == 2403 && e.Text.Contains($" on {cluster} ", StringComparison.Ordinal)).ShouldHaveSingleItem();
+        ended.Text.ShouldContain("Cause=Cap");
+        ended.Text.ShouldNotContain("command");
         ProxyWarnings().ShouldBeEmpty();
     }
 

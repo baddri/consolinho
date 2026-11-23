@@ -132,6 +132,7 @@ export function proxyAuditInput(
       name: target?.name ?? null,
       dryRun: null,
       fieldManager: null,
+      container: null,
       statusCode: mutation.status,
       outcome: mutation.reason === null ? 'allowed' : 'denied',
       reason: mutation.reason,

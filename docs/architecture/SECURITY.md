@@ -99,7 +99,10 @@ it holds, so these rules are strict.
 ## Audit
 - Admin commands and all proxy mutations (allowed and denied) write `AuditEntry` (user, cluster, verb, path, status, timestamp, correlation id).
   Proxy entries are written after the response in their own unit of work; a failed audit write is logged at Error and
-  does not affect the response (ADR-0021). GETs/watches are not audited (traces only).
+  does not affect the response (ADR-0021). GETs/watches/log reads are not audited (traces only). Exec/attach sessions
+  are audited **at the handshake** (before any frame is relayed, so an open shell always has its entry) with the
+  container; the exec `command` is never recorded or logged. The session's end is a log line with duration and cause
+  (`cap` | `client` | `upstream`), not a second entry (ADR-0036 §3–5).
 - Admin-action audit entries are written **in the same database transaction** as the change (ADR-0008): no change
   without its entry, no entry without its change. Auth events (login, login denied with reason, logout) are audited too.
 - Append-only: no API updates or deletes entries. Entries never contain tokens, OAuth codes or cookie values (fingerprints

@@ -69,12 +69,18 @@ Mutation = any method other than GET/HEAD/OPTIONS, plus any request to subresour
 ```json
 { "method": "PUT", "path": "/api/v1/namespaces/shop/configmaps/web", "group": "", "version": "v1",
   "resource": "configmaps", "subresource": null, "namespace": "shop", "name": "web",
-  "dryRun": null, "fieldManager": null, "statusCode": 200,
+  "dryRun": null, "fieldManager": null, "container": null, "statusCode": 200,
   "outcome": "allowed", "reason": null }
 ```
+  `container` (ADR-0036 §5): the first `container` query value of a `proxy.connect` request (exec/attach), else
+  `null`. The exec `command` is **never** recorded (users type secrets into it), nor is any other query parameter.
   `outcome`: `allowed` | `denied`. `reason` (denied only): `noAccess` | `userReadOnly` | `readOnlyGrant` | `bodyTooLarge`.
   `statusCode`: upstream status (401 recorded as 401 even though the browser got 502), 502/504 on forwarding
   errors, `0` if the client disconnected first, the problem's status for denials.
+  Exec/attach (ADR-0036 §3): an accepted upgrade is audited **at the handshake**, before any frame is relayed, with the
+  upstream status (`101`; `200` while upgrades may still travel as HTTP/2 extended CONNECT, T-0091). Nothing more is
+  written when the session ends (that is a log line with its duration); a refused upgrade (e.g. the cluster's RBAC 403)
+  is audited once with that status when the response completes.
   UI label: outcome `allowed` → status code; `denied` → "Denied — <reason>".
 
 ## 6. Unchanged

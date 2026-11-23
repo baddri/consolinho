@@ -12,7 +12,8 @@ namespace FleetConsole.Api.Tests.Integration.Proxy;
 /// <summary>
 /// Proxy behaviour that only a real server shows (T-0061 review): the 413 for a <b>chunked</b> body over the limit (the
 /// size feature Kestrel enforces while streaming) with its Denied audit entry, and a real WebSocket upgrade forwarded to
-/// the cluster (exec), on a variant hosted on Kestrel over loopback sockets.
+/// the cluster (exec) — audited at the handshake with its container, refusals audited once, session ends logged
+/// (ADR-0036 §3–5; TERM-4, TERM-6, TERM-7) — on a variant hosted on Kestrel over loopback sockets.
 /// </summary>
 /// <remarks>The body limit is lowered to 1 KiB so the over-limit body is small.</remarks>
 [Collection(ApiCollectionDefinition.Name)]
@@ -22,6 +23,10 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
     private const string Pods = "/api/v1/namespaces/shop/pods";
     private const string Exec = "/api/v1/namespaces/shop/pods/web-1/exec";
     private const int Limit = 1024;
+    private const string ChannelProtocol = "base64.channel.k8s.io";
+
+    // The SPA's terminal query (FE contract), with a fake secret in the command that must never be recorded or logged.
+    private const string ExecQuery = "?command=sh&command=-c&command=echo%20fake-secret&container=app&stdin=1&stdout=1&stderr=1&tty=1";
 
     private readonly ApiFactory _host = fixture.Api;
 
@@ -52,8 +57,10 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
         server.Requests.ShouldNotContain(r => r.Method == "PUT" && r.Body.Length > Limit, "the over-limit body never reached the cluster whole");
     }
 
+    // TERM-6, TERM-7 (ADR-0036 §3, §5): the entry exists once the socket is open, before any frame, names the container
+    // and never the command; the base64 channel subprotocol is negotiated as sent and a frame is echoed promptly.
     [Fact]
-    public async Task WebSocket_Exec_Is_Forwarded_With_The_SA_Token_And_Audited_As_Connect()
+    public async Task WebSocket_Exec_Is_Forwarded_With_The_SA_Token_And_Audited_As_Connect_At_The_Handshake()
     {
         await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
         // An HTTP/1.1 client upgrade may reach the cluster as an HTTP/2 extended CONNECT (RFC 8441) when the cluster
@@ -67,7 +74,7 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
             }
 
             // Echo one message back, then close: enough to prove both directions of the upgraded stream.
-            using var socket = await context.WebSockets.AcceptWebSocketAsync();
+            using var socket = await context.WebSockets.AcceptWebSocketAsync(context.WebSockets.WebSocketRequestedProtocols.FirstOrDefault());
             var buffer = new byte[1024];
             var received = await socket.ReceiveAsync(buffer, context.RequestAborted);
             await socket.SendAsync(buffer.AsMemory(0, received.Count), WebSocketMessageType.Binary, endOfMessage: true, context.RequestAborted);
@@ -78,29 +85,134 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
         var (client, cluster, username, cookies) = await SignedInAsync(server);
         using var _ = client;
 
-        using var socket = new ClientWebSocket();
-        socket.Options.SetRequestHeader("Origin", TestHostConfiguration.PublicOrigin);
-        socket.Options.Cookies = cookies;
-        var uri = new UriBuilder(_host.KestrelAddress!) { Scheme = "ws", Path = $"/api/clusters/{cluster}/k8s{Exec}", Query = "command=sh&stdin=true" }.Uri;
-        await socket.ConnectAsync(uri, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+        using var socket = NewSocket(cookies);
+        socket.Options.AddSubProtocol(ChannelProtocol);
+        await socket.ConnectAsync(ExecUri(cluster, ExecQuery), Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+        socket.SubProtocol.ShouldBe(ChannelProtocol);
 
-        await socket.SendAsync("hello"u8.ToArray(), WebSocketMessageType.Binary, endOfMessage: true, Ct);
+        // TERM-7: read once, no waiting: the entry was written before the proxy completed the client's handshake.
+        var opened = (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
+        opened.Action.ShouldBe("proxy.connect");
+        Details(opened).GetProperty("outcome").GetString().ShouldBe("allowed");
+        Details(opened).GetProperty("subresource").GetString().ShouldBe("exec");
+        Details(opened).GetProperty("container").GetString().ShouldBe("app");
+        opened.DetailsJson.ShouldNotContain("fake-secret");
+        opened.Summary.ShouldNotContain("fake-secret");
+
+        // TERM-6: a stdin frame (channel 0, base64 "aGk=" = "hi") comes back on the echo within 500 ms.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        await socket.SendAsync("0aGk="u8.ToArray(), WebSocketMessageType.Text, endOfMessage: true, Ct);
         var buffer = new byte[1024];
         var echo = await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
-        Encoding.UTF8.GetString(buffer, 0, echo.Count).ShouldBe("hello");
+        clock.Elapsed.ShouldBeLessThan(TimeSpan.FromMilliseconds(500));
+        Encoding.UTF8.GetString(buffer, 0, echo.Count).ShouldBe("0aGk=");
 
         var forwarded = server.Requests.ShouldHaveSingleItem();
         forwarded.Authorization.ShouldNotBeNull().ShouldStartWith("Bearer fake-test-token.");
         forwarded.Headers.ShouldNotContainKey("Cookie");
+        // The upstream status as is: 101 for an HTTP/1.1 upgrade, 200 while the fake negotiates an HTTP/2 extended
+        // CONNECT (T-0091 pins upgrades to HTTP/1.1).
+        Details(opened).GetProperty("statusCode").GetInt32().ShouldBe(forwarded.Method == "CONNECT" ? 200 : 101);
 
-        // The cluster ends the session; the entry is written once the forwarded upgrade is over.
+        // The cluster ends the session: still exactly one entry, and the end is a log line (cause upstream or client,
+        // depending on which side's close YARP sees first), without the command.
         (await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct)).MessageType.ShouldBe(WebSocketMessageType.Close);
         await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", Ct);
+        await WaitUntilAsync(() => SessionEndedLogs(cluster).Count > 0, "the session end was logged");
+        (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
+    }
+
+    // ADR-0036 §4: a client that drops the socket ends the session with cause "client"; the line has no query or token.
+    [Fact]
+    public async Task Exec_Session_Dropped_By_The_Client_Is_Logged_With_Cause_Client()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.Map("GET", Exec, EchoUntilClosed);
+        server.Map("CONNECT", Exec, EchoUntilClosed);
+        var (client, cluster, username, cookies) = await SignedInAsync(server);
+        using var _ = client;
+
+        var socket = NewSocket(cookies);
+        await socket.ConnectAsync(ExecUri(cluster, ExecQuery), Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+        socket.Abort();
+        socket.Dispose();
+
+        await WaitUntilAsync(() => SessionEndedLogs(cluster).Count > 0, "the session end was logged");
+        var line = SessionEndedLogs(cluster).ShouldHaveSingleItem();
+        line.ShouldContain("shop/web-1 container app");
+        line.ShouldContain("Cause=Client");
+        line.ShouldNotContain("command");
+        line.ShouldNotContain("fake-secret");
+        line.ShouldNotContain("fake-test-token");
+        (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
+    }
+
+    // TERM-6: the Origin check answers before authorization with a problem, and nothing reaches the cluster.
+    [Fact]
+    public async Task Exec_Upgrade_From_A_Foreign_Origin_Is_403_OriginNotAllowed_Without_Upstream_Request()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        var (client, cluster, _, _) = await SignedInAsync(server);
+        using var _ = client;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"api/clusters/{cluster}/k8s{Exec}{ExecQuery}");
+        request.Headers.TryAddWithoutValidation("Connection", "Upgrade");
+        request.Headers.TryAddWithoutValidation("Upgrade", "websocket");
+        request.Headers.TryAddWithoutValidation("Sec-WebSocket-Version", "13");
+        request.Headers.TryAddWithoutValidation("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==");
+        request.Headers.TryAddWithoutValidation("Origin", "https://evil.example");
+        using var response = await client.SendAsync(request, Ct);
+
+        await KubernetesProxyForwardingTests.ShouldBeProblemAsync(response, HttpStatusCode.Forbidden, ProxyErrors.OriginNotAllowed);
+        server.Requests.ShouldBeEmpty();
+    }
+
+    // TERM-4: read-only users and grants never reach the cluster; the denial is audited with the container.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Exec_Upgrade_Of_A_Read_Only_Principal_Is_403_And_Audited_As_Denied(bool readOnlyUser)
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        var (client, cluster, username, cookies) = await SignedInAsync(
+            server, readOnlyUser ? AccessMode.ReadWrite : AccessMode.ReadOnly, readOnlyUser);
+        using var _ = client;
+
+        using var socket = NewSocket(cookies);
+        socket.Options.CollectHttpResponseDetails = true;
+        await Should.ThrowAsync<WebSocketException>(() => socket.ConnectAsync(ExecUri(cluster, ExecQuery), Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct));
+
+        socket.HttpStatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        server.Requests.ShouldBeEmpty();
         var entry = await SingleProxyEntryAsync(_host, username);
         entry.Action.ShouldBe("proxy.connect");
-        // The upstream status: 200 for an HTTP/2 extended CONNECT (what the fake negotiates), 101 for an HTTP/1.1 upgrade.
-        Details(entry).GetProperty("statusCode").GetInt32().ShouldBe(forwarded.Method == "CONNECT" ? 200 : 101);
-        Details(entry).GetProperty("subresource").GetString().ShouldBe("exec");
+        Details(entry).GetProperty("outcome").GetString().ShouldBe("denied");
+        Details(entry).GetProperty("reason").GetString().ShouldBe(readOnlyUser ? "userReadOnly" : "readOnlyGrant");
+        Details(entry).GetProperty("container").GetString().ShouldBe("app");
+    }
+
+    // ADR-0036 §3: a refused upgrade (cluster RBAC) is not a handshake; it is audited once, after SendAsync, as 403.
+    [Fact]
+    public async Task Exec_Refused_By_Cluster_Rbac_Is_Audited_Once_With_403()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        var forbidden = new { kind = "Status", apiVersion = "v1", status = "Failure", reason = "Forbidden", code = 403 };
+        server.Respond("GET", Exec, 403, forbidden);
+        server.Respond("CONNECT", Exec, 403, forbidden);
+        var (client, cluster, username, cookies) = await SignedInAsync(server);
+        using var _ = client;
+
+        using var socket = NewSocket(cookies);
+        socket.Options.CollectHttpResponseDetails = true;
+        await Should.ThrowAsync<WebSocketException>(() => socket.ConnectAsync(ExecUri(cluster, ExecQuery), Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct));
+
+        socket.HttpStatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        var entry = await SingleProxyEntryAsync(_host, username);
+        Details(entry).GetProperty("statusCode").GetInt32().ShouldBe(403);
+        Details(entry).GetProperty("outcome").GetString().ShouldBe("allowed");
+        await Task.Delay(TimeSpan.FromMilliseconds(200), Ct); // a second (handshake) entry would have been written by now
+        (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
+        SessionEndedLogs(cluster).ShouldBeEmpty();
     }
 
     [Fact]
@@ -152,12 +264,59 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
         seen.Headers.ContainsKey("X-Qa-Hop").ShouldBeFalse("X-Qa-Hop");
     }
 
-    // A fresh user with a ReadWrite grant on a cluster at server, signed in over sockets; the cookie jar is returned
-    // too, for the WebSocket handshake.
-    private async Task<(HttpClient Client, string Cluster, string Username, CookieContainer Cookies)> SignedInAsync(FakeKubeApiServer server)
+    // The fake exec endpoint for sessions the client ends: echoes until the proxy goes away.
+    private static async Task EchoUntilClosed(HttpContext context)
+    {
+        if (!context.WebSockets.IsWebSocketRequest)
+        {
+            context.Response.StatusCode = 400;
+            return;
+        }
+
+        using var socket = await context.WebSockets.AcceptWebSocketAsync();
+        var buffer = new byte[1024];
+        try
+        {
+            while (!(await socket.ReceiveAsync(buffer, context.RequestAborted)).MessageType.Equals(WebSocketMessageType.Close))
+            {
+            }
+        }
+        catch (Exception exception) when (exception is WebSocketException or OperationCanceledException)
+        {
+            // The proxy dropped the tunnel.
+        }
+    }
+
+    private static ClientWebSocket NewSocket(CookieContainer cookies)
+    {
+        var socket = new ClientWebSocket();
+        socket.Options.SetRequestHeader("Origin", TestHostConfiguration.PublicOrigin);
+        socket.Options.Cookies = cookies;
+        return socket;
+    }
+
+    private Uri ExecUri(string cluster, string query) =>
+        new UriBuilder(_host.KestrelAddress!) { Scheme = "ws", Path = $"/api/clusters/{cluster}/k8s{Exec}", Query = query }.Uri;
+
+    private async Task<List<FleetConsole.Domain.Audit.AuditEntry>> ProxyEntriesAsync(string username) =>
+        [.. (await _host.Data.AuditEntriesAsync(username)).Where(e => e.Category == FleetConsole.Domain.Audit.AuditCategory.Proxy)];
+
+    // ProxyLog.ExecSessionEnded (EventId 2403) lines of one cluster.
+    private List<string> SessionEndedLogs(string cluster) =>
+        [.. _host.Logs.Entries.Where(e => e.EventId == 2403 && e.Text.Contains($" on {cluster} ", StringComparison.Ordinal)).Select(e => e.Text)];
+
+    // A fresh user with a grant on a cluster at server, signed in over sockets; the cookie jar is returned too, for
+    // the WebSocket handshake.
+    private async Task<(HttpClient Client, string Cluster, string Username, CookieContainer Cookies)> SignedInAsync(
+        FakeKubeApiServer server, AccessMode mode = AccessMode.ReadWrite, bool readOnlyUser = false)
     {
         var username = _host.NewUsername();
-        var (cluster, _) = await _host.Data.ProxyClusterAsync(server, username, AccessMode.ReadWrite);
+        if (readOnlyUser)
+        {
+            await _host.Data.UserAsync(username, isReadOnly: true);
+        }
+
+        var (cluster, _) = await _host.Data.ProxyClusterAsync(server, username, mode);
         var cookies = new CookieContainer();
         var client = _host.CreateKestrelBrowserClient(cookies);
         using var login = await _host.RunLoginAsync(client, username);

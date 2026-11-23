@@ -128,7 +128,20 @@ public static class KubernetesProxyEndpoint
             bodySize.MaxRequestBodySize = settings.MaxMutationBodyBytes;
         }
 
-        var transformer = new KubernetesRequestTransformer(target, request, settings.WatchTimeoutCapSeconds);
+        // Upgrades (exec/attach) are audited when the cluster accepts the handshake, before any frame is relayed, not
+        // when the session ends up to ExecSessionCap later (ADR-0036 §3). The flag makes the post-SendAsync record a
+        // no-op for them; a refused upgrade (RBAC 403, 400, 404) never sets it and is audited below like any request.
+        var auditedAtHandshake = false;
+        var sessionStart = 0L;
+        Func<int, ValueTask>? onSwitchingProtocols = isUpgrade
+            ? async upstreamStatus =>
+            {
+                auditedAtHandshake = true;
+                sessionStart = time.GetTimestamp();
+                await audit.RecordAsync(upstreamStatus, reason: null).ConfigureAwait(false);
+            }
+            : null;
+        var transformer = new KubernetesRequestTransformer(target, request, settings.WatchTimeoutCapSeconds, onSwitchingProtocols);
         var lifetime = request.IsStreaming ? settings.StreamLifetime(isUpgrade) : (TimeSpan?)null;
         var config = new ForwarderRequestConfig
         {
@@ -193,7 +206,17 @@ public static class KubernetesProxyEndpoint
             }
         }
 
-        if (failure is { Code: "Proxy.BodyTooLarge" })
+        if (auditedAtHandshake)
+        {
+            // One audit entry per request: the session's end is operational data, logged with its duration (ADR-0036 §4).
+            var cause = lifetimeReached ? ExecSessionEndCause.Cap
+                : clientAborted.IsCancellationRequested || ForwarderErrorMapper.IsClientSide(forwardError) ? ExecSessionEndCause.Client
+                : ExecSessionEndCause.Upstream;
+            var durationMs = (long)time.GetElapsedTime(sessionStart).TotalMilliseconds;
+            ProxyLog.ExecSessionEnded(audit.Logger, target.ClusterName, request.Info.Namespace, request.Info.Name, request.Container,
+                durationMs, cause);
+        }
+        else if (failure is { Code: "Proxy.BodyTooLarge" })
         {
             await audit.RecordAsync(StatusCodes.Status413PayloadTooLarge, ProxyDenialReason.BodyTooLarge).ConfigureAwait(false);
         }

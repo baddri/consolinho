@@ -59,6 +59,7 @@ internal sealed class RecordProxyAuditHandler(IAuditTrail auditTrail, ICurrentUs
                 info.Name,
                 record.Request.DryRun,
                 record.Request.FieldManager,
+                record.Request.Container,
                 record.StatusCode,
                 record.Outcome,
                 record.Reason)));
@@ -114,6 +115,7 @@ internal sealed class RecordProxyAuditHandler(IAuditTrail auditTrail, ICurrentUs
         string? Name,
         string? DryRun,
         string? FieldManager,
+        string? Container,
         int StatusCode,
         ProxyAuditOutcome Outcome,
         ProxyDenialReason? Reason);

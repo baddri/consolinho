@@ -1,7 +1,7 @@
 ---
 id: T-0156
 title: Exec audit at the handshake — proxy.connect written on 101, container in details, session-end log
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4a
 depends_on: [T-0155]   # both edit KubernetesProxyEndpoint around SendAsync
@@ -62,21 +62,44 @@ Api tests also cover TERM-4 and TERM-6.
   `ProxyRequest` classification tests (add `container` cases).
 
 ## Acceptance criteria
-- [ ] TERM-7: with the socket open and no frame sent, the audit table already holds one `proxy.connect` entry (status
+- [x] TERM-7: with the socket open and no frame sent, the audit table already holds one `proxy.connect` entry (status
       101, outcome allowed, subresource exec, container = the requested container). After close there is still exactly one.
-- [ ] TERM-6: echo round trip over `base64.channel.k8s.io` through the proxy: subprotocol negotiated as sent, stdin
+- [x] TERM-6: echo round trip over `base64.channel.k8s.io` through the proxy: subprotocol negotiated as sent, stdin
       frame echoed on stdout in < 500 ms; an `Origin` mismatch gives 403 `Proxy.OriginNotAllowed` and no upstream request.
-- [ ] TERM-4: an RO grant and a globally RO user each get 403 on the exec upgrade, with no upstream request and a
+- [x] TERM-4: an RO grant and a globally RO user each get 403 on the exec upgrade, with no upstream request and a
       denied entry with `container` set.
-- [ ] Upstream 403 on exec (RBAC) → audited once with status 403, no handshake entry.
-- [ ] `ExecSessionEnded` is logged with cause `cap`/`client`. The log line contains no `command` value and no token.
-- [ ] `ProxyRequest` unit tests: `container` is parsed for exec/attach and null for a GET with `?container=` on `/log`.
-- [ ] CP2 contract §5 and SECURITY §Audit say that exec is audited at the handshake and that `container` is recorded
+- [x] Upstream 403 on exec (RBAC) → audited once with status 403, no handshake entry.
+- [x] `ExecSessionEnded` is logged with cause `cap`/`client`. The log line contains no `command` value and no token.
+- [x] `ProxyRequest` unit tests: `container` is parsed for exec/attach and null for a GET with `?container=` on `/log`.
+- [x] CP2 contract §5 and SECURITY §Audit say that exec is audited at the handshake and that `container` is recorded
       and the command is not.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-23 backend-engineer: `ProxyRequest.Container`, `details.container`, transformer handshake callback, endpoint
+  audit-once + `ProxyLog.ExecSessionEnded` (2403, enum cause), contract §5/SECURITY §Audit/MSW fixture. Deviation: the
+  callback is `Func<int, ValueTask>` and records the upstream status as is, firing on 101 **or** on 200 to an HTTP/2
+  extended CONNECT (the fake and YARP's default still negotiate that until T-0091), so the test sees 200 today.
+  check-be green (333/711/810).
 
 ## Review
+- 2026-11-23 backend-architect, round 1: **APPROVE**. check-be green (333/711/810). Contract, ADR-0036 §3–5, AC met;
+  the `Func<int, ValueTask>` deviation is justified (records upstream status as is, 200 only for extended CONNECT until T-0091).
+- Optional / follow-up (not blocking; the cause is Information-level operational data, audit correctness is unaffected):
+  - KubernetesProxyEndpoint.cs:213 — `clientAborted.IsCancellationRequested` is likely already true after any tunnel
+    end (Kestrel cancels RequestAborted once the connection closes), so a shell `exit` can log `client` — consider
+    deciding from `forwardError` only (`IsClientSide` → client, else upstream) and pinning it with a test in T-0091.
+  - KubernetesProxyEndpoint.cs:136 — the callback is wired for any upgrade, so a WebSocket on a non-connect path (e.g.
+    watch) would log 2403 "Exec session ended" with no entry written; gate on `request.Verb == KubernetesVerb.Connect`.
 
 ## Handover notes
+- Handshake audit: `KubernetesRequestTransformer.TransformResponseAsync` awaits `onSwitchingProtocols(status)` before
+  `base.TransformResponseAsync`, i.e. before YARP sends 101 to the client; endpoint sets `auditedAtHandshake` and skips
+  the post-SendAsync record. Refused upgrades (403/400/404) take the old path.
+- Status recorded = upstream status: 101 on HTTP/1.1 Upgrade, 200 on extended CONNECT. Once T-0091 pins HTTP/1.1, the
+  `forwarded.Method == "CONNECT" ? 200 : 101` branch in `ProxyKestrelTests` and the contract's 200 note can go.
+- End cause: `cap` = lifetime flag (T-0155); `client` = connection token cancelled or a client-side `ForwarderError`;
+  else `upstream`. A clean close initiated by the cluster may show as `client` depending on which side YARP sees first
+  (test only asserts a log line exists there).
+- New tests: `ProxyKestrelTests` (TERM-4/6/7, RBAC 403, client cause), cap cause in `ProxyStreamLifetimeTests`,
+  container cases in `ProxyRequestTests`/`RecordProxyAuditHandlerTests`. Only `container: null` added to the MSW fixture.
