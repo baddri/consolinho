@@ -1,8 +1,10 @@
 using System.Net;
+using System.Net.WebSockets;
 using System.Text;
 using FleetConsole.Api.Tests.Fakes;
 using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Audit;
+using Microsoft.AspNetCore.Http;
 
 namespace FleetConsole.Api.Tests.Integration.Proxy;
 
@@ -11,7 +13,8 @@ namespace FleetConsole.Api.Tests.Integration.Proxy;
 /// with a recognisable value is used for every kind of proxy outcome — allowed read and write, denied write, upstream
 /// 500, TLS failure, rejected credential, unreachable cluster, rejected path. Afterwards every response FleetConsole
 /// produced (bodies and headers), the audit entries, the database and every captured log line are scanned for the token
-/// in plain, base64 and base64url form.
+/// in plain, base64 and base64url form. A second sweep over real sockets covers a followed log and an exec WebSocket
+/// handshake with frames in both directions (CP4a SAFE-3).
 /// </summary>
 /// <remarks>
 /// The fake API server never echoes the bearer token here: an upstream body is passed through by design, so echoing
@@ -23,6 +26,9 @@ public sealed class ProxyTokenLeakSweepTests(ApiFactory factory)
     private const string ConfigMap = "/api/v1/namespaces/shop/configmaps/web";
     private const string Failing = "/api/v1/namespaces/shop/configmaps/boom";
     private const string Rejected = "/api/v1/namespaces/shop/secrets";
+    private const string Log = "/api/v1/namespaces/shop/pods/web-1/log";
+    private const string Exec = "/api/v1/namespaces/shop/pods/web-1/exec";
+    private const string FollowQuery = "?follow=true&tailLines=1000&timestamps=true&container=app";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -40,6 +46,7 @@ public sealed class ProxyTokenLeakSweepTests(ApiFactory factory)
         server.Respond("PUT", ConfigMap, 200, new { kind = "ConfigMap", metadata = new { name = "web" } });
         server.Respond("GET", Failing, 500, new { kind = "Status", code = 500, message = "etcd is sad" });
         server.Respond("GET", Rejected, 401, new { kind = "Status", code = 401, message = "Unauthorized" });
+        server.MapGet(Log, WriteLogLineAsync);
 
         var username = factory.NewUsername();
         var (readWrite, _) = await factory.Data.ProxyClusterAsync(server, username, AccessMode.ReadWrite, token);
@@ -66,21 +73,107 @@ public sealed class ProxyTokenLeakSweepTests(ApiFactory factory)
         await SendAsync(HttpMethod.Get, readWrite.Name, Rejected, HttpStatusCode.BadGateway);             // credential rejected
         await SendAsync(HttpMethod.Get, unreachable, ConfigMap, HttpStatusCode.BadGateway);               // unreachable
         await SendAsync(HttpMethod.Get, readWrite.Name, "/api/%2e%2e/secrets", HttpStatusCode.BadRequest); // path rejected
+        await SendAsync(HttpMethod.Get, readWrite.Name, Log + FollowQuery, HttpStatusCode.OK);             // followed log
 
-        // The token really travelled: the cluster saw it as the bearer (allowed GET/PUT, 500, 401).
-        server.Requests.Count(r => r.Authorization == $"Bearer {token}").ShouldBe(4);
+        // The token really travelled: the cluster saw it as the bearer (allowed GET/PUT, 500, 401, log).
+        server.Requests.Count(r => r.Authorization == $"Bearer {token}").ShouldBe(5);
 
         var audit = (await factory.Data.AuditEntriesAsync(username)).Where(e => e.Category == AuditCategory.Proxy).ToList();
         audit.Count.ShouldBe(2, "allowed PUT + denied PUT");
         var database = await TokenLeakScanner.DumpDatabaseAsync(factory.ConnectionString, Ct);
         string[] all = [.. haystacks, .. audit.Select(e => e.DetailsJson), .. audit.Select(e => e.Summary), database, factory.Logs.AllText];
 
-        var bytes = Encoding.UTF8.GetBytes(token);
-        var base64 = Convert.ToBase64String(bytes);
+        AssertTokenAbsent(token, all);
+    }
+
+    // SAFE-3 over real sockets (exec needs a real upgrade): a followed log and an exec session — handshake, a stdin
+    // frame up, its echo down, the close — leave no trace of the token in what the browser got, the audit, the
+    // database or the logs (including the session-end line).
+    [Fact]
+    public async Task NoToken_InFollowedLog_ExecHandshake_Or_ExecFrames()
+    {
+        var token = $"safe3-sweep-sa-token.{TestData.Unique()}{TestData.Unique()}.not-a-real-signature";
+        await using var host = await factory.CreateVariantAsync(new Dictionary<string, string?>(), kestrel: true);
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        server.MapGet(Log, WriteLogLineAsync);
+        server.Map("GET", Exec, EchoOnceAsync);
+        server.Map("CONNECT", Exec, EchoOnceAsync);
+        var username = host.NewUsername();
+        var (cluster, _) = await host.Data.ProxyClusterAsync(server, username, AccessMode.ReadWrite, token);
+        var cookies = new CookieContainer();
+        using var client = host.CreateKestrelBrowserClient(cookies);
+        using (var login = await host.RunLoginAsync(client, username))
+        {
+            login.StatusCode.ShouldBe(HttpStatusCode.Redirect);
+        }
+
+        var haystacks = new List<string>();
+        using (var log = await client.GetAsync($"api/clusters/{cluster.Name}/k8s{Log}{FollowQuery}", Ct))
+        {
+            log.StatusCode.ShouldBe(HttpStatusCode.OK);
+            haystacks.Add(string.Join('\n', log.Headers.Concat(log.Content.Headers).Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")));
+            haystacks.Add(await log.Content.ReadAsStringAsync(Ct));
+        }
+
+        using (var socket = new ClientWebSocket())
+        {
+            socket.Options.SetRequestHeader("Origin", TestHostConfiguration.PublicOrigin);
+            socket.Options.Cookies = cookies;
+            socket.Options.CollectHttpResponseDetails = true;
+            var uri = new UriBuilder(host.KestrelAddress!) { Scheme = "ws", Path = $"/api/clusters/{cluster.Name}/k8s{Exec}", Query = "command=sh&container=app&stdin=1&stdout=1&tty=1" }.Uri;
+            await socket.ConnectAsync(uri, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+            haystacks.Add(string.Join('\n', socket.HttpResponseHeaders!.Select(h => $"{h.Key}: {string.Join(", ", h.Value)}")));
+            await socket.SendAsync("0aGk="u8.ToArray(), WebSocketMessageType.Text, endOfMessage: true, Ct);
+            var buffer = new byte[1024];
+            var echo = await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+            haystacks.Add(Encoding.UTF8.GetString(buffer, 0, echo.Count));
+            var close = await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+            haystacks.Add(socket.CloseStatusDescription ?? string.Empty);
+            close.MessageType.ShouldBe(WebSocketMessageType.Close);
+            await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", Ct);
+        }
+
+        await ProxyStreamingAndAuditTests.WaitUntilAsync(() => host.Logs.Entries.Any(e => e.EventId == 2403), "the exec session end was logged");
+        server.Requests.Count(r => r.Authorization == $"Bearer {token}").ShouldBe(2, "log + exec");
+        var audit = (await host.Data.AuditEntriesAsync(username)).Where(e => e.Category == AuditCategory.Proxy).ToList();
+        audit.ShouldHaveSingleItem("the exec handshake; log reads are not audited").Action.ShouldBe("proxy.connect");
+        var database = await TokenLeakScanner.DumpDatabaseAsync(host.ConnectionString, Ct);
+        string[] all = [.. haystacks, .. audit.Select(e => e.DetailsJson), .. audit.Select(e => e.Summary), database, host.Logs.AllText];
+
+        AssertTokenAbsent(token, all);
+    }
+
+    // The token in plain, base64 and base64url form must be in none of the haystacks.
+    private static void AssertTokenAbsent(string token, string[] haystacks)
+    {
+        var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(token));
         foreach (var form in new[] { token, base64, base64.TrimEnd('=').Replace('+', '-').Replace('/', '_') })
         {
-            TokenLeakScanner.AssertAbsent(form, all);
+            TokenLeakScanner.AssertAbsent(form, haystacks);
         }
+    }
+
+    // A followed log that writes one line and ends (as when the container stops), so the whole body can be read.
+    private static async Task WriteLogLineAsync(HttpContext context)
+    {
+        context.Response.ContentType = "text/plain";
+        await context.Response.WriteAsync("2026-11-23T09:00:00.000000000Z started\n", context.RequestAborted);
+    }
+
+    // The fake exec endpoint: echoes one frame, then closes the session.
+    private static async Task EchoOnceAsync(HttpContext context)
+    {
+        if (!context.WebSockets.IsWebSocketRequest)
+        {
+            context.Response.StatusCode = 400;
+            return;
+        }
+
+        using var socket = await context.WebSockets.AcceptWebSocketAsync();
+        var buffer = new byte[1024];
+        var received = await socket.ReceiveAsync(buffer, context.RequestAborted);
+        await socket.SendAsync(buffer.AsMemory(0, received.Count), received.MessageType, endOfMessage: true, context.RequestAborted);
+        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "exit", context.RequestAborted);
     }
 
     // An enabled cluster at apiUrl trusting caBundlePem, with its own credential holding token, granted to username.

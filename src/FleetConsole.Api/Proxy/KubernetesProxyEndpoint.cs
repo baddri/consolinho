@@ -131,9 +131,10 @@ public static class KubernetesProxyEndpoint
         // Upgrades (exec/attach) are audited when the cluster accepts the handshake, before any frame is relayed, not
         // when the session ends up to ExecSessionCap later (ADR-0036 §3). The flag makes the post-SendAsync record a
         // no-op for them; a refused upgrade (RBAC 403, 400, 404) never sets it and is audited below like any request.
+        // Only Connect verbs are sessions: a WebSocket watch is an upgrade too, but a read (no entry, no end line).
         var auditedAtHandshake = false;
         var sessionStart = 0L;
-        Func<int, ValueTask>? onSwitchingProtocols = isUpgrade
+        Func<int, ValueTask>? onSwitchingProtocols = isUpgrade && request.Verb == KubernetesVerb.Connect
             ? async upstreamStatus =>
             {
                 auditedAtHandshake = true;

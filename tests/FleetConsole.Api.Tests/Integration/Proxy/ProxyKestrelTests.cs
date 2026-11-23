@@ -147,6 +147,79 @@ public sealed class ProxyKestrelTests(ProxyKestrelTests.Host fixture) : IClassFi
         (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
     }
 
+    // ADR-0036 §4 (T-0156 review): the cluster ending the session cleanly (the shell exited, full close handshake with
+    // the browser) is cause "upstream", not "client".
+    [Fact]
+    public async Task Exec_Session_Ended_By_The_Cluster_Is_Logged_With_Cause_Upstream()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        RequestDelegate exitAtOnce = async context =>
+        {
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Response.StatusCode = 400;
+                return;
+            }
+
+            // Like a shell that exits: one frame, then the close handshake, then the cluster drops the connection.
+            using var socket = await context.WebSockets.AcceptWebSocketAsync();
+            await socket.SendAsync("1bye"u8.ToArray(), WebSocketMessageType.Text, endOfMessage: true, context.RequestAborted);
+            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "exit", context.RequestAborted);
+        };
+        server.Map("GET", Exec, exitAtOnce);
+        server.Map("CONNECT", Exec, exitAtOnce);
+        var (client, cluster, username, cookies) = await SignedInAsync(server);
+        using var _ = client;
+
+        using var socket = NewSocket(cookies);
+        await socket.ConnectAsync(ExecUri(cluster, ExecQuery), Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+        var buffer = new byte[1024];
+        (await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct)).MessageType.ShouldBe(WebSocketMessageType.Text);
+        (await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct)).MessageType.ShouldBe(WebSocketMessageType.Close);
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", Ct);
+
+        await WaitUntilAsync(() => SessionEndedLogs(cluster).Count > 0, "the session end was logged");
+        SessionEndedLogs(cluster).ShouldHaveSingleItem().ShouldContain("Cause=Upstream");
+        (await ProxyEntriesAsync(username)).ShouldHaveSingleItem();
+    }
+
+    // T-0156 review: only Connect verbs (exec/attach) are sessions. A WebSocket watch is an upgrade too, but it is a
+    // read: no audit entry and no "Exec session ended" line.
+    [Fact]
+    public async Task WebSocket_Watch_Is_Neither_Audited_Nor_Logged_As_An_Exec_Session()
+    {
+        await using var server = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        RequestDelegate oneEvent = async context =>
+        {
+            if (!context.WebSockets.IsWebSocketRequest)
+            {
+                context.Response.StatusCode = 400;
+                return;
+            }
+
+            using var socket = await context.WebSockets.AcceptWebSocketAsync();
+            await socket.SendAsync("{\"type\":\"ADDED\"}"u8.ToArray(), WebSocketMessageType.Text, endOfMessage: true, context.RequestAborted);
+            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", context.RequestAborted);
+        };
+        server.Map("GET", Pods, oneEvent);
+        server.Map("CONNECT", Pods, oneEvent);
+        var (client, cluster, username, cookies) = await SignedInAsync(server);
+        using var _ = client;
+
+        using var socket = NewSocket(cookies);
+        var uri = new UriBuilder(_host.KestrelAddress!) { Scheme = "ws", Path = $"/api/clusters/{cluster}/k8s{Pods}", Query = "watch=1" }.Uri;
+        await socket.ConnectAsync(uri, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct);
+        var buffer = new byte[1024];
+        (await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct)).MessageType.ShouldBe(WebSocketMessageType.Text);
+        (await socket.ReceiveAsync(buffer, Ct).WaitAsync(TimeSpan.FromSeconds(15), Ct)).MessageType.ShouldBe(WebSocketMessageType.Close);
+        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "bye", Ct);
+
+        server.Requests.ShouldHaveSingleItem().Authorization.ShouldNotBeNull().ShouldStartWith("Bearer fake-test-token.");
+        await Task.Delay(TimeSpan.FromMilliseconds(500), Ct); // a session-end line or an entry would have been written by now
+        SessionEndedLogs(cluster).ShouldBeEmpty();
+        (await ProxyEntriesAsync(username)).ShouldBeEmpty();
+    }
+
     // TERM-6: the Origin check answers before authorization with a problem, and nothing reaches the cluster.
     [Fact]
     public async Task Exec_Upgrade_From_A_Foreign_Origin_Is_403_OriginNotAllowed_Without_Upstream_Request()
