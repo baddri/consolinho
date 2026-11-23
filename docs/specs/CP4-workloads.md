@@ -87,13 +87,13 @@ unless quoted. All copy quoted below is OCP's unless marked *(fleet)*.
 - **ACT-1** Every kind's kebab (row and details Actions menu) lists, in OCP order: kind-specific actions (below), then "Edit labels", "Edit annotations", "Edit `<Kind>`", "Delete `<Kind>`". Kinds OCP omits labels/annotations for are listed in the architects' design; default is all namespaced workload kinds.
 - **ACT-2** "Edit labels" opens a modal titled "Edit labels" with a label input (PF `LabelGroup` editable / OCP `SelectorInput` look) prefilled with the object's labels; Save sends one JSON patch to `metadata/labels`; the modal names the object and the cluster *(fleet)*; on success the details page shows the new labels without a reload.
 - **ACT-3** "Edit annotations" opens a key/value modal (OCP `AnnotationsModal`: rows of key + value, "Add more", remove row), Save patches `metadata/annotations`.
-- **ACT-4** Given an RO user, every mutating action (ACT-2/3, Edit `<Kind>`, Delete, and all kind actions in this spec) is shown **aria-disabled** with a tooltip naming the cause: "Read-only access to `<cluster>`" *(fleet)* for RO, the cluster RBAC reason for an access-check denial (existing behaviour). No mutating request is sent.
+- **ACT-4** Given an RO user, every mutating action (ACT-2/3, Edit `<Kind>`, Delete, and all kind actions in this spec) is shown **aria-disabled** with a tooltip naming the cause: "Your access to `<cluster>` is read-only." (grant) / "Your account is read-only." (user flag) *(fleet; amended at CP4a accept)* for RO, the cluster RBAC reason for an access-check denial (existing behaviour). No mutating request is sent.
 - **ACT-5** Given an RO user calls a mutating endpoint directly (e.g. via devtools), the proxy refuses it before forwarding (403 ProblemDetails, existing `Proxy.ReadOnly`), and an audit entry "denied" is written. Covered by an Api test per new verb used in CP4 (`PATCH`, `POST …/exec`, `POST` Job create, `DELETE`).
 - **ACT-6** Every successful mutation in CP4 shows a success toast naming object and cluster, e.g. "web scaled to 3 on prod-eu-1" *(fleet)*; every failure shows an inline/danger alert with the cluster's `Status.message` (never a blank error).
 
 ### 4a.3 Pod logs (LOG)
 - **LOG-1** Pod details has tabs in OCP order: Details, YAML, Logs, Events, Terminal (Metrics and Environment are out of scope, §6). The Logs tab URL is `…/pods/<name>/logs`, deep-linkable, with `?container=<c>` preserved.
-- **LOG-2** The Logs toolbar mirrors OCP: container `Select` (with status per container, init containers listed under "Init containers"), "Log type" Current log / Previous log, "Search logs", "Wrap lines" checkbox, "Show full log" checkbox, actions "Download", "View raw logs" (opens the raw log in a new tab), "Expand"/"Collapse" (full screen), "Resume stream"/pause.
+- **LOG-2** The Logs toolbar mirrors OCP: container `Select` (with status per container, init containers listed under "Init containers"), "Log type" Current log / Previous log, "Search logs", "Wrap lines" checkbox, "Show full log" checkbox, actions "Download", "View raw logs" (opens the raw log in a new tab), "Expand"/"Collapse" (full screen), "Resume stream"/pause. *Amended at CP4a accept (T-0179, OCP main `resource-log.tsx`):* "Log type" is a Select; "Wrap lines"/"Show full log" are checkbox options of an "Options" settings Select (persisted); Download/View raw logs/Expand are plain icon buttons; Expand uses the Fullscreen API.
 - **LOG-3** Given a running container, the tab opens following (`follow=true`) the last 1,000 lines (`tailLines=1000`); the status shows "Log streaming..."; new lines appear within 2 s of being written (fake apiserver test).
 - **LOG-4** Scrolling up pauses the stream ("Log stream paused."); the button "Resume stream and show N new lines" catches up and scrolls to the bottom. The view keeps at most the 1,000-line buffer unless "Show full log" is checked (then no `tailLines`, still streamed, not buffered server-side).
 - **LOG-5** "Previous log" requests `previous=true`; it is disabled with OCP's tooltip "Only the current log is available for this container." when `restartCount` is 0.
@@ -122,12 +122,12 @@ unless quoted. All copy quoted below is OCP's unless marked *(fleet)*.
 ### 4a.6 Deployments: scale, rollout, history (DEP)
 - **DEP-3** Deployment kebab in OCP order: "Edit Pod count", "Pause rollouts" / "Resume rollouts", "Restart rollout", "Edit update strategy", "Edit labels", "Edit annotations", "Edit Deployment", "Delete Deployment". ("Add HorizontalPodAutoscaler", "Add storage", "Edit resource limits" are out, §6.)
 - **DEP-4** "Edit Pod count" opens OCP's count modal: title "Edit Pod count", text "Deployments maintain the desired number of healthy pods.", number input with −/+, "Save"/"Cancel"; Save sends a patch to the **`scale` subresource** (or `/spec/replicas` per OCP — architects: scale subresource preferred because its RBAC is narrower). The modal names the cluster *(fleet)*.
-- **DEP-5** (T-0133 part) Deployment details show OCP's pod ring with "Increase the Pod count" / "Decrease the Pod count" buttons for RW users with `patch deployments/scale`; clicks are debounced (OCP ~1 s) into one scale request; decrease is disabled at 0; for RO the buttons are absent and the ring is read-only. Parity row "Deployment details" → `match`.
+- **DEP-5** (T-0133 part) Deployment details show OCP's pod ring with "Increase the Pod count" / "Decrease the Pod count" buttons for RW users with `patch deployments/scale`; clicks are debounced into one scale request sent 1 s after the **last** click (trailing, flushed on unmount; ADR-0037 §7 — OCP fires on the first click and drops the rest); decrease is disabled at 0; without `patch deployments/scale` (incl. RO) the buttons are absent and the ring is read-only (OCP `isScalingAllowed`). Parity row "Deployment details" → `match`.
 - **DEP-6** "Restart rollout" patches `spec.template.metadata.annotations["kubectl.kubernetes.io/restartedAt"]` with the current ISO time (kubectl/OCP semantics); disabled with tooltip "The deployment is paused and cannot be restarted." when `spec.paused`. No confirmation modal (OCP parity, Q2); toast names the cluster.
 - **DEP-7** "Pause rollouts"/"Resume rollouts" toggles `spec.paused`; the details page shows OCP's paused alert ("… is paused …" with "Resume rollouts" link) while paused.
 - **DEP-8** "Edit update strategy" opens OCP's modal (RollingUpdate with Max unavailable / Max surge, or Recreate); Save patches `spec.strategy`.
-- **DEP-9** Deployment details gets the **ReplicaSets** tab (between YAML and Pods, OCP order) listing owned ReplicaSets with columns Name, Status, Revision (`deployment.kubernetes.io/revision`), Created, Pods; newest first.
-- **DEP-10** ReplicaSet kebab (on that tab and on the ReplicaSet page) offers "Rollback" for non-current revisions (disabled on the active one); it opens OCP's rollback modal naming the revision and the cluster and patches the Deployment's `spec.template` to the ReplicaSet's template (OCP `rollback-modal.tsx` semantics). Disabled while paused, as in OCP.
+- **DEP-9** Deployment details gets the **ReplicaSets** tab (between YAML and Pods, OCP order) listing owned ReplicaSets with columns Name, Status ("`<status.replicas>` of `<spec.replicas>` pods", OCP RS page), Revision (`deployment.kubernetes.io/revision`), Created; newest revision first. No Pods column (OCP's tab has none; amended at CP4a accept, T-0185).
+- **DEP-10** ReplicaSet kebab (on that tab and on the ReplicaSet page) offers "Rollback" only for a ReplicaSet owned by a Deployment that has no pods (`status.replicas` 0; OCP `replicaset-provider.ts`) — it is **hidden**, not disabled, while the ReplicaSet still has pods (incl. the active revision), and listed before the common items (ADR-0037 §3). It opens OCP's rollback modal ("Are you sure you want to rollback to **`<ReplicaSet>`**?", cluster named; the revision is in the success toast) and patches the Deployment's `spec.template` to the ReplicaSet's template (OCP `rollback-modal.tsx` semantics). Disabled while paused, as in OCP.
 - **DEP-11** All DEP mutations: RO → ACT-4; proxy → ACT-5; success/failure → ACT-6; the list/details refresh via the existing watch without reload.
 
 ### 4a.7 Safety and security (SAFE)
@@ -140,6 +140,21 @@ unless quoted. All copy quoted below is OCP's unless marked *(fleet)*.
 - **QGA-1** `scripts/check-be.sh` and `scripts/check-fe.sh` green; new Api tests for LOG-7, TERM-4/6/7, ACT-5, SAFE-2/3.
 - **QGA-2** Playwright: (a) RW opens a pod's Logs, sees streamed lines, switches to Previous log; (b) RW scales a Deployment via modal and ring; (c) RO (alice on `prod-k8s-1` in the mock / prod in e2e) sees disabled actions and the Terminal RO state. Terminal e2e against the fake apiserver echo.
 - **QGA-3** `docs/architecture/ocp-parity.md` gains rows Logs, Terminal, Count modal, Rollback, ReplicaSets tab — all `match` at accept.
+
+### 4a.9 CP4a acceptance (2026-11-23, product owner) — **ACCEPTED**
+All 4a criteria met on evidence: task files T-0155–T-0157, T-0170–T-0188 (all `done`, ACs ticked, reviews APPROVE),
+Api tests `ProxyMutationVerbTests`/`ProxyLogStreamTests`/`ProxyKestrelTests`/`ProxyTokenLeakSweepTests` (ACT-5, LOG-7,
+TERM-4/6/7/8, SAFE-2/3), e2e `web/e2e/workloads.e2e.ts` 11/11 with the T-0187/T-0188 fixmes removed, parity rows in
+`docs/architecture/ocp-parity.md` (rows 39/59/63 refreshed at accept; all CP4a rows `match`). Amended at accept to what
+was delivered and agreed: ACT-4 copy, LOG-2 toolbar shape, DEP-5 trailing 1 s debounce, DEP-9 no Pods column, DEP-10
+hidden-while-pods. Other OCP-source deviations accepted as recorded in task handovers: OCP Rollback copy names the RS;
+Terminal/RO states are EmptyStates; pod status popover (Q6) follows OCP `pod-list.tsx`; restart uses
+`kubectl.kubernetes.io/restartedAt` (OCP uses `openshift.openshift.io/restartedAt`; kept for vanilla K8s clusters).
+Non-blocking follow-ups for CP4b (`later`): e2e for Edit update strategy + pod status popover + LOG-6 auto-reconnect;
+ui-probe of Terminal at 1280×800 and Update strategy modal; extract `TogglePlay` to `shared/ui`; eslint
+`no-restricted-imports` for `@xterm/*`; skip the `name: ''` SSAR in `useReplicaSetActions`; honour `matchExpressions`
+in owner selectors (Pods/ReplicaSets tabs); UX.md §2a band wording (T-0172); audit fixtures for `prod-k8s-1`; drop the
+CONNECT/200 branch once T-0091 pins HTTP/1.1.
 
 ---
 
