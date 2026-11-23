@@ -14,6 +14,14 @@ export const CONTAINER = 'app';
 export const CURRENT_REPLICASET = 'web-6d9f7c5b8';
 export const OLD_REPLICASET = 'web-5c8b6f9d7';
 export const OLD_IMAGE = 'registry.example.com/web:1';
+/** CP4b (T-0200): a pod of {@link DEPLOYMENT} stuck in CrashLoopBackOff (pod status popover, DEP-2/Q6). */
+export const CRASHING_POD = 'web-6d9f7c5b8-crash';
+/** CP4b: CronJob (Start Job, CJ-2), its Service-free neighbours, the Service `web` (Search) and an Opaque Secret. */
+export const CRONJOB = 'nightly-report';
+export const SERVICE = 'web';
+export const SECRET = 'db-credentials';
+/** Obviously fake Secret values (base64-decoded by the UI). */
+export const SECRET_VALUES = { username: 'shop', password: 'fake-password-not-real' } as const;
 
 /** ServiceAccount names in the fake tokens: the editor may do anything, the viewer only read (cluster RBAC). */
 export const EDITOR_SA = 'e2e-editor';
@@ -46,6 +54,10 @@ export interface FakeWorkloadsApi {
   deployment: () => K8sObject;
   /** Writes a line to the current log of {@link POD}, streamed to every following reader. */
   appendLog: (text: string) => void;
+  /** Ends every open `follow` log stream cleanly, as the proxy's stream cap does (LOG-6). */
+  cutLogStreams: () => void;
+  /** Stored objects of one plural (e.g. `jobs`), live. */
+  objects: (plural: string) => K8sObject[];
   close: () => Promise<void>;
 }
 
@@ -65,6 +77,9 @@ export interface K8sObject {
   };
   spec?: Record<string, unknown> & { replicas?: number; paused?: boolean };
   status?: Record<string, unknown>;
+  /** Secret fields. */
+  type?: string;
+  data?: Record<string, string>;
 }
 
 /** A stored object with the URL prefix and plural that address it. */
@@ -123,6 +138,25 @@ const RESOURCE_PATH =
   /^(\/api\/v1|\/apis\/[^/]+\/[^/]+)(?:\/namespaces\/([^/]+))?\/([^/]+)(?:\/([^/]+)(?:\/([^/]+))?)?$/;
 
 const EXEC_SUBPROTOCOL = 'base64.channel.k8s.io';
+
+/**
+ * Collections the fake serves even when empty (an unknown plural is a 404, which the UI shows as an error): the CP4b
+ * kinds, by URL prefix and plural, with the `kind` their list carries.
+ */
+const KNOWN_COLLECTIONS: Record<string, string> = {
+  '/api/v1 services': 'Service',
+  '/api/v1 secrets': 'Secret',
+  '/api/v1 configmaps': 'ConfigMap',
+  '/api/v1 replicationcontrollers': 'ReplicationController',
+  '/apis/apps/v1 statefulsets': 'StatefulSet',
+  '/apis/apps/v1 daemonsets': 'DaemonSet',
+  '/apis/batch/v1 jobs': 'Job',
+  '/apis/batch/v1 cronjobs': 'CronJob',
+  '/apis/autoscaling/v2 horizontalpodautoscalers': 'HorizontalPodAutoscaler',
+};
+
+/** Discovery (`/api`, `/apis`): core plus the groups of {@link KNOWN_COLLECTIONS} — a vanilla Kubernetes cluster. */
+const DISCOVERY_GROUPS = ['apps/v1', 'batch/v1', 'autoscaling/v2'];
 
 /**
  * Starts a stateful Kubernetes API stand-in for the CP4a e2e (QGA-2): one Deployment with two ReplicaSets (revisions
@@ -212,12 +246,28 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       });
       return;
     }
+    if (method === 'GET' && url.pathname === '/api') {
+      json(response, 200, { kind: 'APIVersions', versions: ['v1'] });
+      return;
+    }
+    if (method === 'GET' && url.pathname === '/apis') {
+      json(response, 200, {
+        kind: 'APIGroupList',
+        apiVersion: 'v1',
+        groups: DISCOVERY_GROUPS.map((groupVersion) => {
+          const version = { groupVersion, version: groupVersion.split('/')[1] };
+          return { name: groupVersion.split('/')[0], versions: [version], preferredVersion: version };
+        }),
+      });
+      return;
+    }
     const match = RESOURCE_PATH.exec(url.pathname);
     if (!match) {
       notFound(response, `${method} ${url.pathname}`);
       return;
     }
     const [, prefix = '', namespace, plural = '', name, subresource] = match;
+    const knownKind = KNOWN_COLLECTIONS[`${prefix} ${plural}`];
     if (method !== 'GET' && !editor) {
       json(
         response,
@@ -227,6 +277,10 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       return;
     }
     if (name === undefined) {
+      if (method === 'POST' && plural === 'jobs' && namespace !== undefined) {
+        create(response, { prefix, plural, object: record.body as K8sObject }, namespace);
+        return;
+      }
       if (method !== 'GET') {
         json(response, 405, status(405, 'MethodNotAllowed', 'fake API: collections are read-only'));
         return;
@@ -235,7 +289,7 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
         json(response, 200, { apiVersion: 'v1', kind: 'List', metadata: { resourceVersion: String(revision) }, items: [] });
         return;
       }
-      if (!entries.some((e) => e.prefix === prefix && e.plural === plural)) {
+      if (knownKind === undefined && !entries.some((e) => e.prefix === prefix && e.plural === plural)) {
         notFound(response, `${method} ${url.pathname}`);
         return;
       }
@@ -255,7 +309,7 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
         .filter((o) => namespace === undefined || o.metadata.namespace === namespace)
         .filter((o) => fieldName === undefined || o.metadata.name === fieldName)
         .filter((o) => Object.entries(selector).every(([k, v]) => o.metadata.labels?.[k] === v));
-      const kind = entries.find((e) => e.prefix === prefix && e.plural === plural)?.object.kind ?? 'List';
+      const kind = knownKind ?? entries.find((e) => e.prefix === prefix && e.plural === plural)?.object.kind ?? 'List';
       json(response, 200, {
         apiVersion: prefix.replace(/^\/apis?\//, ''),
         kind: `${kind}List`,
@@ -304,6 +358,36 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       return;
     }
     json(response, 405, status(405, 'MethodNotAllowed', `fake API: ${method} is not served`));
+  }
+
+  /** POST of a Job (CJ-2 "Start Job"): stores it with server-set metadata and announces it to watchers (ADDED). */
+  function create(response: ServerResponse, entry: Entry, namespace: string): void {
+    const { metadata } = entry.object;
+    if (find(entry.prefix, entry.plural, namespace, metadata.name)) {
+      json(response, 409, status(409, 'AlreadyExists', `${entry.plural} "${metadata.name}" already exists`));
+      return;
+    }
+    revision += 1;
+    entry.object.metadata = {
+      ...metadata,
+      namespace,
+      uid: `00000000-0000-4000-8000-${String(revision).padStart(12, '0')}`,
+      resourceVersion: String(revision),
+      creationTimestamp: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+    };
+    entry.object.status = { active: 1 };
+    entries.push(entry);
+    for (const watcher of watchers) {
+      if (
+        watcher.prefix === entry.prefix &&
+        watcher.plural === entry.plural &&
+        (watcher.namespace ?? namespace) === namespace &&
+        (watcher.name ?? metadata.name) === metadata.name
+      ) {
+        watcher.response.write(`${JSON.stringify({ type: 'ADDED', object: entry.object })}\n`);
+      }
+    }
+    json(response, 201, entry.object);
   }
 
   /** `…/log`: the previous log (ends), or the current one from `sinceTime`, kept open with `follow`. */
@@ -425,6 +509,11 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       currentLog.push(entry);
       for (const [follower, format] of logFollowers) follower.write(format(entry));
     },
+    cutLogStreams: () => {
+      for (const follower of logFollowers.keys()) follower.end();
+      logFollowers.clear();
+    },
+    objects: (plural) => entries.filter((e) => e.plural === plural).map((e) => e.object),
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();
@@ -536,7 +625,11 @@ function replicaSet(name: string, hash: string, revisionNumber: string, image: s
   };
 }
 
-/** The seeded objects: namespace, Deployment `web` (1 replica, revision 2), its two ReplicaSets and its pod. */
+/**
+ * The seeded objects: namespace, Deployment `web` (1 replica, revision 2), its two ReplicaSets and its pod; for CP4b a
+ * standalone CrashLoopBackOff pod (label `app=worker`, so Search by `app=web` and the Deployment ignore it), the
+ * Service `web`, the CronJob {@link CRONJOB} and the Secret {@link SECRET}.
+ */
 function seed(): Entry[] {
   const currentHash = CURRENT_REPLICASET.slice(DEPLOYMENT.length + 1);
   const oldHash = OLD_REPLICASET.slice(DEPLOYMENT.length + 1);
@@ -609,6 +702,90 @@ function seed(): Entry[] {
               lastState: { terminated: { exitCode: 2, reason: 'Error', finishedAt: CREATED } },
             },
           ],
+        },
+      },
+    },
+    {
+      prefix: '/api/v1',
+      plural: 'pods',
+      object: {
+        apiVersion: 'v1',
+        kind: 'Pod',
+        metadata: meta(CRASHING_POD, '00000000-0000-4000-8000-00000000b002', { labels: { app: 'worker' } }),
+        spec: { containers: [{ name: CONTAINER, image }], nodeName: 'worker-1' },
+        status: {
+          phase: 'Running',
+          startTime: CREATED,
+          conditions: [{ type: 'Ready', status: 'False' }],
+          containerStatuses: [
+            {
+              name: CONTAINER,
+              image,
+              ready: false,
+              started: false,
+              restartCount: 7,
+              state: {
+                waiting: { reason: 'CrashLoopBackOff', message: 'back-off 5m0s restarting failed container=app' },
+              },
+              lastState: { terminated: { exitCode: 1, reason: 'Error', finishedAt: CREATED } },
+            },
+          ],
+        },
+      },
+    },
+    {
+      prefix: '/api/v1',
+      plural: 'services',
+      object: {
+        apiVersion: 'v1',
+        kind: 'Service',
+        metadata: meta(SERVICE, '00000000-0000-4000-8000-00000000c001', { labels: { app: DEPLOYMENT } }),
+        spec: {
+          type: 'ClusterIP',
+          clusterIP: '172.30.0.10',
+          selector: { app: DEPLOYMENT },
+          ports: [{ name: 'http', port: 8080, targetPort: 8080, protocol: 'TCP' }],
+        },
+        status: {},
+      },
+    },
+    {
+      prefix: '/apis/batch/v1',
+      plural: 'cronjobs',
+      object: {
+        apiVersion: 'batch/v1',
+        kind: 'CronJob',
+        metadata: meta(CRONJOB, '00000000-0000-4000-8000-00000000e001', {
+          labels: { app: CRONJOB },
+          annotations: { 'example.com/team': 'reports' },
+        }),
+        spec: {
+          schedule: '0 2 * * *',
+          concurrencyPolicy: 'Forbid',
+          suspend: false,
+          jobTemplate: {
+            spec: {
+              template: {
+                metadata: { labels: { app: CRONJOB } },
+                spec: { restartPolicy: 'OnFailure', containers: [{ name: 'main', image: 'registry.example.com/batch:1' }] },
+              },
+            },
+          },
+        },
+        status: { lastScheduleTime: CREATED },
+      },
+    },
+    {
+      prefix: '/api/v1',
+      plural: 'secrets',
+      object: {
+        apiVersion: 'v1',
+        kind: 'Secret',
+        metadata: meta(SECRET, '00000000-0000-4000-8000-00000000f001', { labels: { app: 'db' } }),
+        type: 'Opaque',
+        data: {
+          username: Buffer.from(SECRET_VALUES.username).toString('base64'),
+          password: Buffer.from(SECRET_VALUES.password).toString('base64'),
         },
       },
     },

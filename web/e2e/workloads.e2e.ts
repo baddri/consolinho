@@ -1,12 +1,17 @@
 import { expect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 import {
   CONTAINER,
+  CRASHING_POD,
+  CRONJOB,
   DEPLOYMENT,
   EDITOR_SA,
   fakeServiceAccountToken,
   OLD_IMAGE,
   OLD_REPLICASET,
   POD,
+  SECRET,
+  SECRET_VALUES,
+  SERVICE,
   startFakeWorkloadsApi,
   VIEWER_SA,
   WORK_NAMESPACE,
@@ -21,6 +26,8 @@ import { CSRF, deleteCluster, loginAs, ok, type DevUser } from './support/sessio
  * Kubernetes cluster (the `e2e-smoke-` prefix, so global setup sweeps leftovers) with two credentials: `bob` gets a
  * read-write grant with the editor SA, `alice` a read-only grant with the viewer SA. Each test starts from the
  * seeded objects (`fake.reset()`) and asserts both the UI and what reached the cluster, with which token (SAFE-2).
+ * CP4b (T-0200) adds QGB-1 (Start Job, Search by label, masked Secret) and the e2e carried from CP4a §4a.9 (Edit
+ * update strategy, pod status popover, LOG-6 auto-reconnect) on the same cluster.
  */
 
 const DISPLAY_NAME = 'E2E Production';
@@ -35,6 +42,8 @@ let cluster = '';
 
 const deploymentPath = () => `/c/${cluster}/k8s/ns/${WORK_NAMESPACE}/deployments/${DEPLOYMENT}`;
 const podPath = () => `/c/${cluster}/k8s/ns/${WORK_NAMESPACE}/pods/${POD}`;
+const cronJobPath = () => `/c/${cluster}/k8s/ns/${WORK_NAMESPACE}/cronjobs/${CRONJOB}`;
+const secretPath = () => `/c/${cluster}/k8s/ns/${WORK_NAMESPACE}/secrets/${SECRET}`;
 
 /** The mutating requests (PATCH/POST/DELETE, exec upgrades) the fake cluster received, SSARs excluded. */
 const mutations = (): RecordedRequest[] =>
@@ -267,6 +276,149 @@ test.describe('read-write user on a production cluster', () => {
   });
 });
 
+test.describe('read-write user: CP4b workloads and carried CP4a flows', () => {
+  test('CJ-2: Start Job creates a manual Job from the CronJob and lands on its details', async ({ page }) => {
+    await openAs(page, RW_USER, cronJobPath());
+    await (await enabledAction(page, 'Start Job')).click();
+
+    await expect(page).toHaveURL(new RegExp(`/k8s/ns/${WORK_NAMESPACE}/jobs/${CRONJOB}-\\d+$`));
+    const [create] = mutations();
+    expect(mutations()).toHaveLength(1);
+    expect(create?.method).toBe('POST');
+    expect(create?.path).toBe(`/apis/batch/v1/namespaces/${WORK_NAMESPACE}/jobs`);
+    expect(create?.token).toBe(EDITOR_TOKEN);
+    const job = create?.body as {
+      metadata: { name: string; annotations: Record<string, string>; ownerReferences: { kind: string; name: string }[] };
+      spec: { template: { spec: { containers: { image: string }[] } } };
+    };
+    expect(job.metadata.annotations).toEqual({
+      'example.com/team': 'reports',
+      'cronjob.kubernetes.io/instantiate': 'manual',
+    });
+    expect(job.metadata.ownerReferences).toMatchObject([{ kind: 'CronJob', name: CRONJOB, controller: true }]);
+    expect(job.spec.template.spec.containers[0]?.image).toBe('registry.example.com/batch:1');
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(job.metadata.name) })).toBeVisible();
+    expect(fake.objects('jobs').map((j) => j.metadata.name)).toEqual([job.metadata.name]);
+  });
+
+  test('SRCH-1/2: Search by label shows Deployment, Pod and Service sections with one labelled list each', async ({
+    page,
+  }) => {
+    const searchPath = `/c/${cluster}/search/ns/${WORK_NAMESPACE}`;
+    await openAs(page, RW_USER, searchPath);
+    await expect(page.getByRole('heading', { name: 'No resources selected' })).toBeVisible();
+
+    const kinds = page.getByRole('combobox', { name: 'Resources' });
+    for (const [typed, option] of [
+      ['deploy', /Deployment$/],
+      ['pod', /^Pod$/],
+      ['service', /^Service$/],
+    ] as const) {
+      await kinds.click();
+      await kinds.fill(typed);
+      await page.getByRole('checkbox', { name: option }).click();
+    }
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Name', exact: true, expanded: false }).click();
+    await page.getByRole('option', { name: 'Label' }).click();
+    await page.getByPlaceholder('app=frontend').fill('app=web');
+    await page.getByPlaceholder('app=frontend').press('Enter');
+    await expect(page).toHaveURL(/[?&]q=app%3Dweb/);
+
+    const rows = (grid: string) => page.getByRole('grid', { name: grid }).getByRole('row');
+    await expect(rows('Deployments').filter({ hasText: DEPLOYMENT })).toHaveCount(1);
+    await expect(rows('Pods').filter({ hasText: POD })).toHaveCount(1);
+    await expect(rows('Pods').filter({ hasText: CRASHING_POD })).toHaveCount(0);
+    await expect(rows('Services').filter({ hasText: SERVICE })).toHaveCount(1);
+    for (const plural of ['deployments', 'pods', 'services']) {
+      const lists = fake.requests.filter(
+        (r) => r.path === `${plural === 'deployments' ? '/apis/apps/v1' : '/api/v1'}/namespaces/${WORK_NAMESPACE}/${plural}` &&
+          r.query.get('labelSelector') === 'app=web',
+      );
+      expect(lists.length, `${plural} list with labelSelector`).toBeGreaterThan(0);
+    }
+  });
+
+  test('CFG-2/3: Secret values are masked by default and Reveal/Hide toggles them', async ({ page }) => {
+    await openAs(page, RW_USER, secretPath());
+    const data = page.getByRole('list', { name: 'Data' }).or(page.getByLabel('Data', { exact: true }));
+    await expect(data.getByText('Value hidden')).toHaveCount(2);
+    await expect(page.getByText(SECRET_VALUES.password)).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Reveal values' }).click();
+    await expect(page.getByText(SECRET_VALUES.password)).toBeVisible();
+    await expect(page.getByText(SECRET_VALUES.username, { exact: true })).toBeVisible();
+    await expect(data.getByText('Value hidden')).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Hide values' }).click();
+    await expect(page.getByText(SECRET_VALUES.password)).toHaveCount(0);
+    await expect(data.getByText('Value hidden')).toHaveCount(2);
+
+    // Not persisted: a reload masks again.
+    await page.getByRole('button', { name: 'Reveal values' }).click();
+    await page.reload();
+    await expect(data.getByText('Value hidden')).toHaveCount(2);
+    expect(mutations()).toEqual([]);
+  });
+
+  test('DEP-8: Edit update strategy switches to Recreate with one JSON Patch', async ({ page }) => {
+    await openAs(page, RW_USER, deploymentPath());
+    await (await enabledAction(page, 'Edit update strategy')).click();
+    await expectProductionContext(page, 'Edit update strategy');
+    const dialog = page.getByRole('dialog', { name: 'Edit update strategy' });
+    await expect(dialog.getByRole('radio', { name: 'RollingUpdate (default)' })).toBeChecked();
+    await expect(dialog.getByRole('textbox', { name: 'Max unavailable' })).toHaveValue('25%');
+    await dialog.getByRole('radio', { name: 'Recreate' }).check();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText(`Update strategy saved for ${DEPLOYMENT}`)).toBeVisible();
+    await expect(dialog).toBeHidden();
+    expect(mutations().map((r) => [r.method, r.body, r.token])).toEqual([
+      ['PATCH', [{ op: 'replace', path: '/spec/strategy', value: { type: 'Recreate' } }], EDITOR_TOKEN],
+    ]);
+    expect(fake.deployment().spec?.strategy).toEqual({ type: 'Recreate' });
+  });
+
+  test('DEP-2/Q6: a CrashLoopBackOff status opens the OCP popover whose View logs opens the container log', async ({
+    page,
+  }) => {
+    await openAs(page, RW_USER, `/c/${cluster}/k8s/ns/${WORK_NAMESPACE}/pods`);
+    const row = page.getByRole('row', { name: new RegExp(CRASHING_POD) });
+    await row.getByRole('button', { name: 'CrashLoopBackOff' }).click();
+    const popover = page.getByRole('dialog').filter({ hasText: 'Pod crash loop backoff' });
+    await expect(popover).toContainText('back-off 5m0s restarting failed container=app');
+    await expect(popover.getByRole('link', { name: 'View events' })).toBeVisible();
+    await popover.getByRole('link', { name: 'View logs' }).click();
+    await expect(page).toHaveURL(new RegExp(`/pods/${CRASHING_POD}/logs\\?container=${CONTAINER}$`));
+    await expect(page.getByRole('tabpanel', { name: 'Logs' })).toBeVisible();
+  });
+
+  test('LOG-6: a server-side cut of a running container\'s log reconnects with sinceTime, no duplicates', async ({
+    page,
+  }) => {
+    await openAs(page, RW_USER, `${podPath()}/logs`);
+    const panel = page.getByRole('tabpanel', { name: 'Logs' });
+    await expect(panel.getByText('listening on :8080')).toBeVisible();
+    const logRequests = () => fake.requests.filter((r) => r.path.endsWith(`/pods/${POD}/log`));
+    // The dev build may open the stream twice (StrictMode remount); only requests after the cut are the reconnect.
+    const beforeCut = logRequests().length;
+
+    fake.cutLogStreams();
+    fake.appendLog('written after the cut');
+    await expect(panel.getByText('written after the cut')).toBeVisible({ timeout: 5_000 });
+    expect(logRequests().length).toBeGreaterThan(beforeCut);
+    const resumed = logRequests()[beforeCut];
+    expect(resumed?.query.get('follow')).toBe('true');
+    expect(resumed?.query.get('sinceTime')).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    await expect(panel.getByText('listening on :8080')).toHaveCount(1);
+    await expect(panel.getByText('starting web v2')).toHaveCount(1);
+    await expect(panel.getByText('Log stream ended.', { exact: true })).toBeHidden();
+    // Still following after the reconnect.
+    fake.appendLog('and still following');
+    await expect(panel.getByText('and still following')).toBeVisible();
+  });
+});
+
 test.describe('read-only user on a production cluster', () => {
   test('ACT-4: every mutating action is aria-disabled with the reason and sends nothing', async ({
     page,
@@ -302,6 +454,25 @@ test.describe('read-only user on a production cluster', () => {
     await openAs(page, RO_USER, deploymentPath());
     await page.getByRole('button', { name: 'Actions' }).click();
     await expect(page.getByRole('menuitem', { name: 'Edit Deployment' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  test('CJ-2/ACT-4: Start Job and Suspend are aria-disabled for a read-only user', async ({ page }) => {
+    await openAs(page, RO_USER, cronJobPath());
+    await page.getByRole('button', { name: 'Actions' }).click();
+    for (const name of ['Start Job', 'Suspend']) {
+      await expect(page.getByRole('menuitem', { name })).toHaveAttribute('aria-disabled', 'true');
+    }
+    await page.getByRole('menuitem', { name: 'Start Job' }).click({ force: true });
+    expect(mutations()).toEqual([]);
+    await expect(page).toHaveURL(new RegExp(`${cronJobPath()}$`));
+  });
+
+  test('CFG-5: a read-only user can reveal Secret values', async ({ page }) => {
+    await openAs(page, RO_USER, secretPath());
+    await page.getByRole('button', { name: 'Reveal values' }).click();
+    await expect(page.getByText(SECRET_VALUES.password)).toBeVisible();
+    await page.getByRole('button', { name: 'Actions' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Edit Secret' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   test('TERM-4: the Terminal tab explains read-only access and opens no socket', async ({ page }) => {
