@@ -43,6 +43,7 @@ seed half is a backend task (BE "dev seed prod-k8s-1").
   cluster. Updated count/name assertions in 13 test files; `check-fe.sh` green (891 tests).
 
 ## Review
+- Round 1 (orchestrator, 2026-11-23): APPROVE. Mock data and count updates only; visual review is T-0172. Admin now lands on prod-k8s-1.
 
 ## Handover notes
 - Behaviour change: admin's first granted cluster is now `prod-k8s-1` (production sorts first), so `/` for admin lands
