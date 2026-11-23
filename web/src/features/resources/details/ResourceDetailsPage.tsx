@@ -187,14 +187,7 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
         name={name}
         status={obj && !descriptor.hideHeadingStatus ? descriptor.status?.(obj) : undefined}
         actions={
-          obj && (
-            <ResourceActionsMenu
-              cluster={cluster}
-              descriptor={descriptor}
-              namespace={namespace}
-              name={name}
-            />
-          )
+          obj && <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />
         }
       />
       {body}

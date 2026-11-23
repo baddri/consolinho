@@ -1,8 +1,8 @@
 import { Checkbox } from '@patternfly/react-core';
 import { useState } from 'react';
-import { useAccessibleClusters } from '@/features/cluster-context';
 import { ConfirmModal, EnvironmentLabel } from '@/shared/ui';
 import type { ResourceDescriptor } from '../registry/types';
+import { useAccessibleCluster, useClusterDisplayName } from './useClusterDisplayName';
 import { useDeleteResource } from './useDeleteResource';
 
 /** Props for {@link DeleteResourceModal}. */
@@ -22,11 +22,11 @@ export interface DeleteResourceModalProps {
 
 /**
  * UI-8 delete confirmation (ADR-0015 §7, OCP `delete-modal.tsx`): a danger dialog titled "Delete <Kind>?" with the
- * cluster's environment label, a body naming object, namespace and cluster in bold ("in namespace", as OCP says even
+ * cluster's environment label, a body naming object, namespace and the cluster's display name in bold (SAFE-1) ("in namespace", as OCP says even
  * for projects), and type-to-confirm when the descriptor sets `deleteRequiresName`. Kinds with a
  * `propagationPolicy` (Deployment, ReplicaSet) get OCP's checked "Delete dependent objects of this resource"; unchecked
  * sends `Orphan`. A failure (e.g. the proxy's 403
- * read-only detail or the cluster's RBAC `Status`) stays inline; success toasts "<name> deleted from <cluster>".
+ * read-only detail or the cluster's RBAC `Status`) stays inline; success toasts "<name> deleted from <display name>".
  */
 export function DeleteResourceModal({
   cluster,
@@ -43,7 +43,8 @@ export function DeleteResourceModal({
       onClose();
     },
   });
-  const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
+  const environment = useAccessibleCluster(cluster)?.environment;
+  const displayName = useClusterDisplayName(cluster);
   const scope = model.namespaced ? namespace : undefined;
   // OCP `delete-modal.tsx`: kinds with a cascade policy offer deleting their dependents (checked); unchecked orphans them.
   const [deleteDependents, setDeleteDependents] = useState(true);
@@ -73,7 +74,7 @@ export function DeleteResourceModal({
             <strong>{scope}</strong>
           </>
         )}{' '}
-        on cluster <strong>{cluster}</strong>?
+        on cluster <strong>{displayName}</strong>?
       </div>
       {model.propagationPolicy && (
         <Checkbox

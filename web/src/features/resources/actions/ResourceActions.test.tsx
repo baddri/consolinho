@@ -57,8 +57,7 @@ function ActionKeysProbe() {
   const { items } = useResourceActions({
     cluster: 'dev-1',
     descriptor: podDescriptor,
-    namespace: 'shop',
-    name: POD,
+    obj: { apiVersion: 'v1', kind: 'Pod', metadata: { name: POD, namespace: 'shop' } },
     reviewByName: false,
   });
   return <p>{items.map((item) => item.itemKey).join(',')}</p>;
@@ -188,12 +187,12 @@ describe('resource actions (UI-8)', () => {
     await user.click(del);
     const dialog = await screen.findByRole('dialog', { name: 'Delete Pod? dev' });
     expect(dialog).toHaveTextContent(
-      `Are you sure you want to delete ${POD} in namespace shop on cluster dev-1?`,
+      `Are you sure you want to delete ${POD} in namespace shop on cluster Development 1?`,
     );
     expect(within(dialog).getByText(POD, { selector: 'strong' })).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('link', { name: POD })).not.toBeInTheDocument());
     expect(mockK8s.get('dev-1', PodModel, 'shop', POD)).toBeUndefined();
   });
@@ -228,7 +227,7 @@ describe('resource actions (UI-8)', () => {
     const dialog = await screen.findByRole('dialog');
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
 
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
@@ -242,7 +241,7 @@ describe('resource actions (UI-8)', () => {
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Delete' }));
 
     await waitFor(() => expect(screen.queryByRole('link', { name: POD })).not.toBeInTheDocument());
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
   });
 
   it('details: returns to the list when the object vanished first and DELETE answers 404', async () => {
@@ -259,7 +258,7 @@ describe('resource actions (UI-8)', () => {
 
     // The watch turns the page "not found" (dropping the Actions menu and its dialog) before the DELETE answers.
     expect(await screen.findByText(new RegExp(`Pod ${POD} was not found on dev-1\\.`))).toBeInTheDocument();
-    expect(await screen.findByText(`${POD} deleted from dev-1`)).toBeInTheDocument();
+    expect(await screen.findByText(`${POD} deleted from Development 1`)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.pathname).toBe(POD_LIST));
   });
 
@@ -303,7 +302,7 @@ describe('DeleteResourceModal', () => {
     );
 
     const dialog = await screen.findByRole('dialog', { name: 'Delete Project? dev' });
-    expect(dialog).toHaveTextContent('Are you sure you want to delete shop on cluster dev-1?');
+    expect(dialog).toHaveTextContent('Are you sure you want to delete shop on cluster Development 1?');
     const confirm = within(dialog).getByRole('button', { name: 'Delete' });
     expect(confirm).toBeDisabled();
     await user.click(within(dialog).getByRole('textbox'));

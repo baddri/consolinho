@@ -1,6 +1,7 @@
 import { Dropdown, DropdownItem, DropdownList, MenuToggle } from '@patternfly/react-core';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { modelKey, type K8sResource } from '@/shared/k8s';
 import { resourcePath } from '../paths';
 import type { ResourceDescriptor } from '../registry/types';
 import { useResourceActions } from './useResourceActions';
@@ -9,23 +10,26 @@ import { useResourceActions } from './useResourceActions';
 export interface ResourceActionsMenuProps {
   cluster: string;
   descriptor: ResourceDescriptor;
-  /** Namespace of a namespaced object; `undefined` for cluster-scoped kinds. */
-  namespace: string | undefined;
-  name: string;
+  obj: K8sResource;
 }
 
 /**
  * The details page's right-aligned "Actions" dropdown (UI-8): the same items and reasons as the list kebab, with an
- * object-level access check. A successful delete returns to the kind's list in the object's namespace.
+ * object-level access check. A successful delete returns to the kind's list in the object's namespace. Keyed by the
+ * model, so a kind change remounts the menu and its kind actions hook (rules of hooks).
  */
-export function ResourceActionsMenu({ cluster, descriptor, namespace, name }: ResourceActionsMenuProps) {
+export function ResourceActionsMenu(props: ResourceActionsMenuProps) {
+  return <ActionsMenu key={modelKey(props.descriptor.model)} {...props} />;
+}
+
+function ActionsMenu({ cluster, descriptor, obj }: ResourceActionsMenuProps) {
   const navigate = useNavigate();
   const [isOpen, setOpen] = useState(false);
+  const namespace = obj.metadata.namespace;
   const { items, dialog } = useResourceActions({
     cluster,
     descriptor,
-    namespace,
-    name,
+    obj,
     reviewByName: true,
     onDeleted: () => void navigate(resourcePath(cluster, descriptor.model, { namespace })),
   });
