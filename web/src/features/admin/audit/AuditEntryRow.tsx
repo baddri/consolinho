@@ -7,6 +7,7 @@ import {
   DescriptionListGroup,
   DescriptionListTerm,
   Label,
+  Tooltip,
 } from '@patternfly/react-core';
 import { ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table';
 import type { AuditEntry } from '@/shared/api';
@@ -15,7 +16,7 @@ import { Timestamp } from '@/shared/ui';
 import { AdminResourceLink, AdminResourceName } from '../AdminResourceLink';
 import { clusterDetailPath } from '../clusters/clusterTarget';
 import { userDetailPath } from '../users/userColumns';
-import { auditActionLabel } from './auditActionLabels';
+import { auditEntryLabel } from './auditActionLabels';
 import { proxyOutcome } from './proxyOutcome';
 
 /** Columns of the audit table incl. the expand toggle (for skeleton/empty rows). */
@@ -93,7 +94,8 @@ export interface AuditEntryRowProps {
 
 /**
  * One audit entry (AUD-2) as an expandable composable-table row in its own `Tbody`: time (OCP `Timestamp`, one
- * line), actor (a "system" label for configuration changes), human action label (`auditActionLabel`), target
+ * line), actor (a "system" label for configuration changes), human action label (`auditEntryLabel`, raw id in its
+ * tooltip), target
  * (`AuditTarget`), cluster (badge + link to its admin page — a deleted cluster's link shows the not-found page) and
  * the wrapping summary. Target and Cluster share the header's `LOW_PRIORITY_COLUMN`, so 1280 fits. Expanded: target
  * and cluster again (reachable when their columns are hidden), the raw action id, the `details` JSON and the copyable
@@ -118,7 +120,12 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
             entry.actor
           )}
         </Td>
-        <Td dataLabel="Action">{auditActionLabel(entry.action)}</Td>
+        <Td dataLabel="Action">
+          <Tooltip content={entry.action}>
+            {/* Plain span like OCP's table-cell tooltips; keyboard users see the raw id in the expanded row. */}
+            <span>{auditEntryLabel(entry)}</span>
+          </Tooltip>
+        </Td>
         <Td dataLabel="Target" visibility={LOW_PRIORITY_COLUMN}>
           <AuditTarget entry={entry} />
         </Td>

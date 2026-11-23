@@ -1,12 +1,12 @@
 ---
 id: T-0220
 title: Readable audit labels for proxy entries (POL-3)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: CP4c
 depends_on: []
 paths: [web/src/features/admin/audit/auditActionLabels.ts, web/src/features/admin/audit/auditActionLabels.test.ts, web/src/features/admin/audit/AuditEntryRow.tsx, web/src/mocks/k8s/proxyAudit.ts]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -42,12 +42,24 @@ The audit log shows "Scale Deployment", "Exec into Pod", "Delete Pod" for proxy 
 - Parallel work: T-0205 (ux) edits `AuditLogPage.tsx` only, so the paths are disjoint.
 
 ## Acceptance criteria
-- [ ] POL-3: a table-driven unit test covers each rule (scale, exec, attach, eviction, instantiate, rollback, status, Job create, Pod delete, an unknown CRD plural, and a missing/malformed `details` → raw id).
-- [ ] The audit row title shows the label, and the raw action id is still visible in the expanded row and the tooltip (RTL test).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] POL-3: a table-driven unit test covers each rule (scale, exec, attach, eviction, instantiate, rollback, status, Job create, Pod delete, an unknown CRD plural, and a missing/malformed `details` → raw id).
+- [x] The audit row title shows the label, and the raw action id is still visible in the expanded row and the tooltip (RTL test).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: `auditEntryLabel` + one `PROXY_LABEL_RULES` table in `auditActionLabels.ts` (zod-narrowed
+  `details`, kind via `K8S_MODELS`, else singularised plural); row title shows it with a raw-id `Tooltip`. No
+  `shared/k8s` change needed (`K8S_MODELS` already exported); `proxyAudit.ts` unchanged. Out-of-paths: updated
+  `AuditLogPage.test.tsx` PAUD-4/AUD-2 (they matched raw `proxy.*` row text) — it now carries the RTL AC.
 
 ## Review
+**UX round 1 — CHANGES_REQUESTED** (code read; OCP table-cell tooltip pattern: `console-shared/src/components/datetime/Timestamp.tsx` L35-43)
+- OK: labels "<Verb> <Kind>" with the kind as in OCP action labels, OCP copy for scale/DC rollback, raw id in tooltip and expanded row.
+- AuditEntryRow Action cell — `<span tabIndex={0}>` adds one tab stop per row (50+ on a page), hurting focus order; OCP's in-table tooltip trigger (Timestamp) is a plain non-focusable `<span>`, and the raw id is keyboard-reachable in the expanded row — fix: drop `tabIndex` and the eslint-disable, and correct the comment (no OCP "tooltip-on-status" source exists for it).
 
 ## Handover notes
+- Labels: `features/admin/audit/auditActionLabels.ts` (`auditEntryLabel`; non-proxy ids still via `auditActionLabel`).
+- RTL coverage of label + tooltip + expanded `Action ID` lives in `AuditLogPage.test.tsx` PAUD-4 (no row test file).
+- Filters still use raw ids by design.
+
+- 2026-11-24 orchestrator round 2: UX finding applied verbatim (one-line fix), scoped tests 63/63 + eslint green → APPROVE.
