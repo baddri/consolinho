@@ -1,7 +1,7 @@
 ---
 id: T-0204
 title: Shell — environment band and project bar stay fixed, content scrolls; flat project toggle
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4c
 depends_on: []
@@ -66,16 +66,46 @@ plus `#content-scrollable { overflow: auto }` (`public/style/_layout.scss:13-15`
   and `/terminal` (fill), a fleet page `/fleet/admin/audit?mockUser=admin` (no bar, still scrolls in content section).
 
 ## Acceptance criteria
-- [ ] Band and project bar stay put while the content scrolls (probe: tops unchanged after scrolling 500px); page main
+- [x] Band and project bar stay put while the content scrolls (probe: tops unchanged after scrolling 500px); page main
       itself never scrolls.
-- [ ] Logs and Terminal tabs still fill to the viewport bottom with no outer scrollbar.
-- [ ] Project toggle: no background/border on hover, focus, pressed/expanded (probe computed `background-color`
+- [x] Logs and Terminal tabs still fill to the viewport bottom with no outer scrollbar.
+- [x] Project toggle: no background/border on hover, focus, pressed/expanded (probe computed `background-color`
       equals the bar's), light and dark; keyboard focus still visible (browser outline, as OCP).
-- [ ] Pages without a project bar (fleet, cluster-scoped kinds) render unchanged apart from the scroll container.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Pages without a project bar (fleet, cluster-scoped kinds) render unchanged apart from the scroll container.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: started. Slot context lives in `shared/ui/page/TopBarSlot.tsx` (+1 export in
+  `shared/ui/index.ts`, outside `paths`: features can't import `app/`); new `app/layout/AppShell.module.css`.
+- 2026-11-24 frontend-engineer: done. Probe (main tree; stopped a stale probe server serving an old worktree via
+  `--stop`): prod pods main 693 = top 72 + content 621 (only content scrolls); logs/terminal content children sum to
+  621, no outer scroll; audit top 0, content 693. Toggle bg = bar bg (transparent) light+dark, borders 0, 165px wide.
+  Full gate green (one UsersListPage timeout under load, passed on rerun).
 
 ## Review
+### Round 1 — frontend-architect, 2026-11-24: APPROVE
+- Portal into a context slot is sound: shell persists across routes, so the slot is stable; the ref-callback `setState`
+  re-renders synchronously in the commit, so the one-time in-place → portal move on first shell mount never paints.
+  No DOM lookup, context/events flow through the portal, and DOM order (bar before content) matches OCP. A layout route
+  would need per-route bar props (`descriptor`/`pathFor`), so it isn't simpler. Structure mirrors `app-contents.tsx:762-778`.
+- Gate: lint/typecheck/build fail only in T-0210's `shared/k8s/openapi.ts`; T-0204 files clean, tests 1131/1131.
+- Nit (optional) `features/cluster-context/EnvironmentBanner.tsx:16`, `features/resources/components/ProjectBar.tsx:34-35` — TSDoc lines 160-190 chars — rewrap to 120.
+- Nit (optional) `features/resources/components/ProjectBar.tsx:7` — `@/shared/ui` import after relative imports — move above `../paths`.
+- Nit (optional) `shared/ui/page/TopBarSlot.tsx:TopBar` — mention in TSDoc that only one `TopBar` per page is expected (two would stack in the slot).
+- 2026-11-24 ux-designer round 1: **APPROVE** (Playwright, mock, dark, 1280; OCP `app-contents.tsx:762-778`, `NamespaceDropdown.scss:30-58`).
+- Prod Pods: main 693/693 never scrolls; content scrolled 0→451 (max), band top 90 and toggle top 119 unchanged.
+- Toggle rest/hover/expanded: bg transparent = bar bg, `::before` border 0, 16px, padding 9px 0, 165px; focus after Esc shows browser outline, as OCP.
+- Logs/Terminal: content 621 = section height before, during and after Expand/Collapse; Expand still fills the viewport.
+- Audit: content section scrolls to the "Showing 50 entries / Load more" footer, no blank tail; main 693/693.
 
 ## Handover notes
+- `AppShell`: two `PageSection`s like OCP `app-contents.tsx` — fixed (`EnvironmentBanner` + slot div) and
+  `isFilled` scroller (`AppShell.module.css .noGap/.scrollable`, `pf-v6-u-flex-shrink-1`). No `Page banner=` any more.
+- `shared/ui/page/TopBarSlot.tsx`: `TopBarSlotContext` (slot element from `useState` ref callback) + `TopBar`, which
+  portals into it (renders in place without a shell). `ProjectBar` wraps itself in `TopBar`; call sites unchanged,
+  so the four page files in `paths` needed no edits. Outside `paths`: that file, its test, one export in `shared/ui/index.ts`.
+- Toggle: `NamespaceSelector` now default-variant `MenuToggle`; `ProjectBar.module.css .selector` (OCP
+  `.co-namespace-selector`, `width: fit-content` stands in for OCP's flex row) flattens it per `NamespaceDropdown.scss`.
+- Not probed (probe can't scroll/hover/click): rect tops after a 500px scroll, hover/expanded state, Logs/Terminal
+  Expand. Covered by layout (main never overflows) and CSS specificity; worth an e2e check in T-0223.
+- OCP reference on :9000 was down, so these are our-side measurements only.

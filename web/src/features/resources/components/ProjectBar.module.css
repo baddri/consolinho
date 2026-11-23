@@ -5,19 +5,48 @@
 }
 
 /*
- * OCP `.co-namespace-selector .pf-v6-c-menu-toggle.pf-m-plain` (`_dropdown.scss` L49-58) and
- * `.co-namespace-dropdown__menu-toggle` (`NamespaceDropdown.scss`): flush left, `$font-size-base + 2` (16px) text
- * with 9px vertical padding from `md` up (15px, 2px below).
+ * OCP `.co-namespace-selector` (`_dropdown.scss` L46-48): the toggle's wrapper. OCP's sits in the flex row
+ * `.co-namespace-bar__items`, so it is as wide as the toggle text (up to 60%); `fit-content` does the same here.
  */
-.bar :global(.pf-v6-c-menu-toggle) {
+.selector {
+  width: fit-content;
+  max-width: 60%;
+  margin-right: 20px;
+}
+
+/*
+ * OCP `.pf-v6-c-menu-toggle.co-namespace-dropdown__menu-toggle` (`NamespaceDropdown.scss` L30-58) on a default
+ * `MenuToggle`: flush left, 15px text with 2px vertical padding, 16px/9px from `md` up, filling its wrapper.
+ */
+.selector :global(.pf-v6-c-menu-toggle) {
+  width: 100%;
   font-size: 15px;
   padding-block: 2px;
   padding-inline: 0;
+
+  /* Set the property (not PF's variable) so PF's hover/expanded background changes never paint: as the bar. */
+  background-color: inherit;
 }
 
 @media (min-width: 768px) {
-  .bar :global(.pf-v6-c-menu-toggle) {
+  .selector :global(.pf-v6-c-menu-toggle) {
     font-size: 16px;
     padding-block: 9px;
   }
+}
+
+/* OCP `&::before, &::after { border-width: 0 }`: no border at rest, hover, focus or expanded. */
+.selector :global(.pf-v6-c-menu-toggle)::before,
+.selector :global(.pf-v6-c-menu-toggle)::after {
+  border-width: 0;
+}
+
+/* OCP `&:not(:disabled) { color: inherit }` / `&:disabled { color: disabled }`. */
+.selector :global(.pf-v6-c-menu-toggle):not(:disabled) {
+  color: inherit;
+}
+
+.selector :global(.pf-v6-c-menu-toggle):disabled {
+  background: none;
+  color: var(--pf-t--global--text--color--disabled);
 }
