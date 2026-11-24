@@ -123,7 +123,7 @@ describe('Networking and Storage navigation (NAV-1/2)', () => {
   });
 
   it.each([
-    ['routes', 'Routes', 'k8s/ns/shop', 'web', 'Route'],
+    ['routes', 'Routes', 'k8s/ns/shop', 'web-canary', 'Route'],
     ['ingresses', 'Ingresses', 'k8s/ns/shop', 'shop-ingress', 'Ingress'],
     ['networkpolicies', 'NetworkPolicies', 'k8s/ns/shop', 'deny-all-ingress', 'NetworkPolicy'],
     ['persistentvolumeclaims', 'PersistentVolumeClaims', 'k8s/ns/shop', 'db-data', 'PersistentVolumeClaim'],
