@@ -7,6 +7,7 @@ export type {
   ConfigMap,
   Event,
   Namespace,
+  Node,
   PersistentVolume,
   PersistentVolumeClaim,
   Pod,
@@ -33,8 +34,8 @@ export type {
   Status,
 } from 'kubernetes-types/meta/v1';
 
-import type { PodTemplateSpec } from 'kubernetes-types/core/v1';
-import type { ListMeta, ObjectMeta, Status } from 'kubernetes-types/meta/v1';
+import type { NodeAddress, ObjectReference, PodTemplateSpec } from 'kubernetes-types/core/v1';
+import type { LabelSelector, ListMeta, ObjectMeta, Status } from 'kubernetes-types/meta/v1';
 
 /**
  * The minimum every object the console handles generically has. Note that the API server omits `apiVersion`/`kind`
@@ -207,4 +208,199 @@ export interface ProjectRequest extends K8sResource {
   metadata: ObjectMeta & { name: string };
   displayName?: string;
   description?: string;
+}
+
+/** A status condition as OpenShift config and OLM objects report them (`metav1.Condition`-like). */
+export interface K8sCondition {
+  type: string;
+  status: 'True' | 'False' | 'Unknown';
+  reason?: string;
+  message?: string;
+  lastTransitionTime?: string;
+}
+
+/** A release image + version (ClusterVersion `desired`, `availableUpdates`, `desiredUpdate`). */
+export interface ClusterRelease {
+  version?: string;
+  image?: string;
+  channels?: string[];
+  url?: string;
+}
+
+/** One entry of a ClusterVersion's update history; newest first. `Partial` = not (yet) fully applied. */
+export interface ClusterUpdateHistory {
+  state: 'Completed' | 'Partial';
+  version: string;
+  image?: string;
+  startedTime?: string;
+  completionTime?: string | null;
+  verified?: boolean;
+}
+
+/**
+ * OpenShift `config.openshift.io/v1` ClusterVersion (singleton `version`): a minimal counterpart of OCP
+ * `ClusterVersionKind` (`public/module/k8s/types.ts`) with the fields the console reads. Conditions of interest:
+ * `Available`, `Progressing` (update running), `Failing`, `RetrievedUpdates`, `Upgradeable`.
+ */
+export interface ClusterVersion extends K8sResource {
+  spec?: {
+    channel?: string;
+    clusterID?: string;
+    desiredUpdate?: ClusterRelease;
+    upstream?: string;
+  };
+  status?: {
+    desired?: ClusterRelease;
+    history?: ClusterUpdateHistory[];
+    conditions?: K8sCondition[];
+    availableUpdates?: ClusterRelease[] | null;
+    conditionalUpdates?: { release: ClusterRelease; conditions?: K8sCondition[] }[];
+    observedGeneration?: number;
+  };
+}
+
+/** A version an operator reports for itself (`name: operator`) or one of its operands. */
+export interface OperandVersion {
+  name: string;
+  version: string;
+}
+
+/** OpenShift `config.openshift.io/v1` ClusterOperator, after OCP `ClusterOperator` (`public/module/k8s/types.ts`). */
+export interface ClusterOperator extends K8sResource {
+  spec?: Record<string, never>;
+  status?: {
+    conditions?: K8sCondition[];
+    versions?: OperandVersion[];
+    relatedObjects?: { group: string; resource: string; namespace?: string; name: string }[];
+  };
+}
+
+/**
+ * OpenShift `config.openshift.io/v1` Infrastructure (singleton `cluster`), after OCP `InfrastructureKind`
+ * (`public/module/k8s/types.ts`): platform and API server URLs.
+ */
+export interface Infrastructure extends K8sResource {
+  spec?: { platformSpec?: { type?: string } };
+  status?: {
+    platform?: string;
+    platformStatus?: { type?: string };
+    infrastructureName?: string;
+    apiServerURL?: string;
+    apiServerInternalURI?: string;
+    controlPlaneTopology?: string;
+    infrastructureTopology?: string;
+  };
+}
+
+/** The provider-specific part of a Machine spec; only the fields OCP shows (instance type, placement). */
+export interface MachineProviderSpec {
+  value?: {
+    instanceType?: string;
+    vmSize?: string;
+    machineType?: string;
+    flavor?: string;
+    placement?: { availabilityZone?: string; region?: string };
+    [key: string]: unknown;
+  };
+}
+
+/**
+ * OpenShift Machine API `machine.openshift.io/v1beta1` Machine, after OCP `MachineKind` (`public/module/k8s/types.ts`).
+ * `status.nodeRef` links it to its Node; role/type come from `machine.openshift.io/cluster-api-machine-role|type` labels.
+ */
+export interface Machine extends K8sResource {
+  spec?: { providerSpec?: MachineProviderSpec; providerID?: string };
+  status?: {
+    phase?: string;
+    addresses?: NodeAddress[];
+    lastUpdated?: string;
+    nodeRef?: { kind?: string; name: string; uid?: string };
+    errorReason?: string;
+    errorMessage?: string;
+    providerStatus?: { conditions?: K8sCondition[] };
+  };
+}
+
+/** OpenShift Machine API `machine.openshift.io/v1beta1` MachineSet, after OCP `MachineSetKind`. */
+export interface MachineSet extends K8sResource {
+  spec?: {
+    replicas?: number;
+    selector?: LabelSelector;
+    template?: { metadata?: ObjectMeta; spec?: { providerSpec?: MachineProviderSpec } };
+  };
+  status?: {
+    replicas?: number;
+    readyReplicas?: number;
+    availableReplicas?: number;
+    fullyLabeledReplicas?: number;
+  };
+}
+
+/** Phase of a ClusterServiceVersion (OCP `ClusterServiceVersionPhase`, `packages/operator-lifecycle-manager/src/types.ts`). */
+export type ClusterServiceVersionPhase =
+  'Pending' | 'Installing' | 'Succeeded' | 'Failed' | 'Unknown' | 'Replacing' | 'Deleting';
+
+/**
+ * OLM `operators.coreos.com/v1alpha1` ClusterServiceVersion: an installed operator, after OCP
+ * `ClusterServiceVersionKind` (`packages/operator-lifecycle-manager/src/types.ts`), reduced to what the console reads.
+ */
+export interface ClusterServiceVersion extends K8sResource {
+  spec?: {
+    displayName?: string;
+    description?: string;
+    version?: string;
+    provider?: { name?: string };
+    replaces?: string;
+    icon?: { base64data: string; mediatype: string }[];
+    installModes?: { type: string; supported: boolean }[];
+  };
+  status?: {
+    phase?: ClusterServiceVersionPhase;
+    reason?: string;
+    message?: string;
+    conditions?: { phase?: string; reason?: string; message?: string; lastTransitionTime?: string }[];
+  };
+}
+
+/** Whether OLM applies an operator's InstallPlans by itself or waits for approval. */
+export type InstallPlanApproval = 'Automatic' | 'Manual';
+
+/**
+ * OLM `operators.coreos.com/v1alpha1` Subscription, after OCP `SubscriptionKind`
+ * (`packages/operator-lifecycle-manager/src/types.ts`). `status.state` e.g. `AtLatestKnown`, `UpgradePending`.
+ */
+export interface Subscription extends K8sResource {
+  spec?: {
+    name?: string;
+    source?: string;
+    sourceNamespace?: string;
+    channel?: string;
+    startingCSV?: string;
+    installPlanApproval?: InstallPlanApproval;
+  };
+  status?: {
+    state?: string;
+    currentCSV?: string;
+    installedCSV?: string;
+    installPlanRef?: ObjectReference;
+    conditions?: K8sCondition[];
+    lastUpdated?: string;
+  };
+}
+
+/** Phase of an InstallPlan (OCP `InstallPlanPhase`); `RequiresApproval` waits for a Manual approval. */
+export type InstallPlanPhase = '' | 'Planning' | 'RequiresApproval' | 'Installing' | 'Complete' | 'Failed';
+
+/** OLM `operators.coreos.com/v1alpha1` InstallPlan, after OCP `InstallPlanKind` (`packages/operator-lifecycle-manager/src/types.ts`). */
+export interface InstallPlan extends K8sResource {
+  spec?: {
+    clusterServiceVersionNames?: string[];
+    approval?: InstallPlanApproval;
+    approved?: boolean;
+  };
+  status?: {
+    phase?: InstallPlanPhase;
+    catalogSources?: string[];
+    conditions?: K8sCondition[];
+  };
 }

@@ -79,6 +79,7 @@ done once so Lane C (compute) and Lane O (cluster/operators) own disjoint files 
 - [ ] Read-only kind: fake descriptor test shows no common actions and a read-only YAML editor with the notice.
 - [ ] New tab: fake descriptor with `extraTabs: ['machines']` + `KindTabs.machines` renders the tab at `/machines`; without the component no tab.
 - [ ] `allNamespacesLabelSelector` sent only for all-namespaces (MSW request assertion); copied CSVs absent there.
+- [ ] `mocks/k8s.test.ts` "project.openshift.io everywhere except on vanilla lab-1" green again: lab-1 `/apis` lists no config/machine/operators groups (red since T-0330 added the models).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log

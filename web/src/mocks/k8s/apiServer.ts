@@ -67,6 +67,9 @@ const OPENSHIFT_GROUPS: ReadonlySet<string> = new Set([
   'project.openshift.io',
   'apps.openshift.io',
   'route.openshift.io',
+  'config.openshift.io',
+  'machine.openshift.io',
+  'operators.coreos.com',
 ]);
 
 function servedModels(cluster: string): K8sModel[] {

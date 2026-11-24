@@ -118,6 +118,66 @@ export async function k8sListAll<T>(
   }
 }
 
+/**
+ * Page size of inventory counts (OVW-4): one {@link k8sListPage} of this size per kind; never paged further, so a
+ * count costs one request whatever the cluster's size.
+ */
+export const INVENTORY_LIMIT = 500;
+
+/** {@link ListOptions} of {@link k8sListPage}; `limit` is required so a page read can never be unbounded. */
+export interface ListPageOptions extends ListOptions {
+  limit: number;
+}
+
+/** One list page: the items plus the server's paging hints (both absent on the last page). */
+export interface K8sListPage<T> {
+  items: T[];
+  /** Token of the next page; absent (or `''` from the server, normalised away) on the last page. */
+  continue?: string | undefined;
+  /** Objects after this page; the API server omits it for selector-filtered lists. */
+  remainingItemCount?: number | undefined;
+}
+
+/**
+ * Reads exactly one page of `model` (one request, `limit` + selectors), e.g. for inventory counts (OVW-4). Use
+ * {@link pageCount} to turn it into a count; use {@link k8sListAll} when every item is needed.
+ */
+export async function k8sListPage<T>(
+  cluster: string,
+  model: K8sModel,
+  opts: ListPageOptions,
+  signal?: AbortSignal,
+): Promise<K8sListPage<T>> {
+  const path = resourceApiPath(cluster, model, {
+    namespace: opts.namespace,
+    query: {
+      limit: String(opts.limit),
+      labelSelector: opts.labelSelector,
+      fieldSelector: opts.fieldSelector,
+    },
+  });
+  const page = await k8sGetPath<K8sList<T>>(path, signal);
+  // The server sends `continue: ""` on the last page; normalise it to absent.
+  const continueToken = page.metadata.continue === '' ? undefined : page.metadata.continue;
+  return {
+    items: page.items.map((item) => withTypeMeta(item, model)),
+    continue: continueToken,
+    remainingItemCount: page.metadata.remainingItemCount,
+  };
+}
+
+/**
+ * The object count of a {@link K8sListPage} (OVW-4): `items + remainingItemCount` when the server sent it (exact);
+ * otherwise, if there is a next page, `items.length` is only a lower bound (`exact: false`, rendered "`<n>`+");
+ * without either hint the page was the whole list (exact).
+ */
+export function pageCount(page: K8sListPage<unknown>): { count: number; exact: boolean } {
+  if (page.remainingItemCount !== undefined) {
+    return { count: page.items.length + page.remainingItemCount, exact: true };
+  }
+  return { count: page.items.length, exact: !page.continue };
+}
+
 /** Reads one object; a missing object throws a 404 {@link ApiError} with code `Kubernetes.NotFound`. */
 export async function k8sGet<T>(
   cluster: string,

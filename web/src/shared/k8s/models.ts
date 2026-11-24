@@ -310,6 +310,114 @@ export const SelfSubjectAccessReviewModel: K8sModel = {
   abbr: 'SSAR',
 };
 
+/** Cluster-scoped; Ready/NotReady and cordon state drive the Nodes list and the cluster health rules. */
+export const NodeModel: K8sModel = {
+  group: '',
+  version: 'v1',
+  kind: 'Node',
+  plural: 'nodes',
+  namespaced: false,
+  label: 'Node',
+  labelPlural: 'Nodes',
+  abbr: 'N',
+};
+
+/** OpenShift Machine API (`machine.openshift.io`): hidden where discovery lacks the group. */
+export const MachineModel: K8sModel = {
+  group: 'machine.openshift.io',
+  version: 'v1beta1',
+  kind: 'Machine',
+  plural: 'machines',
+  namespaced: true,
+  label: 'Machine',
+  labelPlural: 'Machines',
+  abbr: 'M',
+};
+
+/** OpenShift Machine API (`machine.openshift.io`): hidden where discovery lacks the group. */
+export const MachineSetModel: K8sModel = {
+  group: 'machine.openshift.io',
+  version: 'v1beta1',
+  kind: 'MachineSet',
+  plural: 'machinesets',
+  namespaced: true,
+  label: 'MachineSet',
+  labelPlural: 'MachineSets',
+  abbr: 'MS',
+};
+
+/** OpenShift-only singleton (`version`): the cluster's version, update state and available updates. */
+export const ClusterVersionModel: K8sModel = {
+  group: 'config.openshift.io',
+  version: 'v1',
+  kind: 'ClusterVersion',
+  plural: 'clusterversions',
+  namespaced: false,
+  label: 'ClusterVersion',
+  labelPlural: 'ClusterVersions',
+  abbr: 'CV',
+};
+
+/** OpenShift-only: one per platform operator; its conditions feed the cluster health rules. */
+export const ClusterOperatorModel: K8sModel = {
+  group: 'config.openshift.io',
+  version: 'v1',
+  kind: 'ClusterOperator',
+  plural: 'clusteroperators',
+  namespaced: false,
+  label: 'ClusterOperator',
+  labelPlural: 'ClusterOperators',
+  abbr: 'CO',
+};
+
+/** OpenShift-only singleton (`cluster`): infrastructure platform and API server URLs. */
+export const InfrastructureModel: K8sModel = {
+  group: 'config.openshift.io',
+  version: 'v1',
+  kind: 'Infrastructure',
+  plural: 'infrastructures',
+  namespaced: false,
+  label: 'Infrastructure',
+  labelPlural: 'Infrastructures',
+  abbr: 'INF',
+};
+
+/** OLM (`operators.coreos.com`): an installed operator version. Hidden where discovery lacks the group. */
+export const ClusterServiceVersionModel: K8sModel = {
+  group: 'operators.coreos.com',
+  version: 'v1alpha1',
+  kind: 'ClusterServiceVersion',
+  plural: 'clusterserviceversions',
+  namespaced: true,
+  label: 'ClusterServiceVersion',
+  labelPlural: 'ClusterServiceVersions',
+  abbr: 'CSV',
+};
+
+/** OLM (`operators.coreos.com`): what operator to install from which catalog channel. */
+export const SubscriptionModel: K8sModel = {
+  group: 'operators.coreos.com',
+  version: 'v1alpha1',
+  kind: 'Subscription',
+  plural: 'subscriptions',
+  namespaced: true,
+  label: 'Subscription',
+  labelPlural: 'Subscriptions',
+  abbr: 'SUB',
+};
+
+/** OLM (`operators.coreos.com`): the resolved install/upgrade steps of a Subscription, possibly awaiting approval. */
+export const InstallPlanModel: K8sModel = {
+  group: 'operators.coreos.com',
+  version: 'v1alpha1',
+  kind: 'InstallPlan',
+  plural: 'installplans',
+  namespaced: true,
+  label: 'InstallPlan',
+  labelPlural: 'InstallPlans',
+  abbr: 'IP',
+};
+
 /** Every known model, e.g. to resolve a model from an object's `apiVersion` + `kind`. */
 export const K8S_MODELS: readonly K8sModel[] = [
   ProjectModel,
@@ -336,6 +444,15 @@ export const K8S_MODELS: readonly K8sModel[] = [
   PersistentVolumeModel,
   StorageClassModel,
   ProjectRequestModel,
+  NodeModel,
+  MachineModel,
+  MachineSetModel,
+  ClusterVersionModel,
+  ClusterOperatorModel,
+  InfrastructureModel,
+  ClusterServiceVersionModel,
+  SubscriptionModel,
+  InstallPlanModel,
 ];
 
 /** The `apiVersion` of objects of `model`: `v1` for the core group, `<group>/<version>` otherwise. */

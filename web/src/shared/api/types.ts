@@ -168,3 +168,19 @@ export type AccessCandidateOutcome = schemas['CandidateOutcome'];
 export type AuditPage = schemas['AuditPage'];
 /** One audit log entry; `details` is free-form JSON. */
 export type AuditEntry = schemas['AuditEntry'];
+
+// ---- Fleet status (CP5 contract §2)
+/** One NDJSON line of `GET /api/fleet/status`: a cluster's health facts; sections null when not probed. */
+export type FleetClusterStatus = schemas['FleetClusterStatus'];
+/** Why a cluster could not be read at all; every section is null when set. */
+export type FleetClusterFailure = schemas['FleetClusterFailure'];
+/** How one probe went; `forbidden` (403) → "Restricted", counts null unless `ok`. */
+export type FleetProbeOutcome = schemas['FleetProbeOutcome'];
+/** ClusterVersion facts (OpenShift only): current/desired version, update conditions, available updates. */
+export type FleetClusterVersion = schemas['FleetClusterVersion'];
+/** ClusterOperator counts (OpenShift only). */
+export type FleetClusterOperators = schemas['FleetClusterOperators'];
+/** Node counts (every distribution). */
+export type FleetNodes = schemas['FleetNodes'];
+/** `GET /version` of a plain Kubernetes cluster. */
+export type FleetKubernetesVersion = schemas['FleetKubernetesVersion'];

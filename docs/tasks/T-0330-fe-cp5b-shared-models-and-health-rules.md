@@ -1,12 +1,12 @@
 ---
 id: T-0330
 title: CP5b shared layer — models, types, one-page list read, cluster health rules (FLT-4/OVW-3)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5b
 depends_on: []
 paths: [web/src/shared/k8s/models.ts, web/src/shared/k8s/types.ts, web/src/shared/k8s/index.ts, web/src/shared/k8s/client.ts, web/src/shared/k8s/client.test.ts, web/src/shared/k8s/models.test.ts, web/src/shared/api/types.ts, web/src/shared/health]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -69,14 +69,33 @@ of the cluster health rules (contract §2.1) used by the Overview Status card (O
   `packages/console-app/src/status/node.ts:nodeStatus`, `packages/console-shared/src/selectors/node.ts`.
 
 ## Acceptance criteria
-- [ ] Models registered; `models.test.ts` covers the new cluster-scoped / namespaced flags.
-- [ ] `k8sListPage` + `pageCount` tested (exact with `remainingItemCount`, "+" with only `continue`, exact without either).
-- [ ] `clusterHealth` table test: every §2.1 row, worst-wins order, Restricted lists all forbidden sections.
-- [ ] `facts.ts` tests: currentVersion from history, Unknown node, operator status order matches OCP.
+- [x] Models registered; `models.test.ts` covers the new cluster-scoped / namespaced flags.
+- [x] `k8sListPage` + `pageCount` tested (exact with `remainingItemCount`, "+" with only `continue`, exact without either).
+- [x] `clusterHealth` table test: every §2.1 row, worst-wins order, Restricted lists all forbidden sections.
+- [x] `facts.ts` tests: currentVersion from history, Unknown node, operator status order matches OCP.
 - [ ] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: in_progress. 9 models + K8S_MODELS, hand-written types (OCP/OLM shapes), Node re-export.
+- 2026-11-25: `k8sListPage`/`pageCount`/`INVENTORY_LIMIT` (one request, `continue: ""` normalised), Fleet API aliases.
+- 2026-11-25: `shared/health` (clusterHealth, clusterUpdate, clusterVersionText, facts + per-object helpers), table tests.
+- 2026-11-25: gate: lint/typecheck/build ok; 1 failure `src/mocks/k8s.test.ts` (/apis group list now 9) — mocks, T-0331.
 
 ## Review
+- 2026-11-25 frontend-architect, round 1: **APPROVE**. `check-fe.sh src/shared` green (396 tests). Matches §2/§2.1 and OCP.
+  - Accepted: `clusterUpdate` → `undefined` for non-`ok` CV (Restricted/"—" decided by the page); `clusterOperatorStatusAndMessage` (OCP parity, feeds tooltips); `*Facts` 403/404/else-null.
+  - Known red outside paths: `src/mocks/k8s.test.ts` lab-1 groups — fixed by T-0331 (`apiServer.ts:OPENSHIFT_GROUPS` += config/machine/operators; AC added there).
+  - Nit (optional): `npx prettier --write` the new files (printWidth 110; e.g. facts.ts:1, facts.ts:155, types.ts:400).
+  - Nit (optional): clusterHealth.ts `clusterUpdate` `cv.availableUpdates ?? 0` is redundant after `positive()`.
 
 ## Handover notes
+- `shared/health` exports via `index.ts`. `*Facts(data, error?)`: 403 → `forbidden`, 404 → `notFound`, loading or
+  other error → `null` (not probed), so a transient error is never a health verdict.
+- `clusterUpdate` returns `undefined` for a null **or non-ok** ClusterVersion (page renders "—"/Restricted).
+- `clusterOperatorStatus(co)` returns the status string; `clusterOperatorStatusAndMessage` also gives the message.
+- `clusterOperatorVersion` returns `undefined` (OCP returns `''`); `HEALTH_SEVERITY` is a rank record (0 = worst).
+- Infrastructure abbr `INF` (from OCP; task listed none).
+- Open: `src/mocks/k8s.test.ts` "serves project.openshift.io everywhere except on vanilla lab-1" expects 6 groups;
+  the mock derives `/apis` from K8S_MODELS, so it now lists machine/config/operators groups too. Fix in T-0331
+  (outside this task's paths): either expect 9 or filter OpenShift-only groups on vanilla clusters.
+- Orchestrator: added config/machine/operators groups to mock OPENSHIFT_GROUPS (arch suggestion, keeps mocks test green); prettier on new files.

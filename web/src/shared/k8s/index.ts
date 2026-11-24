@@ -5,6 +5,9 @@ export { PROJECT_ANNOTATIONS } from './types';
 export { resourceApiPath, proxyBasePath, type ResourceApiPathOptions } from './url';
 export {
   k8sListAll,
+  k8sListPage,
+  pageCount,
+  INVENTORY_LIMIT,
   k8sGet,
   k8sUpdate,
   k8sPatch,
@@ -14,6 +17,8 @@ export {
   LIST_PAGE_SIZE,
   type ListOptions,
   type K8sListData,
+  type K8sListPage,
+  type ListPageOptions,
   type JsonPatchOp,
   type PatchTarget,
 } from './client';

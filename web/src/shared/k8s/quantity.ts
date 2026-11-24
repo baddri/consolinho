@@ -64,7 +64,10 @@ export function formatBinaryBytes(bytes: number): string {
   const safe = Number.isFinite(bytes) && bytes > 0 ? bytes : 0;
   const first = toBinaryUnit(safe, 0);
   const multiplier = 10 ** fractionDigits(first.value);
-  const { value, unitIndex } = toBinaryUnit(Math.round(first.value * multiplier) / multiplier, first.unitIndex);
+  const { value, unitIndex } = toBinaryUnit(
+    Math.round(first.value * multiplier) / multiplier,
+    first.unitIndex,
+  );
   const text = new Intl.NumberFormat('en-US', { maximumFractionDigits: fractionDigits(value) }).format(value);
   return `${text} ${BINARY_BYTE_UNITS[unitIndex] ?? 'B'}`;
 }
