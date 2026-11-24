@@ -1,7 +1,7 @@
 ---
 id: T-0251
 title: AccessResolver — pure domain service for grant precedence (PREC-3..6, PREC-8)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: []          # wave 1, parallel with T-0250 and T-0254 (no shared files)
@@ -61,12 +61,23 @@ Group-name/priority sanity (null priority on a group candidate) → `ArgumentExc
 - Touch points: `Domain/Access/GrantId.cs` (comparable `Guid` value), `Domain/Access/AccessMode.cs`, `Domain/Credentials/CredentialId.cs`.
 
 ## Acceptance criteria
-- [ ] PREC-3/4/5/6 and GRP-3 (membership side) covered by one table-driven test: direct vs group (incl. RW group over RO direct → RO direct wins), priorities, tie RO-wins, tie by id, RO flag narrowing, `system:*` in groups and as candidate, non-member group, no candidates.
-- [ ] Verdict order and `BeatenByGroup` asserted; resolver deterministic regardless of input order (shuffle test).
-- [ ] No dependency outside `Domain` (DomainAssemblyTests pass); XML docs explain each rule; `scripts/check-be.sh` green.
+- [x] PREC-3/4/5/6 and GRP-3 (membership side) covered by one table-driven test: direct vs group (incl. RW group over RO direct → RO direct wins), priorities, tie RO-wins, tie by id, RO flag narrowing, `system:*` in groups and as candidate, non-member group, no candidates.
+- [x] Verdict order and `BeatenByGroup` asserted; resolver deterministic regardless of input order (shuffle test).
+- [x] No dependency outside `Domain` (DomainAssemblyTests pass); XML docs explain each rule; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: started; pure resolver in `Domain/Access/Resolution`, own input types only (no T-0250 deps).
+- 2026-11-24 backend-engineer: added 5 types in `Domain/Access/Resolution` and `AccessResolverTests` (a 19-case table run for the rules plus 10 seeded shuffles, and guard tests). Followed the contract exactly; also throws ArgumentException for a blank group name. check-be green (Domain 382, App 711, Api 858).
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. Rules 1–6 match the contract and PREC-3..6 and GRP-3. The verdict order is canonical and the output does not depend on input order. The code has no framework deps and full XML docs. Domain tests pass (382). The extra blank-name guard and the case-insensitive `system:` check are both accepted.
+  - optional: `tests/.../AccessResolverTests.cs:Id` — the ids differ only in the node bytes. Add one case whose ids differ in the first (timestamp) segment, so the test pins `Guid` ordering to v7 creation order.
+  - optional: `AccessResolver.cs:ResolveByPriority` — `ReferenceEquals(candidate, winner)` would drop a duplicate instance of the winner from `Verdicts`. Duplicate instances can't happen when the input is mapped from rows. Comparing `GrantId` would make the intent explicit.
 
 ## Handover notes
+- Entry point: `AccessResolver.Resolve(candidates, userGroups, userIsReadOnly)`. It's static and pure, and it returns null when the user has no access. It depends only on `GrantId`, `AccessMode` and `CredentialId`, so it doesn't conflict with T-0250.
+- T-0253 maps `Grant` rows to `AccessCandidate`: `GroupName` null means a direct grant, and a group grant must have a non-null `Priority` (otherwise it throws ArgumentException).
+- Callers log a warning when `TieDetected` is set. The resolver itself has no logging.
+- Tie and lower-priority losers set `BeatenByGroup` to the winning group. It is null for the winner and for candidates `OverriddenByDirectGrant`.
+- Grant-id tiebreak uses `Guid` ordering; v7 ids sort by creation time.
+- Membership is ordinal and case-sensitive. `system:*` is matched case-insensitively on both the candidate side and the userGroups side.
