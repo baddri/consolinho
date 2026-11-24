@@ -121,12 +121,14 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 2
-          # Mostly I/O and long-lived watch streams (100m was sized for ~50 users on one pod). The CPU request is the
-          # HPA denominator (75 % of it), so changing it moves the scaling point. No CPU limit (throttling would stall
-          # streams); the memory limit bounds a leak.
+          # Sized from the T-0242 load test (3 pods, console request mix): CPU ≈ 25m idle-ish + ~9m per req/s per pod;
+          # warm-up (JIT) after a start runs at 100–195m for 2–3 min; working set 130–175 MiB, flat under load. The CPU
+          # request is the HPA denominator (70 % of 250m ≈ 175m ≈ 17 req/s per pod), and it sits above the warm-up
+          # spike, so a rollout alone no longer scales up. No CPU limit (throttling would stall streams); the memory
+          # limit bounds a leak.
           resources:
             requests:
-              cpu: 100m
+              cpu: 250m
               memory: 256Mi
             limits:
               memory: 768Mi

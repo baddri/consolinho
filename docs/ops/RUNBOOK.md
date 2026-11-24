@@ -30,7 +30,7 @@ One namespace (`consolinho`) holds:
 The **dev** overlay (`deploy/kustomize/overlays/dev`) adds a single Postgres StatefulSet `postgres` (dev only), the
 ServiceAccount `consolinho-smoke` with a namespaced `view` RoleBinding, and (through `deploy/kustomize/build`) the
 BuildConfig/ImageStream `consolinho`. The **production** overlay (`deploy/kustomize/overlays/production`) expects an
-external Postgres. Both overlays get from base a HorizontalPodAutoscaler `consolinho` (3–6 replicas, CPU 75 % of the
+external Postgres. Both overlays get from base a HorizontalPodAutoscaler `consolinho` (3–6 replicas, CPU 70 % of the
 request; the Deployment sets no `replicas`) and a PodDisruptionBudget (`maxUnavailable: 1`); see ADR-0030 Amendment
 2026-11-24.
 

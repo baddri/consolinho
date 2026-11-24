@@ -131,3 +131,14 @@ the production-only PDB (`minAvailable: 1`) and the "one replica" sizing note un
   (~15–30 s). The runbook documents the one-time `view-last-applied | del(.spec.replicas) | set-last-applied` step for
   production; dev (1 replica today) needs nothing. `oc scale --replicas=0` still works for maintenance (the HPA does
   not act on a target scaled to 0); restore with `--replicas=3`.
+
+## Amendment (2026-11-24, T-0242) — requests and HPA sized from a load test
+The human saw the HPA scale 3 → 5 right after a rollout without load. Prometheus showed why: new pods run their JIT
+warm-up at 100–195m for 2–3 min, above the 75m scaling point (75 % of 100m). A k6 run on consolinho (`deploy/loadtest/`,
+3 pinned pods, console request mix, 5 → 120 req/s, 0 errors, p95 71 ms) measured CPU ≈ 25m + ~9m per req/s per pod,
+memory flat at 130–175 MiB, Postgres up to 177m (the per-request authorization query, see above). Supersedes the 100m
+request, the 75 % target and the 60 s scale-up window of the amendment above:
+- `server` requests **250m**/256Mi (limit 768Mi unchanged); HPA target **70 %** (≈ 175m ≈ 17 req/s per pod).
+- Scale-up stabilization **180 s**: the HPA takes the lowest recommendation in the window, which hides warm-up.
+- Still CPU only: the test confirmed memory does not follow load.
+Re-run the test after changes to the proxy hot path or the CP4.5 authorization cache.

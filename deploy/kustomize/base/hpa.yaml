@@ -2,7 +2,10 @@
 # spec.replicas). Min 3 for availability and node spread; max 6 bounds Postgres connections
 # (maxReplicas x Npgsql Maximum Pool Size + 5 <= max_connections, see the runbook).
 # CPU only: the server is I/O-bound (watch/log streams) and .NET's GC keeps its heap after a burst, so a memory target
-# would scale up and never back down; the memory limit stays the leak guard. 75 % is of the 100m CPU request.
+# would scale up and never back down (T-0242 load test: working set flat at 130–175 MiB from 5 to 120 req/s); the
+# memory limit stays the leak guard. 70 % is of the 250m CPU request (≈ 17 req/s per pod, see the Deployment).
+# Scale-up looks at a 180 s window: the HPA takes the lowest recommendation in it, which hides the 2–3 min JIT
+# warm-up of new pods but still reacts to load that lasts.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -22,10 +25,10 @@ spec:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: 75
+          averageUtilization: 70
   behavior:
     scaleUp:
-      stabilizationWindowSeconds: 60
+      stabilizationWindowSeconds: 180
       selectPolicy: Max
       policies:
         - type: Pods
