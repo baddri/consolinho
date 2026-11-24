@@ -70,6 +70,19 @@ public sealed class SyncUserGroupsHandlerTests
     }
 
     [Fact]
+    public async Task MixedCaseSystemGroups_AreNotRecorded()
+    {
+        HostLists(
+            new HostGroup("System:Ops", ["sam"]),
+            new HostGroup("SYSTEM:authenticated", ["sam"]),
+            new HostGroup("sre", ["sam"]));
+
+        (await SyncAsync()).IsSuccess.ShouldBeTrue();
+
+        _sam.Groups.ShouldBe(["sre"], "system: is virtual in any case (GRP-3, T-0272)");
+    }
+
+    [Fact]
     public async Task UnchangedMembership_RaisesNothing_ButRecordsTheReadTime()
     {
         HostLists(new HostGroup("old-group", ["sam"]));

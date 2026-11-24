@@ -42,6 +42,6 @@ public sealed class AdminConfigurationResolverTests
     public void WithoutVirtualGroups_DropsSystemBlankAndDuplicateGroups_KeepingOrder()
     {
         OpenShiftGroups.WithoutVirtualGroups(["sre", "system:authenticated", "", "ops", "sre", "system:authenticated:oauth", "System:x"])
-            .ShouldBe(["sre", "ops", "System:x"]);
+            .ShouldBe(["sre", "ops"], "system: is virtual in any case (T-0272)");
     }
 }

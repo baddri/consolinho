@@ -361,8 +361,9 @@ public sealed class User : AggregateRoot<UserId>
     public bool ReplaceGroups(IReadOnlyList<string> groups)
     {
         Guard.NotNull(groups);
-        // Ordinal, like OpenShiftGroups.IsVirtual: a stricter check would throw for groups the filter lets through.
-        if (groups.Any(group => group.StartsWith("system:", StringComparison.Ordinal)))
+        // Case-insensitive, exactly like OpenShiftGroups.IsVirtual: a stricter check would throw for groups the filter
+        // lets through, a looser one would record System:* groups that GroupName and the resolver ignore (T-0272).
+        if (groups.Any(group => group.StartsWith("system:", StringComparison.OrdinalIgnoreCase)))
         {
             throw new ArgumentException("Virtual system: groups must be filtered out before they are recorded.", nameof(groups));
         }
