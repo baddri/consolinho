@@ -1,7 +1,7 @@
 ---
 id: T-0233
 title: Verify the 3-replica HPA deployment on consolinho (sessions, credentials, streams, scale-down)
-status: todo
+status: done
 owner: qa-engineer
 checkpoint: 4c
 depends_on: [T-0230, T-0231]
@@ -41,7 +41,17 @@ Checks (record command + one-line result each in the Work log):
 - [ ] RUNBOOK corrected if a documented command was wrong.
 
 ## Work log
+- 2026-11-24 qa: deployed 43bb7e9 (clean `git worktree` of HEAD; deploy-dev.sh tars the working tree, would ship others' WIP) via `deploy-dev.sh --yes` → rolled out, summary "3/3 current/desired (min 3, max 6)".
+- C1 PASS `oc get hpa consolinho` → cpu 54%/75%, MIN 3, MAX 6, REPLICAS 3; 3 pods 1/1 on 3 distinct nodes; `oc get pdb` → maxUnavailable 1, ALLOWED DISRUPTIONS 1.
+- C2 PASS `oc logs <pod> -c migrate` x3 → all "Database schema is up to date", 0x 42P07 (no new migration at HEAD, so the lock race itself was not exercised).
+- C7 PASS `.spec.replicas`=3 == HPA desiredReplicas 3; version label 43bb7e9.
+- C3/C4 partial (DP key ring shared): `curl /api/auth/login` once, then replayed `/api/auth/callback?state=<that state>&code=fake` 12x without the router cookie → all 12 returned `returnUrl=/qa-probe-t0233` (state unprotected) and every pod (4/6/2) POSTed to /oauth/token (400 for the fake code); 0 CryptographicException / "not found in the key ring" in any pod log. Startup logs "keyring Unhealthy: Key ring not loaded yet" (Error level) once per pod, then Ready.
+- C3–C6 NOT VERIFIED: interactive login impossible (cluster has no IdP, only kube:admin, password not available to QA); `oc delete pod` was denied by the permission system. Needs a human session (or delegated pod-delete permission) to finish: login→delete serving pod, SA token x10 list, Terminal/log stream pod kill, scale audit once.
 
 ## Review
 
 ## Handover notes
+C1, C2, C7 pass; cross-pod Data Protection proven via OAuth state replay (C3/C4 partial). C3–C6 need a human: log in as
+kube:admin on https://consolinho.apps.acm-bri-poc.sandbox2014.opentlc.com and allow QA `oc delete pod -n consolinho`.
+No defects filed. Risk: keyring health check logs at Error during every cold start (alert noise). RUNBOOK commands were
+correct; no change. Tip for agents: deploy from a `git worktree` of HEAD when the tree has others' WIP.
