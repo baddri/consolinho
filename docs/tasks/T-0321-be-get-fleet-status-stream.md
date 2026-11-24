@@ -1,12 +1,12 @@
 ---
 id: T-0321
 title: Fleet query — GetFleetStatusQuery streams one FleetClusterStatusDto per accessible cluster, bounded and isolated
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 5c
 depends_on: [T-0320]
 paths: [src/FleetConsole.Application/Fleet/GetFleetStatus/, src/FleetConsole.Application/DependencyInjection.cs, src/FleetConsole.Application/Clusters/ListAccessibleClusters/, tests/FleetConsole.Application.Tests/Fleet/GetFleetStatus/]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -51,15 +51,37 @@ cluster's line as soon as it completes.
   order; an `Interlocked` in-flight counter with a max-seen value).
 
 ## Acceptance criteria
-- [ ] Lines arrive in completion order (cluster B completing before A is yielded first).
-- [ ] Max in-flight probes never exceeds `MaxClusterConcurrency` (fake counting in-flight, 25 clusters, limit 3).
-- [ ] One cluster throwing → that line has `UpstreamError`, others ok, error logged once; no exception escapes.
-- [ ] Cancelling the consumer token cancels in-flight probes (fake observes cancellation) and ends enumeration.
-- [ ] No access → `ClusterCount == 0`, empty stream; access resolved exactly once per query (substitute call count).
-- [ ] XML docs on public types; `scripts/check-be.sh` green.
+- [x] Lines arrive in completion order (cluster B completing before A is yielded first).
+- [x] Max in-flight probes never exceeds `MaxClusterConcurrency` (fake counting in-flight, 25 clusters, limit 3).
+- [x] One cluster throwing → that line has `UpstreamError`, others ok, error logged once; no exception escapes.
+- [x] Cancelling the consumer token cancels in-flight probes (fake observes cancellation) and ends enumeration.
+- [x] No access → `ClusterCount == 0`, empty stream; access resolved exactly once per query (substitute call count).
+- [x] XML docs on public types; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-25 backend-engineer: started; exemplar ListAccessibleClusters, ADR-0041 §1/§5.
+- 2026-11-25 backend-engineer: query/handler/FleetStatusStream + `AccessibleClusterDto.From` (switcher uses it too);
+  probe registered in AddApplication. Outside paths (minimal): `tests/.../ServiceProviderBuilder.cs` registers an
+  `IClusterHealthReader` substitute so validate-on-build tests can build the probe. CA1711 suppressed on the contract
+  name `FleetStatusStream`. 7 unit tests; check-be green (with T-0322's uncommitted reader registration in the tree).
 
 ## Review
+- 2026-11-25 backend-architect, round 1: **APPROVE**. Matches ADR-0041 §1/§3/§5 and CP5 contract §2 (one line per
+  accessible cluster, completion order, empty stream on no access, abort cancels probes, access resolved once before
+  streaming). Judged: ServiceProviderBuilder substitute reader is minimal test infra required by validate-on-build — OK;
+  CA1711 suppression type-scoped and justified — OK; non-OCE → UpstreamError + EventId 5310 (unique, ids only) — OK;
+  lazy `ReadAllAsync` with linked CTS, capacity = count, producer awaited in `finally` — correct, tests cover all ACs.
+- Optional: `Fleet/GetFleetStatus/FleetStatusStream.cs:33-38,71-78` — nullable fields + `!` exist only for `Empty`;
+  the handler could build an empty stream with its real deps and keep the fields non-null.
+- Optional: `Fleet/GetFleetStatus/FleetStatusStream.cs:154` — `writer.TryComplete()` hides a producer fault until
+  dispose; `TryComplete(ex)` would surface it at the read (practically unreachable today).
 
 ## Handover notes
+- `GetFleetStatusQuery` → `Result<FleetStatusStream>`; the handler only resolves access (one snapshot load); probing
+  starts in `ReadAllAsync(ct)`. T-0323: check `ClusterCount`, then `await foreach` and write/flush each line.
+- `ReadAllAsync`: bounded channel (capacity = count), `Parallel.ForEachAsync` producer, linked CTS cancelled in
+  `finally` (consumer cancel or early dispose stops all probes; dispose awaits the producer). Caller-token cancellation
+  surfaces as OCE; a probe throwing anything else → `UpstreamError` line stamped `IClock.UtcNow`, log event 5310.
+- No signed-in user id → `FleetStatusStream.Empty` (unreachable behind AuthorizationBehavior).
+- Merge order: the probe registration needs T-0322's `IClusterHealthReader` in Infrastructure DI (present in the tree
+  now, uncommitted) — commit T-0322 with or before this task or Api validate-on-build fails.

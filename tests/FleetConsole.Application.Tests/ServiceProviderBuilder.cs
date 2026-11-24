@@ -65,6 +65,9 @@ internal static class ServiceProviderBuilder
 
             // Port of the connection tests (T-0020); ConnectionTesterTests use their own scripted fake.
             services.AddSingleton(_ => Substitute.For<FleetConsole.Application.Abstractions.Kubernetes.IClusterProbeClient>());
+
+            // Port of the fleet health probe (T-0321 registers ClusterHealthProbe); ClusterHealthProbeTests use their own.
+            services.AddSingleton(_ => Substitute.For<FleetConsole.Application.Abstractions.Kubernetes.IClusterHealthReader>());
         }
 
         if (withApplicationPipeline)

@@ -36,13 +36,7 @@ internal sealed class ListAccessibleClustersHandler(ClusterAccessReader reader, 
             .. accesses
                 .OrderBy(a => a.Environment)
                 .ThenBy(a => a.ClusterName.Value, StringComparer.Ordinal)
-                .Select(a => new AccessibleClusterDto(
-                    a.ClusterName.Value,
-                    a.ClusterDisplayName,
-                    a.Environment,
-                    a.Distribution,
-                    a.Resolution.EffectiveMode,
-                    a.WebConsoleUrl)),
+                .Select(AccessibleClusterDto.From),
         ];
         return Result.Success(clusters);
     }

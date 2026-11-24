@@ -66,11 +66,12 @@ public static class DependencyInjection
         // the proxy and the switcher (PREC-8).
         services.AddScoped<ClusterAccessReader>();
 
-        // Fleet overview (ADR-0041): settings (bound and validated on start by the Api, T-0323) and the probe metric.
-        // ClusterHealthProbe is registered with its consumer (the fleet stream, T-0321) once the Infrastructure
-        // IClusterHealthReader exists (T-0322): registering it earlier would fail the host's validate-on-build.
+        // Fleet overview (ADR-0041): settings (bound and validated on start by the Api, T-0323), the probe metric and
+        // the probe. Scoped and concurrency-safe: the fleet stream (T-0321) shares one instance across its parallel loop;
+        // its IClusterHealthReader comes from Infrastructure (T-0322).
         services.AddOptions<FleetOptions>();
         services.AddSingleton<FleetMetrics>();
+        services.AddScoped<IClusterHealthProbe, ClusterHealthProbe>();
 
         // Proxy policies (ADR-0019 §7) run in registration order, first refusal wins. The order is contract (CP2 §4):
         // user read-only before read-only grant (both in MutationGuardPolicy), then 413 last, so a read-only user
