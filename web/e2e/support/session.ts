@@ -1,13 +1,19 @@
 import { type APIRequestContext, type APIResponse, type Page } from '@playwright/test';
 
 /** DevOAuth picker users (src/FleetConsole.DevOAuth/appsettings.json) the smoke uses. */
-export type DevUser = 'admin' | 'alice' | 'bob' | 'e2e-user' | 'e2e-admin';
+export type DevUser = 'admin' | 'alice' | 'bob' | 'e2e-user' | 'e2e-admin' | 'e2e-member';
 
 /**
  * DevOAuth users reserved for the smoke and kept grantless for H4 (`e2e-user` plain, `e2e-admin` in the admin
  * group). Setup only ever revokes grants of these two, never of the shared demo users (`bob`, `admin`, …).
  */
 export const GRANTLESS_USERS = ['e2e-user', 'e2e-admin'] as const;
+
+/**
+ * DevOAuth users whose direct grants setup may revoke: the grantless pair plus `e2e-member` (group `e2e-team`), which
+ * QG-2 (`groups.e2e.ts`) needs without a direct grant so its access comes from the group grant only.
+ */
+export const RESERVED_USERS = [...GRANTLESS_USERS, 'e2e-member'] as const;
 
 /**
  * Completes the OpenShift login through the DevOAuth emulator from FleetConsole's login page: clicks

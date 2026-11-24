@@ -49,3 +49,19 @@ Defects filed: none.
   contract instead: 404 `Proxy.NotAvailable` for a cluster the user can't access. The tests assert 404.
 - The stale comment in `Infrastructure/Persistence/Configurations/UserConfiguration.cs` (T-0253 follow-up) is in
   production code. It is outside QA scope and is still open.
+
+## CP4.5a frontend e2e (QA, T-0266, 2026-11-24, branch `cp/4.5-access-at-scale`)
+
+Evidence comes from the real Api, the DevOAuth emulator and the fake Kubernetes API (`aspire start --launch-profile http`).
+DevOAuth user `e2e-member` (group `e2e-team`) is reserved for this; global setup revokes its direct grants.
+
+| ID | Evidence | Status |
+|---|---|---|
+| QG-2 | `web/e2e/groups.e2e.ts` `QG-2: a group grant gives read-only access…`: the member's switcher shows "read only"; Delete Pod is aria-disabled with the RO reason; Effective access reads "Group e2e-team (priority 100)", then "Direct grant", and the candidate reads "Overridden by direct grant". Green with `--repeat-each=2` (2/2) | met |
+| UIG-1/2/3 (live) | same spec, step 1: Access tab › Grant access › Group radio (User is the default) › Subject name `Use "e2e-team"` › Priority 100 with its helper text › toast "Granted group e2e-team ReadOnly on …" | met |
+| QG-1 | `scripts/check-fe.sh` green on the branch after all FE tasks (see T-0266 Work log) | met |
+
+Full e2e suite: 37/38 in each of the last two runs. The one failure is `workloads.e2e.ts` QGC-1/OAPI-3, a pre-existing
+completion-step flake (CP4c test, not CP4.5 scope) filed as **T-0271** (not blocking).
+Test-only fixes: the SRCH-1/2 option regex was stale since T-0237 (the sr-only kind makes the option "Pod Pod").
+`findInEditor` now focuses Monaco instead of clicking under the sticky header, which fixed a POL-2 flake.

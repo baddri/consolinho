@@ -60,7 +60,8 @@ const NEW_IMAGE = 'registry.example.com/web:3';
  * The widget stays open; Escape closes it and leaves the match selected.
  */
 async function findInEditor(page: Page, text: string) {
-  await page.locator('.monaco-editor .view-lines').click();
+  // Focus, not click: a click on the (scrolled) lines can land under the code editor's sticky header controls.
+  await page.getByRole('textbox', { name: 'YAML editor' }).focus();
   await page.keyboard.press('Control+Home');
   await page.keyboard.press('Control+f');
   const widget = page.locator('.find-widget');
@@ -369,8 +370,9 @@ test.describe('read-write user: CP4b workloads and carried CP4a flows', () => {
     const kinds = page.getByRole('combobox', { name: 'Resources' });
     for (const [typed, option] of [
       ['deploy', /Deployment$/],
-      ['pod', /^Pod$/],
-      ['service', /^Service$/],
+      // T-0237: the KindBadge's screen-reader kind precedes the label, so an option reads "Pod Pod" (as in OCP).
+      ['pod', /^(Pod )?Pod$/],
+      ['service', /^(Service )?Service$/],
     ] as const) {
       await kinds.click();
       await kinds.fill(typed);
