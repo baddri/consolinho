@@ -102,3 +102,20 @@
 .containerName {
   font-weight: var(--pf-t--global--font--weight--body--bold);
 }
+
+/* OCP .pairs-list__value-pair-field: a ref's selects (or read-only inputs) stack in the value column. */
+.valueFrom {
+  display: flex;
+  flex-direction: column;
+}
+
+/* OCP .value-from--key: the key select sits 5px below the resource select. */
+.valueFromKey {
+  padding-top: 5px;
+}
+
+/* OCP .pairs-list__value-ro-field. */
+.readOnlyValue {
+  flex-grow: 1;
+  padding-top: 5px;
+}

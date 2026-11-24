@@ -1,8 +1,12 @@
 import { Alert, AlertActionCloseButton, FormGroup, FormSection, TextInput } from '@patternfly/react-core';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useWatch, type UseFormSetValue } from 'react-hook-form';
 import { AdvancedSection } from './AdvancedSection';
+import type { ContainerChoice } from './ContainerField';
 import type { DeploymentSectionProps } from './DeploymentFormSection';
+import type { DeploymentFormValues } from './deploymentFormSchema';
 import { DeploymentStrategySection } from './DeploymentStrategySection';
+import { EnvironmentSection } from './EnvironmentSection';
 import { ImagesSection } from './ImagesSection';
 import styles from './EditDeployment.module.css';
 
@@ -10,15 +14,29 @@ import styles from './EditDeployment.module.css';
 export interface DeploymentFormEditorProps extends DeploymentSectionProps {
   /** The Deployment's name, shown read-only (OCP `NameSection` disables it when editing). */
   name: string;
+  /** The cluster and namespace whose ConfigMaps/Secrets the environment section offers. */
+  cluster: string;
+  namespace: string | undefined;
+  /** Lets the environment section clear a ref's key without validating it. */
+  setValue: UseFormSetValue<DeploymentFormValues>;
 }
 
 /**
  * The form view of Edit Deployment (OCP `DeploymentFormEditor`): the dismissible "Some fields might not be displayed"
- * hint, the read-only Name, then the sections in OCP's order: Deployment strategy, Images, (Environment
- * variables, T-0216,) Advanced options.
+ * hint, the read-only Name, then the sections in OCP's order: Deployment strategy, Images, Environment Variables,
+ * Advanced options. Images and Environment Variables edit the same container, picked in either section.
  */
-export function DeploymentFormEditor({ control, name }: DeploymentFormEditorProps) {
+export function DeploymentFormEditor({ control, name, cluster, namespace, setValue }: DeploymentFormEditorProps) {
   const [showYamlHint, setShowYamlHint] = useState(true);
+  const [containerIndex, setContainerIndex] = useState(0);
+  const containers = useWatch({ control, name: 'containers' });
+  const names = useMemo(() => containers.map((container) => container.name), [containers]);
+  const container: ContainerChoice = {
+    names,
+    // The YAML view can remove containers; never point past the end.
+    index: Math.min(containerIndex, Math.max(names.length - 1, 0)),
+    onChange: setContainerIndex,
+  };
   return (
     <>
       {showYamlHint && (
@@ -35,7 +53,8 @@ export function DeploymentFormEditor({ control, name }: DeploymentFormEditorProp
         </FormGroup>
       </FormSection>
       <DeploymentStrategySection control={control} />
-      <ImagesSection control={control} />
+      <ImagesSection control={control} container={container} />
+      <EnvironmentSection control={control} cluster={cluster} namespace={namespace} container={container} setValue={setValue} />
       <AdvancedSection control={control} />
     </>
   );

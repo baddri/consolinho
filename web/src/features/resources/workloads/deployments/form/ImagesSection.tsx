@@ -1,45 +1,26 @@
-import { FormGroup } from '@patternfly/react-core';
-import { useState } from 'react';
-import { useWatch } from 'react-hook-form';
 import { TextField } from '@/shared/forms';
-import { KindBadge } from '@/shared/ui';
+import { ContainerField, type ContainerChoice } from './ContainerField';
 import { DeploymentFormSection, type DeploymentSectionProps } from './DeploymentFormSection';
-import { DropdownField } from './DropdownField';
-import styles from './EditDeployment.module.css';
+
+/** Props for {@link ImagesSection}. */
+export interface ImagesSectionProps extends DeploymentSectionProps {
+  container: ContainerChoice;
+}
 
 /**
  * "Images" (OCP `ImagesSection` + `ContainerField` + `ContainerImageField`): the container being edited, then its
- * required "Image Name". OCP edits only the first container and names it ("Container: [C] web"); with more than one
- * container a "Container" dropdown picks which one, and each keeps its own value (keyed by name). OCP's image stream
- * tag option and auto-deploy triggers are left out (no ImageStream pages yet).
+ * required "Image Name". Each container keeps its own value (written back by name). OCP's image stream tag option
+ * and auto-deploy triggers are left out (no ImageStream pages yet).
  */
-export function ImagesSection({ control }: DeploymentSectionProps) {
-  const images = useWatch({ control, name: 'images' });
-  const [selected, setSelected] = useState(0);
-  const index = selected < images.length ? selected : 0;
-  if (images.length === 0) return null;
-  const options = images.map(({ name }, position) => ({ value: String(position), label: name }));
+export function ImagesSection({ control, container }: ImagesSectionProps) {
+  if (container.names.length === 0) return null;
   return (
     <DeploymentFormSection title="Images">
-      {images.length > 1 ? (
-        <DropdownField
-          id="deployment-container"
-          label="Container"
-          value={String(index)}
-          options={options}
-          onChange={(value) => setSelected(Number(value))}
-        />
-      ) : (
-        <FormGroup fieldId="container-name">
-          <span className={styles.containerName}>
-            Container: <KindBadge kind="Container" /> {images[0]?.name}
-          </span>
-        </FormGroup>
-      )}
+      <ContainerField id="images-container" {...container} />
       <TextField
-        key={index}
+        key={container.index}
         control={control}
-        name={`images.${index}.image`}
+        name={`containers.${container.index}.image`}
         label="Image Name"
         helperText="Container image name"
         isRequired

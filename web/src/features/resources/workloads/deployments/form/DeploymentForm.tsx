@@ -1,10 +1,11 @@
 import { ActionGroup, Alert, Button, Flex, FlexItem, PageSection, Title } from '@patternfly/react-core';
 import { RhUiDownloadIcon } from '@patternfly/react-icons';
 import { css } from '@patternfly/react-styles';
+import { useMemo } from 'react';
 import { Navigate, useNavigate } from 'react-router';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import { useFullscreen } from '@/shared/hooks';
-import { DeploymentModel } from '@/shared/k8s';
+import { DeploymentModel, useOpenApiSchema } from '@/shared/k8s';
 import { EnvironmentLabel, FlexForm, FormFooter } from '@/shared/ui';
 import { useResourceAccess } from '../../../actions/useResourceAccess';
 import { resourcePath } from '../../../paths';
@@ -46,6 +47,16 @@ export function DeploymentForm({ cluster, live }: DeploymentFormProps) {
   const navigate = useNavigate();
   const { ref: fullscreenRef, ...fullscreen } = useFullscreen();
   const detailsPath = resourcePath(cluster, DeploymentModel, { namespace, name });
+  const jsonSchema = useOpenApiSchema(cluster, DeploymentModel)?.jsonSchema;
+  // Same uri as the YAML tab, memoised so monaco-yaml's worker gets the schema only when it changes (ADR-0038 §6).
+  const schema = useMemo(
+    () =>
+      jsonSchema && {
+        uri: `fleetconsole://schema/${cluster}/${DeploymentModel.group || 'core'}/${DeploymentModel.version}/${DeploymentModel.kind}`,
+        schema: jsonSchema,
+      },
+    [cluster, jsonSchema],
+  );
 
   if (editor.saved !== null) return <Navigate to={detailsPath} />;
 
@@ -75,7 +86,13 @@ export function DeploymentForm({ cluster, live }: DeploymentFormProps) {
           </Alert>
         )}
         {editor.view === 'form' ? (
-          <DeploymentFormEditor control={editor.form.control} name={name} />
+          <DeploymentFormEditor
+            control={editor.form.control}
+            name={name}
+            cluster={cluster}
+            namespace={namespace}
+            setValue={editor.form.setValue}
+          />
         ) : (
           <div
             ref={fullscreenRef}
@@ -86,6 +103,7 @@ export function DeploymentForm({ cluster, live }: DeploymentFormProps) {
               onChange={editor.setYamlText}
               isReadOnly={!isEditable || editor.isSaving}
               fullscreen={fullscreen}
+              schema={schema}
             />
           </div>
         )}

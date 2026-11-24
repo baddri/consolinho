@@ -1,12 +1,13 @@
 import type { Deployment, K8sResource } from '@/shared/k8s';
 import { DEFAULT_BOUND, toDeploymentStrategy, type DeploymentStrategy } from '../deploymentStrategy';
-import type { DeploymentFormValues } from './deploymentFormSchema';
+import type { DeploymentFormValues, EnvRow, EnvVar } from './deploymentFormSchema';
 
 /** A Deployment as the proxy returns it (`apiVersion`, `kind` and `metadata` always set). */
 export type DeploymentObject = Deployment & K8sResource;
 
 type DeploymentSpec = NonNullable<Deployment['spec']>;
 type Containers = NonNullable<DeploymentSpec['template']['spec']>['containers'];
+type Container = Containers[number];
 
 /** `spec.replicas` when unset, as the API server defaults it. */
 const DEFAULT_REPLICAS = 1;
@@ -22,15 +23,70 @@ function strategyValues(strategy: DeploymentStrategy | undefined): StrategyValue
   };
 }
 
+/** The editor's empty row: OCP's `NameValueEditor` always shows at least one. */
+export const blankValueRow = (): Extract<EnvRow, { type: 'value' }> => ({
+  type: 'value',
+  name: '',
+  value: '',
+});
+/** The row "Add from ConfigMap or Secret" adds. */
+export const blankRefRow = (): Extract<EnvRow, { type: 'ref' }> => ({
+  type: 'ref',
+  name: '',
+  refKind: '',
+  refName: '',
+  key: '',
+});
+
+/** One `env` entry as an editor row; refs other than ConfigMap/Secret keys are read-only (OCP `ValueFromPair`). */
+function toEnvRow(entry: EnvVar): EnvRow {
+  const { name, value, valueFrom } = entry;
+  if (valueFrom === undefined) return { type: 'value', name, value: value ?? '', source: entry };
+  const ref = valueFrom.configMapKeyRef ?? valueFrom.secretKeyRef;
+  if (ref === undefined) return { type: 'fixed', name, source: entry };
+  const refKind = valueFrom.configMapKeyRef ? 'ConfigMap' : 'Secret';
+  return { type: 'ref', name, refKind, refName: ref.name ?? '', key: ref.key, source: entry };
+}
+
+/** A container's `env` as editor rows, or the one empty row when it has none. */
+const toEnvRows = (env: EnvVar[] | undefined): EnvRow[] =>
+  env && env.length > 0 ? env.map(toEnvRow) : [blankValueRow()];
+
+/**
+ * The `env` entry a row writes, or `undefined` for a blank row (dropped, as OCP's `EnvironmentField`). A row still
+ * equal to the entry it was read from returns (its copy of) that entry, so unknown fields (`optional`) and key order
+ * survive.
+ */
+function toEnvVar(row: EnvRow): EnvVar | undefined {
+  const name = row.name.trim();
+  const { source } = row;
+  if (row.type === 'fixed') return row.source.name === name ? row.source : { ...row.source, name };
+  if (row.type === 'value') {
+    if (name === '' && row.value === '') return undefined;
+    if (source && !source.valueFrom && source.name === name && (source.value ?? '') === row.value)
+      return source;
+    return row.value === '' ? { name } : { name, value: row.value };
+  }
+  if (name === '' && row.refName === '' && row.key === '') return undefined;
+  const refKey = row.refKind === 'Secret' ? 'secretKeyRef' : 'configMapKeyRef';
+  const previous = source?.valueFrom?.[refKey];
+  if (source?.name === name && previous?.name === row.refName && previous.key === row.key) return source;
+  return { name, valueFrom: { [refKey]: { ...previous, name: row.refName, key: row.key } } };
+}
+
 /**
  * The form values of `deployment` (OCP `convertDeploymentToEditForm`): unset fields show what the API server
- * applies (Rolling Update with 25% bounds, `paused` false, one replica). Images are listed per container by name.
+ * applies (Rolling Update with 25% bounds, `paused` false, one replica). Image and `env` are listed per container.
  */
 export function toFormValues(deployment: DeploymentObject): DeploymentFormValues {
   const { spec } = deployment;
   return {
     ...strategyValues(spec?.strategy),
-    images: (spec?.template.spec?.containers ?? []).map(({ name, image }) => ({ name, image: image ?? '' })),
+    containers: (spec?.template.spec?.containers ?? []).map(({ name, image, env }) => ({
+      name,
+      image: image ?? '',
+      env: toEnvRows(env),
+    })),
     paused: spec?.paused ?? false,
     replicas: spec?.replicas ?? DEFAULT_REPLICAS,
   };
@@ -55,12 +111,36 @@ function applyStrategy(strategy: DeploymentStrategy | undefined, values: Strateg
   return { ...strategy, ...next, rollingUpdate: { ...strategy?.rollingUpdate, ...next.rollingUpdate } };
 }
 
-/** `containers` with the changed images written in, matched by container name; other fields are untouched. */
-function applyImages(containers: Containers, images: DeploymentFormValues['images']): Containers {
-  const byName = new Map(images.map(({ name, image }) => [name, image.trim()]));
+/**
+ * Whether two `env` entries are equal by value. Rows hold a copy of their source entry (react-hook-form clones form
+ * values), so identity can't tell; entries are small JSON, and an unchanged row writes its source's keys in order.
+ */
+const sameEntry = (a: EnvVar, b: EnvVar | undefined) => JSON.stringify(a) === JSON.stringify(b);
+
+/** `container.env` with the rows written in; the same container object when every entry is unchanged by value. */
+function applyEnv(container: Container, rows: EnvRow[]): Container {
+  const original = container.env ?? [];
+  const env = rows.map(toEnvVar).filter((entry) => entry !== undefined);
+  if (env.length === original.length && env.every((entry, index) => sameEntry(entry, original[index])))
+    return container;
+  if (env.length > 0) return { ...container, env };
+  const next = { ...container };
+  delete next.env;
+  return next;
+}
+
+/**
+ * `containers` with the changed image and `env` written in, matched by container name; other fields (`envFrom`
+ * included) are untouched, and an unchanged container stays the same object.
+ */
+function applyContainers(containers: Containers, values: DeploymentFormValues['containers']): Containers {
+  const byName = new Map(values.map((value) => [value.name, value]));
   return containers.map((container) => {
-    const image = byName.get(container.name);
-    return image === undefined || image === container.image ? container : { ...container, image };
+    const value = byName.get(container.name);
+    if (value === undefined) return container;
+    const image = value.image.trim();
+    const imaged = image === container.image ? container : { ...container, image };
+    return applyEnv(imaged, value.env);
   });
 }
 
@@ -88,7 +168,7 @@ export function applyFormValues(
   }
   const podSpec = spec.template.spec;
   if (podSpec !== undefined) {
-    const containers = applyImages(podSpec.containers, values.images);
+    const containers = applyContainers(podSpec.containers, values.containers);
     if (containers.some((container, index) => container !== podSpec.containers[index])) {
       changes.template = { ...spec.template, spec: { ...podSpec, containers } };
     }

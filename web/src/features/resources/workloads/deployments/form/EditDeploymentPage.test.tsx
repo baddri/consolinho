@@ -8,7 +8,14 @@ import { mockK8s, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { resourceRoutes } from '../../../routes';
-import { applyFormValues, toFormValues, type DeploymentObject } from './deploymentFormValues';
+import type { EnvRow } from './deploymentFormSchema';
+import {
+  applyFormValues,
+  blankRefRow,
+  blankValueRow,
+  toFormValues,
+  type DeploymentObject,
+} from './deploymentFormValues';
 
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 const DETAILS = '/c/dev-1/k8s/ns/shop/deployments/web';
@@ -85,6 +92,34 @@ function withSidecar(deployment: DeploymentObject): DeploymentObject {
   };
 }
 
+/** `value`, failing the test when a query found nothing. */
+function defined<T>(value: T | null | undefined): T {
+  if (value === null || value === undefined) throw new Error('expected an element');
+  return value;
+}
+
+const POD_IP = { name: 'POD_IP', valueFrom: { fieldRef: { fieldPath: 'status.podIP' } } };
+const ENV_FROM = [{ configMapRef: { name: 'web-config' } }];
+
+/** The fixture with env (two values and a fieldRef) and `envFrom` on its first container. */
+function withEnv(deployment: DeploymentObject): DeploymentObject {
+  const { spec } = deployment;
+  if (!spec?.template.spec) throw new Error('fixture has no pod template');
+  const [first, ...rest] = spec.template.spec.containers;
+  if (!first) throw new Error('fixture has no container');
+  const env = [{ name: 'MODE', value: 'prod' }, { name: 'OLD', value: 'x' }, POD_IP];
+  return {
+    ...deployment,
+    spec: {
+      ...spec,
+      template: {
+        ...spec.template,
+        spec: { ...spec.template.spec, containers: [{ ...first, env, envFrom: ENV_FROM }, ...rest] },
+      },
+    },
+  };
+}
+
 /** Picks `option` from the PF Select whose toggle is labelled `label`. */
 async function pick(user: UserEvent, label: string, option: string): Promise<void> {
   await user.click(screen.getByRole('button', { name: label }));
@@ -120,12 +155,48 @@ describe('deploymentFormValues', () => {
     expect(recreate.spec?.template).toBe(d.spec?.template);
   });
 
+  it('round-trips env with refs unchanged, keeping the same container object', () => {
+    const d = withEnv(stored());
+    const container = d.spec?.template.spec?.containers[0];
+    const next = applyFormValues(d, toFormValues(d));
+    expect(next).toEqual(d);
+    expect(next.spec?.template.spec?.containers[0]).toBe(container);
+  });
+
+  it('writes env rows: blank rows dropped, empty values kept by name, refs and fieldRefs mapped, envFrom kept', () => {
+    const d = withEnv(stored());
+    const values = toFormValues(d);
+    const [first] = values.containers;
+    if (!first) throw new Error('no container');
+    const [mode, , podIp] = first.env;
+    if (!mode || !podIp) throw new Error('rows missing');
+    const env: EnvRow[] = [
+      { type: 'value', name: 'MODE', value: '', source: mode.source },
+      { ...podIp, name: 'MY_IP' },
+      blankValueRow(),
+      { ...blankRefRow(), name: 'USER', refKind: 'Secret', refName: 'db-credentials', key: 'username' },
+      blankRefRow(),
+    ];
+    const next = applyFormValues(d, { ...values, containers: [{ ...first, env }] });
+    expect(next.spec?.template.spec?.containers[0]).toMatchObject({
+      env: [
+        { name: 'MODE' },
+        { ...POD_IP, name: 'MY_IP' },
+        { name: 'USER', valueFrom: { secretKeyRef: { name: 'db-credentials', key: 'username' } } },
+      ],
+      envFrom: ENV_FROM,
+    });
+    const cleared = applyFormValues(d, { ...values, containers: [{ ...first, env: [blankValueRow()] }] });
+    expect(cleared.spec?.template.spec?.containers[0]).not.toHaveProperty('env');
+    expect(cleared.spec?.template.spec?.containers[0]?.envFrom).toEqual(ENV_FROM);
+  });
+
   it("writes one container's image by name; the others stay the same objects", () => {
     const d = withSidecar(stored());
     const [web, sidecar] = d.spec?.template.spec?.containers ?? [];
     const next = applyFormValues(d, {
       ...toFormValues(d),
-      images: [{ name: 'sidecar', image: 'quay.io/example/proxy:2' }],
+      containers: [{ name: 'sidecar', image: 'quay.io/example/proxy:2', env: [blankValueRow()] }],
     });
     const containers = next.spec?.template.spec?.containers;
     expect(containers?.[0]).toBe(web);
@@ -146,7 +217,11 @@ describe('EditDeploymentPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Form view' })).toBeChecked();
     await first.user.click(screen.getByRole('radio', { name: 'YAML view' }));
-    expect(await screen.findByRole('textbox', { name: 'YAML editor' })).toBeInTheDocument();
+    const editor = await screen.findByRole('textbox', { name: 'YAML editor' });
+    // The editor double exposes the handed-over schema URI: the cluster's Deployment schema, as the YAML tab.
+    await waitFor(() =>
+      expect(editor).toHaveAttribute('data-schema-uri', 'fleetconsole://schema/dev-1/apps/v1/Deployment'),
+    );
     first.unmount();
 
     renderApp(FORM);
@@ -327,7 +402,9 @@ describe('EditDeploymentPage', () => {
       expect(screen.getByRole('textbox', { name: /Image Name/ })).toHaveValue(
         'quay.io/example/web:1.5.0-rc.1',
       );
-      await pick(user, 'Container', 'sidecar');
+      // Images and Environment Variables share the container choice; pick it in Images.
+      await user.click(defined(screen.getAllByRole('button', { name: 'Container' })[0]));
+      await user.click(await screen.findByRole('option', { name: 'sidecar' }));
       const image = screen.getByRole('textbox', { name: /Image Name/ });
       expect(image).toHaveValue('quay.io/example/proxy:1');
       await user.clear(image);
@@ -385,6 +462,89 @@ describe('EditDeploymentPage', () => {
       // The bounds don't apply to Recreate, so they stop blocking Save.
       await pick(user, 'Strategy type', 'Recreate');
       await waitFor(() => expect(save).toBeEnabled());
+    },
+  );
+
+  it(
+    'FORM-ENV: edit, remove and add values and ConfigMap/Secret keys; fieldRef and envFrom survive; no Secret values',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      mockK8s.upsert('dev-1', withEnv(stored()));
+      const before = stored();
+      const puts = recordPuts();
+      const { user, router } = renderApp(FORM);
+      const heading = await screen.findByRole(
+        'heading',
+        { name: 'Environment Variables' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      const section = within(defined(heading.closest('section')));
+      const names = () => section.getAllByRole<HTMLInputElement>('textbox', { name: 'Name' });
+      const values = () => section.getAllByRole<HTMLInputElement>('textbox', { name: 'Value' });
+      await waitFor(() => expect(names()[0]).toBeEnabled());
+      expect(names().map((input) => input.value)).toEqual(['MODE', 'OLD', 'POD_IP']);
+      expect(section.getByRole('textbox', { name: 'Value source' })).toHaveValue('FieldRef');
+      expect(values()[2]).toHaveValue('status.podIP');
+      expect(values()[2]).toBeDisabled();
+
+      await user.clear(defined(values()[0]));
+      await user.type(defined(values()[0]), 'staging');
+      await user.click(defined(section.getAllByRole('button', { name: 'Delete' })[1]));
+      expect(names().map((input) => input.value)).toEqual(['MODE', 'POD_IP']);
+
+      await user.click(section.getByRole('button', { name: 'Add value' }));
+      await user.type(defined(names().at(-1)), 'FEATURE');
+      await user.type(defined(values().at(-1)), 'on');
+
+      const addRef = section.getByRole('button', { name: 'Add from ConfigMap or Secret' });
+      await user.click(addRef);
+      await user.type(defined(names().at(-1)), 'LOG_LEVEL');
+      expect(section.getByRole('button', { name: 'Select a key' })).toBeDisabled();
+      await user.click(section.getByRole('button', { name: 'Select a resource' }));
+      await user.click(await screen.findByRole('option', { name: 'web-config' }));
+      // The cleared key isn't validated yet: only the toggle says "Select a key", no error.
+      expect(section.getAllByText('Select a key')).toHaveLength(1);
+      await user.click(section.getByRole('button', { name: 'Select a key' }));
+      await user.click(await screen.findByRole('option', { name: 'LOG_LEVEL' }));
+
+      await user.click(addRef);
+      await user.type(defined(names().at(-1)), 'DB_PASSWORD');
+      await user.click(section.getByRole('button', { name: 'Select a resource' }));
+      await user.type(screen.getByRole('textbox', { name: 'ConfigMap or Secret' }), 'db');
+      expect(screen.queryByRole('option', { name: 'web-config' })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole('option', { name: 'db-credentials' }));
+      await user.click(section.getByRole('button', { name: 'Select a key' }));
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
+        'password',
+        'username',
+      ]);
+      await user.click(screen.getByRole('option', { name: 'password' }));
+      // Only key names: the Secret's values are never shown nor put in the form.
+      expect(screen.queryByText(/fake-password-not-real/)).not.toBeInTheDocument();
+
+      const [web, ...others] = before.spec?.template.spec?.containers ?? [];
+      const expected = {
+        ...web,
+        env: [
+          { name: 'MODE', value: 'staging' },
+          POD_IP,
+          { name: 'FEATURE', value: 'on' },
+          { name: 'LOG_LEVEL', valueFrom: { configMapKeyRef: { name: 'web-config', key: 'LOG_LEVEL' } } },
+          { name: 'DB_PASSWORD', valueFrom: { secretKeyRef: { name: 'db-credentials', key: 'password' } } },
+        ],
+        envFrom: ENV_FROM,
+      };
+      await user.click(screen.getByRole('radio', { name: 'YAML view' }));
+      expect(editorText()).not.toMatch(/fake-password-not-real|ZmFrZS1wYXNzd29yZC1ub3QtcmVhbA/);
+      expect((parse(editorText()) as DeploymentObject).spec?.template.spec?.containers).toEqual([
+        expected,
+        ...others,
+      ]);
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+
+      await waitFor(() => expect(router.state.location.pathname).toBe(DETAILS));
+      expect(puts).toHaveLength(1);
+      expect(puts[0]?.spec?.template.spec?.containers).toEqual([expected, ...others]);
     },
   );
 });
