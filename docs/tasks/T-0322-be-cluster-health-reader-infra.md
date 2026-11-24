@@ -1,7 +1,7 @@
 ---
 id: T-0322
 title: Fleet adapter — Infrastructure ClusterHealthReader over the forwarding pool (Table reads, 4 MiB cap, failure classification)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 5c
 depends_on: [T-0320]
@@ -55,16 +55,43 @@ classified failures. Nothing raw (body, message, header) leaves the adapter.
   (no Infrastructure test project) — see `tests/FleetConsole.Api.Tests/Kubernetes/` for the pattern.
 
 ## Acceptance criteria
-- [ ] OpenShift: CV + CO Table + nodes Table parsed into the expected counts/versions (incl. updating, failing,
+- [x] OpenShift: CV + CO Table + nodes Table parsed into the expected counts/versions (incl. updating, failing,
       SchedulingDisabled, NotReady, Unknown); requests carry the Table `Accept` + `includeObject=None` + bearer token.
-- [ ] Kubernetes: only `/version` + nodes requested (recorded requests asserted); no CV/CO calls.
-- [ ] 401 → Unauthorized; 403/404 per section; 500 → UnexpectedStatus; HTML 200, missing column, > 4 MiB → InvalidResponse;
+- [x] Kubernetes: only `/version` + nodes requested (recorded requests asserted); no CV/CO calls.
+- [x] 401 → Unauthorized; 403/404 per section; 500 → UnexpectedStatus; HTML 200, missing column, > 4 MiB → InvalidResponse;
       closed port → ConnectionRefused; self-signed cert without CA → Tls*.
-- [ ] Classifier extracted; existing connection-test tests unchanged and green.
-- [ ] Caller cancellation propagates as OCE; XML docs; `scripts/check-be.sh` green.
+- [x] Classifier extracted; existing connection-test tests unchanged and green.
+- [x] Caller cancellation propagates as OCE; XML docs; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-25 backend-engineer: started; reader over pool invoker, classifier extraction from ClusterProbeSession.
+
+- 2026-11-25 backend-engineer: done. `Health/ClusterHealthReader` + `HealthResponseParser` (JsonDocument, 4 MiB bounded read,
+  Content-Length pre-check), `ProbeFailureClassifier` extracted (session messages/kinds unchanged), DI singleton, fake
+  Table helpers, 21 tests. Deviation: TLS via the pool is always `TlsOther` (shared handler's TLS record can't be attributed
+  to one request; `IClusterForwardingClients` doesn't expose it). `check-be.sh` green (1023/882/431).
 
 ## Review
+- 2026-11-25 backend-architect, round 1: **APPROVE**. All ACs met; check-be.sh not re-run (engineer's green run, concurrent BE build).
+  Deviations accepted: (a) pooled TLS → `TlsOther` — contract §2 collapses all Tls* into one `tlsError`, so no
+  information is lost on the wire; (b) `MapNodesTable(params string[])` — simpler than a 1-tuple; (c) failure logs
+  without the exception object — correct per FBE-6/SECURITY (JsonException/HRE messages can quote body/URL).
+  Classifier extraction is behaviour-preserving (same messages/kinds, session passes its exclusive TLS record).
+  Optional nits (no re-review needed):
+  - Health/ClusterHealthReader.cs:StartProbe/Box/Result — `Task<object>` dictionary + casts is indirect; four typed
+    `Task<ProbeResponse<T>>?` locals started from `probes` would drop the boxing. Taste-level, leave if T-0321 is in flight.
+  - Fakes/FakeKubeApiServer.cs:MapClusterVersion — default now serialises `availableUpdates: null` for existing callers
+    (realistic for OpenShift; harmless, noted for anyone asserting raw JSON).
 
 ## Handover notes
+- Reader: `src/FleetConsole.Infrastructure/Kubernetes/Health/ClusterHealthReader.cs` (registered singleton next to the pool in
+  Infrastructure DI) — T-0321 can now register `ClusterHealthProbe`.
+- Probes dispatch on `FleetProbePaths.For(distribution)` paths; an unknown path throws (add a parser when adding a probe).
+- Table `Accept` is sent verbatim via `TryAddWithoutValidation` (typed header inserts spaces after `;`).
+- No invoker (bad CA bundle) → every probe `InvalidResponse` with a fixed message + one Warning (EventId 3700); per-probe
+  Debug log 3701 carries cluster id/probe name/kind only — exceptions deliberately not logged (could quote body/URL).
+- Connect-level OCE not from the caller's token → `Timeout`; IOException mid-body / JsonException → `InvalidResponse`.
+- TLS failures are `TlsOther` (see Work log); precise reason stays in the connection test.
+- Fake: `MapNodesTable(params string[] statuses)` (simpler than the 1-tuple in the brief), `MapClusterOperatorsTable`,
+  static `Table(columns, rows)`, `NodesPath`/`ClusterOperatorsPath`; `MapClusterVersion` gained optional
+  `failing`/`history`/`availableUpdates`.

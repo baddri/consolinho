@@ -1,8 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Net.Sockets;
-using System.Security.Authentication;
 using System.Text.Json;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
@@ -226,7 +224,7 @@ internal sealed partial class ClusterProbeSession : IClusterProbeSession
         {
             // Not the caller's token, so it is HttpClient.Timeout.
             exception = caught;
-            failure = new ProbeFailure(ProbeFailureKind.Timeout, $"The API server at {_host} did not answer in time.");
+            failure = ProbeFailureClassifier.Timeout(_host);
         }
         catch (HttpRequestException caught)
         {
@@ -245,80 +243,13 @@ internal sealed partial class ClusterProbeSession : IClusterProbeSession
         return ProbeResponse<TResult>.Fail(failure);
     }
 
-    private ProbeFailure FromStatus(HttpStatusCode statusCode) => statusCode switch
-    {
-        HttpStatusCode.Unauthorized => new ProbeFailure(ProbeFailureKind.Unauthorized,
-            "The API server rejected the token (401 Unauthorized). It may be expired, revoked or for another cluster."),
-        HttpStatusCode.Forbidden => new ProbeFailure(ProbeFailureKind.Forbidden,
-            "The token is not allowed to make this request (403 Forbidden)."),
-        HttpStatusCode.NotFound => new ProbeFailure(ProbeFailureKind.NotFound,
-            "The API server does not serve this endpoint (404 Not Found)."),
-        _ => new ProbeFailure(ProbeFailureKind.UnexpectedStatus,
-            $"The API server at {_host} answered with HTTP {(int)statusCode}."),
-    };
+    private ProbeFailure FromStatus(HttpStatusCode statusCode) => ProbeFailureClassifier.FromStatus(statusCode, _host);
 
-    private ProbeFailure FromHttpRequestException(HttpRequestException exception)
-    {
-        var socketError = FindInner<SocketException>(exception)?.SocketErrorCode;
+    // The session owns its handler exclusively, so its TLS record identifies this handshake's rejection reason.
+    private ProbeFailure FromHttpRequestException(HttpRequestException exception) =>
+        ProbeFailureClassifier.FromHttpRequestException(exception, _host, _tlsHandler?.Tls);
 
-        if (exception.HttpRequestError == HttpRequestError.NameResolutionError ||
-            socketError is SocketError.HostNotFound or SocketError.TryAgain or SocketError.NoData)
-        {
-            return new ProbeFailure(ProbeFailureKind.DnsFailure,
-                $"The host name {_host} could not be resolved. Check the API URL and DNS from the console.");
-        }
-
-        if (exception.HttpRequestError == HttpRequestError.SecureConnectionError || FindInner<AuthenticationException>(exception) is not null)
-        {
-            return (_tlsHandler?.Tls.Classify() ?? ProbeFailureKind.TlsOther) switch
-            {
-                ProbeFailureKind.TlsUnknownAuthority => new ProbeFailure(ProbeFailureKind.TlsUnknownAuthority,
-                    $"The certificate of {_host} is not signed by a trusted certificate authority. Provide the cluster's CA bundle."),
-                ProbeFailureKind.TlsCertificateExpired => new ProbeFailure(ProbeFailureKind.TlsCertificateExpired,
-                    $"The certificate of {_host} has expired or is not yet valid."),
-                ProbeFailureKind.TlsHostnameMismatch => new ProbeFailure(ProbeFailureKind.TlsHostnameMismatch,
-                    $"The certificate presented by the API server is not issued for {_host}."),
-                _ => new ProbeFailure(ProbeFailureKind.TlsOther, $"The TLS handshake with {_host} failed."),
-            };
-        }
-
-        if (socketError is SocketError.TimedOut)
-        {
-            return new ProbeFailure(ProbeFailureKind.Timeout, $"Connecting to {_host} timed out.");
-        }
-
-        if (socketError is SocketError.ConnectionRefused)
-        {
-            return new ProbeFailure(ProbeFailureKind.ConnectionRefused,
-                $"{_host} refused the connection. Check the API URL and port.");
-        }
-
-        if (exception.HttpRequestError is HttpRequestError.ConfigurationLimitExceeded or HttpRequestError.InvalidResponse)
-        {
-            return InvalidResponse();
-        }
-
-        // Network unreachable, connection reset, proxy errors…: there is no finer category the admin could act on.
-        return new ProbeFailure(ProbeFailureKind.ConnectionRefused,
-            $"Could not connect to {_host}. Check the API URL and that the console can reach the cluster's network.");
-    }
-
-    private ProbeFailure InvalidResponse() => new(ProbeFailureKind.InvalidResponse,
-        $"The server at {_host} did not answer like a Kubernetes API server. Check the API URL.");
-
-    private static T? FindInner<T>(Exception exception)
-        where T : Exception
-    {
-        for (var current = exception.InnerException; current is not null; current = current.InnerException)
-        {
-            if (current is T match)
-            {
-                return match;
-            }
-        }
-
-        return null;
-    }
+    private ProbeFailure InvalidResponse() => ProbeFailureClassifier.InvalidResponse(_host);
 
     private static Uri WithTrailingSlash(Uri apiUrl) =>
         apiUrl.AbsolutePath.EndsWith('/') ? apiUrl : new Uri(apiUrl.GetLeftPart(UriPartial.Path) + "/");

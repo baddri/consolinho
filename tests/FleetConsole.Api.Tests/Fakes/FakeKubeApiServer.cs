@@ -77,6 +77,12 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     /// <summary>Path of the OpenShift ClusterVersion singleton.</summary>
     public const string ClusterVersionPath = "/apis/config.openshift.io/v1/clusterversions/version";
 
+    /// <summary>Path of the ClusterOperator list (fleet health reader).</summary>
+    public const string ClusterOperatorsPath = "/apis/config.openshift.io/v1/clusteroperators";
+
+    /// <summary>Path of the Node list (fleet health reader).</summary>
+    public const string NodesPath = "/api/v1/nodes";
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly WebApplication _app;
@@ -264,22 +270,77 @@ public sealed class FakeKubeApiServer : IAsyncDisposable
     /// <summary>Scripts the OpenShift ClusterVersion.</summary>
     /// <param name="version"><c>status.desired.version</c>.</param>
     /// <param name="progressing">Status of the <c>Progressing</c> condition.</param>
-    public void MapClusterVersion(string version = "4.17.3", bool progressing = false) =>
+    /// <param name="failing">Status of the <c>Failing</c> condition; <see langword="null"/> omits the condition.</param>
+    /// <param name="history"><c>status.history</c>, newest first as OpenShift lists it; <see langword="null"/> omits it.</param>
+    /// <param name="availableUpdates">How many entries <c>status.availableUpdates</c> has (0 = <c>null</c>, as OpenShift sends).</param>
+    public void MapClusterVersion(
+        string version = "4.17.3",
+        bool progressing = false,
+        bool? failing = null,
+        (string State, string Version)[]? history = null,
+        int availableUpdates = 0)
+    {
+        var conditions = new List<object>
+        {
+            new { type = "Available", status = "True" },
+            new { type = "Progressing", status = progressing ? "True" : "False" },
+        };
+        if (failing is { } isFailing)
+        {
+            conditions.Add(new { type = "Failing", status = isFailing ? "True" : "False" });
+        }
+
+        var status = new Dictionary<string, object?>
+        {
+            ["desired"] = new { version, image = "quay.io/openshift-release-dev/ocp-release@sha256:0" },
+            ["conditions"] = conditions,
+            ["availableUpdates"] = availableUpdates == 0
+                ? null
+                : Enumerable.Range(1, availableUpdates).Select(i => new { version = $"{version}-update.{i}" }).ToArray(),
+        };
+        if (history is not null)
+        {
+            status["history"] = history.Select(entry => new { state = entry.State, version = entry.Version }).ToArray();
+        }
+
         Respond("GET", ClusterVersionPath, 200, new
         {
             apiVersion = "config.openshift.io/v1",
             kind = "ClusterVersion",
             metadata = new { name = "version" },
-            status = new
-            {
-                desired = new { version, image = "quay.io/openshift-release-dev/ocp-release@sha256:0" },
-                conditions = new[]
-                {
-                    new { type = "Available", status = "True" },
-                    new { type = "Progressing", status = progressing ? "True" : "False" },
-                },
-            },
+            status,
         });
+    }
+
+    /// <summary>
+    /// Scripts <c>GET /api/v1/nodes</c> as the server-side <c>meta.k8s.io/v1</c> Table the fleet health reader asks for
+    /// (whatever the request's <c>Accept</c>; tests assert the header from <see cref="Requests"/>).
+    /// </summary>
+    /// <param name="statuses">One <c>Status</c> cell per node, e.g. <c>Ready</c>, <c>NotReady</c>, <c>Ready,SchedulingDisabled</c>.</param>
+    public void MapNodesTable(params string[] statuses) =>
+        Respond("GET", NodesPath, 200, Table(
+            ["Name", "Status", "Roles", "Age", "Version"],
+            statuses.Select((status, i) => new object?[] { $"node-{i}", status, "worker", "12d", "v1.31.4" })));
+
+    /// <summary>Scripts <c>GET /apis/config.openshift.io/v1/clusteroperators</c> as a server-side Table.</summary>
+    /// <param name="operators">One row per operator with its condition columns (<c>True</c>/<c>False</c>/<c>Unknown</c>/empty).</param>
+    public void MapClusterOperatorsTable(params (string Available, string Progressing, string Degraded)[] operators) =>
+        Respond("GET", ClusterOperatorsPath, 200, Table(
+            ["Name", "Version", "Available", "Progressing", "Degraded", "Since", "Message"],
+            operators.Select((op, i) => new object?[] { $"operator-{i}", "4.17.3", op.Available, op.Progressing, op.Degraded, "3d", "" })));
+
+    /// <summary>A <c>meta.k8s.io/v1</c> Table with <c>includeObject=None</c> rows (cells only).</summary>
+    /// <param name="columns">Column names, in order.</param>
+    /// <param name="rows">Row cells, aligned with <paramref name="columns"/>.</param>
+    /// <returns>The Table object, serializable with <see cref="Respond"/>.</returns>
+    public static object Table(IEnumerable<string> columns, IEnumerable<object?[]> rows) => new
+    {
+        kind = "Table",
+        apiVersion = "meta.k8s.io/v1",
+        metadata = new { resourceVersion = "1" },
+        columnDefinitions = columns.Select(name => new { name, type = "string", format = "", description = "", priority = 0 }).ToArray(),
+        rows = rows.Select(cells => new { cells }).ToArray(),
+    };
 
     /// <summary>
     /// Scripts the SelfSubjectAccessReview answer for one attribute set. Unscripted reviews are denied (allowed=false),
