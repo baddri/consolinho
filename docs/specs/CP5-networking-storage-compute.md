@@ -117,7 +117,7 @@ have no project bar.
 - **RT-4** Actions: common actions only (Edit Route → YAML; the Route form is out of scope).
 
 ### 5a.4 Ingresses (ING)
-- **ING-1** List *(np)* `IngressesList.tsx`: Name, Namespace, Labels, Host (first host, "+N" if more), Created.
+- **ING-1** List *(np)* `IngressesList.tsx`: Name, Namespace, Labels, Hosts (every host comma-joined on one truncated line, full list on hover, as OCP `getHostsStr`); no Created column (OCP has none).
 - **ING-2** Details: Details + a "Rules" section table (Host, Path, Path type, Service, Service port) and a "TLS" section (Hosts, Secret name linking to the Secret); Ingress-class and load-balancer address rows. Hosts in rules are link-outs under RT-2's rules.
 
 ### 5a.5 NetworkPolicies (NP)
