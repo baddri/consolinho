@@ -18,12 +18,19 @@ namespace FleetConsole.Api.Tests.Integration;
 public sealed class OpenShiftHostStub
 {
     private readonly ConcurrentQueue<string> _issuedAccessTokens = new();
+    private int _groupsRequests;
 
     /// <summary>When true, every request fails like a refused connection (host API and OAuth server unreachable).</summary>
     public bool Down { get; set; }
 
     /// <summary>When set, <c>users/~</c> answers with this status instead of reaching the emulator.</summary>
     public HttpStatusCode? UsersEndpointStatus { get; set; }
+
+    /// <summary>When set, the <c>groups</c> list (ADR-0039) answers with this status instead of reaching the emulator.</summary>
+    public HttpStatusCode? GroupsEndpointStatus { get; set; }
+
+    /// <summary>Number of <c>groups</c> list requests that reached the stub (answered or not), for paging/snapshot tests.</summary>
+    public int GroupsRequests => _groupsRequests;
 
     /// <summary>When true, only the token endpoint fails like a refused connection (discovery and authorize still work).</summary>
     public bool TokenEndpointDown { get; set; }
@@ -39,6 +46,7 @@ public sealed class OpenShiftHostStub
     {
         Down = false;
         UsersEndpointStatus = null;
+        GroupsEndpointStatus = null;
         TokenEndpointDown = false;
         TokenEndpointStatus = null;
         TokenEndpointBody = string.Empty;
@@ -65,6 +73,15 @@ public sealed class OpenShiftHostStub
             if (stub.UsersEndpointStatus is { } status && path.EndsWith("/users/~", StringComparison.Ordinal))
             {
                 return new HttpResponseMessage(status) { RequestMessage = request };
+            }
+
+            if (path.EndsWith("/apis/user.openshift.io/v1/groups", StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref stub._groupsRequests);
+                if (stub.GroupsEndpointStatus is { } groupsStatus)
+                {
+                    return new HttpResponseMessage(groupsStatus) { RequestMessage = request };
+                }
             }
 
             var isToken = path.EndsWith("/oauth/token", StringComparison.Ordinal);

@@ -1,3 +1,4 @@
+using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Application.Auth;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,7 +9,7 @@ namespace FleetConsole.Infrastructure.Identity;
 /// <summary>
 /// Registers the host-cluster identity adapters used by login (ADR-0007/0010): <see cref="OpenShiftHostOptions"/>
 /// (validated on start), the <see cref="OpenShiftHostHttpClient.Name"/> client, <see cref="IExternalIdentityClient"/>,
-/// <see cref="IOAuthServerMetadataProvider"/> and its warm-up.
+/// <see cref="IOAuthServerMetadataProvider"/> and its warm-up, and the host group listing (<see cref="IHostGroupDirectory"/>, ADR-0039).
 /// </summary>
 /// <remarks>
 /// Separate from <c>AddInfrastructure</c> on purpose (orchestrator ruling, T-0014): <c>Auth:OpenShift</c> is required
@@ -45,6 +46,14 @@ public static class IdentityServiceCollectionExtensions
 #pragma warning restore EXTEXP0001
 
         services.AddSingleton<IExternalIdentityClient, OpenShiftUserClient>();
+
+        // Host group listing with FleetConsole's own host SA (ADR-0039): same API server and client, own options.
+        // Singleton because it owns the process-wide snapshot.
+        services.AddOptions<HostGroupsOptions>()
+            .BindConfiguration(HostGroupsOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<HostGroupsOptions>, HostGroupsOptionsValidator>();
+        services.AddSingleton<IHostGroupDirectory, OpenShiftHostGroupDirectory>();
         services.AddSingleton<IOAuthServerMetadataProvider, OAuthServerMetadataProvider>();
         services.AddHostedService<OAuthMetadataWarmupService>();
 

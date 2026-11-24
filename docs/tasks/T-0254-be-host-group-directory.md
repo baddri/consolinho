@@ -1,12 +1,12 @@
 ---
 id: T-0254
 title: Host group directory — list host Groups through FleetConsole's host SA (snapshot, fail-safe off)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: []          # wave 1, parallel with T-0250 and T-0251
-paths: [src/FleetConsole.Application/Abstractions/Kubernetes, src/FleetConsole.Application/Auth, src/FleetConsole.Infrastructure/Identity, src/FleetConsole.Infrastructure/DependencyInjection.cs, src/FleetConsole.DevOAuth, src/FleetConsole.AppHost, src/FleetConsole.Api/appsettings*.json, tests/FleetConsole.Api.Tests/Integration, tests/FleetConsole.Application.Tests]
-review_rounds: 0
+paths: [src/FleetConsole.Application/Abstractions/Kubernetes, src/FleetConsole.Application/Auth, src/FleetConsole.Infrastructure/Identity, src/FleetConsole.Infrastructure/DependencyInjection.cs, src/FleetConsole.DevOAuth, src/FleetConsole.AppHost, src/FleetConsole.Api/appsettings*.json, tests/FleetConsole.Api.Tests/Integration, tests/FleetConsole.Api.Tests/Identity, tests/FleetConsole.Application.Tests]
+review_rounds: 1
 ---
 
 ## Goal
@@ -63,14 +63,36 @@ Infrastructure (`Identity/OpenShiftHostGroupDirectory.cs`, singleton):
   (Unreachable flag → `Unavailable`), `TestHostConfiguration.cs`, `TestOAuthServer.cs` L83-87.
 
 ## Acceptance criteria
-- [ ] Integration (Api.Tests via the stub): Ok listing with members; paging across 2 pages; 403 → `Forbidden`; unreachable → `Unavailable`; `system:*` filtered.
-- [ ] Snapshot tests (fake clock + fake handler): reused within `MaxSnapshotAge`; refreshed after; failed refresh never returns old data; concurrent callers → one host request.
-- [ ] Token file re-read per refresh; inline `Token` refused outside Development (options validation test); token never logged (`TokenLeakScanner` if applicable).
-- [ ] `aspire run`: the emulator's groups list is served to the Api (manual check noted in Work log).
-- [ ] XML docs; `scripts/check-be.sh` green.
+- [x] Integration (Api.Tests via the stub): Ok listing with members; paging across 2 pages; 403 → `Forbidden`; unreachable → `Unavailable`; `system:*` filtered.
+- [x] Snapshot tests (fake clock + fake handler): reused within `MaxSnapshotAge`; refreshed after; failed refresh never returns old data; concurrent callers → one host request.
+- [x] Token file re-read per refresh; inline `Token` refused outside Development (options validation test); token never logged (`TokenLeakScanner` if applicable).
+- [ ] (partial, see Work log) `aspire run`: the emulator's groups list is served to the Api (manual check noted in Work log).
+- [x] XML docs; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: started; port + adapter + options, DevOAuth groups endpoint, AppHost wiring, tests.
+- 2026-11-24 backend-engineer: done; check-be green (339/715/880). Snapshot unit tests live in `tests/FleetConsole.Api.Tests/Identity/`
+  (outside `paths`: that is where the identity-adapter test host lives). Manual: emulator run standalone with the AppHost's
+  token env → `groups?limit=2` pages with `continue`, no token → 401. Full `aspire run` not exercised (shared ports);
+  AppHost wiring compiles, Api side covered by Integration tests with the same token pair.
+- 2026-11-24 backend-engineer: review r1 fix — removed duplicated `DevGroupMembership` registration in
+  `DevOAuthServiceCollectionExtensions`; slnx build -warnaserror clean, HostGroup tests 22 + 4 green.
 
 ## Review
+Round 1 — backend-architect, 2026-11-24: **CHANGES_REQUESTED** (1 required, 0 optional). Affected tests re-run: Api 22/22, Application 4/4; build -warnaserror clean.
+- src/FleetConsole.DevOAuth/DevOAuthServiceCollectionExtensions.cs:32-37 — `DevGroupMembership` is registered twice (copy-pasted block incl. comment); the first registration is dead and a reader can't tell which instance tests/endpoints get — delete one block.
+- Verified OK (no action): fail-safe off (failed refresh replaces snapshot, `IsFresh` only for Ok + age in [0, MaxAge), slow-refresh rule, cancellation not cached); token only in `Authorization` via `SensitiveString`, logs carry type name/status only, `TokenLeakScanner` in unit + integration tests, fake tokens in AppHost/tests; `system:*` dropped via `OpenShiftGroups.IsVirtual`; validator (Dev-only inline token, 0 < MaxAge ≤ 5 min, messages name keys only); singleton + `IHttpClientFactory`; XML docs complete.
+- AC (3) `aspire run`: accepted as is — the Api↔emulator path is exercised by Integration tests against the real DevOAuth app with the same token pair; AppHost adds only two env vars. QA's CP4.5a smoke covers the live run. Test placement in `Api.Tests/Identity` accepted; added to `paths`.
 
 ## Handover notes
+- Port: `Application/Abstractions/Kubernetes/{IHostGroupDirectory,HostGroupListing}.cs`; adapter `Infrastructure/Identity/OpenShiftHostGroupDirectory.cs`
+  registered in `AddOpenShiftIdentity` (singleton) with `HostGroupsOptions` (`Auth:HostGroups`) + validator.
+- Single-flight: waiters share the refresh they waited for (Ok or failure); a later caller retries a failure (not cached).
+- Extra strictness: a refresh that itself takes ≥ `MaxSnapshotAge` returns `Unavailable` (its data would already be too old).
+  `ReadAt` = refresh start. Failed listings have `ReadAt = null`.
+- Logs: EventId 3320 (readable, group count) / 3321 (Forbidden/Unavailable + reason), once per transition; no names/tokens.
+- DevOAuth: `GET /apis/user.openshift.io/v1/groups` (reader token `DevOAuth:GroupsReaderToken`, `limit`/`continue`=offset);
+  `DevGroupMembership` (public, singleton) with `SetGroups`; tests: `TestOAuthServer.GroupMembership` (use a variant or pool user).
+- Tests: `TestHostConfiguration.GroupsReaderToken` pair; `Offline()` clears the inline token (Production hosts);
+  `OpenShiftHostStub.GroupsEndpointStatus` / `GroupsRequests`.
+- Enum wire casing (camelCase) is the consumer's job (T-0256 DTO mapping).

@@ -24,7 +24,14 @@ internal static class TestHostConfiguration
         ["Auth:OpenShift:HostApiServerUrl"] = "http://localhost",
         ["Auth:OpenShift:ClientId"] = DevOAuthFlow.ClientId,
         ["Auth:OpenShift:ClientSecret"] = DevOAuthFlow.ClientSecret,
+        ["Auth:HostGroups:Token"] = GroupsReaderToken,
     };
+
+    /// <summary>
+    /// Fake host SA token for the group listing (ADR-0039): the Api sends it, <see cref="TestOAuthServer"/> accepts it
+    /// (the AppHost wires the same pair). Inline tokens are Development-only, so <see cref="Offline"/> clears it.
+    /// </summary>
+    public const string GroupsReaderToken = "test-groups-reader-token-not-a-secret";
 
     /// <summary>The password of every test key-encryption PFX (fake; tests assert it never appears in messages or logs).</summary>
     public const string CertificatePassword = "fake-test-pfx-password";
@@ -47,6 +54,7 @@ internal static class TestHostConfiguration
         ["Auth:OpenShift:TokenEndpoint"] = "https://oauth.invalid/oauth/token",
         ["Auth:OpenShift:ClientId"] = DevOAuthFlow.ClientId,
         ["Auth:OpenShift:ClientSecret"] = DevOAuthFlow.ClientSecret,
+        ["Auth:HostGroups:Token"] = string.Empty,
         ["DataProtection:KeyEncryptionCertificatePath"] = DefaultCertificate.Value.PfxPath,
         ["DataProtection:KeyEncryptionCertificatePasswordPath"] = DefaultCertificate.Value.PasswordPath,
     };

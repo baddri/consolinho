@@ -1,7 +1,9 @@
 using System.Globalization;
 using FleetConsole.DevOAuth;
+using FleetConsole.DevOAuth.OAuth;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FleetConsole.Api.Tests.Integration;
 
@@ -56,6 +58,12 @@ public sealed class TestOAuthServer : WebApplicationFactory<DevOAuthEntryPoint>
     /// <returns>The username.</returns>
     public string NextAdmin() => Take(ref _nextAdmin, AdminPoolSize, PoolAdmin);
 
+    /// <summary>
+    /// The emulator's group membership (served by its <c>groups</c> list, ADR-0039); <c>SetGroups</c> moves a user in or
+    /// out of host groups at runtime. Changes are visible to every test of this emulator: use a pool user or a variant.
+    /// </summary>
+    public DevGroupMembership GroupMembership => Services.GetRequiredService<DevGroupMembership>();
+
     /// <summary>A client for the emulator that doesn't follow redirects (the test reads them).</summary>
     /// <returns>The client.</returns>
     public HttpClient CreateBrowserClient() =>
@@ -65,6 +73,7 @@ public sealed class TestOAuthServer : WebApplicationFactory<DevOAuthEntryPoint>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.UseSetting("DevOAuth:GroupsReaderToken", TestHostConfiguration.GroupsReaderToken);
 
         var index = FirstPoolIndex;
         for (var number = 1; number <= UserPoolSize; number++, index++)

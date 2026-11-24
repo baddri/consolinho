@@ -18,6 +18,12 @@ internal sealed class DevOAuthOptions
 
     /// <summary>Users shown as buttons on the authorize page; their groups are returned by <c>users/~</c>.</summary>
     public IReadOnlyList<DevOAuthUser> Users { get; init; } = [];
+
+    /// <summary>
+    /// The fake bearer token that may list <c>groups</c> (the stand-in for FleetConsole's host SA token, ADR-0039 §5;
+    /// the AppHost passes the same value to the Api as <c>Auth:HostGroups:Token</c>). Unset = every list request is 401.
+    /// </summary>
+    public string? GroupsReaderToken { get; init; }
 }
 
 /// <summary>An OAuth client registration: the id and secret the Api presents at the token endpoint.</summary>

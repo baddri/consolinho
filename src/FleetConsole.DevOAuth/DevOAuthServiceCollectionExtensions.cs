@@ -10,7 +10,7 @@ internal static class DevOAuthServiceCollectionExtensions
 {
     /// <summary>
     /// Binds <see cref="DevOAuthOptions"/> from the <c>DevOAuth</c> configuration section (validated at startup) and
-    /// registers <see cref="DevOAuthStore"/> as a singleton.
+    /// registers <see cref="DevOAuthStore"/> and <see cref="DevGroupMembership"/> as singletons.
     /// </summary>
     /// <remarks>
     /// <see cref="TimeProvider"/> is registered with <c>TryAdd</c>; tests replace it with a manual clock to expire
@@ -29,6 +29,8 @@ internal static class DevOAuthServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<DevOAuthStore>();
 
+        // Factory: the constructor is internal (it takes the internal options type); the class is public for tests.
+        services.AddSingleton(sp => new DevGroupMembership(sp.GetRequiredService<IOptions<DevOAuthOptions>>()));
         return services;
     }
 }
