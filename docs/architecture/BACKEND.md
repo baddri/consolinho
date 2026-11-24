@@ -217,19 +217,32 @@ Api/Proxy/
 
 Policies are registered in order with `services.AddProxyPolicy<T>()` (in `AddApplication`). **To stop users from
 mutating even when their token allows it, you add or configure a policy — the endpoint never changes.**
-No access cache in CP2 (one indexed query per request); TLS failures are classified from `HttpRequestError`, not
+Access comes from the cached per-user snapshot (`ClusterAccessReader` → `LoadAccessSnapshotQuery`, below): one
+authorization statement per cache miss, none on a hit; precedence, the enabled filter and the session read-only flag
+are resolved per request. `Cache:Duration` (default 30 s) bounds staleness only if an invalidation is lost. TLS failures are classified from `HttpRequestError`, not
 `TlsValidationRecord` (probe-only). Never add response buffering/compression on the proxy route (watches stream).
 
 ## Recipes (keep these working; they are the maintainability contract)
 
-### Adding a cache later
-Decided for CP4.5 in ADR-0035 (FusionCache as the `HybridCache`, Redis L2 + backplane, tags, fail-safe off for
-authorization, decrypted tokens only in L1); the steps below stay the shape of the change.
-1. Extract the access lookup of `AuthorizeProxyRequestHandler` into its own query and mark it: `public sealed record ResolveClusterAccessQuery(...) : IQuery<ClusterAccess>, ICacheableQuery { string CacheKey => ...; TimeSpan Ttl => ...; }` (policies keep running per request, uncached).
-2. Register `CachingBehavior<,>` (uses `HybridCache`) in the pipeline before the handler.
-3. Invalidate from **post-commit** domain event handlers (`GrantRevoked` → remove key). That stage doesn't exist yet
-   (ADR-0008 §6) — add it then; never invalidate from the pre-commit handlers, which run before the write. No use case
-   handler code changes.
+### Caching a query
+ADR-0040: FusionCache L1 + Redis L2 + backplane, tags, fail-safe off; failures and `PersistenceUnavailableException`
+are never cached or served stale (CACHE-5 → 503); never cache decrypted tokens.
+1. Make the query `ICacheableQuery<T>` (`CacheKey`, `TagsFor(value)` built with `CacheTags`) and return primitives only
+   (System.Text.Json round-trip, test it). Version the key (`…:v1:…`) and bump it on any shape change.
+2. Register `services.AddCacheableQuery<TQuery, T>()` in `AddApplication`; the handler stays plain and reads only
+   through `IReadModel` terminal operators.
+3. Invalidate in an `IPostCommitDomainEventHandler<TEvent>` (runs after commit, never pre-commit) calling
+   `IQueryCache.RemoveByTagsAsync`. A reflection coverage test makes every `IDomainEvent` handled or allow-listed.
+
+Access snapshot — key `access:v1:user:{id}`, tags `user:`, `cluster:`/`credential:` of every row, `group:{sha256}` (names are never logged) of every
+user group; `Application/Access/AccessCacheInvalidation.cs`:
+
+| Events | Tag removed |
+|---|---|
+| `GrantCreated`, `GrantChanged`, `GrantRevoked` | `user:{UserId}`, or `group:{sha256(SubjectName)}` for group grants |
+| `UserDeactivated`, `UserReactivated`, `UserReadOnlyChanged`, `UserGroupsChanged`, `UserLoggedIn` | `user:{UserId}` |
+| `ClusterUpdated`, `ClusterEnabled`, `ClusterDisabled`, `ClusterDeleted` | `cluster:{ClusterId}` |
+| `CredentialRotated`, `CredentialDeleted` | `credential:{CredentialId}` |
 
 ### Blocking a class of operations
 Add `IProxyPolicy` (e.g. `DenyDeleteNamespacePolicy`, `BusinessHoursChangeWindowPolicy`) or an `IPipelineBehavior` for
@@ -298,6 +311,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   `Console:PublicOrigin`, cookies are `Secure` by policy outside Development.
 - Production configuration is validated on start (`ValidateOnStart`, messages name keys, never values); `Program`
   turns failures into one Critical line each and exit code 1. New required settings follow the same pattern.
+- Cache (ADR-0040): `ConnectionStrings:redis` (required outside Development), `Cache:Duration` (1 s–1 min, default
+  30 s); health check `redis` reports Degraded, never Unhealthy (the app serves from Postgres without it).
 - Logs: JSON console outside Development; the request-line log category is capped at Warning in code.
 - Manifests and the configuration contract (env keys, Secret/ConfigMap names): ADR-0030, `deploy/kustomize/`;
   operations: `docs/ops/RUNBOOK.md`.

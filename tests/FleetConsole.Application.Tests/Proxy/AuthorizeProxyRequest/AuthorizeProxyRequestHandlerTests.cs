@@ -1,3 +1,4 @@
+using FleetConsole.Application.Tests.Access;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Application.Abstractions.Persistence;
@@ -297,11 +298,11 @@ public sealed class AuthorizeProxyRequestHandlerTests
         AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 10);
         var readOnly = AddGroupGrant("platform", AccessMode.ReadOnly, priority: 10);
         var logger = new TieLogger();
-        var reader = new ClusterAccessReader(_model, logger);
+        var reader = TestAccessReader.Create(_model, logger);
 
         var access = await reader.LoadAsync(_alice.Id, _cluster.Name, sessionIsReadOnly: false, Ct);
 
-        access.ShouldHaveSingleItem().WinnerToken.ShouldBeSameAs(readOnly.Token);
+        access.ShouldHaveSingleItem().WinnerToken.ShouldBe(readOnly.Token);
         access[0].Resolution.EffectiveMode.ShouldBe(AccessMode.ReadOnly);
         var warning = logger.Messages.ShouldHaveSingleItem();
         warning.ShouldContain(_cluster.Id.Value.ToString());
@@ -328,7 +329,7 @@ public sealed class AuthorizeProxyRequestHandlerTests
     {
         var currentUser = new SignedInAs(userId ?? _alice.Id, "alice", UserRole.User, sessionReadOnly);
         var chain = policies ?? [new MutationGuardPolicy(), new RequestBodyLimitPolicy(Options.Create(new ProxyOptions()))];
-        var handler = new AuthorizeProxyRequestHandler(new ClusterAccessReader(_model, NullLogger<ClusterAccessReader>.Instance), currentUser, _protector, chain);
+        var handler = new AuthorizeProxyRequestHandler(TestAccessReader.Create(_model), currentUser, _protector, chain);
         return handler.Handle(new AuthorizeProxyRequestQuery(clusterName, request ?? Request("GET", Pods)), Ct);
     }
 

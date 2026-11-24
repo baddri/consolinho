@@ -9,8 +9,8 @@ using FleetConsole.Domain.Users;
 namespace FleetConsole.Application.Users.GetEffectiveAccess;
 
 /// <summary>
-/// Answers <see cref="GetEffectiveAccessQuery"/> with two statements: the user (with their last group check) and
-/// <see cref="ClusterAccessReader.LoadAsync"/> — the very resolution the proxy and the switcher use (PREC-8) — whose
+/// Answers <see cref="GetEffectiveAccessQuery"/> with at most two statements: the user (with their last group
+/// check) and <see cref="ClusterAccessReader.LoadAsync"/> (the cached access snapshot, so none on a hit) — the very resolution the proxy and the switcher use (PREC-8) — whose
 /// verdicts are mapped to the response. No precedence rule lives here.
 /// </summary>
 /// <param name="readModel">The read model.</param>
@@ -51,7 +51,7 @@ internal sealed class GetEffectiveAccessHandler(IReadModel readModel, ClusterAcc
         }
 
         // The stored flag only (admin view); the switcher also ORs the session flag, which equals the stored one once
-        // the session is revalidated. A deactivated user yields no rows (the reader joins active users only).
+        // the session is revalidated. A deactivated user yields no rows (the snapshot holds active users' rows only).
         var accesses = await reader.LoadAsync(user.Id, cluster: null, sessionIsReadOnly: false, cancellationToken).ConfigureAwait(false);
 
         IReadOnlyList<EffectiveClusterAccessDto> clusters =

@@ -72,6 +72,10 @@ internal static class CachingSetup
                 options.BackplaneErrorsLogLevel = LogLevel.Warning;
                 options.DistributedCacheSyntheticTimeoutsLogLevel = LogLevel.Warning;
                 options.SerializationErrorsLogLevel = LogLevel.Warning;
+
+                // A factory "error" is a failure result (CachingBehavior's internal exception) or an outage the
+                // pipeline already maps to 503 and logs; at the default Warning each would also log a stack trace.
+                options.FactoryErrorsLogLevel = LogLevel.Debug;
             })
             .WithCacheKeyPrefix(KeyPrefix)
             .WithPostSetup((services, cache) =>

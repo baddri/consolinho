@@ -3,6 +3,7 @@ using FleetConsole.Application.Abstractions.Caching;
 using FleetConsole.Application.Abstractions.Events;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Access;
+using FleetConsole.Application.Access.LoadAccessSnapshot;
 using FleetConsole.Application.Audit;
 using FleetConsole.Application.Behaviors;
 using FleetConsole.Application.Credentials.ConnectionTesting;
@@ -60,7 +61,8 @@ public static class DependencyInjection
         // Connection tests (ADR-0011): step orchestration shared by the TestCredential and TestToken handlers.
         services.AddScoped<ConnectionTester>();
 
-        // Grant resolution (ADR-0034): one statement + AccessResolver, shared by the proxy and the switcher (PREC-8).
+        // Grant resolution (ADR-0034): the cached access snapshot (ADR-0040 §4) + AccessResolver per request, shared by
+        // the proxy and the switcher (PREC-8).
         services.AddScoped<ClusterAccessReader>();
 
         // Proxy policies (ADR-0019 §7) run in registration order, first refusal wins. The order is contract (CP2 §4):
@@ -77,6 +79,9 @@ public static class DependencyInjection
         // Step 5, CachingBehavior: no open-generic registration (it can't map Result<TValue>). Each cacheable query
         // registers it closed with AddCacheableQuery<TQuery, TValue>(), which inserts it right after ValidationBehavior.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
+
+        // Cached queries (ADR-0040 §3): after the pipeline, which AddCacheableQuery inserts into.
+        services.AddCacheableQuery<LoadAccessSnapshotQuery, AccessSnapshot>();
 
         return services;
     }

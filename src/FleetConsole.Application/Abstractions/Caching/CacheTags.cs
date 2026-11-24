@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
 using FleetConsole.Domain.Users;
@@ -26,13 +28,17 @@ public static class CacheTags
     /// <returns>The tag.</returns>
     public static string Credential(CredentialId id) => "credential:" + Format(id.Value);
 
-    /// <summary>Tag of entries that depend on an OpenShift group (e.g. a group grant): <c>group:{name}</c>.</summary>
+    /// <summary>
+    /// Tag of entries that depend on an OpenShift group (e.g. a group grant): <c>group:{sha256(name), hex}</c>. Hashed
+    /// because FusionCache logs a removed tag as part of an internal cache key, and group names are never logged
+    /// (SECURITY.md); the hash is deterministic, so setter and remover still agree.
+    /// </summary>
     /// <param name="name">The group name as recorded (case-sensitive, like OpenShift group names).</param>
     /// <returns>The tag.</returns>
     public static string Group(string name)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        return "group:" + name;
+        return "group:" + Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(name)));
     }
 
     // "D" (lower-case, hyphenated) is Guid.ToString()'s default; spelled out so the format can't drift.
