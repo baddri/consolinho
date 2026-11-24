@@ -1,7 +1,6 @@
 import { FormGroup, FormHelperText, HelperText, HelperTextItem, NumberInput } from '@patternfly/react-core';
-import { useController, type Control } from 'react-hook-form';
+import { useController, type Control, type FieldPathByValue, type FieldValues } from 'react-hook-form';
 import { fieldA11y } from '@/shared/forms';
-import type { GrantFormValues } from './grantForm.schema';
 import { PRIORITY_HELPER_TEXT, priorityTakenText } from './grantText';
 
 /** A priority another group grant on the cluster already holds. */
@@ -11,10 +10,17 @@ export interface UsedPriority {
 }
 
 /** Props for {@link PriorityField}. */
-export interface PriorityFieldProps {
-  control: Control<GrantFormValues>;
-  /** The cluster's other group grants' priorities (the edited grant excluded), highest first. */
+export interface PriorityFieldProps<T extends FieldValues> {
+  control: Control<T>;
+  /** The form's priority field: a number, `null` while empty. */
+  name: FieldPathByValue<T, number | null>;
+  /**
+   * The cluster's other group grants' priorities (the edited grant excluded), highest first. Empty in the bulk
+   * wizard, which leaves taken priorities to the Api's per-row answer (GPG-3).
+   */
   usedPriorities: readonly UsedPriority[];
+  /** The precedence rule under the field; defaults to the single-cluster wording. */
+  helperText?: string;
 }
 
 const MIN_PRIORITY = 1;
@@ -39,15 +45,21 @@ function usedText(used: readonly UsedPriority[]): string | undefined {
  * field error right away; the form blocks submitting it, and the Api's 409 lands here too. Paired with RHF via
  * `useController` like the deployment form's Replicas.
  */
-export function PriorityField({ control, usedPriorities }: PriorityFieldProps) {
-  const { field, fieldState } = useController({ control, name: 'priority' });
-  const value = field.value;
+export function PriorityField<T extends FieldValues>({
+  control,
+  name,
+  usedPriorities,
+  helperText = PRIORITY_HELPER_TEXT,
+}: PriorityFieldProps<T>) {
+  const { field, fieldState } = useController({ control, name });
+  // `name` only accepts paths holding `number | null`; TypeScript can't resolve that through the generic.
+  const value = field.value as number | null;
   const holder = usedPriorities.find((used) => used.priority === value);
   const error = fieldState.error?.message ?? (holder && priorityTakenText(holder.priority, holder.groupName));
   const a11y = fieldA11y(
     field.name,
     error === undefined ? undefined : { type: 'priority', message: error },
-    PRIORITY_HELPER_TEXT,
+    helperText,
   );
   const used = usedText(usedPriorities);
 
@@ -77,7 +89,7 @@ export function PriorityField({ control, usedPriorities }: PriorityFieldProps) {
       <FormHelperText>
         <HelperText id={a11y.helperId}>
           {error !== undefined && <HelperTextItem variant="error">{error}</HelperTextItem>}
-          <HelperTextItem>{PRIORITY_HELPER_TEXT}</HelperTextItem>
+          <HelperTextItem>{helperText}</HelperTextItem>
           {used !== undefined && <HelperTextItem>{used}</HelperTextItem>}
         </HelperText>
       </FormHelperText>

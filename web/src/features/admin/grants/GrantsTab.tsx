@@ -1,9 +1,9 @@
 import type { UseQueryResult } from '@tanstack/react-query';
 import { useState } from 'react';
-import type { Grant, UserDetail } from '@/shared/api';
+import type { Grant, GroupDetail, UserDetail } from '@/shared/api';
 import { ActionButton, ErrorState } from '@/shared/ui';
 import { useAdminAccess } from '../useAdminAccess';
-import { useClusterGrants, useUserGrants } from './api';
+import { useClusterGrants, useGroupGrants, useUserGrants } from './api';
 import { GrantFormModal, type GrantCluster } from './GrantFormModal';
 import type { GrantPerspective } from './GrantRow';
 import { GrantsTable } from './GrantsTable';
@@ -15,18 +15,18 @@ type GrantDialog = { kind: 'change' | 'revoke'; grantId: string } | null;
 /** Props for {@link GrantsTabContent}. */
 interface GrantsTabContentProps {
   query: UseQueryResult<Grant[]>;
-  /** Which side the rows name: clusters on the user page, users and groups on the cluster page. */
+  /** Which side the rows name: clusters on the user and group pages, users and groups on the cluster page. */
   perspective: GrantPerspective;
   ariaLabel: string;
   createLabel: string;
   emptyTitle: string;
   emptyBody: string;
-  /** The create button's action: the bulk grant wizard (user tab) or the single-grant dialog (cluster tab). */
+  /** The create button's action: the bulk grant wizard (user and group tabs) or the single-grant dialog (cluster tab). */
   onCreate: () => void;
 }
 
 /**
- * Shared body of both grants tabs: `ErrorState` with Retry when the list can't load, else `GrantsTable` with the
+ * Shared body of the grants tabs: `ErrorState` with Retry when the list can't load, else `GrantsTable` with the
  * create button (`onCreate`) and the change / revoke dialogs. Read-only admins see every action disabled with the
  * reason (ADM-2). A dialog for a grant that disappears (revoked meanwhile) closes with the list.
  */
@@ -107,6 +107,32 @@ export function UserGrantsTab({
       createLabel="Grant access"
       emptyTitle="No cluster access yet"
       emptyBody={`${user.username} can't reach any cluster until you grant access.`}
+      onCreate={onGrantAccess}
+    />
+  );
+}
+
+/**
+ * "Cluster access" tab of the group detail page (GPG-2), OCP's group RoleBindings tab: the group's grants with
+ * cluster, access mode, priority and credential, per-row Edit access / Revoke access, and "Grant access" calling
+ * `onGrantAccess`, which opens the bulk grant wizard for the group (GPG-3).
+ */
+export function GroupGrantsTab({
+  group,
+  onGrantAccess,
+}: {
+  group: Pick<GroupDetail, 'name'>;
+  onGrantAccess: () => void;
+}) {
+  const query = useGroupGrants(group.name);
+  return (
+    <GrantsTabContent
+      query={query}
+      perspective="group"
+      ariaLabel={`Cluster access of group ${group.name}`}
+      createLabel="Grant access"
+      emptyTitle="No cluster access yet"
+      emptyBody={`Members of ${group.name} can't reach any cluster through this group until you grant access.`}
       onCreate={onGrantAccess}
     />
   );

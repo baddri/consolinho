@@ -272,7 +272,7 @@ function GrantForm(props: GrantFormModalProps) {
             <SubjectSection control={form.control} granted={granted} onKindChange={clearSubject} />
           )}
           {subjectKind === 'group' && (
-            <PriorityField control={form.control} usedPriorities={usedPriorities} />
+            <PriorityField control={form.control} name="priority" usedPriorities={usedPriorities} />
           )}
           <CredentialPicker control={form.control} clusterName={clusterName} />
           <RadioGroupField

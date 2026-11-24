@@ -6,11 +6,14 @@ import {
   EmptyStateFooter,
   Skeleton,
 } from '@patternfly/react-core';
+import { useState } from 'react';
 import { Link, useParams, type LinkProps } from 'react-router';
 import { isApiError, type GroupDetail } from '@/shared/api';
 import { fleetAdminPath } from '@/shared/routing';
 import { ErrorState, KindBadge, PageBody, PageHeading, PageTabs } from '@/shared/ui';
 import { ADMIN_KIND_ABBR } from '../AdminResourceLink';
+import { BulkGrantWizard } from '../grants/bulk/BulkGrantWizard';
+import { GroupGrantsTab } from '../grants/GrantsTab';
 import {
   detailPageTabs,
   GROUP_DETAIL_TAB_TITLES,
@@ -52,17 +55,26 @@ const isGroupNotFound = (error: unknown) => isApiError(error) && error.status ==
 
 /**
  * URL-driven tabs of a loaded group as `PageTabs` (`UX.md` §4), then the active tab's content in a `PageBody`
- * labelled by the tab. Rendered with a single Details tab already so the page doesn't change shape when more land.
+ * labelled by the tab: Details, or Cluster access with "Grant access" opening the bulk grant wizard (GPG-2/3).
  */
 function GroupTabs({ group, tab }: { group: GroupDetail; tab: GroupDetailTab }) {
   const tabs = detailPageTabs(GROUP_DETAIL_TABS, GROUP_DETAIL_TAB_TITLES, groupDetailPath(group.name));
+  const [isBulkGrantOpen, setBulkGrantOpen] = useState(false);
   return (
     <>
       <PageTabs tabs={tabs} activeKey={tab} aria-label="Group detail tabs" />
       <PageBody role="tabpanel" aria-label={GROUP_DETAIL_TAB_TITLES[tab]}>
-        {/* Details is the only tab so far; T-0264 adds Cluster access here. */}
-        <GroupDetailsTab group={group} />
+        {tab === 'access' ? (
+          <GroupGrantsTab group={group} onGrantAccess={() => setBulkGrantOpen(true)} />
+        ) : (
+          <GroupDetailsTab group={group} />
+        )}
       </PageBody>
+      <BulkGrantWizard
+        subject={{ kind: 'group', name: group.name }}
+        isOpen={isBulkGrantOpen}
+        onClose={() => setBulkGrantOpen(false)}
+      />
     </>
   );
 }

@@ -169,7 +169,11 @@ export function UserDetailPage() {
         </PageBody>
       )}
       {user && <UserTabs user={user} tab={tab} onGrantAccess={openBulkGrant} />}
-      <BulkGrantWizard username={username} isOpen={isBulkGrantOpen} onClose={() => setBulkGrantOpen(false)} />
+      <BulkGrantWizard
+        subject={{ kind: 'user', name: username }}
+        isOpen={isBulkGrantOpen}
+        onClose={() => setBulkGrantOpen(false)}
+      />
     </>
   );
 }
