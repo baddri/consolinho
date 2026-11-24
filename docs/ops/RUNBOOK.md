@@ -38,7 +38,8 @@ request; the Deployment sets no `replicas`) and a PodDisruptionBudget (`maxUnava
 
 - `oc` logged in to the target cluster with rights to create the namespace and namespaced objects, and to create
   **OAuthClients** and the ClusterRole/ClusterRoleBinding `consolinho-group-reader` (cluster-scoped, ADR-0039 §5):
-  `oc auth can-i create oauthclients` and `oc auth can-i create clusterrolebindings` must print `yes` (cluster-admin).
+  `oc auth can-i create` on `oauthclients`, `clusterroles` and `clusterrolebindings` must print `yes` (cluster-admin);
+  `scripts/deploy-dev.sh` checks all three before applying anything.
 - Tools: `oc`, `openssl`, `git`, `tar`, coreutils. `podman` only to build or check the image locally
   (`scripts/check-image.sh`).
 - The cluster's router namespace carries the label `policy-group.network.openshift.io/ingress` (the default on
@@ -60,7 +61,7 @@ scripts/deploy-dev.sh --help
 **Flags:** `--yes` (skip the deploy confirmation), `--admin <user>` or `--admin=<user>` (bootstrap admin, default:
 `oc whoami`; the script warns for `kube:admin`, which disappears once the cluster has an identity provider),
 `--teardown`, `-h|--help`. The namespace is fixed to `consolinho`. Output is a checklist (`✓ …` per step; `! …`
-warnings and `✗ …` errors on stderr, exit ≠ 0). Requires `oc auth can-i create oauthclients` = `yes`.
+warnings and `✗ …` errors on stderr, exit ≠ 0). Requires the §2 `oc auth can-i` rights.
 
 **What the script derives and creates:**
 - API URL and user from `oc whoami`; apps domain from `ingresses.config/cluster`, so the console is at
@@ -84,9 +85,11 @@ warnings and `✗ …` errors on stderr, exit ≠ 0). Requires `oc auth can-i cr
 rewrites the generated overlay (image, version) and rolls the Deployment.
 
 **Teardown (humans only):** `scripts/deploy-dev.sh --teardown` needs an interactive terminal (it refuses piped
-stdin) and `oc auth can-i delete oauthclients`; it asks you to type the namespace (`--yes` does not skip this), deletes the OAuthClient `consolinho` and the project `consolinho` (database, DP certificate and all stored
-credentials are gone). The local CA bundle copy stays. The cluster-scoped ClusterRole/ClusterRoleBinding
-`consolinho-group-reader` survive it (until T-0268): `oc delete clusterrolebinding,clusterrole consolinho-group-reader`.
+stdin) and `oc auth can-i delete` on oauthclients, clusterrolebindings and clusterroles; it asks you to type the
+namespace (`--yes` does not skip this), then deletes the OAuthClient `consolinho`, the cluster-scoped
+ClusterRoleBinding and ClusterRole `consolinho-group-reader` (idempotent; a leftover binding would grant group-read to
+any later `consolinho/consolinho` ServiceAccount) and the project `consolinho` (database, DP certificate and all stored
+credentials are gone). The local CA bundle copy stays.
 
 ### 3.1 Smoke test: the host cluster as a managed cluster (SMK-1)
 

@@ -1,7 +1,7 @@
 ---
 id: T-0268
 title: deploy-dev.sh — preflight and teardown for the cluster-scoped group-reader RBAC
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: [T-0258]
@@ -32,12 +32,17 @@ script should fail fast when the user can't create them (instead of `oc apply -k
 - Objects: `deploy/kustomize/base/rbac-group-reader.yaml`.
 
 ## Acceptance criteria
-- [ ] Deploy preflight refuses early without `create clusterrolebindings`/`clusterroles`.
-- [ ] `--teardown` deletes both cluster-scoped objects (idempotent) and checks the delete rights first.
-- [ ] RUNBOOK accurate; `scripts/check-deploy.sh` passes.
+- [x] Deploy preflight refuses early without `create clusterrolebindings`/`clusterroles`.
+- [x] `--teardown` deletes both cluster-scoped objects (idempotent) and checks the delete rights first.
+- [x] RUNBOOK accurate; `scripts/check-deploy.sh` passes.
 
 ## Work log
+- 2026-11-24 backend-engineer: `can_i` helper; deploy preflight checks create clusterroles/clusterrolebindings, teardown
+  checks delete on both and deletes `clusterrolebinding,clusterrole consolinho-group-reader --ignore-not-found` (one ✓)
+  before the project. Usage comment + RUNBOOK §2/§3 updated. Not run against any cluster; `check-deploy.sh` ok.
 
 ## Review
 
 ## Handover notes
+- Script never executed against a cluster (rule 6/DEV-8); only shellcheck/`bash -n` via `scripts/check-deploy.sh`.
+- Name is a script constant `GROUP_READER=consolinho-group-reader`, matching base `rbac-group-reader.yaml`; rename both together.

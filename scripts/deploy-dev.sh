@@ -23,7 +23,7 @@
 #        scripts/deploy-dev.sh --teardown
 #   --yes            skip the deploy confirmation prompt (not the teardown one)
 #   --admin <user>   bootstrap admin username (default: the current `oc whoami` user)
-#   --teardown       delete the OAuthClient and project consolinho (asks you to type the namespace)
+#   --teardown       delete the OAuthClient, ClusterRole(Binding) consolinho-group-reader and project consolinho
 #   -h, --help       show this help
 set -euo pipefail
 umask 077
@@ -88,12 +88,24 @@ secret_value() {
   oc get secret "$1" -n "$NS" -o "jsonpath={.data.${2//./\\.}}" | base64 -d
 }
 
+# True if the current user may perform verb $1 on resource $2 (cluster-wide check; errors count as "no").
+can_i() { [[ "$(oc auth can-i "$1" "$2" 2>/dev/null || true)" == yes ]]; }
+
+# Cluster-scoped RBAC rendered by the base (deploy/kustomize/base/rbac-group-reader.yaml, T-0258). It outlives the
+# project, so teardown deletes it explicitly: a leftover binding would grant group-read to any later SA of this name.
+GROUP_READER=consolinho-group-reader
+
 if [[ $TEARDOWN == 1 ]]; then
-  [[ "$(oc auth can-i delete oauthclients.oauth.openshift.io 2>/dev/null || true)" == yes ]] ||
+  can_i delete oauthclients.oauth.openshift.io ||
     die "user $USER_NAME may not delete OAuthClients on $API_URL"
+  for res in clusterrolebindings clusterroles; do
+    can_i delete "$res.rbac.authorization.k8s.io" ||
+      die "user $USER_NAME may not delete $res on $API_URL (cluster-admin needed, see docs/ops/RUNBOOK.md §2)"
+  done
   echo "Cluster API: $API_URL"
   echo "User:        $USER_NAME"
   echo "Namespace:   $NS (deleted with everything in it, incl. the database) + OAuthClient $APP"
+  echo "Cluster RBAC: ClusterRole/ClusterRoleBinding $GROUP_READER"
   # --yes deliberately does not skip this: teardown is destructive and human-only (DEV-8).
   [[ -t 0 ]] || die "--teardown needs an interactive terminal (human-only, DEV-8)"
   answer=""
@@ -101,13 +113,20 @@ if [[ $TEARDOWN == 1 ]]; then
   [[ $answer == "$NS" ]] || die "aborted, nothing changed"
   oc delete oauthclient "$APP" --ignore-not-found >/dev/null
   ok "OAuthClient $APP deleted"
+  oc delete clusterrolebinding,clusterrole "$GROUP_READER" --ignore-not-found >/dev/null
+  ok "ClusterRoleBinding and ClusterRole $GROUP_READER deleted"
   oc delete project "$NS" --ignore-not-found --wait >/dev/null
   ok "Project $NS deleted (local CA bundle cache left in place)"
   exit 0
 fi
 
-[[ "$(oc auth can-i create oauthclients.oauth.openshift.io 2>/dev/null || true)" == yes ]] ||
+can_i create oauthclients.oauth.openshift.io ||
   die "user $USER_NAME may not create OAuthClients on $API_URL (cluster-admin needed)"
+# Checked before anything is applied so 'oc apply -k' cannot die half-applied on the cluster-scoped group reader.
+for res in clusterroles clusterrolebindings; do
+  can_i create "$res.rbac.authorization.k8s.io" ||
+    die "user $USER_NAME may not create $res on $API_URL (cluster-admin needed, see docs/ops/RUNBOOK.md §2)"
+done
 ADMIN="${ADMIN:-$USER_NAME}"
 # Keeps the value a plain YAML scalar in the generated overlay; OpenShift usernames in practice fit this set.
 [[ $ADMIN =~ ^[A-Za-z0-9._@:-]+$ ]] || die "unsupported admin username: $ADMIN"
