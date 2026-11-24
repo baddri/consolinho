@@ -1,12 +1,12 @@
 ---
 id: T-0284
 title: Redis in the kustomize base (Deployment, Service, NetworkPolicy, Secret contract) + deploy-dev script and runbook
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5b
 depends_on: []          # contract only (connection-string name `redis`); light lane, no .NET build
 paths: [deploy/kustomize/base/, deploy/kustomize/overlays/dev/kustomization.yaml, deploy/kustomize/overlays/prod/kustomization.yaml, deploy/kustomize/overlays/production/, scripts/check-deploy.sh, scripts/deploy-dev.sh, docs/ops/RUNBOOK.md, docs/adr/0030-*.md]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -54,14 +54,45 @@ kustomize image reference so the disconnected prod cluster mirrors it like Postg
 - Touch points: `scripts/check-deploy.sh` L17–19 (renders), `containers_report` (L51+), assertion block L137–200.
 
 ## Acceptance criteria
-- [ ] `scripts/check-deploy.sh` green with Redis in every render (OPS-1).
-- [ ] Rendered dev overlay: Redis reachable only from server pods (policy reviewed), no PVC, no Secret rendered.
-- [ ] `deploy-dev.sh` creates `consolinho-redis` once and keeps it on re-runs (shellcheck clean).
-- [ ] RUNBOOK + ADR-0030 contract list `consolinho-redis` and `ConnectionStrings__redis`; the Redis image is called out
+- [x] `scripts/check-deploy.sh` green with Redis in every render (OPS-1).
+- [x] Rendered dev overlay: Redis reachable only from server pods (policy reviewed), no PVC, no Secret rendered.
+- [x] `deploy-dev.sh` creates `consolinho-redis` once and keeps it on re-runs (shellcheck clean).
+- [x] RUNBOOK + ADR-0030 contract list `consolinho-redis` and `ConnectionStrings__redis`; the Redis image is called out
       as a mirror item for disconnected installs.
 
 ## Work log
+- 2026-11-24 backend-engineer: started (light lane, manifests + scripts + runbook).
+- 2026-11-24 backend-engineer: base redis.yaml/-service/networkpolicy-redis, egress 6379, server env, `images:` in
+  dev/prod/production, Secret in deploy-dev.sh + secrets.example, check-deploy (prod render + REDIS asserts), RUNBOOK
+  §4.7 (old 4.7 → 4.8) + §1/§5 rows, ADR-0030 row. Deviation: `command: [redis-server]` instead of rhel9 run-redis
+  (it appends to /etc/redis/redis.conf → breaks readOnlyRootFilesystem). check-deploy.sh green; no oc mutations.
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. `scripts/check-deploy.sh` green (REDIS ok in dev/prod/production,
+  kubeconform, shellcheck). Rendered `consolinho-redis-ingress`: Redis selected, ingress only from component=server
+  (+ name/part-of) on 6379. No PVC, no Secret rendered, limits/requests + securityContext match prod Postgres plus
+  readOnlyRootFilesystem; deploy-dev Secret is create-if-missing via temp file + `--from-file`, never printed.
+- Deviation accepted: `redis-server` + `--requirepass $(REDIS_PASSWORD)`. `oc describe`/`-o yaml` show only the
+  literal `$(REDIS_PASSWORD)`; the expanded value lives where env values already live (node CRI config, the
+  container's own /proc), the pod has one container and no shareProcessNamespace, and Redis 7 rewrites its proc title.
+  No worse than env; SECURITY.md has no rule against it. A mounted config file would only make sense with a Secret-
+  rendered redis.conf, which is more to maintain for no gain.
+- Optional: `deploy/kustomize/base/networkpolicy-redis.yaml` — Redis needs no egress; adding `Egress` to
+  `policyTypes` (deny all) is cheap defence in depth.
+- Optional: the migrate init container shares the server pod's network identity, so it can reach Redis on the wire
+  (it has no password); the file comment says this correctly — nothing to change.
+- Follow-up for T-0281 (not this task): never log the multiplexer configuration with `includePassword: true`.
+- T-0286: confirm `registry.redhat.io/rhel9/redis-7:1` pulls and that its `redis-server`/`redis-cli`/`grep` are on PATH.
 
 ## Handover notes
+- Redis runs `redis-server` with all settings as args (no config file): rhel9 `run-redis` writes the config at start,
+  incompatible with readOnlyRootFilesystem. Password via `$(REDIS_PASSWORD)` arg expansion (pod spec holds no value;
+  Redis ≥ 7 rewrites its proc title). Probe auth via `REDISCLI_AUTH`; readiness greps PONG, liveness is TCP.
+- Sizing: 256Mi request = limit, `maxmemory 192mb allkeys-lru`, 50m CPU, emptyDir 64Mi (`/var/lib/redis/data`).
+- Image tag `"1"` (floating major, same convention as `postgresql-16:1`) — not verified against the registry from
+  here; T-0286 should confirm the pull on consolinho/prod and pin a digest for prod.
+- check-deploy now renders `overlays/prod` too and asserts per overlay: Redis Deployment exists, no PVC, image
+  mapped (contains `/`), a NetworkPolicy selects component=redis, server container (not migrate) has
+  `ConnectionStrings__redis`; readOnlyRootFilesystem also enforced on consolinho-redis.
+- Prod: Secret `consolinho-redis` must be created by hand before apply (RUNBOOK §4.7). Nothing deployed.
+- Off-path: overlay header comments of prod/production list `consolinho-redis` (inside task paths).

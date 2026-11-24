@@ -1,6 +1,6 @@
 # Production overlay (ADR-0030, K8S-7). Copy this directory, replace every REPLACE_ME / example.com placeholder,
-# then create the Secrets consolinho-db, consolinho-oauth, consolinho-dp-cert, the ConfigMap consolinho-ca-bundle
-# (see secrets.example.yaml) and the OAuthClient `consolinho` as described in the runbook. Nothing here is derived
+# then create the Secrets consolinho-db, consolinho-oauth, consolinho-dp-cert, consolinho-redis, the ConfigMap
+# consolinho-ca-bundle (see secrets.example.yaml) and the OAuthClient `consolinho` as described in the runbook. Nothing here is derived
 # from `oc`. Postgres is external (DB-4); there are no build objects. Scaling (HPA 3-6) and the PDB come from
 # base (ADR-0030 Amendment 2026-11-24); don't patch spec.replicas here. Base also renders the cluster-scoped
 # ClusterRole/ClusterRoleBinding consolinho-group-reader (ADR-0039 §5): apply as cluster-admin. Host on another
@@ -29,6 +29,11 @@ images:
   - name: consolinho
     newName: registry.example.com/consolinho/consolinho
     newTag: REPLACE_ME
+  # Access-cache Redis of base (ADR-0040 §9), pulled with the cluster's global pull secret. Disconnected installs
+  # point newName at their mirror (and pin `digest: sha256:...`); nothing else references the image.
+  - name: redis
+    newName: registry.redhat.io/rhel9/redis-7
+    newTag: "1"
 
 configMapGenerator:
   - name: consolinho-config

@@ -14,9 +14,9 @@ LOGS="$LOGS/$(date +%Y%m%d-%H%M%S)-$$"; mkdir -p "$LOGS"
 ls -1dt "$(dirname "$LOGS")"/*/ 2>/dev/null | tail -n +21 | xargs -r rm -rf
 
 KUSTOMIZE_DIR=deploy/kustomize
-RENDERS=(overlays/dev overlays/production build)
-# Overlays that contain the Route and therefore the PublicOrigin -> Route host replacement.
-ROUTE_RENDERS=(overlays/dev overlays/production)
+RENDERS=(overlays/dev overlays/prod overlays/production build)
+# Overlays (base included): Route + PublicOrigin -> Route host replacement, HPA, and the access-cache Redis.
+ROUTE_RENDERS=(overlays/dev overlays/prod overlays/production)
 KUSTOMIZE_IMAGE=registry.k8s.io/kustomize/kustomize:v5.6.0
 KUBECONFORM_IMAGE=ghcr.io/yannh/kubeconform:v0.7.0
 SHELLCHECK_IMAGE=docker.io/koalaman/shellcheck:stable
@@ -123,6 +123,32 @@ config_value() {
   ' "$1" | tr -d '"'"'"
 }
 
+# Prints the rendered object <kind> <name> (one YAML document, without the separator) of a rendered stream.
+render_object() {
+  awk -v want_kind="$2" -v want_name="$3" '
+    function flush() { if (kind == want_kind && name == want_name) printf "%s", buf; buf = ""; kind = ""; name = ""; top = "" }
+    /^---$/ { flush(); next }
+    { buf = buf $0 "\n" }
+    /^[a-zA-Z]/ { top = $1; if ($1 == "kind:") kind = $2 }
+    top == "metadata:" && /^  name: / { name = $2 }
+    END { flush() }
+  ' "$1"
+}
+
+# Prints the list item of container <name> from `containers:` (not initContainers) of one rendered object on stdin.
+# kustomize sorts keys, so `name:` is not the item's first line: items are buffered and printed once complete.
+container_item() {
+  awk -v want="$1" '
+    function indent(s) { match(s, /^ */); return RLENGTH }
+    function flush() { if (item ~ ("\n *-? *name: " want "\n")) printf "%s", item; item = "" }
+    inlist && indent($0) == cind && substr($0, cind + 1, 2) == "- " { flush(); item = "\n" $0 "\n"; next }
+    inlist && indent($0) <= cind { flush(); inlist = 0 }
+    inlist { item = item $0 "\n"; next }
+    /^ *containers:$/ { inlist = 1; cind = indent($0) }
+    END { flush() }
+  '
+}
+
 # spec.host of the rendered Route consolinho.
 route_host() {
   awk '
@@ -155,7 +181,7 @@ for r in "${RENDERS[@]}"; do
     [[ -n $workload ]] || continue
     [[ $req == req=1 ]] || fail "$r $workload/$cname has no resources.requests"
     [[ $limmem == limmem=1 ]] || fail "$r $workload/$cname has no resources.limits.memory"
-    if [[ $workload == Deployment/consolinho && $rofs != rofs=1 ]]; then
+    if [[ $workload =~ ^Deployment/consolinho(-redis)?$ && $rofs != rofs=1 ]]; then
       fail "$r $workload/$cname lacks readOnlyRootFilesystem: true"
     fi
   done <<< "$report"
@@ -194,6 +220,32 @@ for r in "${ROUTE_RENDERS[@]}"; do
   fi
   grep -qx 'Deployment replicas=1' <<< "$scaling" && fail "$r Deployment consolinho sets spec.replicas (the HPA owns it)"
   grep -qx 'PodDisruptionBudget' <<< "$scaling" || fail "$r renders no PodDisruptionBudget consolinho"
+done
+
+# OPS-1 (ADR-0040 §9): every overlay ships the access-cache Redis — ephemeral (no PVC), reachable only through a
+# NetworkPolicy selecting it, its image mapped by the overlay — and the server container gets ConnectionStrings__redis.
+for r in "${ROUTE_RENDERS[@]}"; do
+  out="$LOGS/render-${r//\//-}.yaml"; [[ -s $out ]] || continue
+  redis="$(render_object "$out" Deployment consolinho-redis)"
+  if [[ -z $redis ]]; then fail "$r renders no Deployment consolinho-redis"; continue; fi
+  redis_ok=1
+  if grep -qE '(volumeClaimTemplates|persistentVolumeClaim):' <<< "$redis"; then
+    fail "$r consolinho-redis uses a PVC (Redis must stay ephemeral)"; redis_ok=0
+  fi
+  image="$(container_item redis <<< "$redis" | sed -n 's/^ *-\{0,1\} *image: //p' | head -1)"
+  [[ $image == */* ]] || { fail "$r consolinho-redis image '$image' not mapped by an images: entry"; redis_ok=0; }
+  # NetworkPolicy whose spec.podSelector (2-space key under spec) selects component=redis.
+  if ! awk '/^---$/ { k = ""; t = ""; s = ""; next } /^kind: / { k = $2 } /^[a-zA-Z]/ { t = $1 }
+            t == "spec:" && /^  [a-zA-Z]/ { s = $1 }
+            k == "NetworkPolicy" && s == "podSelector:" && /^      app.kubernetes.io\/component: redis$/ { f = 1 }
+            END { exit !f }' "$out"; then
+    fail "$r renders no NetworkPolicy selecting component=redis"; redis_ok=0
+  fi
+  server="$(render_object "$out" Deployment consolinho | container_item server)"
+  if ! grep -q 'name: ConnectionStrings__redis$' <<< "$server"; then
+    fail "$r server container lacks ConnectionStrings__redis"; redis_ok=0
+  fi
+  [[ $redis_ok == 1 ]] && echo "REDIS: $r ok ($image)"
 done
 
 # --- kubeconform -----------------------------------------------------------------------------------------------

@@ -25,6 +25,10 @@ images:
   - name: consolinho
     newName: image-registry.openshift-image-registry.svc:5000/consolinho/consolinho
     newTag: latest
+  # Access-cache Redis of base (ADR-0040 §9); same registry as the dev Postgres image (cluster pull secret).
+  - name: redis
+    newName: registry.redhat.io/rhel9/redis-7
+    newTag: "1"
 
 configMapGenerator:
   - name: consolinho-config

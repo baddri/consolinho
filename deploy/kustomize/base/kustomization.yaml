@@ -1,11 +1,12 @@
-# Base of the consolinho deployment (ADR-0030). Environment-neutral: no namespace (overlays set it; it also lands on
-# the ClusterRoleBinding subject in rbac-group-reader.yaml), no Secrets, no image tag, no
+# Base of the consolinho deployment (ADR-0030), incl. the access-cache Redis (ADR-0040 §9: every overlay runs >= 3
+# replicas, so every overlay needs it). Environment-neutral: no namespace (overlays set it; it also lands on
+# the ClusterRoleBinding subject in rbac-group-reader.yaml), no Secrets, no image names/tags (`consolinho`, `redis`), no
 # Route host. Overlays add the namespace, image, per-deployment config literals and the Route-host `replacements`
 # stanza (which must live in the outermost kustomization of every render, see the overlays).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# name/part-of are part of every selector; `app.kubernetes.io/component` is set per resource (server | database |
+# name/part-of are part of every selector; `app.kubernetes.io/component` is set per resource (server | redis | database |
 # smoke). `app.kubernetes.io/version` is added by overlays with includeSelectors: false (selectors are immutable).
 labels:
   - pairs:
@@ -23,6 +24,9 @@ resources:
   - route.yaml
   - networkpolicy-ingress.yaml
   - networkpolicy-egress.yaml
+  - redis.yaml
+  - redis-service.yaml
+  - networkpolicy-redis.yaml
 
 # Shared, non-secret configuration (CFG-1). Keys are .NET configuration keys (`__` = section separator). Overlays
 # merge the per-deployment keys Console__PublicOrigin and Auth__BootstrapAdminUsers__0 (behavior: merge).

@@ -4,8 +4,8 @@
 #
 # What it does (namespace fixed: consolinho):
 #   preflight (logged in, may create OAuthClients, confirmation naming the API URL) -> derive the apps domain and
-#   Route host -> project consolinho -> generated Secrets consolinho-oauth / -postgres / -db / -dp-cert (created only
-#   if missing, reused on re-runs) -> ConfigMap consolinho-ca-bundle (namespace kube-root-ca.crt + ingress CA; copy
+#   Route host -> project consolinho -> generated Secrets consolinho-oauth / -postgres / -db / -redis / -dp-cert
+#   (created only if missing, reused on re-runs) -> ConfigMap consolinho-ca-bundle (namespace kube-root-ca.crt + ingress CA; copy
 #   in ${XDG_CACHE_HOME:-~/.cache}/consolinho/ca-bundle.crt for the smoke test) -> BuildConfig/ImageStream + binary
 #   build of the working tree (git ls-files -co --exclude-standard) -> generated overlay
 #   deploy/kustomize/overlays/.dev-generated (gitignored) applied with the built digest -> OAuthClient consolinho (the
@@ -192,6 +192,16 @@ else
   ok "Secret consolinho-db created"
 fi
 unset db_password
+
+# Access-cache Redis password (ADR-0040 §9): Redis' --requirepass and the server's ConnectionStrings__redis read the
+# same key, so one Secret suffices. Hex only: the value is embedded in a StackExchange.Redis connection string.
+if exists secret consolinho-redis; then
+  ok "Secret consolinho-redis reused"
+else
+  openssl rand -hex 32 | tr -d '\n' > "$TMP/redis-password"
+  oc create secret generic consolinho-redis -n "$NS" --from-file=password="$TMP/redis-password" >/dev/null
+  ok "Secret consolinho-redis created"
+fi
 
 # Data Protection key-encryption certificate (ADR-0028): self-signed, 10 years; losing it makes stored SA tokens
 # unreadable, which is why it is never regenerated once it exists.
