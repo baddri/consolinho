@@ -28,8 +28,18 @@ export interface CredentialPickerProps {
 
 /** Q7 test hint of a credential: "Never tested" / "Last test failed", nothing after a passed test. */
 function TestHint({ lastTest }: Pick<Credential, 'lastTest'>) {
-  if (lastTest === null) return <Label isCompact color="grey">Never tested</Label>;
-  if (!lastTest.succeeded) return <Label isCompact status="danger">Last test failed</Label>;
+  if (lastTest === null)
+    return (
+      <Label isCompact color="grey">
+        Never tested
+      </Label>
+    );
+  if (!lastTest.succeeded)
+    return (
+      <Label isCompact status="danger">
+        Last test failed
+      </Label>
+    );
   return null;
 }
 
@@ -52,7 +62,9 @@ function ClusterCredentialSelect(
   props: Omit<CredentialSelectProps, 'credentials' | 'isPending' | 'isLoadError'>,
 ) {
   const { data, error, isPending } = useClusterCredentials(props.clusterName);
-  return <CredentialSelect {...props} credentials={data} isPending={isPending} isLoadError={error !== null} />;
+  return (
+    <CredentialSelect {...props} credentials={data} isPending={isPending} isLoadError={error !== null} />
+  );
 }
 
 /**

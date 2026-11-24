@@ -17,7 +17,7 @@ namespace FleetConsole.Application.Clusters.ListClusters;
 /// <param name="TlsMode">How the API server's certificate is verified; skipVerify should be flagged.</param>
 /// <param name="CredentialCount">Number of ServiceAccount credentials stored for the cluster.</param>
 /// <param name="WorstCredentialExpiryStatus">The most severe token expiry status among the credentials (expired, expiringSoon, unknown, noExpiry, ok, in that order); null when the cluster has no credentials.</param>
-/// <param name="GrantCount">Number of users with access (one grant per user and cluster).</param>
+/// <param name="GrantCount">Number of users with direct access (user grants only, one per user and cluster); group grants are not counted.</param>
 /// <param name="LastTest">The newest connection test result across the cluster's credentials, or null when none was tested.</param>
 /// <param name="LastTestCredentialName">The credential that newest test ran with, or null.</param>
 /// <param name="Version">Concurrency version; send it back with enable/disable.</param>

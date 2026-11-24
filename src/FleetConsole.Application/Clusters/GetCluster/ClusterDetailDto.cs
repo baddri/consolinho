@@ -19,7 +19,7 @@ namespace FleetConsole.Application.Clusters.GetCluster;
 /// <param name="TlsMode">How the API server's certificate is verified (derived from the CA bundle and the skip flag).</param>
 /// <param name="IsEnabled">Whether granted users see and can use the cluster.</param>
 /// <param name="CredentialCount">Number of ServiceAccount credentials stored for the cluster.</param>
-/// <param name="GrantCount">Number of users with access (one grant per user and cluster).</param>
+/// <param name="GrantCount">Number of users with direct access (user grants only, one per user and cluster); group grants are not counted.</param>
 /// <param name="ConnectionSettingsChangedAt">When the API URL, CA bundle or skip flag last changed; connection tests from before this time are stale.</param>
 /// <param name="CreatedAt">When the cluster was registered.</param>
 /// <param name="CreatedBy">Who registered the cluster.</param>

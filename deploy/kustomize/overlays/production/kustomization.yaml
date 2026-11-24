@@ -2,7 +2,9 @@
 # then create the Secrets consolinho-db, consolinho-oauth, consolinho-dp-cert, the ConfigMap consolinho-ca-bundle
 # (see secrets.example.yaml) and the OAuthClient `consolinho` as described in the runbook. Nothing here is derived
 # from `oc`. Postgres is external (DB-4); there are no build objects. Scaling (HPA 3-6) and the PDB come from
-# base (ADR-0030 Amendment 2026-11-24); don't patch spec.replicas here.
+# base (ADR-0030 Amendment 2026-11-24); don't patch spec.replicas here. Base also renders the cluster-scoped
+# ClusterRole/ClusterRoleBinding consolinho-group-reader (ADR-0039 §5): apply as cluster-admin. Host on another
+# cluster than this one: see the last object in secrets.example.yaml.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 

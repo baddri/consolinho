@@ -1,4 +1,5 @@
 import type {
+  AccessMode,
   AccessibleCluster,
   CaCertificate,
   ClusterDetail,
@@ -45,9 +46,15 @@ export function ordinal(a: string, b: string): number {
 
 // ---- Users
 
-/** Count of grants of `username`. */
+/** Count of direct grants of `username` (group grants aren't the user's own, contract §2). */
 function grantCountOfUser(username: string): number {
-  return mockDb.grants.filter((grant) => grant.username === username).length;
+  return mockDb.grants.filter((grant) => isUserGrantOf(grant, username)).length;
+}
+
+/** Users with access to `clusterName`: its direct grants ("Users with access", contract `grantCount`). */
+function userGrantCountOfCluster(clusterName: string): number {
+  return mockDb.grants.filter((grant) => grant.clusterName === clusterName && grant.subjectKind === 'user')
+    .length;
 }
 
 /** `GET /api/auth/me` body. */
@@ -213,7 +220,7 @@ export function toClusterListItem(cluster: MockCluster): ClusterListItem {
     tlsMode: tlsModeOf(cluster),
     credentialCount: credentials.length,
     worstCredentialExpiryStatus: worst,
-    grantCount: mockDb.grants.filter((grant) => grant.clusterName === cluster.name).length,
+    grantCount: userGrantCountOfCluster(cluster.name),
     lastTest: newest ? toTestSummary(newest.lastTest, cluster.name) : null,
     lastTestCredentialName: newest?.name ?? null,
     version: cluster.version,
@@ -236,7 +243,7 @@ export function toClusterDetail(cluster: MockCluster): ClusterDetail {
     tlsMode: tlsModeOf(cluster),
     isEnabled: cluster.isEnabled,
     credentialCount: credentialsOfCluster(cluster.name).length,
-    grantCount: mockDb.grants.filter((grant) => grant.clusterName === cluster.name).length,
+    grantCount: userGrantCountOfCluster(cluster.name),
     connectionSettingsChangedAt: cluster.connectionSettingsChangedAt,
     createdAt: cluster.createdAt,
     createdBy: cluster.createdBy,
@@ -246,34 +253,47 @@ export function toClusterDetail(cluster: MockCluster): ClusterDetail {
   };
 }
 
-/** Switcher entry with the effective access mode (readOnly when the grant or the user is read-only, §6). */
-export function toAccessibleCluster(
-  cluster: MockCluster,
-  grant: MockGrant,
-  user: MockUser,
-): AccessibleCluster {
+/** Switcher entry with the effective access mode `accessMode` (resolved, incl. the user's read-only flag, §6). */
+export function toAccessibleCluster(cluster: MockCluster, accessMode: AccessMode): AccessibleCluster {
   return {
     name: cluster.name,
     displayName: cluster.displayName,
     environment: cluster.environment,
     distribution: cluster.distribution,
-    accessMode: user.isReadOnly ? 'readOnly' : grant.accessMode,
+    accessMode,
     webConsoleUrl: cluster.webConsoleUrl,
   };
 }
 
 // ---- Grants
 
-/** Grant representation (§9.1) with the GRANT-5 marker fields. */
+/** `true` for a direct grant of `username`. */
+export function isUserGrantOf(grant: MockGrant, username: string): boolean {
+  return grant.subjectKind === 'user' && grant.subjectName === username;
+}
+
+/** `true` for a grant of group `groupName`. */
+export function isGroupGrantOf(grant: MockGrant, groupName: string): boolean {
+  return grant.subjectKind === 'group' && grant.subjectName === groupName;
+}
+
+/**
+ * Grant representation (§9.1, CP4.5a §1) with the GRANT-5 marker fields; the user fields are `null` for group
+ * grants.
+ */
 export function toGrant(grant: MockGrant): Grant {
-  const user = findUser(grant.username);
+  const isUser = grant.subjectKind === 'user';
+  const user = isUser ? findUser(grant.subjectName) : undefined;
   const cluster = findCluster(grant.clusterName);
   const credential = findCredential(grant.credentialId);
   return {
     id: grant.id,
-    username: grant.username,
+    subjectKind: grant.subjectKind,
+    subjectName: grant.subjectName,
+    priority: grant.priority,
+    username: isUser ? grant.subjectName : null,
     userDisplayName: user?.displayName ?? null,
-    userStatus: user?.status ?? 'deactivated',
+    userStatus: isUser ? (user?.status ?? 'deactivated') : null,
     clusterName: grant.clusterName,
     clusterDisplayName: cluster?.displayName ?? grant.clusterName,
     clusterEnvironment: cluster?.environment ?? 'development',

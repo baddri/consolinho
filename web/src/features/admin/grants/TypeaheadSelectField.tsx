@@ -28,6 +28,13 @@ export interface TypeaheadSelectFieldProps {
   loadError?: string;
   /** Called after the value changed (selected or cleared by typing), e.g. to reset the credential. */
   onValueChange?: (value: string) => void;
+  /**
+   * Also offer the typed text as a last item `Use "<typed>"` (Enter without a highlight picks it too), for names
+   * that need not be listed, e.g. a group that doesn't exist on the host yet (UIG-2).
+   */
+  allowFreeText?: boolean;
+  /** Focus the input when the field mounts, e.g. after the subject kind changed. */
+  isAutoFocus?: boolean;
 }
 
 /** Most options shown at once; typing narrows the list. */
@@ -36,7 +43,8 @@ const MAX_OPTIONS = 50;
 /**
  * Required typeahead single select bound to the grant form's `target`, on top of the shared `TypeaheadSelect`
  * (keyboard and ARIA live there): typing filters the options by value and `searchText`, a click or Enter on a
- * highlighted option selects it, and editing the text clears the selection, so only listed values are ever submitted.
+ * highlighted option selects it, and editing the text clears the selection, so only listed values (or, with
+ * `allowFreeText`, the explicitly picked `Use "<typed>"`) are ever submitted.
  * Disabled options stay visible with their reason. Server and zod errors show under the field, which RHF focuses
  * through the input ref this component owns.
  */
@@ -48,6 +56,8 @@ export function TypeaheadSelectField({
   isLoading = false,
   loadError,
   onValueChange,
+  allowFreeText = false,
+  isAutoFocus = false,
 }: TypeaheadSelectFieldProps) {
   const { field, fieldState } = useController({ control, name: 'target' });
   const [input, setInput] = useState(field.value);
@@ -60,6 +70,9 @@ export function TypeaheadSelectField({
   useEffect(() => {
     registerRef({ focus: () => inputRef.current?.focus() });
   }, [registerRef]);
+  useEffect(() => {
+    if (isAutoFocus) inputRef.current?.focus();
+  }, [isAutoFocus]);
 
   // With a selection shown in the input the whole list is offered again; otherwise the typed text filters it.
   const needle = field.value !== '' && input === field.value ? '' : input.trim().toLowerCase();
@@ -67,6 +80,13 @@ export function TypeaheadSelectField({
     .filter((option) => `${option.value} ${option.searchText ?? ''}`.toLowerCase().includes(needle))
     .slice(0, MAX_OPTIONS)
     .map(({ value, description, isDisabled }) => ({ value, description, isDisabled }));
+  const typed = input.trim();
+  const offersTyped =
+    allowFreeText &&
+    typed !== '' &&
+    typed !== field.value &&
+    !options.some((option) => option.value === typed);
+  if (offersTyped) items.push({ value: typed, label: `Use "${typed}"` });
 
   const setValue = (value: string) => {
     if (value === field.value) return;
@@ -101,6 +121,14 @@ export function TypeaheadSelectField({
           setValue(value);
           setInput(value);
         }}
+        onEnterWithoutHighlight={
+          offersTyped
+            ? () => {
+                setValue(typed);
+                setInput(typed);
+              }
+            : undefined
+        }
         onClose={field.onBlur}
         isLoading={isLoading}
         emptyText={loadError}

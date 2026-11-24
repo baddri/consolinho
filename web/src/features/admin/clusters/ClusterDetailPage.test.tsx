@@ -168,7 +168,7 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     expect(screen.getByText('No CA bundle — the system trust store is used.')).toBeInTheDocument();
     expect(screen.queryByRole('grid', { name: /CA certificates/ })).not.toBeInTheDocument();
-    expect(details()['Web console']).toBe('—');
+    expect(details()['Web console']).toBe('-');
   });
 
   it('CLU-3: skip-TLS shows the header label and a warning instead of the trust-store note', async () => {

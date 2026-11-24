@@ -19,7 +19,7 @@ public sealed class DevOAuthAuthorizeTests(DevOAuthFactory factory) : IClassFixt
         var html = await response.Content.ReadAsStringAsync(Ct);
         html.ShouldContain("Consolinho DevOAuth — pick a user");
         html.ShouldNotContain("<script", Case.Insensitive);
-        foreach (var user in new[] { "admin", "alice", "bob", "ines", "e2e-user", "e2e-admin" })
+        foreach (var user in new[] { "admin", "alice", "bob", "ines", "e2e-user", "e2e-admin", "e2e-member" })
         {
             html.ShouldContain($"name=\"username\" value=\"{user}\"");
         }
@@ -28,9 +28,9 @@ public sealed class DevOAuthAuthorizeTests(DevOAuthFactory factory) : IClassFixt
         html.ShouldContain("fleetconsole-admins");
         html.ShouldContain("auditors");
         html.ShouldContain("name=\"cancel\" value=\"1\"");
-        // 6 users (incl. the Playwright smoke's e2e-user/e2e-admin) + Cancel, each form carrying the original parameters.
-        CountOf(html, "<form method=\"post\" action=\"/oauth/authorize\">").ShouldBe(7);
-        CountOf(html, $"name=\"code_challenge\" value=\"{challenge}\"").ShouldBe(7);
+        // 7 users (incl. the Playwright e2e-user/e2e-admin/e2e-member) + Cancel, each form carrying the original parameters.
+        CountOf(html, "<form method=\"post\" action=\"/oauth/authorize\">").ShouldBe(8);
+        CountOf(html, $"name=\"code_challenge\" value=\"{challenge}\"").ShouldBe(8);
     }
 
     [Fact]

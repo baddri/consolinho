@@ -7,6 +7,7 @@ import {
   unwrap,
   unwrapNoContent,
   type CreateGrantRequest,
+  type CreateGroupGrantRequest,
   type Grant,
   type UpdateGrantRequest,
 } from '@/shared/api';
@@ -21,13 +22,34 @@ export function useUserGrants(username: string) {
   });
 }
 
-/** Loads `GET /api/admin/clusters/{name}/grants` (CLU-8, US-9): who can access a cluster, sorted by username. */
-export function useClusterGrants(clusterName: string) {
+/**
+ * Loads `GET /api/admin/clusters/{name}/grants` (CLU-8, US-9): who can access a cluster, sorted by username.
+ * `enabled: false` skips the request, e.g. the grant dialog needs the cluster's group priorities only for groups.
+ */
+export function useClusterGrants(clusterName: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: adminKeys.clusterGrants(clusterName),
     queryFn: ({ signal }): Promise<Grant[]> =>
       unwrap(
-        apiClient.GET('/api/admin/clusters/{name}/grants', { params: { path: { name: clusterName } }, signal }),
+        apiClient.GET('/api/admin/clusters/{name}/grants', {
+          params: { path: { name: clusterName } },
+          signal,
+        }),
+      ),
+  });
+}
+
+/**
+ * Loads `GET /api/admin/groups/{groupName}/grants` (GPG-2): the group's Cluster access tab, sorted by cluster name.
+ * Unknown or invalid group names give `[]`, never a 404.
+ */
+export function useGroupGrants(groupName: string) {
+  return useQuery({
+    queryKey: adminKeys.groupGrants(groupName),
+    queryFn: ({ signal }): Promise<Grant[]> =>
+      unwrap(
+        apiClient.GET('/api/admin/groups/{groupName}/grants', { params: { path: { groupName } }, signal }),
       ),
   });
 }
@@ -57,9 +79,20 @@ function invalidateAfterSuccess(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: accessibleClustersQueryKey });
 }
 
-/** Applies `update` to the cached user and cluster grant lists that contain `grant` (before they refetch). */
-function updateCachedLists(queryClient: QueryClient, grant: Grant, update: (grants: Grant[]) => Grant[]): void {
-  for (const key of [adminKeys.userGrants(grant.username), adminKeys.clusterGrants(grant.clusterName)]) {
+/**
+ * Applies `update` to the cached subject (user or group) and cluster grant lists that contain `grant` (before they
+ * refetch).
+ */
+function updateCachedLists(
+  queryClient: QueryClient,
+  grant: Grant,
+  update: (grants: Grant[]) => Grant[],
+): void {
+  const subjectKey =
+    grant.subjectKind === 'user'
+      ? adminKeys.userGrants(grant.subjectName)
+      : adminKeys.groupGrants(grant.subjectName);
+  for (const key of [subjectKey, adminKeys.clusterGrants(grant.clusterName)]) {
     queryClient.setQueryData<Grant[]>(key, (current) => (current === undefined ? current : update(current)));
   }
 }
@@ -72,7 +105,28 @@ function updateCachedLists(queryClient: QueryClient, grant: Grant, update: (gran
 export function useCreateGrant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateGrantRequest): Promise<Grant> => unwrap(apiClient.POST('/api/admin/grants', { body })),
+    mutationFn: (body: CreateGrantRequest): Promise<Grant> =>
+      unwrap(apiClient.POST('/api/admin/grants', { body })),
+    onSuccess: () => invalidateAfterSuccess(queryClient),
+    onError: (error) => invalidateAfterError(queryClient, error),
+  });
+}
+
+/** Variables of {@link useCreateGroupGrant}: the group's name plus the `CreateGroupGrantRequest` body. */
+export type CreateGroupGrantVariables = CreateGroupGrantRequest & { groupName: string };
+
+/**
+ * `POST /api/admin/groups/{groupName}/grants` (UIG-1/3): 201 `Grant`. 409 `Grants.AlreadyExists` (GRP-5) or
+ * `Grants.PriorityTaken` (GRP-4); a `system:*` or invalid name, a bad priority, cluster or credential are 400 field
+ * errors. openapi-fetch encodes the name into the path segment.
+ */
+export function useCreateGroupGrant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupName, ...body }: CreateGroupGrantVariables): Promise<Grant> =>
+      unwrap(
+        apiClient.POST('/api/admin/groups/{groupName}/grants', { params: { path: { groupName } }, body }),
+      ),
     onSuccess: () => invalidateAfterSuccess(queryClient),
     onError: (error) => invalidateAfterError(queryClient, error),
   });
@@ -91,7 +145,9 @@ export function useUpdateGrant() {
     mutationFn: ({ grantId, ...body }: UpdateGrantVariables): Promise<Grant> =>
       unwrap(apiClient.PUT('/api/admin/grants/{grantId}', { params: { path: { grantId } }, body })),
     onSuccess: (grant) => {
-      updateCachedLists(queryClient, grant, (list) => list.map((item) => (item.id === grant.id ? grant : item)));
+      updateCachedLists(queryClient, grant, (list) =>
+        list.map((item) => (item.id === grant.id ? grant : item)),
+      );
       invalidateAfterSuccess(queryClient);
     },
     onError: (error) => invalidateAfterError(queryClient, error),
@@ -103,7 +159,9 @@ export function useRevokeGrant() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (grant: Grant): Promise<void> =>
-      unwrapNoContent(apiClient.DELETE('/api/admin/grants/{grantId}', { params: { path: { grantId: grant.id } } })),
+      unwrapNoContent(
+        apiClient.DELETE('/api/admin/grants/{grantId}', { params: { path: { grantId: grant.id } } }),
+      ),
     onSuccess: (_data, grant) => {
       updateCachedLists(queryClient, grant, (list) => list.filter((item) => item.id !== grant.id));
       invalidateAfterSuccess(queryClient);

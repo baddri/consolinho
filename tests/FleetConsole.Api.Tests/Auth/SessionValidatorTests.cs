@@ -2,7 +2,10 @@ using System.Globalization;
 using FleetConsole.Api.Auth;
 using FleetConsole.Api.Tests.Identity;
 using FleetConsole.Application.Abstractions.Messaging;
+using FleetConsole.Application.Abstractions;
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Auth.GetSessionState;
+using FleetConsole.Application.Auth.SyncUserGroups;
 using FleetConsole.Domain.Common;
 using FleetConsole.Domain.Users;
 using Microsoft.AspNetCore.Authentication;
@@ -27,6 +30,10 @@ public sealed class SessionValidatorTests
     private readonly IDispatcher _dispatcher = Substitute.For<IDispatcher>();
     private readonly IAuthenticationService _authentication = Substitute.For<IAuthenticationService>();
     private readonly SessionUser _session = new(UserId.New(), "alice", UserRole.User, IsReadOnly: false, Guid.NewGuid());
+
+    /// <summary>The group sync succeeds unless a test scripts it otherwise.</summary>
+    public SessionValidatorTests() =>
+        _dispatcher.Send(Arg.Any<SyncUserGroupsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Success());
 
     [Fact]
     public async Task WithinTheInterval_KeepsThePrincipal_WithoutReadingTheDatabase()
@@ -121,6 +128,34 @@ public sealed class SessionValidatorTests
         await CreateValidator().ValidateAsync(context);
 
         await ShouldBeRejectedAsync(context);
+    }
+
+    [Fact]
+    public async Task UnverifiableGroups_AreRejected()
+    {
+        // ADR-0039: the host groups couldn't be read and a recorded group carries a grant — fail closed.
+        var context = CreateContext(SessionPrincipalFactory.Create(_session), validatedAt: null);
+        Returns(new SessionStateDto(_session.UserId, "alice", UserRole.User, IsReadOnly: false, IsActive: true, _session.SecurityStamp));
+        _dispatcher.Send(Arg.Any<SyncUserGroupsCommand>(), Arg.Any<CancellationToken>()).Returns(Result.Failure(AuthErrors.GroupsUnavailable));
+
+        await CreateValidator().ValidateAsync(context);
+
+        await ShouldBeRejectedAsync(context);
+    }
+
+    [Fact]
+    public async Task GroupSyncCommitRace_IsRetriedOnce()
+    {
+        // Parallel requests revalidating together: one commit wins, the other retries on a fresh scope.
+        var context = CreateContext(SessionPrincipalFactory.Create(_session), validatedAt: null);
+        Returns(new SessionStateDto(_session.UserId, "alice", UserRole.User, IsReadOnly: false, IsActive: true, _session.SecurityStamp));
+        _dispatcher.Send(Arg.Any<SyncUserGroupsCommand>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure(PersistenceErrors.ConcurrencyConflict), Result.Success());
+
+        await CreateValidator().ValidateAsync(context);
+
+        context.Principal.ShouldNotBeNull();
+        await _dispatcher.Received(2).Send(Arg.Is<SyncUserGroupsCommand>(c => c.UserId == _session.UserId), Arg.Any<CancellationToken>());
     }
 
     [Fact]

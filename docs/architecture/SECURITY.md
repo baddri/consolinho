@@ -16,9 +16,12 @@ it holds, so these rules are strict.
 - Session: FleetConsole cookie `FleetConsole.Session`, `HttpOnly`, `Secure` (except the plain-http dev profile),
   `SameSite=Lax` (needed for the OAuth callback), sliding expiration (8h default). Revalidated against the DB every
   `Auth:RevalidationInterval` (60 s): deactivated users and users whose **security stamp** changed (rotated on
-  deactivation) are signed out; role/read-only claims are refreshed (ADR-0009). The cookie handler answers challenges
-  and forbids with 401/403 ProblemDetails (`Auth.Unauthenticated`/`Auth.Forbidden`) and never redirects — app-wide,
-  not only under `/api`: the Api has no login page, and SPA routes, static files and health endpoints never challenge.
+  deactivation) are signed out; role/read-only claims are refreshed (ADR-0009). Each revalidation also re-reads the
+  user's groups through FleetConsole's host SA (ADR-0039; snapshot ≤ `Auth:HostGroups:MaxSnapshotAge`) and audits
+  changes; if that read fails, sessions whose recorded groups carry a grant are ended (fail closed), others kept.
+  The cookie handler answers challenges and forbids with 401/403 ProblemDetails (`Auth.Unauthenticated`/
+  `Auth.Forbidden`) and never redirects — app-wide, not only under `/api`: the Api has no login page, and SPA routes,
+  static files and health endpoints never challenge.
   The OAuth login challenge uses the separate `OpenShift` scheme and is unaffected.
 - Admins come from two sources (ADR-0009): assigned in the admin UI, or configuration (`Auth:BootstrapAdminUsers`,
   `Auth:AdminGroups`) evaluated **at login only** — removal from the admin group takes effect at the next login; an
@@ -75,6 +78,10 @@ it holds, so these rules are strict.
   OpenTelemetry's default `url.query` redaction stays on (ADR-0028 §4).
   The OAuth handler's own loggers are capped at Warning in code (`WarningOnlyLoggerFactory`, ADR-0018), so the remote
   `error_description` is never logged.
+- FleetConsole's **own host SA token** (ADR-0039 §5) is used for one call only: listing host groups
+  (`get`/`list groups.user.openshift.io`, ClusterRole `consolinho-group-reader`, nothing else). In-cluster it is a
+  projected token (1 h, rotated by the kubelet) mounted into the server container only, never automounted; the app
+  re-reads the file on every refresh and never stores or logs it. `Auth:HostGroups:Token` (inline) is Development only.
 - Decrypted tokens live only for the duration of a request (and, if caching is added, in a short-TTL in-memory cache only).
 
 ## Proxy hardening

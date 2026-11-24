@@ -1,4 +1,5 @@
 import { StatusIconText, type StatusKind } from './StatusIconText';
+import { DASH } from './dash';
 
 /**
  * Status words → icon family, exactly as OCP `console-dynamic-plugin-sdk/src/app/components/status/Status.tsx`
@@ -102,9 +103,9 @@ export interface StatusProps {
 
 /**
  * OCP `Status`: a Kubernetes status word as icon + text via {@link statusKindOf} — one component for list cells,
- * details headings and admin pages. "—" for an empty status.
+ * details headings and admin pages. "-" for an empty status.
  */
 export function Status({ status, title, asLabel }: StatusProps) {
-  if (!status) return <>—</>;
+  if (!status) return <>{DASH}</>;
   return <StatusIconText status={statusKindOf(status)} text={title ?? status} asLabel={asLabel} />;
 }

@@ -24,7 +24,8 @@ spec:
         app.kubernetes.io/component: server
     spec:
       serviceAccountName: consolinho
-      # Trust for kubernetes.default.svc comes from the mounted CA bundle, so no SA token is needed (K8S-5).
+      # Trust for kubernetes.default.svc comes from the mounted CA bundle (K8S-5). No automounted SA token: the only
+      # token is the projected `host-sa-token` volume, mounted into the server container alone (ADR-0039 §5).
       automountServiceAccountToken: false
       # No runAsUser/fsGroup: the restricted-v2 SCC assigns the namespace's UID range.
       securityContext:
@@ -146,6 +147,10 @@ spec:
             - name: dp-cert
               mountPath: /etc/consolinho/dp
               readOnly: true
+            # FleetConsole's own host SA token = default Auth:HostGroups:TokenPath (/var/run/secrets/fleetconsole/host/token).
+            - name: host-sa-token
+              mountPath: /var/run/secrets/fleetconsole/host
+              readOnly: true
       volumes:
         # The only writable path (readOnlyRootFilesystem): .NET temp files, shared by migrate and server.
         - name: tmp
@@ -160,3 +165,12 @@ spec:
           secret:
             secretName: consolinho-dp-cert
             defaultMode: 0440
+        # The app SA's token for listing host groups (ADR-0039 §5, RBAC in rbac-group-reader.yaml). Projected: the
+        # kubelet rotates it before expiry and the app re-reads the file on every refresh. Audience = the API server's
+        # default. Off-host deployments replace this volume with a Secret (overlays/production/secrets.example.yaml).
+        - name: host-sa-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  expirationSeconds: 3600

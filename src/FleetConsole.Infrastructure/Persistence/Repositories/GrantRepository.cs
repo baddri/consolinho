@@ -27,6 +27,20 @@ internal sealed class GrantRepository(ConsoleDbContext db) : IGrantRepository
     }
 
     /// <inheritdoc />
+    public async Task<ILookup<ClusterId, GroupGrantSlot>> GetGroupGrantSlotsAsync(
+        IReadOnlyCollection<ClusterId> clusterIds, CancellationToken cancellationToken)
+    {
+        var rows = await db.Set<Grant>()
+            .Where(g => g.SubjectKind == GrantSubjectKind.Group && clusterIds.Contains(g.ClusterId))
+            .Select(g => new { g.ClusterId, g.GroupName, g.Priority })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        // The check constraint guarantees group name and priority on group grants.
+        return rows.ToLookup(r => r.ClusterId, r => new GroupGrantSlot(r.GroupName!, r.Priority!.Value));
+    }
+
+    /// <inheritdoc />
     public Task<int> CountByCredentialAsync(CredentialId id, CancellationToken cancellationToken) =>
         db.Set<Grant>().CountAsync(g => g.CredentialId == id, cancellationToken);
 

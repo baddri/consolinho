@@ -49,7 +49,7 @@ web/src/
       search/             # Home → Search (CP4b SRCH): kinds × label/name, one-shot lists
     networking/  storage/  compute/  home/ (overview, search, events)
     admin/                # routes.tsx (lazy route objects), RequireAdmin, useAdminAccess, queryKeys.ts
-      users/ clusters/ credentials/ connection-test/ grants/ audit/   # one folder per area: api.ts (hooks), pages, dialogs
+      users/ clusters/ credentials/ connection-test/ grants/ groups/ effective-access/ audit/   # one folder per area: api.ts (hooks), pages, dialogs
   test/                   # render helpers, MSW server (handlers come from mocks/)
 ```
 
@@ -74,7 +74,9 @@ Rule: a feature may import from `shared/` and from another feature's **public `i
 /c/:cluster/overview                           # placeholder, not in the nav until CP5
 /fleet                                         # → /fleet/admin/users; /fleet/<unknown> → 404  (ADR-0033)
 /fleet/admin/users                             # ?q=&role=&status=&readOnly=
-/fleet/admin/users/:username[/access]          # tabs: details (index) | access; username URL-encoded
+/fleet/admin/users/:username[/access|/effective-access]   # tabs: details (index) | access | effective-access; username URL-encoded
+/fleet/admin/groups                            # ?q=  (host groups ∪ groups in grants, CP4.5a)
+/fleet/admin/groups/:groupName[/access]        # tabs: details (index) | access; groupName URL-encoded
 /fleet/admin/clusters                          # ?q=&env=&status=
 /fleet/admin/clusters/new
 /fleet/admin/clusters/:name[/credentials|/access] # tabs: details (index) | credentials | access
@@ -163,6 +165,8 @@ with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (reg
   | `['api','admin','users']` / `[…,'users',username]` / `[…,'users',username,'grants']` | users list / detail / grants |
   | `['api','admin','clusters']` / `[…,'clusters',name]` / `[…,name,'credentials']` / `[…,name,'grants']` | clusters |
   | `['api','admin','credentials']` | fleet credentials |
+  | `['api','admin','groups']` / `[…,'groups',name]` / `[…,'groups',name,'grants']` | groups list / detail / group grants (CP4.5a) |
+  | `['api','admin','users',username,'effective-access']` | effective access (CP4.5a) |
   | `['api','admin','audit',filters]` | audit (infinite query, cursor) |
 
   Keys are built by factories (`features/admin/queryKeys.ts`, `features/auth`, `features/cluster-context`), never

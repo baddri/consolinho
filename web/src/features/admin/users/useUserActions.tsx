@@ -85,7 +85,10 @@ export function useUserActions(user: UserActionTarget, { withGrant = true }: { w
 
   const close = () => setOpen(null);
   let dialog: ReactNode = null;
-  if (open === 'grantAccess') dialog = <BulkGrantWizard username={user.username} isOpen onClose={close} />;
-  else if (open !== null) dialog = <UserActionDialog kind={open} user={user} onClose={close} />;
+  if (open === 'grantAccess') {
+    dialog = <BulkGrantWizard subject={{ kind: 'user', name: user.username }} isOpen onClose={close} />;
+  } else if (open !== null) {
+    dialog = <UserActionDialog kind={open} user={user} onClose={close} />;
+  }
   return { items, dialog };
 }

@@ -1,5 +1,5 @@
 import type { K8sResource } from '@/shared/k8s';
-import { kindAbbr } from '@/shared/ui';
+import { DASH, kindAbbr } from '@/shared/ui';
 import { descriptorForKind } from '../registry/registry';
 import { BadgedName, ResourceLink } from './ResourceLink';
 
@@ -13,10 +13,10 @@ export interface ObjectReferenceLinkProps {
 
 /**
  * A reference to another object (owner reference, event's involved object): a {@link ResourceLink} when its kind is in
- * the registry, else the badge (kind as its hover title) + plain name (spec UI-3 "link if kind registered"); "—" without a name.
+ * the registry, else the badge (kind as its hover title) + plain name (spec UI-3 "link if kind registered"); "-" without a name.
  */
 export function ObjectReferenceLink({ apiVersion, kind, name, namespace }: ObjectReferenceLinkProps) {
-  if (!name) return <>—</>;
+  if (!name) return <>{DASH}</>;
   const descriptor = apiVersion && kind ? descriptorForKind(apiVersion, kind) : undefined;
   if (!descriptor)
     return <BadgedName badge={kind ? { abbr: kindAbbr(kind), kind } : undefined}>{name}</BadgedName>;

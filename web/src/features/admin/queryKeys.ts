@@ -23,6 +23,14 @@ export const adminKeys = {
   user: (username: string) => [...adminKeys.users(), username] as const,
   /** `GET /api/admin/users/{username}/grants`. */
   userGrants: (username: string) => [...adminKeys.user(username), 'grants'] as const,
+  /** `GET /api/admin/users/{username}/effective-access` (EFF-1). */
+  userEffectiveAccess: (username: string) => [...adminKeys.user(username), 'effective-access'] as const,
+  /** `GET /api/admin/groups`. */
+  groups: () => [...adminKeys.all, 'groups'] as const,
+  /** `GET /api/admin/groups/{groupName}`. */
+  group: (name: string) => [...adminKeys.groups(), name] as const,
+  /** `GET /api/admin/groups/{groupName}/grants`. */
+  groupGrants: (name: string) => [...adminKeys.group(name), 'grants'] as const,
   /** `GET /api/admin/clusters`. */
   clusters: () => [...adminKeys.all, 'clusters'] as const,
   /** `GET /api/admin/clusters/{name}`. */

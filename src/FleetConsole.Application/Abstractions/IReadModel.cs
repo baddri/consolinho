@@ -1,3 +1,4 @@
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Audit;
 using FleetConsole.Domain.Clusters;
@@ -52,6 +53,12 @@ public interface IReadModel
     /// <c>Id</c> descending) and for exact filters on <c>Actor.Name</c>, <c>RelatedUsername</c> and <c>ClusterName</c>.
     /// </summary>
     IQueryable<AuditEntry> AuditEntries { get; }
+
+    /// <summary>
+    /// When each user's host group membership was last read (no tracking; at most one row per user, none before the first
+    /// login). Join on <see cref="UserGroupCheck.UserId"/> to show "groups as of" next to <see cref="User.Groups"/>.
+    /// </summary>
+    IQueryable<UserGroupCheck> UserGroupChecks { get; }
 
     /// <summary>Executes <paramref name="query"/> and returns all rows.</summary>
     /// <typeparam name="T">The projected row type.</typeparam>

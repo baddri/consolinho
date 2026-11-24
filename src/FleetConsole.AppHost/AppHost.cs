@@ -4,6 +4,10 @@
 // endpoints injected for its /api proxy (and the Vite URL injected into the Api as its public origin).
 var builder = DistributedApplication.CreateBuilder(args);
 
+// Fake stand-in for FleetConsole's host SA token (ADR-0039 §5): the emulator lets this bearer list groups, and the Api
+// sends it as its inline Development token (Auth:HostGroups:Token, refused outside Development). Not a secret.
+const string DevGroupsReaderToken = "dev-groups-reader-token-not-a-secret";
+
 // Data volume keeps the database across `aspire run` restarts. pgAdmin is intentionally not added; append
 // `.WithPgAdmin()` locally if you want it.
 var postgres = builder.AddPostgres("postgres")
@@ -19,7 +23,8 @@ var devOAuth = builder.AddDotnetProject(
         "devoauth",
         "../FleetConsole.DevOAuth/FleetConsole.DevOAuth.csproj",
         options => options.LaunchProfileName = "http")
-    .WithHttpHealthCheck("/health");
+    .WithHttpHealthCheck("/health")
+    .WithEnvironment("DevOAuth__GroupsReaderToken", DevGroupsReaderToken);
 
 // The resource name "api" is a contract: WithReference(api) below exposes it to the web app as
 // services__api__http__0 / services__api__https__0, which web/vite.config.ts reads as its /api proxy target.
@@ -29,6 +34,7 @@ var api = builder.AddDotnetProject("api", "../FleetConsole.Api/FleetConsole.Api.
     .WithReference(consoleDb)
     .WaitFor(consoleDb)
     .WithEnvironment("Auth__OpenShift__HostApiServerUrl", devOAuth.GetEndpoint("http"))
+    .WithEnvironment("Auth__HostGroups__Token", DevGroupsReaderToken)
     .WaitFor(devOAuth);
 
 // Runs `npm run dev` in web/. AddViteApp uses npm and adds an installer step that runs `npm install` before the dev

@@ -1,3 +1,4 @@
+using FleetConsole.Application.Abstractions.Persistence;
 using System.Buffers.Text;
 using System.Text;
 using FleetConsole.Application.Abstractions;
@@ -253,6 +254,9 @@ public sealed class ListAuditEntriesTests
         public IQueryable<Grant> Grants => Enumerable.Empty<Grant>().AsQueryable();
 
         public IQueryable<AuditEntry> AuditEntries => Rows.AsQueryable();
+
+
+        public IQueryable<UserGroupCheck> UserGroupChecks => Enumerable.Empty<UserGroupCheck>().AsQueryable();
 
         public AuditEntry Add(
             DateTimeOffset at, string actor, string action, string target, string? cluster = null, string? related = null, string details = "{}")

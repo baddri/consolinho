@@ -44,3 +44,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0036 | Proxy stream lifetimes, exec session cap (60 min) and exec audit at the handshake (amends 0020/0021) | Accepted |
 | 0037 | Frontend: workload actions (JSON Patch, kind actions), pod log streaming (fetch) and the xterm terminal | Accepted |
 | 0038 | Frontend: cluster OpenAPI v3 schema (lazy per group-version, per-cluster cache, monaco-yaml, field help) | Accepted |
+| 0039 | Host group membership via FleetConsole host SA snapshot; revalidation fails closed (refines 0034, extends 0009; CP4.5) | Accepted |

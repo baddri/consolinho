@@ -2,7 +2,6 @@ import {
   Bullseye,
   EmptyState,
   EmptyStateBody,
-  PageGroup,
   PageSection,
   Skeleton,
   Stack,
@@ -202,7 +201,7 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 
 /**
  * URL-driven tabs in `RESOURCE_TABS` order, filtered by {@link hasTab}, as `PageTabs` aligned with the heading, then
- * the active tab's content labelled by the tab: Details in a `PageGroup` of its own bordered sections, YAML in a
+ * the active tab's content labelled by the tab: Details in a plain element around its own bordered sections, YAML in a
  * filled unpadded section (the editor reaches the bottom), Logs and Terminal in a filled `PageBody`, the others in a
  * `PageBody`.
  */
@@ -224,10 +223,11 @@ function ResourceTabs({
     <>
       <PageTabs tabs={tabs} activeKey={tab} aria-label={`${model.label} tabs`} />
       {tab === 'details' ? (
-        // The Details tab renders its own bordered sections (`DetailsSubsection`, OCP `PaneBody`s).
-        <PageGroup role="tabpanel" aria-label={TAB_TITLES[tab]}>
+        // The Details tab renders its own bordered sections (`DetailsSubsection`, OCP `PaneBody`s). A plain element:
+        // PageGroup drops `aria-label` unless it scrolls.
+        <div role="tabpanel" aria-label={TAB_TITLES[tab]}>
           {children}
-        </PageGroup>
+        </div>
       ) : tab === 'yaml' ? (
         // OCP's YAML tab sits in an unpadded, filled page body; the editor insets itself (`_edit-yaml.scss`).
         <PageSection

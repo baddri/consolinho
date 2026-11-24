@@ -1,6 +1,6 @@
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { ServiceModel, type K8sResource, type Service } from '@/shared/k8s';
-import { DetailsItem, DetailsSubsection } from '@/shared/ui';
+import { DASH, DetailsItem, DetailsSubsection } from '@/shared/ui';
 import { PodSelectorLink, labelSelectorString, labelsColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 
@@ -53,7 +53,7 @@ function ServiceLocation({ service }: { service: Service }) {
 /** The service's cluster IPs (dual-stack lists several); falls back to `clusterIP`. */
 function clusterIPs(service: Service): string {
   const ips = service.spec?.clusterIPs ?? (service.spec?.clusterIP ? [service.spec.clusterIP] : []);
-  return ips.join(', ') || '—';
+  return ips.join(', ') || DASH;
 }
 
 /** Ports table: name, port, protocol, target port, node port. */
@@ -72,11 +72,11 @@ function PortsTable({ service }: { service: Service }) {
       <Tbody>
         {(service.spec?.ports ?? []).map((port) => (
           <Tr key={`${port.port}/${port.protocol ?? 'TCP'}`}>
-            <Td dataLabel="Name">{port.name ?? '—'}</Td>
+            <Td dataLabel="Name">{port.name ?? DASH}</Td>
             <Td dataLabel="Port">{port.port}</Td>
             <Td dataLabel="Protocol">{port.protocol ?? 'TCP'}</Td>
             <Td dataLabel="Target port">{port.targetPort ?? port.port}</Td>
-            <Td dataLabel="Node port">{port.nodePort ?? '—'}</Td>
+            <Td dataLabel="Node port">{port.nodePort ?? DASH}</Td>
           </Tr>
         ))}
       </Tbody>

@@ -169,7 +169,7 @@ public sealed class GrantCommandHandlerTests
         var changed = grant.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<GrantChanged>();
         changed.OldCredentialName.ShouldBe("fleet-view");
         changed.NewCredentialName.ShouldBe("fleet-edit");
-        changed.Username.ShouldBe("alice");
+        changed.SubjectName.ShouldBe("alice");
         changed.ClusterName.ShouldBe("prod-eu-1");
     }
 
@@ -217,7 +217,7 @@ public sealed class GrantCommandHandlerTests
         result.IsSuccess.ShouldBeTrue();
         _grants.Received(1).Remove(grant);
         var revoked = grant.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<GrantRevoked>();
-        revoked.Username.ShouldBe("alice");
+        revoked.SubjectName.ShouldBe("alice");
         revoked.ClusterName.ShouldBe("prod-eu-1");
         revoked.CredentialName.ShouldBe("fleet-view");
     }

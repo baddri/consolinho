@@ -124,7 +124,7 @@ describe('AppShell', () => {
         within(nav)
           .getAllByRole('link')
           .map((link) => link.textContent),
-      ).toEqual(['Users', 'Clusters', 'Credentials', 'Audit log']);
+      ).toEqual(['Users', 'Groups', 'Clusters', 'Credentials', 'Audit log']);
     },
   );
 

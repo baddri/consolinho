@@ -8,12 +8,15 @@ namespace FleetConsole.Domain.Audit;
 /// so the log stays readable even if the user is later renamed or removed.
 /// </summary>
 /// <param name="UserId">The acting user's id, or <see langword="null"/> for system and anonymous actors.</param>
-/// <param name="Name">Display name of the actor: a username, or <c>system (config)</c>.</param>
+/// <param name="Name">Display name of the actor: a username, <c>system (config)</c> or <c>system (revalidation)</c>.</param>
 /// <param name="IsSystem">True when FleetConsole itself acted (e.g. a role change from configuration at login).</param>
 public sealed record AuditActor(UserId? UserId, string Name, bool IsSystem)
 {
     /// <summary>Display name of the configuration actor.</summary>
     public const string ConfigurationName = "system (config)";
+
+    /// <summary>Display name of the session-revalidation actor.</summary>
+    public const string RevalidationName = "system (revalidation)";
 
     /// <summary>Display name of the actor, never blank.</summary>
     public string Name { get; } = Guard.NotNullOrWhiteSpace(Name);
@@ -23,6 +26,12 @@ public sealed record AuditActor(UserId? UserId, string Name, bool IsSystem)
     /// <c>Auth:BootstrapAdminUsers</c> / <c>Auth:AdminGroups</c> (ADR-0009).
     /// </summary>
     public static AuditActor Configuration { get; } = new(null, ConfigurationName, IsSystem: true);
+
+    /// <summary>
+    /// Session revalidation acting on a user (ADR-0039): e.g. recording host group memberships that changed since the
+    /// last login.
+    /// </summary>
+    public static AuditActor Revalidation { get; } = new(null, RevalidationName, IsSystem: true);
 
     /// <summary>A known FleetConsole user acting (the common case: an admin command, or the user's own login).</summary>
     /// <param name="id">The acting user's id.</param>

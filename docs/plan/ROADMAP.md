@@ -131,6 +131,7 @@ Caching of discovery (access caching moved to CP4.5), rate limiting, security re
 dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 
 ## Backlog / ideas (product owner adds here)
+- (CP4.5a ACCEPT) Stored `system:` group grant row (direct SQL only) → 500: read it tolerantly (skip + log warning) instead of the GroupName converter throwing.
 - (CP4 spec) Environment tab (env editor) for Pods/Deployments/StatefulSets/DaemonSets.
 - (CP4 spec) Debug container ("Debug in terminal" for CrashLoopBackOff pods).
 - (CP4 spec) Add HorizontalPodAutoscaler / Edit resource limits / Add storage actions.

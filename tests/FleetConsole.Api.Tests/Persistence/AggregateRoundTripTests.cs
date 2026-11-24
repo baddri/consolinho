@@ -94,9 +94,17 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         await SaveAsync(sp => sp.GetRequiredService<IUserRepository>().Add(user));
         await ScalarAsync<int>("update users set admin_configuration_source = '" + stored + "' where id = @id returning 1", user.Id.Value);
 
-        var ex = await Should.ThrowAsync<InvalidOperationException>(
-            () => LoadAsync(sp => sp.GetRequiredService<IUserRepository>().GetByIdAsync(user.Id, Ct)));
-        ex.ToString().ShouldContain("AdminConfigurationSource");
+        try
+        {
+            var ex = await Should.ThrowAsync<InvalidOperationException>(
+                () => LoadAsync(sp => sp.GetRequiredService<IUserRepository>().GetByIdAsync(user.Id, Ct)));
+            ex.ToString().ShouldContain("AdminConfigurationSource");
+        }
+        finally
+        {
+            // The database is shared by the whole collection: a poisoned row would make every later user list 500.
+            await ScalarAsync<int>("delete from users where id = @id returning 1", user.Id.Value);
+        }
     }
 
     [Fact]

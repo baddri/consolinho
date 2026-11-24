@@ -236,6 +236,12 @@ describe('kind tabs (ADR-0037 §2)', () => {
     expect(router.state.location.search).toBe('?container=web');
   });
 
+  it('names the Details tab panel by its tab', async () => {
+    renderApp(POD_PATH);
+
+    expect(await screen.findByRole('tabpanel', { name: 'Details' })).toBeInTheDocument();
+  });
+
   it('gives a deployment Details, YAML, ReplicaSets, Pods, Events (DEP-9)', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/deployments/web/replicasets');
 

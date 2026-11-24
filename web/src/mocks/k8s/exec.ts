@@ -1,6 +1,7 @@
 import { ws } from 'msw';
 import { PodModel, type Pod } from '@/shared/k8s';
-import { actorName, currentMockUser, findCluster, findCredential, mockDb, recordAudit } from '../db';
+import { actorName, currentMockUser, findCredential, recordAudit } from '../db';
+import { resolveAccess } from '../handlers/access';
 import { proxyMutationListeners } from './handlers';
 import { proxyAuditInput, type ProxyDenialReason, type ProxyMutation } from './proxyAudit';
 import { isAllowed, profileOf } from './rbac';
@@ -68,9 +69,7 @@ function audit(mutation: ProxyMutation): void {
 function refusal(cluster: string): ProxyDenialReason | 'rbac' | 'unauthenticated' | undefined {
   const user = currentMockUser();
   if (!user) return 'unauthenticated';
-  const grant = findCluster(cluster)?.isEnabled
-    ? mockDb.grants.find((g) => g.username === user.username && g.clusterName === cluster)
-    : undefined;
+  const grant = resolveAccess(user, cluster)?.winner;
   const credential = grant && findCredential(grant.credentialId, cluster);
   if (!grant || !credential) return 'noAccess';
   if (user.isReadOnly) return 'userReadOnly';

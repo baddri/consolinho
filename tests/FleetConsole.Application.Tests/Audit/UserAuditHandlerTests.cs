@@ -145,6 +145,19 @@ public sealed class UserAuditHandlerTests
         AuditDetails.Of(record).ShouldHaveExactly("isReadOnly").GetProperty("isReadOnly").GetBoolean().ShouldBe(isReadOnly);
     }
 
+    [Fact]
+    public async Task GroupsChanged_IsBySystemRevalidation_WithAddedAndRemoved()
+    {
+        await Handler.Handle(new UserGroupsChanged(BobId, "bob", ["dba"], ["sre", "ops"]), Ct);
+
+        var record = ShouldBeUserEntry("user.groups_changed");
+        record.Actor.ShouldBe(AuditActor.Revalidation);
+        record.Actor!.Name.ShouldBe("system (revalidation)");
+        var details = AuditDetails.Of(record).ShouldHaveExactly("added", "removed");
+        details.GetProperty("added").EnumerateArray().Select(e => e.GetString()).ShouldBe(["dba"]);
+        details.GetProperty("removed").EnumerateArray().Select(e => e.GetString()).ShouldBe(["sre", "ops"]);
+    }
+
     /// <summary>The fields every <c>user.*</c> entry shares: user target, no cluster, related username = the user.</summary>
     private AuditRecord ShouldBeUserEntry(string action)
     {

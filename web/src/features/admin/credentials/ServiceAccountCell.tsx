@@ -1,6 +1,6 @@
 import { Tooltip } from '@patternfly/react-core';
 import type { Credential } from '@/shared/api';
-import { StatusIconText } from '@/shared/ui';
+import { DASH, StatusIconText } from '@/shared/ui';
 
 /** Q10 warning shown for opaque (non-JWT) tokens, in the table and as the toast after adding/rotating one. */
 export const OPAQUE_TOKEN_TITLE = 'Not a ServiceAccount token';
@@ -27,5 +27,5 @@ export function ServiceAccountCell({ tokenType, serviceAccount, subject }: Servi
       </Tooltip>
     );
   }
-  return <>{serviceAccount ?? subject ?? '—'}</>;
+  return <>{serviceAccount ?? subject ?? DASH}</>;
 }

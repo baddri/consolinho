@@ -65,6 +65,7 @@ export { PageHeading, type BreadcrumbCrumb, type PageHeadingProps } from './page
 export { PageTabs, type PageTab, type PageTabsProps } from './page/PageTabs';
 export { TopBar, TopBarSlotContext } from './page/TopBarSlot';
 export { PlaceholderPage, type PlaceholderPageProps } from './PlaceholderPage';
+export { DASH } from './dash';
 export { RelativeTime, type RelativeTimeProps } from './RelativeTime';
 export { ResourceLabels, type ResourceLabelsProps } from './ResourceLabels';
 export { SectionHeading, type SectionHeadingProps } from './page/SectionHeading';

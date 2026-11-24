@@ -212,6 +212,8 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - User language only. Never: checkpoint ids (CP2), "proxy", "configuration (user list)", spec ids, enum values.
   Admin source: "Admin through group <name>", "Admin set in the deployment settings".
 - Product name from `shared/branding` (`PRODUCT_NAME`), never hard-coded.
+- Empty value (cell, details value, priority of a user grant): `-` (hyphen), one shared constant, as OCP
+  `console-shared/src/constants/ui.ts` `DASH`. Never `—`, "None" or blank (settled T-0267; sweep T-0270).
 
 ## 12. Accessibility
 - One `h1` per page; heading levels follow the hierarchy (heading h1 → section h2 → card/modal h3 is not needed).

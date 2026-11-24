@@ -87,6 +87,7 @@ describe('Bulk grant wizard (T-0040)', () => {
       // Table (name) order, not click order; single-credential clusters pre-filled, prod-us-1 (two credentials, no
       // preferred name) empty.
       const rows = reviewRows(dialog);
+      expect(within(dialog).getByText(/^Read only access to 3 clusters\./)).toBeInTheDocument();
       expect(rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent)).toEqual([
         'dev-1',
         'dev-2',

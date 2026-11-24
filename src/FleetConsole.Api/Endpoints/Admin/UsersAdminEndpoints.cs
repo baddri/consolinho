@@ -3,6 +3,7 @@ using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Users.ChangeUserRole;
 using FleetConsole.Application.Users.CreateUser;
 using FleetConsole.Application.Users.DeactivateUser;
+using FleetConsole.Application.Users.GetEffectiveAccess;
 using FleetConsole.Application.Users.GetUser;
 using FleetConsole.Application.Users.ListUsers;
 using FleetConsole.Application.Users.ReactivateUser;
@@ -37,6 +38,7 @@ public static class UsersAdminEndpoints
         users.MapGet("", ListUsers).WithName("ListUsers");
         users.MapPost("", CreateUser).WithName("CreateUser");
         users.MapGet("/{username}", GetUser).WithName("GetUser");
+        users.MapGet("/{username}/effective-access", GetEffectiveAccess).WithName("GetEffectiveAccess");
         users.MapPut("/{username}/role", ChangeUserRole).WithName("ChangeUserRole");
         users.MapPut("/{username}/read-only", SetUserReadOnly).WithName("SetUserReadOnly");
         users.MapPost("/{username}/deactivate", DeactivateUser).WithName("DeactivateUser");
@@ -87,6 +89,20 @@ public static class UsersAdminEndpoints
     internal static async Task<Results<Ok<UserDetailDto>, ProblemHttpResult>> GetUser(
         string username, IDispatcher dispatcher, CancellationToken cancellationToken) =>
         (await dispatcher.Send(new GetUserQuery(username), cancellationToken).ConfigureAwait(false)).ToHttpResult();
+
+    /// <summary>
+    /// Explains the user's effective access (EFF-1..5): per cluster they can open, the winning grant (direct or group),
+    /// the effective mode after their read-only flag, and every matching grant with why it won or lost. Computed by the
+    /// same rules as the proxy and the cluster switcher. A deactivated user has no clusters. Fails with 404
+    /// Users.NotFound.
+    /// </summary>
+    /// <param name="username">The OpenShift username (URL-encoded).</param>
+    /// <param name="dispatcher">The CQRS dispatcher.</param>
+    /// <param name="cancellationToken">Request-aborted token.</param>
+    /// <returns>200 with the effective access.</returns>
+    internal static async Task<Results<Ok<EffectiveAccessDto>, ProblemHttpResult>> GetEffectiveAccess(
+        string username, IDispatcher dispatcher, CancellationToken cancellationToken) =>
+        (await dispatcher.Send(new GetEffectiveAccessQuery(username), cancellationToken).ConfigureAwait(false)).ToHttpResult();
 
     /// <summary>
     /// Promotes (admin) or demotes (user) a user. Promoting a user who is admin only via configuration records the

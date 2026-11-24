@@ -9,7 +9,7 @@ import {
   type K8sResource,
   type LabelSelector,
 } from '@/shared/k8s';
-import { kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
+import { DASH, kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
 import { useResourceRoute } from '../resourceRoute';
@@ -66,7 +66,7 @@ export function namespaceColumn<T extends K8sResource>(model: K8sModel): ColumnD
     allNamespacesOnly: true,
     cell: (obj) =>
       obj.metadata.namespace === undefined ? (
-        '—'
+        DASH
       ) : (
         <NamespaceListLink model={model} namespace={obj.metadata.namespace} />
       ),

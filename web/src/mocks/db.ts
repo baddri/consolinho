@@ -4,11 +4,14 @@ import {
   clusterFixtures,
   credentialFixtures,
   grantFixtures,
+  hostGroupsFixture,
   mockGuid,
   userFixtures,
   type MockCluster,
   type MockCredential,
   type MockGrant,
+  type MockHostGroup,
+  type MockHostGroups,
   type MockUser,
 } from './fixtures';
 import { resetK8sStore } from './k8s/store';
@@ -20,6 +23,8 @@ export interface MockDb {
   clusters: MockCluster[];
   credentials: MockCredential[];
   grants: MockGrant[];
+  /** The host cluster's groups as last read by FleetConsole (ADR-0039); see {@link setMockHostGroups}. */
+  hostGroups: MockHostGroups;
   /** Newest first. */
   audit: AuditEntry[];
 }
@@ -31,6 +36,7 @@ function seed(): MockDb {
     clusters: [...clusterFixtures],
     credentials: [...credentialFixtures],
     grants: [...grantFixtures],
+    hostGroups: hostGroupsFixture,
     audit: [...auditFixtures],
   });
 }
@@ -48,6 +54,17 @@ let nextId = FIRST_RUNTIME_ID;
 export function clearClusterAccess(name: string): void {
   mockDb.credentials = mockDb.credentials.filter((credential) => credential.clusterName !== name);
   mockDb.grants = mockDb.grants.filter((grant) => grant.clusterName !== name);
+}
+
+/**
+ * Test helper: a host status (`'forbidden'`/`'unavailable'` = listing failed, the groups become unknown) or the host
+ * groups themselves (status `ok`). Undone by {@link resetMockDb}.
+ */
+export function setMockHostGroups(update: MockHostGroups['status'] | MockHostGroup[]): void {
+  mockDb.hostGroups =
+    typeof update === 'string'
+      ? { ...mockDb.hostGroups, status: update }
+      : { status: 'ok', readAt: new Date().toISOString(), groups: structuredClone(update) };
 }
 
 /** Restores the fixture state, including the mock clusters' objects, and closes open watches (`test/setup.ts`). */
@@ -79,6 +96,13 @@ export function findCredential(id: string, clusterName?: string): MockCredential
     (credential) =>
       credential.id === id && (clusterName === undefined || credential.clusterName === clusterName),
   );
+}
+
+/** Host group by exact (case-sensitive) name; `undefined` also when the host listing failed. */
+export function findHostGroup(name: string): MockHostGroup | undefined {
+  return mockDb.hostGroups.status === 'ok'
+    ? mockDb.hostGroups.groups.find((group) => group.name === name)
+    : undefined;
 }
 
 /** Grant by id. */

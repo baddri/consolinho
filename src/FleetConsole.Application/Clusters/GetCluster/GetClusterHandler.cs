@@ -1,3 +1,4 @@
+using FleetConsole.Domain.Access;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Domain.Clusters;
@@ -53,7 +54,7 @@ internal sealed class GetClusterHandler(IReadModel readModel, IClock clock)
                 c.UpdatedBy,
                 c.Version,
                 CredentialCount = credentials.Count(cr => cr.ClusterId == c.Id),
-                GrantCount = grants.Count(g => g.ClusterId == c.Id),
+                GrantCount = grants.Count(g => g.ClusterId == c.Id && g.SubjectKind == GrantSubjectKind.User),
             });
 
         var row = await readModel.FirstOrDefaultAsync(query, cancellationToken).ConfigureAwait(false);

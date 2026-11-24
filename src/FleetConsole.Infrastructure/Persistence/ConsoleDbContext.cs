@@ -181,6 +181,7 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
         configurationBuilder.Properties<Username>().HaveConversion<UsernameConverter>().HaveMaxLength(Username.MaxLength);
         configurationBuilder.Properties<AdminConfigurationSource>().HaveConversion<AdminConfigurationSourceConverter>();
         configurationBuilder.Properties<ClusterName>().HaveConversion<ClusterNameConverter>().HaveMaxLength(ClusterName.MaxLength);
+        configurationBuilder.Properties<GroupName>().HaveConversion<GroupNameConverter>().HaveMaxLength(GroupName.MaxLength);
         configurationBuilder.Properties<CredentialName>().HaveConversion<CredentialNameConverter>().HaveMaxLength(CredentialName.MaxLength);
         configurationBuilder.Properties<TokenFingerprint>().HaveConversion<TokenFingerprintConverter>().HaveMaxLength(TokenFingerprint.Length);
         configurationBuilder.Properties<EncryptedToken>().HaveConversion<EncryptedTokenConverter>();

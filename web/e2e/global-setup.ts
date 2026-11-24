@@ -1,6 +1,6 @@
 import { chromium, type APIRequestContext, type FullConfig } from '@playwright/test';
 import { startFakeKubeApi } from './support/fakeKubeApi';
-import { CSRF, deleteCluster, GRANTLESS_USERS, loginAs, ok } from './support/session';
+import { CSRF, deleteCluster, loginAs, ok, RESERVED_USERS } from './support/session';
 
 /** Prefix of every cluster the smoke registers; leftovers from aborted runs are deleted on the next run. */
 const CLUSTER_PREFIX = 'e2e-smoke-';
@@ -11,8 +11,8 @@ const CLUSTER_PREFIX = 'e2e-smoke-';
  *
  * 1. starts the fake Kubernetes API (QG-4 browsing target);
  * 2. logs in as `e2e-admin` (admin via its group) and deletes `e2e-smoke-*` clusters left over from aborted runs;
- * 3. revokes grants of the reserved users `e2e-user`/`e2e-admin` only (H4 needs them grantless; other users'
- *    grants are never touched);
+ * 3. revokes grants of the reserved users `e2e-user`/`e2e-admin`/`e2e-member` only (H4 needs the first two grantless,
+ *    QG-2 the third without a direct grant; other users' grants are never touched);
  * 4. registers a uniquely named development cluster pointing at the fake API, adds a fake-JWT credential and grants
  *    `alice` read-only access (pre-creating `alice` on a fresh database).
  *
@@ -40,7 +40,7 @@ export default async function globalSetup(config: FullConfig): Promise<() => Pro
   for (const { name } of clusters.filter((c) => c.name.startsWith(CLUSTER_PREFIX))) {
     await deleteCluster(api, name);
   }
-  for (const user of GRANTLESS_USERS) await revokeAllGrants(api, user);
+  for (const user of RESERVED_USERS) await revokeAllGrants(api, user);
 
   const cluster = `${CLUSTER_PREFIX}${Date.now().toString(36)}`;
   await ok(
@@ -97,8 +97,12 @@ export default async function globalSetup(config: FullConfig): Promise<() => Pro
 async function revokeAllGrants(api: APIRequestContext, username: string): Promise<void> {
   const response = await api.get(`/api/admin/users/${username}/grants`);
   if (response.status() === 404) return; // never logged in on this database: no grants either
-  const grants = (await (await ok(response, `list ${username} grants`)).json()) as { id: string }[];
-  for (const grant of grants) {
+  const grants = (await (await ok(response, `list ${username} grants`)).json()) as {
+    id: string;
+    subjectKind: 'user' | 'group';
+  }[];
+  // Direct grants only: a group grant a reserved user reaches through a shared group belongs to others.
+  for (const grant of grants.filter((g) => g.subjectKind === 'user')) {
     await ok(
       await api.delete(`/api/admin/grants/${grant.id}`, { headers: CSRF }),
       `revoke grant ${grant.id}`,

@@ -4,7 +4,7 @@ import { adminSourceAuditText, type MockUser } from '../fixtures';
 import { conflictProblem, problem } from '../problem';
 import { bindBody, bindVersion, type BodyBinder, type EnumValues } from './body';
 import { http } from './http';
-import { ordinal, sortGrantsByCluster, toGrant, toUserDetail, toUserListItem } from './representations';
+import { isUserGrantOf, ordinal, sortGrantsByCluster, toGrant, toUserDetail, toUserListItem } from './representations';
 
 const ROLES: EnumValues<UserRole> = ['admin', 'user'];
 
@@ -228,7 +228,8 @@ export const userHandlers = [
 
   http.get('/api/admin/users/{username}/grants', ({ params, response }) => {
     if (!findUser(params.username)) return userNotFound(params.username);
-    const grants = sortGrantsByCluster(mockDb.grants.filter((grant) => grant.username === params.username));
+    // Direct grants only (contract CP4.5a §2): group access shows on Effective access.
+    const grants = sortGrantsByCluster(mockDb.grants.filter((grant) => isUserGrantOf(grant, params.username)));
     return response(200).json(grants.map((grant) => toGrant(grant)));
   }),
 ];

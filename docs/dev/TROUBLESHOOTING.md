@@ -96,3 +96,14 @@ The emulator always uses http://localhost:5190 (its `http` launch profile, also 
 **Cause:** an earlier `aspire run` or `dotnet run --project src/FleetConsole.DevOAuth` is still running.
 **Fix:** `aspire stop`, or find it with `pgrep -af FleetConsole.DevOAuth` and stop it. Running the emulator on its own
 (`dotnet run --project src/FleetConsole.DevOAuth`) works too; it only starts in the Development environment.
+
+## Groups page / group picker says it can't list groups on the host cluster (deployed, T-0258)
+
+**Cause:** the host group listing is `forbidden` (401/403) or `unavailable`. Usually the cluster-scoped
+ClusterRoleBinding `consolinho-group-reader` is missing (it needs cluster-admin to apply), or binds the wrong
+namespace's SA. With bound group grants this also signs users out at revalidation (ADR-0039 §3).
+**Check (read-only):** `oc get clusterrolebinding consolinho-group-reader -o wide` (subject must be
+`<namespace>/consolinho`) and `oc auth can-i list groups.user.openshift.io --as=system:serviceaccount:<namespace>:consolinho`.
+Server logs: EventId 3321 names the reason. **Fix:** re-run `scripts/deploy-dev.sh` (or `oc apply -k` your overlay)
+as cluster-admin. Off-host: check the `consolinho-host-sa-token` Secret's token is valid and bound on the host. Locally
+(Aspire) the DevOAuth emulator serves groups for `DevOAuth:GroupsReaderToken`.

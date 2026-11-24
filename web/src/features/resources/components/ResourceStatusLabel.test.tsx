@@ -17,8 +17,8 @@ describe('ResourceStatusLabel (UX.md §5)', () => {
     expect(screen.getByText('1 of 3 pods').parentElement?.querySelector('svg')).toBeNull();
   });
 
-  it('renders "—" without a status', () => {
+  it('renders "-" without a status', () => {
     render(<ResourceStatusLabel status={undefined} />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
   });
 });

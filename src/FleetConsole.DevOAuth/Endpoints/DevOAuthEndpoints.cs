@@ -12,7 +12,7 @@ namespace FleetConsole.DevOAuth.Endpoints;
 /// </remarks>
 internal static class DevOAuthEndpoints
 {
-    /// <summary>Maps discovery, authorize (GET + POST), token and <c>users/~</c>.</summary>
+    /// <summary>Maps discovery, authorize (GET + POST), token, <c>users/~</c> and the <c>groups</c> list (ADR-0039).</summary>
     /// <param name="app">The route builder (the application).</param>
     /// <returns>The same route builder, for chaining.</returns>
     public static IEndpointRouteBuilder MapDevOAuthEndpoints(this IEndpointRouteBuilder app)
@@ -22,6 +22,7 @@ internal static class DevOAuthEndpoints
         app.MapPost("/oauth/authorize", AuthorizeEndpoints.HandlePostAsync);
         app.MapPost("/oauth/token", TokenEndpoint.HandleAsync);
         app.MapGet("/apis/user.openshift.io/v1/users/~", CurrentUserEndpoint.Handle);
+        app.MapGet("/apis/user.openshift.io/v1/groups", GroupsEndpoint.Handle);
         return app;
     }
 }

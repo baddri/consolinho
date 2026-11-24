@@ -17,9 +17,12 @@ export const grantIds = {
   adminLab1: mockGuid(0x20a),
   aliceProdK8s: mockGuid(0x20b),
   adminProdK8s: mockGuid(0x20c),
+  sreStaging: mockGuid(0x20d),
+  ghostTeamStaging: mockGuid(0x20f),
+  platformStaging: mockGuid(0x210),
 } as const;
 
-/** Builds a grant record that was never edited. */
+/** Builds a user grant record that was never edited. */
 function grant(
   id: string,
   username: string,
@@ -30,7 +33,9 @@ function grant(
 ): MockGrant {
   return {
     id,
-    username,
+    subjectKind: 'user',
+    subjectName: username,
+    priority: null,
     clusterName,
     credentialId,
     accessMode,
@@ -40,6 +45,19 @@ function grant(
     updatedBy: null,
     version: 1,
   };
+}
+
+/** Builds a group grant record (with its priority) that was never edited. */
+function groupGrant(
+  id: string,
+  groupName: string,
+  clusterName: string,
+  credentialId: string,
+  accessMode: MockGrant['accessMode'],
+  priority: number,
+  grantedDaysAgo: number,
+): MockGrant {
+  return { ...grant(id, groupName, clusterName, credentialId, accessMode, grantedDaysAgo), subjectKind: 'group', priority };
 }
 
 /**
@@ -63,4 +81,11 @@ export const grantFixtures: readonly MockGrant[] = [
   grant(grantIds.daveDev1, 'dave', 'dev-1', credentialIds.dev1Edit, 'readOnly', 30),
   grant(grantIds.inesProdUs, 'ines', 'prod-us-1', credentialIds.prodUsView, 'readOnly', 25),
   grant(grantIds.paulProdEu, 'pending-paul', 'prod-eu-1', credentialIds.prodEuView, 'readWrite', 4),
+  // CP4.5a group grants. `sre` (alice's recorded group) and `ghost-team` (only in grants: "Not found on host cluster")
+  // share staging-eu-1 with distinct priorities (GRP-4); alice's direct grant there wins (PREC-3), so no switcher
+  // changes. `platform` (carol's group) gives carol staging-eu-1 through a group only (Effective access "Group
+  // platform (priority 10)", T-0265).
+  groupGrant(grantIds.sreStaging, 'sre', 'staging-eu-1', credentialIds.stagingAdmin, 'readOnly', 100, 10),
+  groupGrant(grantIds.ghostTeamStaging, 'ghost-team', 'staging-eu-1', credentialIds.stagingAdmin, 'readOnly', 50, 8),
+  groupGrant(grantIds.platformStaging, 'platform', 'staging-eu-1', credentialIds.stagingAdmin, 'readOnly', 10, 6),
 ];

@@ -2,7 +2,7 @@ import { Label } from '@patternfly/react-core';
 import { ActionsColumn } from '@patternfly/react-table';
 import type { UserListItem } from '@/shared/api';
 import { LOW_PRIORITY_COLUMN } from '@/shared/table';
-import { LabelList, RelativeTime, type DataViewColumn } from '@/shared/ui';
+import { DASH, type DataViewColumn, LabelList, RelativeTime } from '@/shared/ui';
 import { AdminResourceLink } from '../AdminResourceLink';
 import { UserRoleLabels } from './UserRoleLabels';
 import { USER_STATUS_TEXT, UserStatusLabel } from './UserStatusLabel';
@@ -12,8 +12,6 @@ import { fleetAdminPath } from '@/shared/routing';
 /** Path of a user's detail page; usernames may contain characters that need encoding (`:`, `@`, …). */
 export const userDetailPath = (username: string) => fleetAdminPath(`users/${encodeURIComponent(username)}`);
 
-/** Placeholder for missing values, as elsewhere in the console. */
-const EMPTY = '—';
 
 /**
  * Columns of the users list (USR-1) for `ConsoleDataView`: Name (kind badge + link, sortable) first, Last login and
@@ -32,7 +30,7 @@ export const USER_COLUMNS: DataViewColumn<UserListItem>[] = [
   {
     id: 'displayName',
     title: 'Display name',
-    cell: (user) => user.displayName ?? EMPTY,
+    cell: (user) => user.displayName ?? DASH,
     sortValue: (user) => user.displayName,
   },
   { id: 'role', title: 'Role', cell: (user) => <UserRoleLabels {...user} />, sortValue: (user) => user.role },
@@ -51,7 +49,7 @@ export const USER_COLUMNS: DataViewColumn<UserListItem>[] = [
           Read only
         </Label>
       ) : (
-        EMPTY
+        DASH
       ),
   },
   { id: 'grants', title: 'Cluster grants', cell: (user) => user.grantCount, sortValue: (user) => user.grantCount },
@@ -73,7 +71,7 @@ export const USER_COLUMNS: DataViewColumn<UserListItem>[] = [
       user.groups.length > 0 ? (
         <LabelList labels={user.groups} max={3} aria-label={`Groups of ${user.username}`} />
       ) : (
-        EMPTY
+        DASH
       ),
   },
 ];

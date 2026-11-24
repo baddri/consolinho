@@ -135,6 +135,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/users/{username}/effective-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Explains the user's effective access (EFF-1..5): per cluster they can open, the winning grant (direct or group),
+         *     the effective mode after their read-only flag, and every matching grant with why it won or lost. Computed by the
+         *     same rules as the proxy and the cluster switcher. A deactivated user has no clusters. Fails with 404
+         *     Users.NotFound.
+         */
+        get: operations["GetEffectiveAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/users/{username}/role": {
         parameters: {
             query?: never;
@@ -305,12 +327,59 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Lists the grants on a cluster sorted by username, including grants of deactivated users and expired credentials.
-         *     Fails with 404 Clusters.NotFound.
+         * Lists the user and group grants on a cluster: user grants first, then group grants, each sorted by subject name.
+         *     Includes grants of deactivated users and expired credentials. Fails with 404 Clusters.NotFound.
          */
         get: operations["ListClusterGrants"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/groups/{groupName}/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists a host group's grants sorted by cluster name. A group without grants (or an invalid group name) has none;
+         *     there is no 404.
+         */
+        get: operations["ListGroupGrants"];
+        put?: never;
+        /**
+         * Gives every member of a host group access to a cluster at a priority. An invalid or system group name, a priority
+         *     outside 1-1000, an unknown cluster or credential, or a credential of another cluster are 400 field errors; a second
+         *     grant for the group on the cluster is 409 Grants.AlreadyExists, a priority another group holds there 409
+         *     Grants.PriorityTaken.
+         */
+        post: operations["CreateGroupGrant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/groups/{groupName}/grants/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Gives a host group access to several clusters at once with one priority, all or nothing. Item problems (unknown
+         *     cluster or credential, credential of another cluster, group already granted, priority taken) are 400 field errors
+         *     keyed by the item index (for example items[3].clusterName); then nothing is written.
+         */
+        post: operations["BulkGroupGrant"];
         delete?: never;
         options?: never;
         head?: never;
@@ -533,8 +602,10 @@ export interface paths {
         };
         get?: never;
         /**
-         * Changes a grant's access mode and/or credential. An unknown credential or one of another cluster is a 400 field
-         *     error on credentialId. Fails with 404 Grants.NotFound; a stale version with 409 Concurrency.Conflict.
+         * Changes a grant's access mode and/or credential, and a group grant's priority. An unknown credential or one of
+         *     another cluster is a 400 field error on credentialId; a missing priority on a group grant, or any priority on a
+         *     user grant, a 400 field error on priority. Fails with 404 Grants.NotFound; a stale version with 409
+         *     Concurrency.Conflict; a priority another group holds on the cluster with 409 Grants.PriorityTaken.
          */
         put: operations["UpdateGrant"];
         post?: never;
@@ -545,10 +616,81 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lists the host cluster's groups and the groups named in grants, sorted by name, without system groups. Answers 200
+         *     even when the host groups can't be read (hostStatus forbidden or unavailable); then only groups known from grants
+         *     are listed and host facts are null.
+         */
+        get: operations["ListGroups"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/groups/{groupName}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gets a group with its host members, each marked when a FleetConsole user of that name exists. Fails with 404
+         *     Groups.NotFound when the name is invalid, or when the host groups were read, the group isn't on the host and has
+         *     no grants.
+         */
+        get: operations["GetGroup"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description One grant that matches the user on the cluster, and whether (and why not) it applies. */
+        AccessCandidate: {
+            /**
+             * Format: uuid
+             * @description The grant's id.
+             */
+            grantId: string;
+            /** @description user for a direct grant, group for a group grant. */
+            subjectKind: components["schemas"]["GrantSubjectKind"];
+            /** @description The username (direct grant) or the group name. */
+            subjectName: string;
+            /**
+             * Format: int32
+             * @description The group grant's priority; null for a direct grant.
+             */
+            priority: null | number;
+            /** @description The grant's own mode (before the user's read-only flag). */
+            accessMode: components["schemas"]["AccessMode"];
+            /** @description The grant's credential name. */
+            credentialName: string;
+            /**
+             * @description winner; overriddenByDirectGrant (a direct grant always wins); lowerPriority (a higher
+             *                 priority group grant wins); tieReadOnlyWins (same priority, the read-only grant wins); tieBrokenById (same priority
+             *                 and mode, the older grant wins — not expected, priorities are unique per cluster).
+             */
+            outcome: components["schemas"]["CandidateOutcome"];
+            /** @description For lowerPriority and tie outcomes, the winning group's name; otherwise null. */
+            beatenBy: null | string;
+        };
         /** @description A cluster the signed-in user may switch to, as the cluster switcher shows it. */
         AccessibleCluster: {
             /** @description The cluster name (the key in console URLs). */
@@ -570,6 +712,18 @@ export interface components {
          * @enum {string}
          */
         AccessMode: "readOnly" | "readWrite";
+        /** @description The grant an effective access comes from. */
+        AccessSource: {
+            /** @description user for a direct grant, group for a group grant. */
+            kind: components["schemas"]["GrantSubjectKind"];
+            /** @description The group's name; null for a direct grant. */
+            groupName: null | string;
+            /**
+             * Format: int32
+             * @description The group grant's priority; null for a direct grant.
+             */
+            priority: null | number;
+        };
         /** @description Adds a ServiceAccount credential to a cluster. The token is write-only: it is never returned. */
         AddCredentialRequest: {
             /** @description The credential name, unique within the cluster: 1 to 63 characters, lowercase letters, digits and '-', starting and ending with a letter or digit. */
@@ -662,6 +816,18 @@ export interface components {
             /** @description 1 to 100 clusters with the credential to use on each; each cluster at most once. */
             items: components["schemas"]["BulkGrantItem"][];
         };
+        /** @description Gives one host group access to several clusters at once; either every item becomes a grant or nothing is written. */
+        BulkGroupGrantRequest: {
+            /** @description The access mode of every created grant. */
+            accessMode: components["schemas"]["AccessMode"];
+            /**
+             * Format: int32
+             * @description The priority of every created grant, 1-1000; must be free on every listed cluster.
+             */
+            priority: number;
+            /** @description 1 to 100 clusters with the credential to use on each; each cluster at most once. */
+            items: components["schemas"]["BulkGrantItem"][];
+        };
         /** @description One certificate of a cluster's CA bundle. */
         CaCertificate: {
             /** @description The subject distinguished name. */
@@ -683,6 +849,12 @@ export interface components {
             /** @description SHA-256 fingerprint as uppercase, colon-separated hex (as printed by openssl x509 -fingerprint -sha256). */
             sha256Fingerprint: string;
         };
+        /**
+         * @description Why a candidate grant won or lost in AccessResolution? AccessResolver.Resolve(IReadOnlyCollection&lt;AccessCandidate&gt; candidates, IReadOnlyCollection&lt;string&gt; userGroups, bool userIsReadOnly). The Effective access view (EFF-2) renders
+         *     each value as a reason ("Overridden by direct grant", "Lower priority than X", "Tie: read-only wins").
+         * @enum {string}
+         */
+        CandidateOutcome: "winner" | "overriddenByDirectGrant" | "lowerPriority" | "tieReadOnlyWins" | "tieBrokenById";
         /**
          * @description Whether a capability check is about reading or changing resources.
          * @enum {string}
@@ -756,7 +928,7 @@ export interface components {
             credentialCount: number;
             /**
              * Format: int32
-             * @description Number of users with access (one grant per user and cluster).
+             * @description Number of users with direct access (user grants only, one per user and cluster); group grants are not counted.
              */
             grantCount: number;
             /**
@@ -828,7 +1000,7 @@ export interface components {
             worstCredentialExpiryStatus: null | components["schemas"]["CredentialExpiryStatus"];
             /**
              * Format: int32
-             * @description Number of users with access (one grant per user and cluster).
+             * @description Number of users with direct access (user grants only, one per user and cluster); group grants are not counted.
              */
             grantCount: number;
             lastTest: null | components["schemas"]["ConnectionTestSummary"];
@@ -937,6 +1109,23 @@ export interface components {
              */
             credentialId: string;
             /** @description Whether the user may change resources; read-only when omitted. */
+            accessMode?: components["schemas"]["AccessMode"];
+        };
+        /** @description Gives every member of a host group access to a cluster through one of the cluster's ServiceAccount credentials. */
+        CreateGroupGrantRequest: {
+            /** @description The cluster; must exist (disabled clusters may be granted). */
+            clusterName: string;
+            /**
+             * Format: uuid
+             * @description A credential of that cluster.
+             */
+            credentialId: string;
+            /**
+             * Format: int32
+             * @description The rank among the cluster's group grants, 1-1000; higher wins when a user is in several granted groups. Unique per cluster.
+             */
+            priority: number;
+            /** @description Whether the group's members may change resources; read-only when omitted. */
             accessMode?: components["schemas"]["AccessMode"];
         };
         /** @description Pre-creates a user before their first login. */
@@ -1050,12 +1239,63 @@ export interface components {
             groups: string[];
             /** @description Whether configuration (user list or admin group) makes the user an administrator. */
             isAdminViaConfiguration: boolean;
-            /** @description Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't. */
             adminConfigurationSource: null | components["schemas"]["AdminConfigurationSource"];
         };
+        /** @description A user's effective access to every cluster they can open, and why. */
+        EffectiveAccess: {
+            /** @description The OpenShift username. */
+            username: string;
+            /** @description The user's stored read-only flag; it narrows every read-write grant to read-only. */
+            userIsReadOnly: boolean;
+            /** @description The user's status. */
+            userStatus: components["schemas"]["UserStatus"];
+            /** @description The user's recorded host group membership (system:* groups are never recorded). */
+            groups: string[];
+            /**
+             * Format: date-time
+             * @description When the membership was last read: the later of the last login and the last revalidation
+             *                 check; null if the user never logged in.
+             */
+            groupsAsOf: null | string;
+            /**
+             * @description The clusters the user can open (enabled, with a winning grant), sorted by cluster name;
+             *                 empty for a deactivated user.
+             */
+            clusters: components["schemas"]["EffectiveClusterAccess"][];
+        };
+        /** @description The user's effective access to one cluster. */
+        EffectiveClusterAccess: {
+            /** @description The cluster's name. */
+            clusterName: string;
+            /** @description The cluster's display name. */
+            clusterDisplayName: string;
+            /** @description The cluster's environment. */
+            clusterEnvironment: components["schemas"]["ClusterEnvironment"];
+            /** @description The effective mode, after the user's read-only flag. */
+            accessMode: components["schemas"]["AccessMode"];
+            /**
+             * @description True when the winning grant is read-write but the user's read-only flag made
+             *                 the access read-only.
+             */
+            narrowedByReadOnlyFlag: boolean;
+            /** @description Where the access comes from: a direct grant, or a group grant with its priority. */
+            source: components["schemas"]["AccessSource"];
+            /**
+             * Format: uuid
+             * @description The winning grant's credential, used for every request to this cluster.
+             */
+            credentialId: string;
+            /** @description The winning grant's credential name. */
+            credentialName: string;
+            /**
+             * @description Every grant that matches the user on this cluster: the winner first, then group grants by
+             *                 priority (highest first).
+             */
+            candidates: components["schemas"]["AccessCandidate"][];
+        };
         /**
-         * @description A user's access to one cluster through a ServiceAccount credential, with the state of user, cluster and credential
-         *     so the UI can mark grants of deactivated users, disabled clusters and expired credentials.
+         * @description A user's or a host group's access to one cluster through a ServiceAccount credential, with the state of user, cluster
+         *     and credential so the UI can mark grants of deactivated users, disabled clusters and expired credentials.
          */
         Grant: {
             /**
@@ -1063,12 +1303,20 @@ export interface components {
              * @description The grant id.
              */
             id: string;
-            /** @description The granted user. */
-            username: string;
-            /** @description The granted user's display name, if known. */
+            /** @description Whether the grant is for one user or for every member of a host group. */
+            subjectKind: components["schemas"]["GrantSubjectKind"];
+            /** @description The username or the group name; always set. */
+            subjectName: string;
+            /**
+             * Format: int32
+             * @description The group grant's priority (1-1000, higher wins among a user's groups); null for user grants.
+             */
+            priority: null | number;
+            /** @description The granted user; null for group grants. */
+            username: null | string;
+            /** @description The granted user's display name, if known; null for group grants. */
             userDisplayName: null | string;
-            /** @description The granted user's status; grants of deactivated users are kept. */
-            userStatus: components["schemas"]["UserStatus"];
+            userStatus: null | components["schemas"]["UserStatus"];
             /** @description The cluster the grant gives access to. */
             clusterName: string;
             /** @description The cluster's display name. */
@@ -1079,7 +1327,7 @@ export interface components {
             clusterIsEnabled: boolean;
             /**
              * Format: uuid
-             * @description The credential whose token is used for this user on the cluster.
+             * @description The credential whose token is used for the subject on the cluster.
              */
             credentialId: string;
             /** @description The credential's name. */
@@ -1092,7 +1340,7 @@ export interface components {
              */
             credentialExpiresAt: null | string;
             credentialLastTest: null | components["schemas"]["ConnectionTestSummary"];
-            /** @description Whether the user may change resources on the cluster. */
+            /** @description Whether the subject may change resources on the cluster. */
             accessMode: components["schemas"]["AccessMode"];
             /**
              * Format: date-time
@@ -1115,10 +1363,83 @@ export interface components {
             version: number;
         };
         /**
+         * @description Who a Grant is for (ADR-0034 §1): one FleetConsole user, or every member of a host OpenShift group.
+         *     Decides which of UserId? Grant.UserId and GroupName? Grant.GroupName is set and whether the grant has a
+         *     int? Grant.Priority.
+         * @enum {string}
+         */
+        GrantSubjectKind: "user" | "group";
+        /** @description A group as shown on the Group detail page. */
+        GroupDetail: {
+            /** @description The OpenShift group name (case-sensitive). */
+            name: string;
+            /** @description Whether the host cluster's groups could be read: ok, forbidden or unavailable. */
+            hostStatus: components["schemas"]["HostGroupsStatus"];
+            /**
+             * Format: date-time
+             * @description When the host groups were read; null unless hostStatus is ok.
+             */
+            hostReadAt: null | string;
+            /** @description Whether the group exists on the host cluster; null when hostStatus isn't ok. */
+            foundOnHost: null | boolean;
+            /**
+             * Format: int32
+             * @description Number of clusters the group is granted access to.
+             */
+            clusterCount: number;
+            /** @description The host group's users in name order; null when unknown (host not readable, or group not on the host). */
+            members: null | components["schemas"]["GroupMember"][];
+        };
+        /** @description The Groups list: host groups and groups named in grants, with what is known about the host listing. */
+        GroupList: {
+            /** @description Whether the host cluster's groups could be read: ok, forbidden (FleetConsole's host service account may not list groups) or unavailable. */
+            hostStatus: components["schemas"]["HostGroupsStatus"];
+            /**
+             * Format: date-time
+             * @description When the host groups were read (at most 15 seconds ago); null unless hostStatus is ok.
+             */
+            hostReadAt: null | string;
+            /** @description The groups, sorted by name; system groups are never listed. */
+            items: components["schemas"]["GroupRow"][];
+        };
+        /** @description A user listed as a member of the host group. */
+        GroupMember: {
+            /** @description The OpenShift username. */
+            username: string;
+            /** @description Whether a FleetConsole user with this username exists (link to its user page). */
+            isRegistered: boolean;
+            /** @description The FleetConsole user's display name; null when not registered or not known. */
+            displayName: null | string;
+            status: null | components["schemas"]["UserStatus"];
+        };
+        /** @description One group in the Groups list. */
+        GroupRow: {
+            /** @description The OpenShift group name (case-sensitive). */
+            name: string;
+            /** @description Whether the group exists on the host cluster; false for a group known only from grants; null when hostStatus isn't ok. */
+            foundOnHost: null | boolean;
+            /**
+             * Format: int32
+             * @description Number of users in the host group; null when unknown (host not readable, or group not on the host).
+             */
+            memberCount: null | number;
+            /**
+             * Format: int32
+             * @description Number of clusters the group is granted access to.
+             */
+            clusterCount: number;
+        };
+        /**
          * @description The severity of a connection test hint.
          * @enum {string}
          */
         HintSeverity: "info" | "warning";
+        /**
+         * @description Outcome of reading the host's groups (contract §1 `HostGroupsStatus`, written camelCase on the wire). The UI
+         *     shows the GPG-4 hint / UIG-2 alert for anything but HostGroupsStatus.Ok; revalidation fails closed on it (ADR-0039 §3).
+         * @enum {string}
+         */
+        HostGroupsStatus: "ok" | "forbidden" | "unavailable";
         HttpValidationProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -1295,7 +1616,7 @@ export interface components {
              */
             version: number;
         };
-        /** @description Changes a grant's access mode and/or credential. */
+        /** @description Changes a grant's access mode and/or credential, and a group grant's priority. */
         UpdateGrantRequest: {
             /** @description The new access mode. */
             accessMode: components["schemas"]["AccessMode"];
@@ -1309,6 +1630,11 @@ export interface components {
              * @description The grant's version from its last representation.
              */
             version: number;
+            /**
+             * Format: int32
+             * @description Group grants: the priority (1-1000, required; unique per cluster). User grants: must be absent or null.
+             */
+            priority?: null | number;
         };
         /** @description A user with everything the Fleet administration user detail page shows. */
         UserDetail: {
@@ -1322,7 +1648,6 @@ export interface components {
             isAdminViaConfiguration: boolean;
             /** @description Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false. */
             isAdminByAssignment: boolean;
-            /** @description Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't. */
             adminConfigurationSource: null | components["schemas"]["AdminConfigurationSource"];
             /** @description pending (never logged in), active, or deactivated. */
             status: components["schemas"]["UserStatus"];
@@ -1365,7 +1690,6 @@ export interface components {
             isAdminViaConfiguration: boolean;
             /** @description Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false. */
             isAdminByAssignment: boolean;
-            /** @description Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't. */
             adminConfigurationSource: null | components["schemas"]["AdminConfigurationSource"];
             /** @description pending (never logged in), active, or deactivated. */
             status: components["schemas"]["UserStatus"];
@@ -1962,6 +2286,83 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDetail"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetEffectiveAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift username (URL-encoded). */
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EffectiveAccess"];
                 };
             };
             /** @description Bad Request */
@@ -2674,6 +3075,247 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListGroupGrants: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The host group name (URL-encoded). */
+                groupName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"][];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    CreateGroupGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The host group name (URL-encoded); it need not exist on the host yet. */
+                groupName: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGroupGrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Grant"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    BulkGroupGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The host group name (URL-encoded). */
+                groupName: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request-aborted token. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkGroupGrantRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -3958,6 +4600,157 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListGroups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupList"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetGroup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The OpenShift group name. */
+                groupName: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupDetail"];
+                };
             };
             /** @description Bad Request */
             400: {

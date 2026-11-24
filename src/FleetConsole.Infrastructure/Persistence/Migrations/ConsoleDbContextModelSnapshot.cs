@@ -23,6 +23,22 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FleetConsole.Application.Abstractions.Persistence.UserGroupCheck", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
+                    b.HasKey("UserId")
+                        .HasName("pk_user_group_checks");
+
+                    b.ToTable("user_group_checks", (string)null);
+                });
+
             modelBuilder.Entity("FleetConsole.Domain.Access.Grant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -52,6 +68,20 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(253)")
                         .HasColumnName("granted_by");
 
+                    b.Property<string>("GroupName")
+                        .HasMaxLength(253)
+                        .HasColumnType("character varying(253)")
+                        .HasColumnName("group_name");
+
+                    b.Property<int?>("Priority")
+                        .HasColumnType("integer")
+                        .HasColumnName("priority");
+
+                    b.Property<string>("SubjectKind")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("subject_kind");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -61,7 +91,7 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(253)")
                         .HasColumnName("updated_by");
 
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid?>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
@@ -80,11 +110,27 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                     b.HasIndex("CredentialId")
                         .HasDatabaseName("ix_grants_credential_id");
 
+                    b.HasIndex("GroupName")
+                        .HasDatabaseName("ix_grants_group_name");
+
+                    b.HasIndex("ClusterId", "Priority")
+                        .IsUnique()
+                        .HasDatabaseName("ix_grants_cluster_id_priority")
+                        .HasFilter("subject_kind = 'Group'");
+
+                    b.HasIndex("GroupName", "ClusterId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_grants_group_name_cluster_id")
+                        .HasFilter("subject_kind = 'Group'");
+
                     b.HasIndex("UserId", "ClusterId")
                         .IsUnique()
                         .HasDatabaseName("ix_grants_user_id_cluster_id");
 
-                    b.ToTable("grants", (string)null);
+                    b.ToTable("grants", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_grants_subject", "(subject_kind = 'User' AND user_id IS NOT NULL AND group_name IS NULL AND priority IS NULL) OR (subject_kind = 'Group' AND user_id IS NULL AND group_name IS NOT NULL AND priority BETWEEN 1 AND 1000)");
+                        });
                 });
 
             modelBuilder.Entity("FleetConsole.Domain.Audit.AuditEntry", b =>
@@ -472,6 +518,16 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("FleetConsole.Application.Abstractions.Persistence.UserGroupCheck", b =>
+                {
+                    b.HasOne("FleetConsole.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_group_checks_users_user_id");
+                });
+
             modelBuilder.Entity("FleetConsole.Domain.Access.Grant", b =>
                 {
                     b.HasOne("FleetConsole.Domain.Clusters.Cluster", null)
@@ -492,7 +548,6 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
                         .HasConstraintName("fk_grants_users_user_id");
                 });
 

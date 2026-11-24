@@ -11,6 +11,8 @@ export interface UserTypeaheadProps {
   control: Control<GrantFormValues>;
   /** Users who already hold a grant on the cluster: listed, but disabled with "already has access". */
   granted: ReadonlySet<string>;
+  /** Focus the input on mount (the admin just switched the subject kind). */
+  isAutoFocus?: boolean;
 }
 
 /** Second line of a user option: display name, status and existing access. */
@@ -27,11 +29,11 @@ function UserFacts({ user, hasAccess }: { user: UserListItem; hasAccess: boolean
 }
 
 /**
- * User picker of "Grant access" on the cluster page (GRANT-2): every FleetConsole user (pending and deactivated ones
- * may be granted too), existing holders disabled with "already has access". The admin role never implies access
- * (GRANT-6), so admins are offered like anyone else.
+ * User picker of "Grant access" on the cluster page (GRANT-2), labelled "Subject name" like OCP's RoleBinding
+ * form: every FleetConsole user (pending and deactivated ones may be granted too), existing holders disabled with
+ * "already has access". The admin role never implies access (GRANT-6), so admins are offered like anyone else.
  */
-export function UserTypeahead({ control, granted }: UserTypeaheadProps) {
+export function UserTypeahead({ control, granted, isAutoFocus }: UserTypeaheadProps) {
   const { data, error, isPending } = useUsers();
   const options: TypeaheadOption[] = (data ?? []).map((user) => ({
     value: user.username,
@@ -42,11 +44,12 @@ export function UserTypeahead({ control, granted }: UserTypeaheadProps) {
   return (
     <TypeaheadSelectField
       control={control}
-      label="User"
+      label="Subject name"
       placeholder="Search users"
       options={options}
       isLoading={isPending}
       loadError={error ? 'Could not load users' : undefined}
+      isAutoFocus={isAutoFocus}
     />
   );
 }

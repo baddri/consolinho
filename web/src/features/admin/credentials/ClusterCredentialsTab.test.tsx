@@ -304,7 +304,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
     expect(within(dialog).getByText(before?.fingerprint ?? '')).toBeInTheDocument();
     expect(within(dialog).getByText(/^2 users are affected\./)).toBeInTheDocument();
     // NST-6: an empty saved list is a dash in the dialog (and no line under the row's name, checked above).
-    expect(within(within(dialog).getByLabelText('Credential to rotate')).getByText('—')).toBeInTheDocument();
+    expect(within(within(dialog).getByLabelText('Credential to rotate')).getByText('-')).toBeInTheDocument();
 
     await user.click(within(dialog).getByLabelText(/^New token/, { selector: 'input' }));
     await user.paste(JWT_TOKEN);

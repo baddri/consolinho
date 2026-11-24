@@ -206,6 +206,7 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
     [InlineData("/api/admin/users", "get", "ListUsers")]
     [InlineData("/api/admin/users", "post", "CreateUser")]
     [InlineData("/api/admin/users/{username}", "get", "GetUser")]
+    [InlineData("/api/admin/users/{username}/effective-access", "get", "GetEffectiveAccess")]
     [InlineData("/api/admin/users/{username}/role", "put", "ChangeUserRole")]
     [InlineData("/api/admin/users/{username}/read-only", "put", "SetUserReadOnly")]
     [InlineData("/api/admin/users/{username}/deactivate", "post", "DeactivateUser")]
@@ -217,6 +218,76 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         var operation = document.GetProperty("paths").GetProperty(path).GetProperty(method);
         operation.GetProperty("operationId").GetString().ShouldBe(operationId);
         operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Users");
+    }
+
+    [Theory]
+    [InlineData("/api/admin/groups/{groupName}/grants", "get", "ListGroupGrants")]
+    [InlineData("/api/admin/groups/{groupName}/grants", "post", "CreateGroupGrant")]
+    [InlineData("/api/admin/groups/{groupName}/grants/bulk", "post", "BulkGroupGrant")]
+    public async Task GroupGrantOperations_HaveContractOperationIds(string path, string method, string operationId)
+    {
+        var document = await GetDocumentAsync();
+
+        var operation = document.GetProperty("paths").GetProperty(path).GetProperty(method);
+        operation.GetProperty("operationId").GetString().ShouldBe(operationId);
+        operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Grants");
+    }
+
+    [Theory]
+    [InlineData("/api/admin/groups", "ListGroups")]
+    [InlineData("/api/admin/groups/{groupName}", "GetGroup")]
+    public async Task GroupOperations_HaveContractOperationIds(string path, string operationId)
+    {
+        var document = await GetDocumentAsync();
+
+        var operation = document.GetProperty("paths").GetProperty(path).GetProperty("get");
+        operation.GetProperty("operationId").GetString().ShouldBe(operationId);
+        operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Groups");
+    }
+
+    [Fact]
+    public async Task GroupSchemas_UseContractNames_AndHostStatusIsAStringEnum()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        foreach (var name in new[] { "GroupList", "GroupRow", "GroupDetail", "GroupMember" })
+        {
+            schemas.TryGetProperty(name, out _).ShouldBeTrue(name);
+        }
+
+        schemas.GetProperty("HostGroupsStatus").GetProperty("enum").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(["ok", "forbidden", "unavailable"]);
+    }
+
+    [Fact]
+    public async Task EffectiveAccessSchemas_UseContractNames_AndOutcomeIsAStringEnum()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        foreach (var name in new[] { "EffectiveAccess", "EffectiveClusterAccess", "AccessSource", "AccessCandidate" })
+        {
+            schemas.TryGetProperty(name, out _).ShouldBeTrue(name);
+        }
+
+        schemas.GetProperty("CandidateOutcome").GetProperty("enum").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(["winner", "overriddenByDirectGrant", "lowerPriority", "tieReadOnlyWins", "tieBrokenById"]);
+    }
+
+    [Fact]
+    public async Task GrantSchema_PublishesSubjectFields_AndPriorityOnUpdate()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        var grant = schemas.GetProperty("Grant").GetProperty("properties");
+        foreach (var name in new[] { "subjectKind", "subjectName", "priority", "username" })
+        {
+            grant.TryGetProperty(name, out _).ShouldBeTrue(name);
+        }
+
+        schemas.GetProperty("UpdateGrantRequest").GetProperty("properties").TryGetProperty("priority", out _).ShouldBeTrue();
     }
 
     [Fact]

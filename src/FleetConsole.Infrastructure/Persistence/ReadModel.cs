@@ -1,4 +1,5 @@
 using FleetConsole.Application.Abstractions;
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Audit;
 using FleetConsole.Domain.Clusters;
@@ -29,6 +30,9 @@ internal sealed class ReadModel(ConsoleDbContext db) : IReadModel
 
     /// <inheritdoc />
     public IQueryable<AuditEntry> AuditEntries => db.Set<AuditEntry>().AsNoTracking();
+
+    /// <inheritdoc />
+    public IQueryable<UserGroupCheck> UserGroupChecks => db.Set<UserGroupCheck>().AsNoTracking();
 
     /// <inheritdoc />
     public Task<List<T>> ToListAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>

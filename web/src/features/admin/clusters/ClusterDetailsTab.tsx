@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import type { ClusterDetail } from '@/shared/api';
 import {
   clusterTypeText,
+  DASH,
   DetailsColumn,
   DetailsGrid,
   DetailsItem,
@@ -16,8 +17,6 @@ import { ClusterStatusLabel } from './ClusterStatusLabel';
 import { TlsModeLabel } from './TlsModeLabel';
 import { fleetAdminPath } from '@/shared/routing';
 
-/** Placeholder for missing values, as elsewhere in the console. */
-const EMPTY = '—';
 
 /** Link target of "View audit entries": the audit log filtered to the cluster (CLU-8, AUD-4). */
 export const clusterAuditPath = (name: string) => fleetAdminPath(`audit?${new URLSearchParams({ cluster: name })}`);
@@ -55,12 +54,12 @@ export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {
               <EnvironmentLabel environment={cluster.environment} isCompact />
             </DetailsItem>
             <DetailsItem label="Distribution">{clusterTypeText(cluster.distribution).word}</DetailsItem>
-            <DetailsItem label="Description">{cluster.description ?? EMPTY}</DetailsItem>
+            <DetailsItem label="Description">{cluster.description ?? DASH}</DetailsItem>
             <DetailsItem label="Status">
               <ClusterStatusLabel isEnabled={cluster.isEnabled} />
             </DetailsItem>
             <DetailsItem label="Web console">
-              {cluster.webConsoleUrl ? <WebConsoleLink url={cluster.webConsoleUrl} /> : EMPTY}
+              {cluster.webConsoleUrl ? <WebConsoleLink url={cluster.webConsoleUrl} /> : DASH}
             </DetailsItem>
           </DetailsColumn>
           <DetailsColumn aria-label="Connection and history">
@@ -83,7 +82,7 @@ export function ClusterDetailsTab({ cluster }: ClusterDetailsTabProps) {
             <DetailsItem label="Updated">
               {cluster.updatedAt ? (
                 <>
-                  <RelativeTime value={cluster.updatedAt} /> by {cluster.updatedBy ?? EMPTY}
+                  <RelativeTime value={cluster.updatedAt} /> by {cluster.updatedBy ?? DASH}
                 </>
               ) : (
                 'Never'

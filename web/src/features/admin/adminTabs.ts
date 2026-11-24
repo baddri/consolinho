@@ -1,12 +1,19 @@
 import { useMatches } from 'react-router';
 import type { PageTab } from '@/shared/ui';
 
-/** Tabs of the user detail page, in display order; each is a URL segment (`/fleet/admin/users/:username[/access]`). */
-export const USER_DETAIL_TABS = ['details', 'access'] as const;
+/**
+ * Tabs of the user detail page, in display order; each is a URL segment
+ * (`/fleet/admin/users/:username[/access|/effective-access]`).
+ */
+export const USER_DETAIL_TABS = ['details', 'access', 'effective-access'] as const;
 /** A tab of the user detail page. */
 export type UserDetailTab = (typeof USER_DETAIL_TABS)[number];
 /** Tab titles of the user detail page, also the accessible names of their panels. */
-export const USER_DETAIL_TAB_TITLES: Record<UserDetailTab, string> = { details: 'Details', access: 'Cluster access' };
+export const USER_DETAIL_TAB_TITLES: Record<UserDetailTab, string> = {
+  details: 'Details',
+  access: 'Cluster access',
+  'effective-access': 'Effective access',
+};
 
 /**
  * Tabs of the cluster detail page, in display order; each is a URL segment
@@ -20,6 +27,19 @@ export const CLUSTER_DETAIL_TAB_TITLES: Record<ClusterDetailTab, string> = {
   details: 'Details',
   credentials: 'Credentials',
   access: 'Access',
+};
+
+/**
+ * Tabs of the group detail page, in display order; each is a URL segment
+ * (`/fleet/admin/groups/:groupName[/access]`).
+ */
+export const GROUP_DETAIL_TABS = ['details', 'access'] as const;
+/** A tab of the group detail page. */
+export type GroupDetailTab = (typeof GROUP_DETAIL_TABS)[number];
+/** Tab titles of the group detail page, also the accessible names of their panels. */
+export const GROUP_DETAIL_TAB_TITLES: Record<GroupDetailTab, string> = {
+  details: 'Details',
+  access: 'Cluster access',
 };
 
 /**

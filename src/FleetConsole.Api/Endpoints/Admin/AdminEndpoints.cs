@@ -3,7 +3,7 @@ using FleetConsole.Api.Auth;
 namespace FleetConsole.Api.Endpoints.Admin;
 
 /// <summary>
-/// <c>/api/admin</c>: the Administration area (users, clusters, credentials, grants, audit). The group requires the
+/// <c>/api/admin</c>: the Administration area (users, clusters, credentials, grants, groups, audit). The group requires the
 /// <see cref="AuthorizationPolicies.Admin"/> policy on top of the <c>/api</c> group's authenticated session; the use
 /// cases additionally implement <c>IAdminRequest</c>, so the role is checked in the pipeline too (SECURITY.md).
 /// </summary>
@@ -32,6 +32,7 @@ public static class AdminEndpoints
         admin.MapClustersAdminEndpoints();
         admin.MapAuditAdminEndpoints();
         admin.MapGrantsAdminEndpoints();
+        admin.MapGroupsAdminEndpoints();
 
         return admin;
     }

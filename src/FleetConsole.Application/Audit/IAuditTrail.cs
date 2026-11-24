@@ -34,7 +34,7 @@ public interface IAuditTrail
 /// <param name="Actor">Who acted; <see langword="null"/> means the current user (e.g. <see cref="AuditActor.Configuration"/>
 /// or the logging-in user are passed explicitly).</param>
 /// <param name="RelatedUsername">The user the action is about besides the actor: the target user's username for every
-/// <c>user.*</c> entry, the granted user's username for every <c>grant.*</c> entry, <see langword="null"/> otherwise.
+/// <c>user.*</c> entry, the granted user's username for every user-grant <c>grant.*</c> entry (group grants have none), <see langword="null"/> otherwise.
 /// Stored on the entry so the audit log's <c>user</c> filter is an indexed match (contract §10).</param>
 public sealed record AuditRecord(
     string Action,
