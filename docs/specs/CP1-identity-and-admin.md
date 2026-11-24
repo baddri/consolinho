@@ -312,7 +312,7 @@ composable `Table` with kebab (`ActionsColumn`) per row; detail pages use `PageS
 Actions `Dropdown`, then `Tabs`. Every destructive or access-changing confirmation is a `Modal variant="small"` whose
 title names the object **and** cluster, and shows the environment label; production-scoped destructive actions
 (disable/delete cluster, ReadWrite grant on prod via bulk) use danger-styled buttons. Success → `AlertGroup` toast
-("Granted alice ReadOnly on prod-eu-1"). Loading → `Skeleton` rows; API error → inline `Alert variant="danger"` with
+("Granted alice read only on prod-eu-1"). Loading → `Skeleton` rows; API error → inline `Alert variant="danger"` with
 the ProblemDetails `detail` and a Retry button; never a blank page. Relative times with absolute `Tooltip`.
 
 | Page | Layout & components | Empty / error states |

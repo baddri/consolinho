@@ -11,8 +11,8 @@ export const ACCESS_MODE_TEXT: Record<AccessMode, string> = {
 /** Subject kinds as OCP's RoleBinding list writes them (Subject kind column, filter options). */
 export const SUBJECT_KIND_TEXT: Readonly<Record<GrantSubjectKind, string>> = { user: 'User', group: 'Group' };
 
-/** Access mode names in toasts, as the spec writes them ("Granted alice ReadOnly on prod-eu-1"). */
-const ACCESS_MODE_TOAST: Record<AccessMode, string> = { readOnly: 'ReadOnly', readWrite: 'ReadWrite' };
+/** Access mode names in toasts, lower case mid-sentence ("Granted alice read only on prod-eu-1"). */
+const ACCESS_MODE_TOAST: Record<AccessMode, string> = { readOnly: 'read only', readWrite: 'read write' };
 
 /** Environment names in sentences ("… prod-eu-1 (production)?"). */
 export const ENVIRONMENT_TEXT: Record<ClusterEnvironment, string> = {
@@ -24,7 +24,7 @@ export const ENVIRONMENT_TEXT: Record<ClusterEnvironment, string> = {
 /** The subject and cluster a toast or title names. */
 type GrantSubjectRef = Pick<Grant, 'subjectKind' | 'subjectName' | 'clusterName'>;
 
-/** Toast title after a grant was created; group grants name the group ("Granted group sre ReadOnly on dev-1"). */
+/** Toast title after a grant was created; group grants name the group ("Granted group sre read only on dev-1"). */
 export const grantedText = (grant: GrantSubjectRef & Pick<Grant, 'accessMode'>) =>
   `Granted ${grant.subjectKind === 'group' ? 'group ' : ''}${grant.subjectName} ${ACCESS_MODE_TOAST[grant.accessMode]} on ${grant.clusterName}`;
 
@@ -90,8 +90,8 @@ export const bulkGrantTitle = (subject: BulkGrantSubject) =>
   `Grant ${bulkSubjectText(subject)} access to clusters`;
 
 /**
- * Toast title after a bulk grant, e.g. "Granted alice ReadOnly on 12 clusters" (GRANT-4) or "Granted group sre
- * ReadOnly on 3 clusters" (GPG-3).
+ * Toast title after a bulk grant, e.g. "Granted alice read only on 12 clusters" (GRANT-4) or "Granted group sre
+ * read only on 3 clusters" (GPG-3).
  */
 export const bulkGrantedText = (subject: BulkGrantSubject, accessMode: AccessMode, count: number) =>
   `Granted ${bulkSubjectText(subject)} ${ACCESS_MODE_TOAST[accessMode]} on ${count} ${count === 1 ? 'cluster' : 'clusters'}`;

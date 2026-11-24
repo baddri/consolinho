@@ -113,7 +113,7 @@ describe('Grant access dialog — Subject section (T-0262)', () => {
 
     await setPriority(user, dialog, '300');
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
-    expect(await screen.findByText('Granted group new-team ReadOnly on staging-eu-1')).toBeInTheDocument();
+    expect(await screen.findByText('Granted group new-team read only on staging-eu-1')).toBeInTheDocument();
     expect(writes).toEqual([
       {
         url: '/api/admin/groups/new-team/grants',
@@ -137,7 +137,7 @@ describe('Grant access dialog — Subject section (T-0262)', () => {
     await setPriority(user, dialog, '20');
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
     expect(
-      await screen.findByText('Granted group platform-ops ReadOnly on staging-eu-1'),
+      await screen.findByText('Granted group platform-ops read only on staging-eu-1'),
     ).toBeInTheDocument();
   });
 

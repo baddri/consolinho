@@ -114,7 +114,7 @@ describe('Bulk grant wizard (T-0040)', () => {
       const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
       await footer(user, dialog, 'Grant access');
 
-      expect(await screen.findByText('Granted alice ReadOnly on 3 clusters')).toBeInTheDocument();
+      expect(await screen.findByText('Granted alice read only on 3 clusters')).toBeInTheDocument();
       expect(requests).toEqual([
         {
           csrf: '1',

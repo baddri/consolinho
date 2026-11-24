@@ -22,7 +22,7 @@ import { useCredentialGoneToast } from './useCredentialGoneToast';
 import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Display names of the grant access modes. */
-const ACCESS_MODE_LABELS: Record<AccessMode, string> = { readOnly: 'Read only', readWrite: 'Read-write' };
+const ACCESS_MODE_LABELS: Record<AccessMode, string> = { readOnly: 'Read only', readWrite: 'Read write' };
 
 /** CRED-6 hint shown with the users of an in-use credential. */
 export const IN_USE_HINT = 'Re-assign or revoke these grants first.';

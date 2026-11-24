@@ -377,7 +377,7 @@ describe('ClusterCredentialsTab (T-0036)', () => {
       .map((item) => item.textContent);
     expect(items).toHaveLength(2);
     expect(items.find((text) => text.startsWith('alice'))).toMatch(/Read only$/);
-    expect(items.find((text) => text.startsWith('pending-paul'))).toMatch(/Read-write$/);
+    expect(items.find((text) => text.startsWith('pending-paul'))).toMatch(/Read write$/);
     expect(within(dialog).queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     expect(deletes).toBe(0);
   });

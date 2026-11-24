@@ -95,7 +95,7 @@ test('QG-2: a group grant gives read-only access, Effective access explains it, 
     await expect(dialog.getByRole('radio', { name: /Read only/ })).toBeChecked();
     await dialog.getByRole('button', { name: 'Grant access' }).click();
     await expect(dialog).toBeHidden();
-    await expect(admin.getByText(`Granted group ${GROUP} ReadOnly on ${cluster()}`)).toBeVisible();
+    await expect(admin.getByText(`Granted group ${GROUP} read only on ${cluster()}`)).toBeVisible();
     const row = admin.getByRole('row').filter({ has: admin.getByRole('link', { name: GROUP, exact: true }) });
     await expect(row).toContainText(String(PRIORITY));
   });
