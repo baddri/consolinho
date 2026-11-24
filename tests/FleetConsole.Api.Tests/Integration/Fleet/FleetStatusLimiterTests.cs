@@ -12,7 +12,7 @@ namespace FleetConsole.Api.Tests.Integration.Fleet;
 /// <summary>
 /// The pod-wide <c>fleet-status</c> limiter (ADR-0041 §5): with one slot and no queue, a second request while the first
 /// stream is still computing gets 503 <c>Fleet.Busy</c> with <c>Retry-After: 5</c>; authentication still runs first, so
-/// an anonymous request is a 401 even while saturated; an aborted stream frees its slot.
+/// an anonymous request is a 401 even while saturated; an aborted or completed stream frees its slot.
 /// </summary>
 [Collection(ApiCollectionDefinition.Name)]
 public sealed class FleetStatusLimiterTests(ApiFactory factory) : IAsyncLifetime
@@ -81,6 +81,26 @@ public sealed class FleetStatusLimiterTests(ApiFactory factory) : IAsyncLifetime
         using var response = await RetryWhileBusyAsync(other);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         _reader.Release();
+    }
+
+    // T-0325 (architect's suggestion): a stream that runs to its end returns its permit too, so normal page loads never
+    // leak slots until the pod answers only 503.
+    [Fact]
+    public async Task CompletedStream_FreesItsSlot()
+    {
+        using var holder = await GrantedClientAsync();
+        using var other = await GrantedClientAsync();
+        using (var held = await StartHeldStreamAsync(holder))
+        {
+            _reader.Release();
+            var body = await held.Content.ReadAsStringAsync(Ct);
+            JsonDocument.Parse(body).RootElement.GetProperty("failure").ValueKind.ShouldBe(JsonValueKind.Null);
+        }
+
+        // The gate is open now, so a request that got a slot completes; one that never gets a slot stays 503.
+        using var response = await RetryWhileBusyAsync(other);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync(Ct)).ShouldEndWith("\n");
     }
 
     private async Task<HttpClient> GrantedClientAsync()

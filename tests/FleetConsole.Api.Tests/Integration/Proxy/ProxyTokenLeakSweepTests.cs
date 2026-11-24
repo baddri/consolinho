@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json;
 using FleetConsole.Api.Tests.Fakes;
 using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Audit;
@@ -15,7 +17,8 @@ namespace FleetConsole.Api.Tests.Integration.Proxy;
 /// produced (bodies and headers), the audit entries, the database and every captured log line are scanned for the token
 /// in plain, base64 and base64url form. A second sweep over real sockets covers a followed log and an exec WebSocket
 /// handshake with frames in both directions (CP4a SAFE-3). A third sweep (T-0201, CP4b CFG-4) reads and patches a
-/// Secret and checks that its values, plain or base64, reach neither the audit nor the logs.
+/// Secret and checks that its values, plain or base64, reach neither the audit nor the logs. A fourth (T-0325, FBE-6)
+/// sweeps the fleet status stream, its probe-failure log lines and every recorded activity.
 /// </summary>
 /// <remarks>
 /// The fake API server never echoes the bearer token here: an upstream body is passed through by design, so echoing
@@ -189,6 +192,98 @@ public sealed class ProxyTokenLeakSweepTests(ApiFactory factory)
         {
             AssertTokenAbsent(value, all);
         }
+    }
+
+    // T-0325 / FBE-6: the fleet status stream. One token for a healthy cluster, a cluster whose 403 and 500 bodies echo
+    // the token back (upstream text must never reach a line), a 401 that also echoes it (tokenInvalid), a TLS failure and
+    // an unreachable cluster. Response body and headers, every log line (including the probe-failure lines, EventId
+    // 5300), every recorded activity and the database must not contain it.
+    [Fact]
+    public async Task NoToken_InFleetStatusLines_ProbeLogs_Activities_OrDatabase()
+    {
+        var token = $"fbe6-sweep-sa-token.{TestData.Unique()}{TestData.Unique()}.not-a-real-signature";
+        var activities = new List<string>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity =>
+            {
+                var text = string.Join('\n', [
+                    activity.OperationName, activity.DisplayName, activity.StatusDescription ?? string.Empty,
+                    .. activity.TagObjects.Select(t => $"{t.Key}={t.Value}"),
+                    .. activity.Baggage.Select(b => $"{b.Key}={b.Value}"),
+                    .. activity.Events.SelectMany(e => e.Tags.Select(t => $"{e.Name} {t.Key}={t.Value}"))]);
+                lock (activities)
+                {
+                    activities.Add(text);
+                }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        await using var healthy = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        healthy.MapClusterVersion();
+        healthy.MapClusterOperatorsTable(("True", "False", "False"));
+        healthy.MapNodesTable("Ready");
+        await using var echoing = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        echoing.Respond("GET", FakeKubeApiServer.ClusterVersionPath, 403, new { kind = "Status", code = 403, message = $"forbidden for {token}" });
+        echoing.Respond("GET", FakeKubeApiServer.ClusterOperatorsPath, 500, new { kind = "Status", code = 500, message = $"boom {token}" });
+        echoing.MapNodesTable("Ready");
+        await using var rejecting = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        foreach (var path in new[] { FakeKubeApiServer.ClusterVersionPath, FakeKubeApiServer.ClusterOperatorsPath, FakeKubeApiServer.NodesPath })
+        {
+            rejecting.Respond("GET", path, 401, new { kind = "Status", code = 401, message = $"token {token} is invalid" });
+        }
+
+        var stopped = await FakeKubeApiServer.StartAsync(cancellationToken: Ct);
+        var stoppedUrl = stopped.BaseAddress.ToString();
+        await stopped.DisposeAsync();
+
+        var username = factory.NewUsername();
+        var (ok, _) = await factory.Data.ProxyClusterAsync(healthy, username, AccessMode.ReadOnly, token);
+        var (echo, _) = await factory.Data.ProxyClusterAsync(echoing, username, AccessMode.ReadOnly, token);
+        var (invalid, _) = await factory.Data.ProxyClusterAsync(rejecting, username, AccessMode.ReadOnly, token);
+        var wrongCa = await GrantedClusterAsync(username, healthy.BaseAddress.ToString(), echoing.CaBundlePem, AccessMode.ReadOnly, token);
+        var unreachable = await GrantedClusterAsync(username, stoppedUrl, healthy.CaBundlePem, AccessMode.ReadOnly, token);
+        using var client = await factory.LoginAsAsync(username);
+        var logsBefore = factory.Logs.Entries.Count;
+
+        string body;
+        string headers;
+        using (var response = await client.GetAsync(new Uri("/api/fleet/status", UriKind.Relative), Ct))
+        {
+            response.StatusCode.ShouldBe(HttpStatusCode.OK);
+            headers = string.Join('\n', response.Headers.Concat(response.Content.Headers).Select(h => $"{h.Key}: {string.Join(", ", h.Value)}"));
+            body = await response.Content.ReadAsStringAsync(Ct);
+        }
+
+        var failures = body.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => JsonDocument.Parse(line).RootElement)
+            .ToDictionary(line => line.GetProperty("cluster").GetProperty("name").GetString()!, line => line.GetProperty("failure").GetString());
+        failures.ShouldBe(new Dictionary<string, string?>
+        {
+            [ok.Name] = null,
+            [echo.Name] = "upstreamError",
+            [invalid.Name] = "tokenInvalid",
+            [wrongCa] = "tlsError",
+            [unreachable] = "unreachable",
+        }, ignoreOrder: true);
+
+        // The token really travelled, and the failures were logged (so the log scan below covers them).
+        (healthy.Requests.Count(r => r.Authorization == $"Bearer {token}") + echoing.Requests.Count(r => r.Authorization == $"Bearer {token}")
+            + rejecting.Requests.Count(r => r.Authorization == $"Bearer {token}")).ShouldBe(9);
+        factory.Logs.Entries.Skip(logsBefore).Count(e => e.EventId == 5300).ShouldBeGreaterThanOrEqualTo(4);
+        string[] recorded;
+        lock (activities)
+        {
+            recorded = [.. activities];
+        }
+
+        recorded.ShouldNotBeEmpty();
+        var database = await TokenLeakScanner.DumpDatabaseAsync(factory.ConnectionString, Ct);
+
+        AssertTokenAbsent(token, [body, headers, factory.Logs.AllText, database, .. recorded]);
     }
 
     private static string Base64(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
