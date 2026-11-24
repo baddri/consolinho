@@ -9,7 +9,11 @@ export type GrantStateLabelsProps = Pick<Grant, 'clusterIsEnabled' | 'credential
  * deactivated" as compact warning labels. Grants survive these states, so the table must say they are dormant.
  * Renders nothing for a working grant.
  */
-export function GrantStateLabels({ clusterIsEnabled, credentialExpiryStatus, userStatus }: GrantStateLabelsProps) {
+export function GrantStateLabels({
+  clusterIsEnabled,
+  credentialExpiryStatus,
+  userStatus,
+}: GrantStateLabelsProps) {
   const states = [
     !clusterIsEnabled && 'Cluster disabled',
     credentialExpiryStatus === 'expired' && 'Credential expired',

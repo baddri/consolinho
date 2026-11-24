@@ -15,7 +15,7 @@ type GrantDialog = { kind: 'change' | 'revoke'; grantId: string } | null;
 /** Props for {@link GrantsTabContent}. */
 interface GrantsTabContentProps {
   query: UseQueryResult<Grant[]>;
-  /** Which side the rows name: clusters on the user page, users on the cluster page. */
+  /** Which side the rows name: clusters on the user page, users and groups on the cluster page. */
   perspective: GrantPerspective;
   ariaLabel: string;
   createLabel: string;
@@ -87,9 +87,9 @@ function GrantsTabContent({
 
 /**
  * "Cluster access" tab of the user detail page (USR-7): the clusters `user` can reach, through which credential and
- * in which mode, with per-row Change / Revoke. "Grant access" in the toolbar (and the empty state) is the page's one
- * grant entry point (T-0118 #9): it calls `onGrantAccess`, which opens the bulk grant wizard for 1..n clusters
- * (GRANT-4). Admins appear only with grants (GRANT-6).
+ * in which mode, with per-row Edit access / Revoke access. "Grant access" in the toolbar (and the empty state) is
+ * the page's one grant entry point (T-0118 #9): it calls `onGrantAccess`, which opens the bulk grant wizard for
+ * 1..n clusters (GRANT-4). Admins appear only with grants (GRANT-6).
  */
 export function UserGrantsTab({
   user,
@@ -113,9 +113,9 @@ export function UserGrantsTab({
 }
 
 /**
- * "Access" tab of the cluster detail page (CLU-8, US-9): who can touch `cluster`, with a text filter, "Grant access"
- * (the single-grant dialog, picking a user) and per-row Change / Revoke. The admin role never implies access
- * (GRANT-6), so admins appear only with grants.
+ * "Access" tab of the cluster detail page (CLU-8, US-9, UIG-4): which users and groups can touch `cluster`, with a
+ * text and a subject-kind filter, "Grant access" (the single-grant dialog) and per-row Edit access / Revoke
+ * access. The admin role never implies access (GRANT-6), so admins appear only with grants.
  */
 export function ClusterGrantsTab({ cluster }: { cluster: GrantCluster }) {
   const query = useClusterGrants(cluster.name);
@@ -128,7 +128,7 @@ export function ClusterGrantsTab({ cluster }: { cluster: GrantCluster }) {
         ariaLabel={`Access to ${cluster.name}`}
         createLabel="Grant access"
         emptyTitle="Nobody has access to this cluster"
-        emptyBody={`Grant users access to ${cluster.name}; administrators need a grant too.`}
+        emptyBody={`Grant users or groups access to ${cluster.name}; administrators need a grant too.`}
         onCreate={() => setCreating(true)}
       />
       {creating && (

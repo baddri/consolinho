@@ -51,6 +51,12 @@ function grantCountOfUser(username: string): number {
   return mockDb.grants.filter((grant) => isUserGrantOf(grant, username)).length;
 }
 
+/** Users with access to `clusterName`: its direct grants ("Users with access", contract `grantCount`). */
+function userGrantCountOfCluster(clusterName: string): number {
+  return mockDb.grants.filter((grant) => grant.clusterName === clusterName && grant.subjectKind === 'user')
+    .length;
+}
+
 /** `GET /api/auth/me` body. */
 export function toCurrentUser(user: MockUser): CurrentUser {
   return {
@@ -214,7 +220,7 @@ export function toClusterListItem(cluster: MockCluster): ClusterListItem {
     tlsMode: tlsModeOf(cluster),
     credentialCount: credentials.length,
     worstCredentialExpiryStatus: worst,
-    grantCount: mockDb.grants.filter((grant) => grant.clusterName === cluster.name).length,
+    grantCount: userGrantCountOfCluster(cluster.name),
     lastTest: newest ? toTestSummary(newest.lastTest, cluster.name) : null,
     lastTestCredentialName: newest?.name ?? null,
     version: cluster.version,
@@ -237,7 +243,7 @@ export function toClusterDetail(cluster: MockCluster): ClusterDetail {
     tlsMode: tlsModeOf(cluster),
     isEnabled: cluster.isEnabled,
     credentialCount: credentialsOfCluster(cluster.name).length,
-    grantCount: mockDb.grants.filter((grant) => grant.clusterName === cluster.name).length,
+    grantCount: userGrantCountOfCluster(cluster.name),
     connectionSettingsChangedAt: cluster.connectionSettingsChangedAt,
     createdAt: cluster.createdAt,
     createdBy: cluster.createdBy,

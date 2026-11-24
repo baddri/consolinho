@@ -3,17 +3,18 @@ import { Alert, Button, Form, Modal, ModalBody, ModalFooter, ModalHeader } from 
 import { useId } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import type { ClusterDetail, ClusterEnvironment, Grant } from '@/shared/api';
-import {
-  ConflictAlert,
-  FormProblemAlert,
-  RadioGroupField,
-  useFormProblem,
-} from '@/shared/forms';
+import { ConflictAlert, FormProblemAlert, RadioGroupField, useFormProblem } from '@/shared/forms';
 import { EnvironmentLabel, InlineLabelTitle, useToast } from '@/shared/ui';
 import { isGrantGone, useCreateGrant, useUpdateGrant } from './api';
 import { CredentialPicker } from './CredentialPicker';
 import { grantFormSchema, type GrantFormValues } from './grantForm.schema';
-import { ACCESS_MODE_OPTIONS, alreadyRevokedText, changedText, grantedText, productionWriteWarning } from './grantText';
+import {
+  ACCESS_MODE_OPTIONS,
+  alreadyRevokedText,
+  changedText,
+  grantedText,
+  productionWriteWarning,
+} from './grantText';
 import { UserTypeahead } from './UserTypeahead';
 
 /** The cluster a grant dialog on the cluster page acts on. */
@@ -73,12 +74,7 @@ export function GrantFormModal(props: GrantFormModalProps) {
   const labelId = useId();
   const { title, environment } = titleOf(props);
   return (
-    <Modal
-      variant="medium"
-      isOpen
-      onClose={props.onClose}
-      aria-labelledby={`${titleId} ${labelId}`}
-    >
+    <Modal variant="medium" isOpen onClose={props.onClose} aria-labelledby={`${titleId} ${labelId}`}>
       <ModalHeader
         title={
           <InlineLabelTitle
@@ -149,7 +145,10 @@ function GrantForm(props: GrantFormModalProps) {
       props.onClose();
     } catch (error) {
       if (!isGrantGone(error)) throw error;
-      toast.warning(alreadyRevokedText({ subjectName: username, clusterName }), 'Another administrator revoked it.');
+      toast.warning(
+        alreadyRevokedText({ subjectName: username, clusterName }),
+        'Another administrator revoked it.',
+      );
       props.onClose();
     }
   });

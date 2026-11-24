@@ -12,12 +12,13 @@ import {
   setMockUser,
   validationProblem,
 } from '@/test/handlers';
-import { renderApp } from '@/test/render';
+import { renderApp, renderWithProviders } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { adminKeys } from '../queryKeys';
 import { withoutBadges } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
+import { GrantsTable } from './GrantsTable';
 
 type User = ReturnType<typeof renderApp>['user'];
 
@@ -28,21 +29,39 @@ async function findTable(name: string, timeout?: number) {
   return table;
 }
 
-/** The body row whose first cell starts with `text` (after the kind badge). */
+/** The naming cell of a row: "Subject name" on the cluster tab, else the first cell ("Cluster"). */
+function nameCell(row: HTMLElement): Element | undefined {
+  return row.querySelector('[data-label="Subject name"]') ?? within(row).queryAllByRole('cell')[0];
+}
+
+/** The body row whose naming cell starts with `text` (after the kind badge). */
 function rowOf(table: HTMLElement, text: string): HTMLElement {
   const row = within(table)
     .getAllByRole('row')
-    .find((candidate) => withoutBadges(within(candidate).queryAllByRole('cell')[0]).startsWith(text));
+    .find(
+      (candidate) =>
+        withoutBadges(nameCell(candidate)).startsWith(text) ||
+        // `withoutBadges` knows no Group badge; group names are their link's name.
+        within(candidate).queryByRole('link', { name: text }) !== null,
+    );
   if (!row) throw new Error(`No row ${text}`);
   return row;
 }
 
-/** First-column texts of the body rows. */
+/** Naming-cell texts of the body rows. */
 function firstCells(table: HTMLElement): string[] {
   return within(table)
     .getAllByRole('row')
     .slice(1)
-    .map((row) => withoutBadges(within(row).queryAllByRole('cell')[0]));
+    .map((row) => withoutBadges(nameCell(row)));
+}
+
+/** Names of the subject links (users and groups) of the body rows, in display order. */
+function subjectNames(table: HTMLElement): string[] {
+  return within(table)
+    .getAllByRole('row')
+    .slice(1)
+    .map((row) => within(row).getAllByRole('link')[0]?.textContent ?? '');
 }
 
 /** Text of the cell with `dataLabel` in `row`. */
@@ -91,6 +110,32 @@ function captureGrantWrites() {
   );
   return writes;
 }
+
+/** A group grant as the API returns it, for the `group` perspective (T-0264 mounts it). */
+const SRE_STAGING_GRANT: Grant = {
+  id: grantIds.sreStaging,
+  subjectKind: 'group',
+  subjectName: 'sre',
+  priority: 100,
+  username: null,
+  userDisplayName: null,
+  userStatus: null,
+  clusterName: 'staging-eu-1',
+  clusterDisplayName: 'Staging EU 1',
+  clusterEnvironment: 'staging',
+  clusterIsEnabled: true,
+  credentialId: credentialIds.stagingAdmin,
+  credentialName: 'cluster-admin',
+  credentialExpiryStatus: 'ok',
+  credentialExpiresAt: null,
+  credentialLastTest: null,
+  accessMode: 'readOnly',
+  grantedAt: '2026-11-14T10:00:00Z',
+  grantedBy: 'admin',
+  updatedAt: null,
+  updatedBy: null,
+  version: 1,
+};
 
 beforeEach(() => mockViewportWidth(1440));
 
@@ -270,7 +315,7 @@ describe('Grants tabs (T-0039)', () => {
     const writes = captureGrantWrites();
     const { user, queryClient } = renderApp('/fleet/admin/users/alice/access');
     const table = await findTable('Cluster access of alice');
-    await rowAction(user, table, 'prod-eu-1', 'Change');
+    await rowAction(user, table, 'prod-eu-1', 'Edit access');
     const dialog = await screen.findByRole('dialog', { name: /Change alice's access to prod-eu-1/ });
     expect(within(dialog).queryByRole('combobox')).not.toBeInTheDocument();
 
@@ -311,7 +356,7 @@ describe('Grants tabs (T-0039)', () => {
     const writes = captureGrantWrites();
     const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
-    await rowAction(user, table, 'carol', 'Revoke');
+    await rowAction(user, table, 'carol', 'Revoke access');
     const dialog = await screen.findByRole('dialog', { name: 'Revoke access? prod' });
     expect(dialog).toHaveTextContent("Are you sure you want to revoke carol's access to prod-eu-1?");
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
@@ -324,7 +369,7 @@ describe('Grants tabs (T-0039)', () => {
   it('GRANT-3: revoking a grant revoked meanwhile closes with a warning toast', async () => {
     const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     const table = await findTable('Access to prod-eu-1');
-    await rowAction(user, table, 'carol', 'Revoke');
+    await rowAction(user, table, 'carol', 'Revoke access');
     const dialog = await screen.findByRole('dialog', { name: /^Revoke access\?/ });
     mockDb.grants = mockDb.grants.filter((grant) => grant.id !== grantIds.carolProdEu);
     await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
@@ -391,7 +436,127 @@ describe('Grants tabs (T-0039)', () => {
     const table = await findTable('Cluster access of alice');
     expect(screen.getByRole('button', { name: 'Grant access' })).toHaveAttribute('aria-disabled', 'true');
     await user.click(within(rowOf(table, 'prod-eu-1')).getByRole('button', { name: 'Kebab toggle' }));
-    expect(await screen.findByRole('menuitem', { name: 'Change' })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('menuitem', { name: 'Revoke' })).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByRole('menuitem', { name: 'Edit access' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+    expect(screen.getByRole('menuitem', { name: 'Revoke access' })).toHaveAttribute('aria-disabled', 'true');
+  });
+});
+
+describe('Group grants on the cluster Access tab (T-0261)', () => {
+  it('UIG-4: OCP RoleBinding columns, subject kind label, group link, priority and API order', async () => {
+    const { user, queryClient } = renderApp('/fleet/admin/clusters/staging-eu-1/access');
+    const table = await findTable('Access to staging-eu-1');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent),
+    ).toEqual([
+      'Subject kind',
+      'Subject name',
+      'Access mode',
+      'Priority',
+      'Credential',
+      'Granted',
+      'Actions',
+    ]);
+    const apiOrder = queryClient
+      .getQueryData<Grant[]>(adminKeys.clusterGrants('staging-eu-1'))
+      ?.map((grant) => grant.subjectName);
+    expect(subjectNames(table)).toEqual(apiOrder);
+
+    const sre = rowOf(table, 'sre');
+    expect(cellText(sre, 'Subject kind')).toBe('Group');
+    // Plain text like OCP's RoleBinding list, not a label; the G badge stays on the name link.
+    expect(sre.querySelector('[data-label="Subject kind"] .pf-v6-c-label')).toBeNull();
+    expect(within(sre).getByTitle('Group')).toHaveTextContent('G');
+    expect(cellText(sre, 'Priority')).toBe('100');
+    expect(within(sre).getByRole('link', { name: 'sre' })).toHaveAttribute('href', '/fleet/admin/groups/sre');
+    const alice = rowOf(table, 'alice');
+    expect(cellText(alice, 'Subject kind')).toBe('User');
+    expect(cellText(alice, 'Priority')).toBe('-');
+    expect(within(alice).getByRole('link', { name: 'alice' })).toHaveAttribute(
+      'href',
+      '/fleet/admin/users/alice',
+    );
+
+    await rowAction(user, table, 'sre', 'Edit access');
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('UIG-4: ?kind=group keeps group grants, with a removable label and "Clear all filters"', async () => {
+    const { user, router } = renderApp('/fleet/admin/clusters/staging-eu-1/access');
+    const table = await findTable('Access to staging-eu-1');
+    await user.click(screen.getByRole('button', { name: 'Filter by Subject kind' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Group' }));
+
+    expect(router.state.location.search).toBe('?kind=group');
+    await waitFor(() => expect(subjectNames(table)).toEqual(['ghost-team', 'sre']));
+    expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close Group' }));
+    expect(router.state.location.search).toBe('');
+    await waitFor(() => expect(subjectNames(table)).toContain('alice'));
+
+    await router.navigate('/fleet/admin/clusters/staging-eu-1/access?kind=user');
+    await waitFor(() => expect(subjectNames(table)).toEqual(['alice']));
+    await user.click(screen.getByRole('button', { name: 'Clear all filters' }));
+    expect(router.state.location.search).toBe('');
+  });
+
+  it('UIG-4 / §5: revoking a group grant names group and cluster; the toast names the group', async () => {
+    const writes = captureGrantWrites();
+    const { user } = renderApp('/fleet/admin/clusters/staging-eu-1/access');
+    const table = await findTable('Access to staging-eu-1');
+    await rowAction(user, table, 'sre', 'Revoke access');
+    const dialog = await screen.findByRole('dialog', { name: /^Revoke access\?/ });
+    expect(dialog).toHaveTextContent(
+      'Revoke access of group sre to staging-eu-1? Members lose access within a minute.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Revoke' }));
+
+    expect(await screen.findByText('Revoked access of group sre to staging-eu-1')).toBeInTheDocument();
+    await waitFor(() => expect(subjectNames(table)).not.toContain('sre'));
+    expect(writes).toEqual([{ method: 'DELETE', body: null, csrf: '1' }]);
+  });
+
+  it('UIG-6: a read-only admin sees the row actions of both kinds disabled', async () => {
+    setMockUser('ines');
+    const { user } = renderApp('/fleet/admin/clusters/staging-eu-1/access');
+    const table = await findTable('Access to staging-eu-1');
+    expect(screen.getByRole('button', { name: 'Filter by Subject kind' })).toBeEnabled();
+    for (const name of ['alice', 'sre']) {
+      await user.click(within(rowOf(table, name)).getByRole('button', { name: 'Kebab toggle' }));
+      expect(await screen.findByRole('menuitem', { name: 'Edit access' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      expect(screen.getByRole('menuitem', { name: 'Revoke access' })).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      await user.keyboard('{Escape}');
+    }
+  });
+
+  it('renders the group perspective: Cluster, Access mode, Priority, Credential, Granted', async () => {
+    renderWithProviders(
+      <GrantsTable
+        grants={[SRE_STAGING_GRANT]}
+        perspective="group"
+        ariaLabel="Cluster access of sre"
+        onChange={() => undefined}
+        onRevoke={() => undefined}
+        emptyState={{ title: 'No cluster access', body: 'None.', action: null }}
+      />,
+    );
+    const table = await findTable('Cluster access of sre');
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent),
+    ).toEqual(['Cluster', 'Access mode', 'Priority', 'Credential', 'Granted', 'Actions']);
+    expect(cellText(rowOf(table, 'staging-eu-1'), 'Priority')).toBe('100');
+    expect(screen.queryByRole('button', { name: 'Filter by Subject kind' })).not.toBeInTheDocument();
   });
 });

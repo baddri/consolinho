@@ -27,7 +27,10 @@ export function useClusterGrants(clusterName: string) {
     queryKey: adminKeys.clusterGrants(clusterName),
     queryFn: ({ signal }): Promise<Grant[]> =>
       unwrap(
-        apiClient.GET('/api/admin/clusters/{name}/grants', { params: { path: { name: clusterName } }, signal }),
+        apiClient.GET('/api/admin/clusters/{name}/grants', {
+          params: { path: { name: clusterName } },
+          signal,
+        }),
       ),
   });
 }
@@ -75,9 +78,15 @@ function invalidateAfterSuccess(queryClient: QueryClient): void {
  * Applies `update` to the cached subject (user or group) and cluster grant lists that contain `grant` (before they
  * refetch).
  */
-function updateCachedLists(queryClient: QueryClient, grant: Grant, update: (grants: Grant[]) => Grant[]): void {
+function updateCachedLists(
+  queryClient: QueryClient,
+  grant: Grant,
+  update: (grants: Grant[]) => Grant[],
+): void {
   const subjectKey =
-    grant.subjectKind === 'user' ? adminKeys.userGrants(grant.subjectName) : adminKeys.groupGrants(grant.subjectName);
+    grant.subjectKind === 'user'
+      ? adminKeys.userGrants(grant.subjectName)
+      : adminKeys.groupGrants(grant.subjectName);
   for (const key of [subjectKey, adminKeys.clusterGrants(grant.clusterName)]) {
     queryClient.setQueryData<Grant[]>(key, (current) => (current === undefined ? current : update(current)));
   }
@@ -91,7 +100,8 @@ function updateCachedLists(queryClient: QueryClient, grant: Grant, update: (gran
 export function useCreateGrant() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateGrantRequest): Promise<Grant> => unwrap(apiClient.POST('/api/admin/grants', { body })),
+    mutationFn: (body: CreateGrantRequest): Promise<Grant> =>
+      unwrap(apiClient.POST('/api/admin/grants', { body })),
     onSuccess: () => invalidateAfterSuccess(queryClient),
     onError: (error) => invalidateAfterError(queryClient, error),
   });
@@ -110,7 +120,9 @@ export function useUpdateGrant() {
     mutationFn: ({ grantId, ...body }: UpdateGrantVariables): Promise<Grant> =>
       unwrap(apiClient.PUT('/api/admin/grants/{grantId}', { params: { path: { grantId } }, body })),
     onSuccess: (grant) => {
-      updateCachedLists(queryClient, grant, (list) => list.map((item) => (item.id === grant.id ? grant : item)));
+      updateCachedLists(queryClient, grant, (list) =>
+        list.map((item) => (item.id === grant.id ? grant : item)),
+      );
       invalidateAfterSuccess(queryClient);
     },
     onError: (error) => invalidateAfterError(queryClient, error),
@@ -122,7 +134,9 @@ export function useRevokeGrant() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (grant: Grant): Promise<void> =>
-      unwrapNoContent(apiClient.DELETE('/api/admin/grants/{grantId}', { params: { path: { grantId: grant.id } } })),
+      unwrapNoContent(
+        apiClient.DELETE('/api/admin/grants/{grantId}', { params: { path: { grantId: grant.id } } }),
+      ),
     onSuccess: (_data, grant) => {
       updateCachedLists(queryClient, grant, (list) => list.filter((item) => item.id !== grant.id));
       invalidateAfterSuccess(queryClient);

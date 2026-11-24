@@ -1,9 +1,15 @@
-import type { AccessMode, ClusterEnvironment, Grant } from '@/shared/api';
+import type { AccessMode, ClusterEnvironment, Grant, GrantSubjectKind } from '@/shared/api';
 import type { RadioGroupFieldOption } from '@/shared/forms';
 import { PRODUCT_NAME } from '@/shared/branding';
 
 /** Display names of the access modes (table labels, radios). */
-export const ACCESS_MODE_TEXT: Record<AccessMode, string> = { readOnly: 'Read only', readWrite: 'Read write' };
+export const ACCESS_MODE_TEXT: Record<AccessMode, string> = {
+  readOnly: 'Read only',
+  readWrite: 'Read write',
+};
+
+/** Subject kinds as OCP's RoleBinding list writes them (Subject kind column, filter options). */
+export const SUBJECT_KIND_TEXT: Readonly<Record<GrantSubjectKind, string>> = { user: 'User', group: 'Group' };
 
 /** Access mode names in toasts, as the spec writes them ("Granted alice ReadOnly on prod-eu-1"). */
 const ACCESS_MODE_TOAST: Record<AccessMode, string> = { readOnly: 'ReadOnly', readWrite: 'ReadWrite' };
@@ -23,17 +29,24 @@ export const grantedText = (grant: Pick<Grant, 'subjectName' | 'clusterName' | '
 export const changedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
   `Changed ${grant.subjectName}'s access to ${grant.clusterName}`;
 
-/** Toast title after a grant was revoked. */
-export const revokedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
-  `Revoked ${grant.subjectName}'s access to ${grant.clusterName}`;
+/** The subject and cluster a toast names; without `subjectKind` the subject is a user. */
+type GrantSubjectRef = Pick<Grant, 'subjectName' | 'clusterName'> & Partial<Pick<Grant, 'subjectKind'>>;
+
+/** Toast title after a grant was revoked; group grants name the group (spec §5). */
+export const revokedText = (grant: GrantSubjectRef) =>
+  grant.subjectKind === 'group'
+    ? `Revoked access of group ${grant.subjectName} to ${grant.clusterName}`
+    : `Revoked ${grant.subjectName}'s access to ${grant.clusterName}`;
 
 /** GRANT-2 warning shown while read-write access to a production cluster is selected. */
 export const productionWriteWarning = (clusterName: string) =>
   `This user will be able to change production cluster ${clusterName}.`;
 
 /** Warning toast title when the grant turned out to be revoked meanwhile (404 on change or revoke). */
-export const alreadyRevokedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
-  `${grant.subjectName}'s access to ${grant.clusterName} was already revoked`;
+export const alreadyRevokedText = (grant: GrantSubjectRef) =>
+  grant.subjectKind === 'group'
+    ? `Access of group ${grant.subjectName} to ${grant.clusterName} was already revoked`
+    : `${grant.subjectName}'s access to ${grant.clusterName} was already revoked`;
 
 /** Toast title after a bulk grant (GRANT-4), e.g. "Granted alice ReadOnly on 12 clusters". */
 export const bulkGrantedText = (username: string, accessMode: AccessMode, count: number) =>
