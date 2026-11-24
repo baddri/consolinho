@@ -1,7 +1,7 @@
 ---
 id: T-0257
 title: Effective access admin query — winning grant and why, per cluster (EFF-1..5)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: [T-0253, T-0255]   # wave 3, parallel with T-0256
@@ -38,13 +38,30 @@ proxy and switcher use (PREC-8, ADR-0034 §6) — no second implementation.
   `IReadModel.UserGroupChecks` (T-0255), `Api/Endpoints/Admin/UsersAdminEndpoints.cs` L37-43.
 
 ## Acceptance criteria
-- [ ] EFF-1/2: fixture with direct RO + group RW (prio 50) + group RO (prio 10) on C1, two groups tied at top on C2 (inserted bypassing the unique index is not possible → unit-test the tie mapping on the handler with a fake reader result), user RO flag on C3 → expected source, outcomes, `beatenBy`, `narrowedByReadOnlyFlag`.
-- [ ] EFF-3: for one fixture, the cluster set and modes equal `GET /api/clusters` as that user (integration test logs in as the user).
-- [ ] EFF-4: `groupsAsOf` = last check time after revalidation; = last login before any revalidation; null if never logged in.
-- [ ] EFF-5: no access → `clusters: []`; unknown user → 404; non-admin → 403; OpenAPI updated; `scripts/check-be.sh` green.
+- [x] EFF-1/2: fixture with direct RO + group RW (prio 50) + group RO (prio 10) on C1, two groups tied at top on C2 (inserted bypassing the unique index is not possible → unit-test the tie mapping on the handler with a fake reader result), user RO flag on C3 → expected source, outcomes, `beatenBy`, `narrowedByReadOnlyFlag`.
+- [x] EFF-3: for one fixture, the cluster set and modes equal `GET /api/clusters` as that user (integration test logs in as the user).
+- [x] EFF-4: `groupsAsOf` = last check time after revalidation; = last login before any revalidation; null if never logged in.
+- [x] EFF-5: no access → `clusters: []`; unknown user → 404; non-admin → 403; OpenAPI updated; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: `Users/GetEffectiveAccess` (query/handler/DTOs) + endpoint; `ResolvedClusterAccess` gains
+  `CandidateCredentialNames` (same statement, proxy unchanged). Outcome/kind use the domain enums (camelCase = contract).
+  Outside `paths`: one InlineData + one schema test in `Integration/OpenApiDocumentTests.cs`. EFF-2 ties (incl.
+  tieBrokenById) unit-tested over an in-memory read model. `scripts/check-be.sh` green (431/776/927).
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. Precedence is not duplicated: the handler maps
+  `ClusterAccessReader.LoadAsync` + `AccessResolution.Verdicts` only. The reader change adds a per-cluster dictionary from
+  columns it already selected, so the SQL and the proxy decision are unchanged and there is no N+1. Contract §5 shapes and
+  the outcome enum strings are verified by the OpenAPI test. XML docs are complete. Build is green; filtered tests pass (9 App, 47 Api).
+  Optional: `GetEffectiveAccessHandler.cs:39` is now the third copy of the Status derivation (`UserRow.Project`,
+  `GrantProjection.cs:82`). Make it a follow-up to extract a shared expression. Optional:
+  `ClusterAccessReader.cs:125` builds the name dictionary on every proxy request too. It is small and acceptable, but a
+  lazy lookup would be better if it shows up in profiles.
 
 ## Handover notes
+- Endpoint `GET /api/admin/users/{username}/effective-access` (`GetEffectiveAccess`, tag Users); schemas
+  `EffectiveAccess`, `EffectiveClusterAccess`, `AccessSource`, `AccessCandidate`, enum `CandidateOutcome` — FE can
+  `npm run gen:api`. Mock `resolveAccess` matches contract §5; no shape difference found.
+- `groupsAsOf` = later of `LastLoginAt` and the `user_group_checks` row (login records a check at the same instant).
+- Two statements: user (+ scalar subquery for the check) and the shared reader. Copy strings are FE-side (§5 EFF-2).

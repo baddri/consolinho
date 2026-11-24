@@ -1,3 +1,4 @@
+using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Access.Resolution;
 using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Credentials;
@@ -22,6 +23,8 @@ namespace FleetConsole.Application.Access;
 /// candidate's verdict.</param>
 /// <param name="WinnerToken">The encrypted ServiceAccount token of the winning grant's credential.</param>
 /// <param name="WinnerCredentialName">The winning grant's credential name.</param>
+/// <param name="CandidateCredentialNames">Every candidate grant's credential name by grant id (the Effective access
+/// view lists them per verdict); selected by the same statement, so it costs no extra query.</param>
 internal sealed record ResolvedClusterAccess(
     ClusterId ClusterId,
     ClusterName ClusterName,
@@ -34,4 +37,5 @@ internal sealed record ResolvedClusterAccess(
     bool StoredUserIsReadOnly,
     AccessResolution Resolution,
     EncryptedToken WinnerToken,
-    string WinnerCredentialName);
+    string WinnerCredentialName,
+    IReadOnlyDictionary<GrantId, string> CandidateCredentialNames);

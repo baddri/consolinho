@@ -10,7 +10,8 @@ namespace FleetConsole.Application.Access;
 /// <summary>
 /// Loads what a user can reach — per cluster, the grant that wins under the precedence rules (ADR-0034 §2, PREC-2..8)
 /// — in <b>one SQL statement</b>. Shared by the proxy authorization (<c>AuthorizeProxyRequestHandler</c>) and the
-/// cluster switcher (<c>ListAccessibleClustersHandler</c>), so both always agree (PREC-8).
+/// cluster switcher (<c>ListAccessibleClustersHandler</c>), so both always agree (PREC-8); the admin Effective access
+/// view (<c>GetEffectiveAccessHandler</c>, EFF-1..5) explains the same result.
 /// </summary>
 /// <remarks>
 /// <para><b>Query.</b> The active user, cross-joined with every grant that names them directly <em>or</em> names one of
@@ -120,7 +121,8 @@ internal sealed partial class ClusterAccessReader(IReadModel readModel, ILogger<
             first.UserIsReadOnly,
             resolution,
             winner.Token,
-            winner.CredentialName.Value);
+            winner.CredentialName.Value,
+            rows.ToDictionary(r => r.GrantId, r => r.CredentialName.Value));
     }
 
     /// <summary>One candidate grant as selected by the statement (cluster, user, grant and credential columns).</summary>

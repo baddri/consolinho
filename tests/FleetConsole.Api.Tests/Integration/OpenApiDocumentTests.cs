@@ -206,6 +206,7 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
     [InlineData("/api/admin/users", "get", "ListUsers")]
     [InlineData("/api/admin/users", "post", "CreateUser")]
     [InlineData("/api/admin/users/{username}", "get", "GetUser")]
+    [InlineData("/api/admin/users/{username}/effective-access", "get", "GetEffectiveAccess")]
     [InlineData("/api/admin/users/{username}/role", "put", "ChangeUserRole")]
     [InlineData("/api/admin/users/{username}/read-only", "put", "SetUserReadOnly")]
     [InlineData("/api/admin/users/{username}/deactivate", "post", "DeactivateUser")]
@@ -257,6 +258,21 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
 
         schemas.GetProperty("HostGroupsStatus").GetProperty("enum").EnumerateArray().Select(v => v.GetString())
             .ShouldBe(["ok", "forbidden", "unavailable"]);
+    }
+
+    [Fact]
+    public async Task EffectiveAccessSchemas_UseContractNames_AndOutcomeIsAStringEnum()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        foreach (var name in new[] { "EffectiveAccess", "EffectiveClusterAccess", "AccessSource", "AccessCandidate" })
+        {
+            schemas.TryGetProperty(name, out _).ShouldBeTrue(name);
+        }
+
+        schemas.GetProperty("CandidateOutcome").GetProperty("enum").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(["winner", "overriddenByDirectGrant", "lowerPriority", "tieReadOnlyWins", "tieBrokenById"]);
     }
 
     [Fact]
