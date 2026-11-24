@@ -125,7 +125,7 @@ public sealed class SpaHostingTests(ApiFactory factory)
         await using var host = ProductionHost.Create(factory);
         using var client = host.CreateClient();
 
-        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), Ct);
+        using var response = await Readiness.GetWhenReadyAsync(client, path, Ct);
 
         response.Content.Headers.ContentType?.MediaType.ShouldNotBe("text/html");
         (await response.Content.ReadAsStringAsync(Ct)).ShouldBe("Healthy");

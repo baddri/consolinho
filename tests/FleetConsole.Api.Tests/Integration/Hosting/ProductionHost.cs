@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace FleetConsole.Api.Tests.Integration.Hosting;
@@ -38,8 +40,12 @@ public sealed class ProductionHost : IAsyncDisposable
     /// <summary>Creates a Production host.</summary>
     /// <param name="factory">The shared Development factory to derive from.</param>
     /// <param name="settings">Extra configuration (e.g. a connection string or logging levels), applied last.</param>
+    /// <param name="configureServices">Extra test service registrations, applied last (e.g. a fast clock).</param>
     /// <returns>The host; dispose it.</returns>
-    public static ProductionHost Create(ApiFactory factory, IReadOnlyDictionary<string, string?>? settings = null)
+    public static ProductionHost Create(
+        ApiFactory factory,
+        IReadOnlyDictionary<string, string?>? settings = null,
+        Action<IServiceCollection>? configureServices = null)
     {
         // Production hosts don't migrate: start the shared Development host first, so the shared database has its
         // schema even when only Production tests run (e.g. a filtered run).
@@ -57,6 +63,10 @@ public sealed class ProductionHost : IAsyncDisposable
             // As a configuration source, not UseSetting: it must also win over ApiFactory's Production defaults
             // (TestHostConfiguration.Offline), which are added as a later source than host settings.
             builder.ConfigureAppConfiguration(configuration => configuration.AddInMemoryCollection(settings ?? new Dictionary<string, string?>()));
+            if (configureServices is not null)
+            {
+                builder.ConfigureTestServices(configureServices);
+            }
         });
         return new ProductionHost(derived, webRoot);
     }

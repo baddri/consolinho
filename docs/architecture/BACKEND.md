@@ -283,8 +283,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - One image (ADR-0026) serves the API and the built SPA from `wwwroot` (ADR-0028): anonymous SPA fallback for
   extension-less `GET`/`HEAD` paths outside `/api`; `index.html` `no-cache`, `/assets/*` `immutable`.
 - Modes: no argument = web host; `migrate` = apply migrations and exit (ADR-0027, needs only the connection string).
-- Probes in every environment: `/alive` (liveness, no dependencies), `/health` (readiness, includes Postgres). Status
-  word only.
+- Probes in every environment: `/alive` (liveness, no dependencies), `/health` (readiness, includes Postgres and
+  `keyring` — Unhealthy until the Data Protection key ring was loaded under its advisory lock). Status word only.
 - Behind the edge Route the app sees HTTP and trusts no forwarded headers; every absolute URL comes from
   `Console:PublicOrigin`, cookies are `Secure` by policy outside Development.
 - Production configuration is validated on start (`ValidateOnStart`, messages name keys, never values); `Program`

@@ -33,6 +33,13 @@ public static class DependencyInjection
     public const string DatabaseHealthCheckName = nameof(ConsoleDbContext);
 
     /// <summary>
+    /// Name of the readiness check that stays Unhealthy until the Data Protection key ring has been loaded under the
+    /// cross-pod lock, so a replica never serves before it shares the one key ring (ADR-0030 amendment 2026-11-24).
+    /// Registered by <see cref="LoadDataProtectionKeyRingInBackground"/>.
+    /// </summary>
+    public const string KeyRingHealthCheckName = "keyring";
+
+    /// <summary>
     /// Budget of the database readiness check; below the readiness probe's 3 s timeout so <c>/health</c> answers 503
     /// rather than timing out.
     /// </summary>
@@ -148,7 +155,9 @@ public static class DependencyInjection
 
     /// <summary>
     /// Makes Data Protection load its key ring in the background instead of before the server listens, so a database
-    /// outage at container start delays readiness only, never liveness (T-0106, ADR-0028 §2).
+    /// outage at container start delays readiness only, never liveness (T-0106, ADR-0028 §2). The load runs under a
+    /// Postgres advisory lock and is retried until it succeeds; the <see cref="KeyRingHealthCheckName"/> readiness check
+    /// reports it.
     /// </summary>
     /// <remarks>
     /// Call it last, right before <c>Build()</c>: every <c>AddDataProtection</c> call (also the one inside

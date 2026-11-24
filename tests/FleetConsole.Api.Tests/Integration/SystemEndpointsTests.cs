@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FleetConsole.Api.Tests.Integration.Hosting;
 
 namespace FleetConsole.Api.Tests.Integration;
 
@@ -33,7 +34,7 @@ public sealed class SystemEndpointsTests(ApiFactory factory)
         // also proves the Api reaches the database.
         using var client = factory.CreateApiClient();
 
-        using var response = await client.GetAsync(new Uri(path, UriKind.Relative), Ct);
+        using var response = await Readiness.GetWhenReadyAsync(client, path, Ct);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         (await response.Content.ReadAsStringAsync(Ct)).ShouldBe("Healthy");

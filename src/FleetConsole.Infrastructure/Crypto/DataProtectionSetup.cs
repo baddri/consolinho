@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,6 +24,13 @@ internal static class DataProtectionSetup
     /// the content root path (the default discriminator), which differs between containers and machines.
     /// </summary>
     public const string ApplicationName = "FleetConsole";
+
+    /// <summary>
+    /// Key of the Postgres advisory lock under which every pod loads the key ring for the first time
+    /// (<see cref="KeyRingWarmupService"/>), so concurrent cold starts create one shared first key, not one per pod
+    /// (ADR-0030 amendment 2026-11-24). An arbitrary constant, distinct from <see cref="DatabaseMigrator.AdvisoryLockKey"/>.
+    /// </summary>
+    public const long KeyRingLockKey = 0x466C_6565_7444_504B; // "FleetDPK"
 
     /// <summary>Configuration key: path of a PKCS#12 (PFX) file whose certificate encrypts the keys at rest.</summary>
     public const string CertificatePathKey = "DataProtection:KeyEncryptionCertificatePath";
@@ -69,7 +77,8 @@ internal static class DataProtectionSetup
 
     /// <summary>
     /// Replaces the framework's start-time key-ring load with <see cref="KeyRingWarmupService"/>, which loads it in the
-    /// background (T-0106, ADR-0028 §2).
+    /// background (T-0106, ADR-0028 §2) under a cross-pod lock, and adds the <c>keyring</c> readiness check
+    /// (<see cref="KeyRingHealthCheck"/>) that keeps the pod unready until that load succeeded.
     /// </summary>
     /// <remarks>
     /// The framework's hosted service reads the key ring inside <c>StartAsync</c>, i.e. before Kestrel binds. With the
@@ -99,7 +108,11 @@ internal static class DataProtectionSetup
             services.Remove(descriptor);
         }
 
+        services.AddSingleton<KeyRingWarmupState>();
+        services.TryAddSingleton(new KeyRingWarmupOptions());
         services.AddHostedService<KeyRingWarmupService>();
+        // Untagged: readiness (/health) only, never liveness (/alive).
+        services.AddHealthChecks().AddCheck<KeyRingHealthCheck>(DependencyInjection.KeyRingHealthCheckName);
     }
 
     /// <summary>

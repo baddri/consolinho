@@ -58,6 +58,8 @@ it holds, so these rules are strict.
 ## Token handling
 - SA tokens are encrypted at rest with ASP.NET Data Protection (purpose `FleetConsole.Credentials.v1`); key ring
   persisted in Postgres and, in production, encrypted with a certificate/secret mounted from OpenShift.
+  The first DP key is created under a Postgres advisory lock so all replicas share one ring (ADR-0030 amendment); a
+  pod stays unready (`keyring` check) until it has loaded the ring.
 - Tokens are **write-only** through the API: create/rotate accepts a token; reads return only fingerprint, token type,
   SA identity/`iat`/`exp` (decoded from the JWT payload **without** signature validation, display only), last test
   summary. Integration tests scan every admin GET response, the audit log and captured logs for the token (CRED-2).
