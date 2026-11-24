@@ -2,6 +2,7 @@ import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { ServiceModel, type K8sResource, type Service } from '@/shared/k8s';
 import { DASH, DetailsItem, DetailsSubsection } from '@/shared/ui';
 import { PodSelectorLink, labelSelectorString, labelsColumn, nameColumn, namespaceColumn } from '../columns';
+import { ServiceRoutesItem } from '../../networking/services/ServiceRoutes';
 import type { ResourceDescriptor } from '../types';
 
 /** A listed service (`metadata` always present). */
@@ -84,7 +85,10 @@ function PortsTable({ service }: { service: Service }) {
   );
 }
 
-/** Service fields of the Details tab's right column (UI-4): type, cluster IPs, selector and session affinity. */
+/**
+ * Service fields of the Details tab's right column (UI-4): type, cluster IPs, selector, session affinity and the
+ * Routes sending traffic to it (SVC-2, OpenShift only).
+ */
 function ServiceDetails({ obj }: { obj: ServiceResource }) {
   return (
     <>
@@ -101,6 +105,7 @@ function ServiceDetails({ obj }: { obj: ServiceResource }) {
       <DetailsItem label="Session affinity" path="spec.sessionAffinity">
         {obj.spec?.sessionAffinity ?? 'None'}
       </DetailsItem>
+      <ServiceRoutesItem obj={obj} />
     </>
   );
 }
@@ -121,6 +126,9 @@ function ServicePorts({ obj }: { obj: ServiceResource }) {
 export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
   model: ServiceModel,
   nav: { section: 'networking', order: 10 },
+  // OCP `useServiceTabs` always shows Pods; a selector-less service selects none (the tab shows its empty state).
+  podsSelector: (service) =>
+    Object.keys(service.spec?.selector ?? {}).length > 0 ? { matchLabels: service.spec?.selector } : undefined,
   DetailsSection: ServiceDetails,
   ExtraSections: ServicePorts,
   columns: [

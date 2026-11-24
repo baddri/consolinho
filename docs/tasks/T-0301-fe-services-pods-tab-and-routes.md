@@ -1,7 +1,7 @@
 ---
 id: T-0301
 title: Services — Pods tab and Routes item (SVC-1, SVC-2)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5a
 depends_on: [T-0300]
@@ -44,13 +44,37 @@ traffic to the Service, so Marco can go Service → pods / routes without Search
   (`gh api 'repos/openshift/console/contents/frontend/public/components/service.jsx?ref=release-4.18'`).
 
 ## Acceptance criteria
-- [ ] `/k8s/ns/shop/services/web/pods` lists exactly the pods matching the selector; a selector-less Service's Pods tab shows the empty state (test).
-- [ ] Details of Service `web` on dev-1 lists Routes `web` and `web-canary` (alternate backend) as links; on `prod-k8s-1` no Routes item (test).
-- [ ] `routesForService` unit test (to, alternateBackends, other kinds ignored).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `/k8s/ns/shop/services/web/pods` lists exactly the pods matching the selector; a selector-less Service's Pods tab shows the empty state (test).
+- [x] Details of Service `web` on dev-1 lists Routes `web` and `web-canary` (alternate backend) as links; on `prod-k8s-1` no Routes item (test).
+- [x] `routesForService` unit test (to, alternateBackends, other kinds ignored).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: started; Service `podsSelector`, engine fix (undefined selector → "No Pods found"
+  empty state, no pods request), `networking/services/ServiceRoutes.tsx` (`routesForService`, `ServiceRoutesItem`).
+- **Deviation for PO (SVC-1):** a selector-less Service keeps the Pods tab (tabs decided per kind, OCP `useServiceTabs`)
+  and shows the Pods empty state instead of hiding the tab.
+- OCP probe: reference console not running on :9000, probed our side only (Routes links 14px/link colour).
 
 ## Review
+- UX round 1 (2026-11-25, ux-designer): **APPROVE**. OCP ref console was down (:9000), so I probed our side only and checked against OCP source.
+- Routes item (dev-1 `web`): DL group grid gap 8/16px, 24px to the previous group, the same as the other items. One `RT` ResourceLink per line, 14px, link colour rgb(0,102,204), 21px rows, 5 routes incl. `web-canary` (alternate backend). Absent on prod-k8s-1. OK. OCP has no Service "Routes" item (networking-console-plugin `tabs/details/ServiceDetails.tsx`). The matching follows `console-shared/src/utils/resource-utils.ts:getRoutesForServices` and adds alternateBackends. That fits OCP style, no finding.
+- Pods tab: the selector table renders (OCP np `tabs/pods/ServicePods.tsx`). The selector-less empty state reuses `ConsoleDataView`'s zero-objects `EmptyState` "No Pods found" (OCP `No {{label}} found`), so it matches. No mock Service lacks a selector, so the unit test covers this state, not a screenshot. OCP np passes `selector: undefined` and would list every pod in the namespace. Our deviation is the better behaviour, no finding.
+- 2026-11-25 frontend-architect, round 1: **APPROVE**. Targeted tests 15/15 green; lint ok; typecheck errors only in
+  concurrent `storage/persistentvolumes` work (not this task). Engine change checked: the other `podsSelector` kinds
+  (deployments, replicasets, statefulsets, daemonsets, jobs) return `spec.selector`, which the API requires, so nothing
+  changes for them, and an `undefined` selector now gives the empty state instead of listing every pod in the namespace.
+  `hasTab` is unchanged.
+- Nit (optional) `registry/kinds/deploymentconfigs.tsx:46`, `replicationcontrollers.tsx:37` — `{ matchLabels: undefined }`
+  still lists all pods when `spec.selector` is missing (this was already the case before this change; the API normally sets it). Could get the same `undefined` guard as a follow-up.
+- Nit (optional) `details/ResourcePodsTab.tsx:25` — the selector-less empty state has no list toolbar, unlike the empty
+  list `ConsoleDataView`. Acceptable because nothing can be filtered.
 
 ## Handover notes
+- `SelectorPodsTab` now splits into `SelectedPods({selector})`; `podsSelector` returning `undefined` renders
+  `EmptyState` "No Pods found" (same as `ConsoleDataView`'s empty list) and never lists the namespace.
+- `ServiceRoutesItem` needs `useActiveCluster()` + discovery; hidden when `route.openshift.io` isn't served (also while
+  discovery is pending, since the baseline lacks OpenShift groups). List errors show a dash.
+- Routes list is one namespace watch (`useK8sList`), shared with the Routes list page cache.
+- Tests: `details/ResourcePodsTab.test.tsx` (Service pods + selector-less), `networking/services/ServiceRoutes.test.tsx`.
+- OCP release-4.18 `service.jsx` has no Routes item; it is spec SVC-2 (networking plugin era).
