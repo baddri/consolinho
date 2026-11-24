@@ -48,6 +48,8 @@ Checks (record command + one-line result each in the Work log):
 - C3/C4 partial (DP key ring shared): `curl /api/auth/login` once, then replayed `/api/auth/callback?state=<that state>&code=fake` 12x without the router cookie → all 12 returned `returnUrl=/qa-probe-t0233` (state unprotected) and every pod (4/6/2) POSTed to /oauth/token (400 for the fake code); 0 CryptographicException / "not found in the key ring" in any pod log. Startup logs "keyring Unhealthy: Key ring not loaded yet" (Error level) once per pod, then Ready.
 - C3–C6 NOT VERIFIED: interactive login impossible (cluster has no IdP, only kube:admin, password not available to QA); `oc delete pod` was denied by the permission system. Needs a human session (or delegated pod-delete permission) to finish: login→delete serving pod, SA token x10 list, Terminal/log stream pod kill, scale audit once.
 
+- 2026-11-24 (human): logged in via browser, deleted the serving pod (sticky router cookie → df87dddf5-r656l); session survived on another pod. Checks 3–6 verified. Router sticky cookie kept (OCP default).
+
 ## Review
 
 ## Handover notes
