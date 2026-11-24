@@ -1,7 +1,8 @@
 # 0035 — Access cache: FusionCache behind HybridCache, Redis L2 + backplane
 **Status:** Accepted (2026-11-23, decided by the human; ROADMAP §CP4.5) · decision only, implemented in CP4.5 ·
 builds on ADR-0019 (one authorization query per proxy request), ADR-0004 (token encryption); replaces the
-"Adding a cache later" recipe in `BACKEND.md`
+"Adding a cache later" recipe in `BACKEND.md` · **amended by ADR-0040** (Application uses the `IQueryCache` port for
+result-derived tags; no decrypted token is cached at all)
 
 ## Context
 Every proxied request runs one authorization query (user, grant, credential, decrypted token; ADR-0019). With group
