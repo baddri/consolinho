@@ -12,7 +12,7 @@ import {
 import { ExpandableRowContent, Tbody, Td, Tr } from '@patternfly/react-table';
 import type { AuditEntry } from '@/shared/api';
 import { LOW_PRIORITY_COLUMN } from '@/shared/table';
-import { Timestamp } from '@/shared/ui';
+import { DASH, Timestamp } from '@/shared/ui';
 import { AdminResourceLink, AdminResourceName } from '../AdminResourceLink';
 import { clusterDetailPath } from '../clusters/clusterTarget';
 import { userDetailPath } from '../users/userColumns';
@@ -78,9 +78,9 @@ function AuditTarget({ entry }: { entry: AuditEntry }) {
   }
 }
 
-/** Cluster of an entry as badge + link to its admin page (a deleted cluster's link shows the not-found page), or "—". */
+/** Cluster of an entry as badge + link to its admin page (a deleted cluster's link shows the not-found page), or "-". */
 function AuditCluster({ entry }: { entry: AuditEntry }) {
-  if (!entry.clusterName) return <>—</>;
+  if (!entry.clusterName) return <>{DASH}</>;
   return <AdminResourceLink kind="Cluster" name={entry.clusterName} to={clusterDetailPath(entry.clusterName)} />;
 }
 
@@ -182,7 +182,7 @@ export function AuditEntryRow({ entry, rowIndex, isExpanded, onToggle }: AuditEn
                         {entry.correlationId}
                       </ClipboardCopy>
                     ) : (
-                      '—'
+                      DASH
                     )}
                   </DescriptionListDescription>
                 </DescriptionListGroup>

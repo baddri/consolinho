@@ -1,15 +1,14 @@
 import type { AccessCandidate, AccessSource, EffectiveClusterAccess } from '@/shared/api';
+import { DASH } from '@/shared/ui';
 
 /** Extra line of the winning candidate when the user's read-only flag narrowed it (contract §5, PREC-6). */
 export const NARROWED_TEXT = "Narrowed to read-only by the user's read-only flag";
 
-/** Placeholder for a missing value (a user grant's priority), as on the user Details tab. */
-export const EMPTY = '—';
 
 /** The Source column of Effective access (EFF-1): "Direct grant", or "Group `X` (priority N)" for a group grant. */
 export function sourceText(source: AccessSource): string {
   if (source.kind === 'user') return 'Direct grant';
-  return `Group ${source.groupName ?? EMPTY} (priority ${source.priority ?? EMPTY})`;
+  return `Group ${source.groupName ?? DASH} (priority ${source.priority ?? DASH})`;
 }
 
 /**
@@ -27,7 +26,7 @@ export function outcomeText(
     case 'overriddenByDirectGrant':
       return ['Overridden by direct grant'];
     case 'lowerPriority':
-      return [`Lower priority than ${candidate.beatenBy ?? EMPTY}`];
+      return [`Lower priority than ${candidate.beatenBy ?? DASH}`];
     case 'tieReadOnlyWins':
       return ['Tie: read-only wins'];
     case 'tieBrokenById':

@@ -33,9 +33,9 @@ describe('statusKindOf (OCP Status.tsx, UX.md §5)', () => {
     );
   });
 
-  it('renders "—" for an empty status', () => {
+  it('renders "-" for an empty status', () => {
     render(<Status status="" />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
   });
 });
 

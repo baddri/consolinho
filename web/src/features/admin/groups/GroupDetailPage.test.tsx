@@ -16,7 +16,10 @@ describe('GroupDetailPage (GPG-2)', () => {
     expect(screen.getByRole('heading', { name: /sre/, level: 1 })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Groups' })).toHaveAttribute('href', '/fleet/admin/groups');
     expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('heading', { name: 'Group details' })).toBeInTheDocument();
+    const panel = screen.getByRole('tabpanel', { name: 'Details' });
+    // Two sibling bordered sections (OCP's two `PaneBody`s), the members in the second.
+    expect(within(panel).getByRole('region', { name: 'Group details' })).not.toContainElement(members);
+    expect(within(panel).getByRole('region', { name: 'Users' })).toContainElement(members);
     expect(screen.getByText('Host cluster')).toBeInTheDocument();
     expect(within(members).getByRole('link', { name: 'alice' })).toHaveAttribute('href', '/fleet/admin/users/alice');
     expect(within(members).queryByRole('link', { name: 'zoe' })).not.toBeInTheDocument();

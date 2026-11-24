@@ -2,11 +2,12 @@ import { Flex, FlexItem } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { Link } from 'react-router';
 import type { AccessCandidate, EffectiveClusterAccess } from '@/shared/api';
+import { DASH } from '@/shared/ui';
 import { AccessModeLabel } from '../grants/AccessModeLabel';
 import { SubjectKindLabel } from '../grants/SubjectKindLabel';
 import { groupDetailPath } from '../groups/groupPaths';
 import { userDetailPath } from '../users/userColumns';
-import { EMPTY, outcomeText } from './effectiveAccessText';
+import { outcomeText } from './effectiveAccessText';
 
 /** Subject cell: "User"/"Group" label, then a link to the user or group page. */
 function SubjectCell({ candidate }: { candidate: AccessCandidate }) {
@@ -51,7 +52,7 @@ export function CandidatesTable({ row }: CandidatesTableProps) {
             <Td dataLabel="Subject">
               <SubjectCell candidate={candidate} />
             </Td>
-            <Td dataLabel="Priority">{candidate.priority ?? EMPTY}</Td>
+            <Td dataLabel="Priority">{candidate.priority ?? DASH}</Td>
             <Td dataLabel="Access mode">
               <AccessModeLabel accessMode={candidate.accessMode} environment={row.clusterEnvironment} />
             </Td>

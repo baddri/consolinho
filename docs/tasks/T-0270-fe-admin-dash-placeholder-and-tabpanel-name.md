@@ -1,7 +1,7 @@
 ---
 id: T-0270
 title: Use OCP's "-" empty placeholder across admin; name the resource Details tab panel
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4.5a
 depends_on: [T-0267]
@@ -38,12 +38,23 @@ accessible name on the resource Details tab panel.
 - OCP reference: `packages/console-shared/src/constants/ui.ts:DASH`.
 
 ## Acceptance criteria
-- [ ] `grep -rn "'—'" web/src --include=*.ts --include=*.tsx | grep -v test` returns no empty-value placeholder.
-- [ ] The resource Details tab panel has an accessible name (RTL `getByRole('tabpanel', { name: 'Details' })`).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `grep -rn "'—'" web/src --include=*.ts --include=*.tsx | grep -v test` returns no empty-value placeholder.
+- [x] The resource Details tab panel has an accessible name (RTL `getByRole('tabpanel', { name: 'Details' })`).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: new `shared/ui/dash.ts:DASH` ('-', exported from `@/shared/ui`); replaced every
+  empty-value `—` in the listed files and the local `EMPTY`/`DASH` constants (GrantRow, GroupHostLabels,
+  effectiveAccessText, ClusterDetailsTab, UserDetailsTab, userColumns); punctuation em dashes untouched. Resource
+  Details tab panel is a `div role=tabpanel`; test added. Tests asserting `—` updated.
 
 ## Review
+- 2026-11-24 ux-designer, round 1: **APPROVE**.
+  - 1 `shared/ui/dash.ts:DASH = '-'` matches OCP `console-shared/src/constants/ui.ts:DASH`; the remaining `—` under web/src (non-test, non-comment) are all sentence punctuation (proxyOutcome, AuditLogPage subtitle, ClusterSwitcher, LiveIndicator, UserStatusLabel tooltip, …). Group Users table renders `-` for empty cells (seen in mock). OK.
+  - 2 Resource Details tab panel is a named `div role=tabpanel` (test `ResourceDetailsPage.test.tsx` L242); group Details tab does the same. OK.
 
 ## Handover notes
+- Existing `'-'` literals in resources (ContainersTable, ConditionsTable, PodDetails, cronjobs, MetricsTable, Timestamp,
+  …) already render OCP's `-` and were left as literals (outside this task's file list); switching them to `DASH` is
+  an optional mechanical follow-up.
+- Doc comments that described the placeholder as "—" now say "-".

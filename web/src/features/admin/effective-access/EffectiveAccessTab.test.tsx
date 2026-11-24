@@ -108,7 +108,7 @@ describe('EffectiveAccessTab (T-0265)', () => {
     expect(clusterRows(table)[0]).toEqual(['prod-eu-1', 'prod', 'Read only', 'Direct grant', 'fleet-edit']);
     await user.click(within(table).getByRole('button', { name: 'Details for prod-eu-1' }));
     expect(candidateRows('prod-eu-1')).toEqual([
-      ['Usercarol', '—', 'Read write', 'fleet-edit', "AppliesNarrowed to read-only by the user's read-only flag"],
+      ['Usercarol', '-', 'Read write', 'fleet-edit', "AppliesNarrowed to read-only by the user's read-only flag"],
     ]);
   });
 

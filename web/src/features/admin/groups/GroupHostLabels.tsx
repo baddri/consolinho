@@ -1,11 +1,9 @@
 import { Label, Tooltip } from '@patternfly/react-core';
 import { PRODUCT_NAME } from '@/shared/branding';
+import { DASH } from '@/shared/ui';
 
 /** Why host facts (members, member count) can be unknown: FleetConsole couldn't read the host's groups (Q7). */
 export const HOST_GROUPS_HINT = `${PRODUCT_NAME}'s host service account needs permission to list groups (groups.user.openshift.io).`;
-
-/** Placeholder for an unknown or empty value, as OCP's `DASH`. */
-export const DASH = '-';
 
 /** Why a group has no host members: it isn't on the host (`foundOnHost === false`), or the host read failed. */
 export function unknownMembersReason(foundOnHost: boolean | null): string {

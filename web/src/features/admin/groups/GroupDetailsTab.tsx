@@ -1,12 +1,12 @@
-import { EmptyState, EmptyStateBody, Flex, Label, Stack, StackItem } from '@patternfly/react-core';
+import { EmptyState, EmptyStateBody, Flex, Label } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import type { GroupDetail, GroupMember } from '@/shared/api';
 import { PRODUCT_NAME } from '@/shared/branding';
-import { DetailsColumn, DetailsGrid, DetailsItem, SectionHeading } from '@/shared/ui';
+import { DASH, DetailsColumn, DetailsGrid, DetailsItem, DetailsSubsection } from '@/shared/ui';
 import { AdminResourceLink, AdminResourceName } from '../AdminResourceLink';
 import { userDetailPath } from '../users/userColumns';
 import { UserStatusLabel } from '../users/UserStatusLabel';
-import { DASH, GroupMemberCount, HOST_GROUPS_HINT } from './GroupHostLabels';
+import { GroupMemberCount, HOST_GROUPS_HINT } from './GroupHostLabels';
 
 /** Where the group is known from: the host cluster, or only the grants that name it. */
 function sourceText(group: GroupDetail): string {
@@ -73,13 +73,13 @@ export interface GroupDetailsTabProps {
 
 /**
  * Details tab of the group detail page (GPG-2, OCP `group.tsx:GroupDetails`): "Group details" (name, user and cluster
- * counts, source) then a "Users" section with the host members. Purely presentational; the page loads the group.
+ * counts, source) then a "Users" section with the host members, as sibling `DetailsSubsection`s (OCP's two `PaneBody`s).
+ * Purely presentational; the page loads the group.
  */
 export function GroupDetailsTab({ group }: GroupDetailsTabProps) {
   return (
-    <Stack hasGutter>
-      <StackItem>
-        <SectionHeading text="Group details" />
+    <>
+      <DetailsSubsection title="Group details">
         <DetailsGrid>
           <DetailsColumn aria-label="Group details">
             <DetailsItem label="Name">{group.name}</DetailsItem>
@@ -90,11 +90,10 @@ export function GroupDetailsTab({ group }: GroupDetailsTabProps) {
             <DetailsItem label="Source">{sourceText(group)}</DetailsItem>
           </DetailsColumn>
         </DetailsGrid>
-      </StackItem>
-      <StackItem>
-        <SectionHeading text="Users" />
+      </DetailsSubsection>
+      <DetailsSubsection title="Users">
         <GroupMembers group={group} />
-      </StackItem>
-    </Stack>
+      </DetailsSubsection>
+    </>
   );
 }

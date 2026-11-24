@@ -1,7 +1,7 @@
 import { Flex, FlexItem } from '@patternfly/react-core';
 import { ActionsColumn, Td, Tr, type IAction } from '@patternfly/react-table';
 import type { Grant } from '@/shared/api';
-import { disabledActionProps, EnvironmentLabel, RelativeTime } from '@/shared/ui';
+import { DASH, disabledActionProps, EnvironmentLabel, RelativeTime } from '@/shared/ui';
 import { AdminResourceLink, AdminResourceName } from '../AdminResourceLink';
 import { clusterDetailPath } from '../clusters/clusterTarget';
 import { CredentialExpiryLabel } from '../credentials/CredentialExpiryLabel';
@@ -38,11 +38,17 @@ export const grantColumns = (perspective: GrantPerspective): readonly GrantColum
 export const grantColumnCount = (perspective: GrantPerspective): number =>
   GRANT_COLUMNS[perspective].length + 1;
 
-/** Columns that keep their content on one line (OCP sets `nowrap` on Subject kind and Subject name). */
-export const NOWRAP_GRANT_COLUMNS: ReadonlySet<GrantColumn> = new Set(['Subject kind', 'Subject name']);
+/**
+ * Columns that keep their content on one line, so no header truncates at 1280 (OCP `useRoleBindingsColumns` sets
+ * `nowrap` on every data column); Credential wraps and absorbs the width.
+ */
+export const NOWRAP_GRANT_COLUMNS: ReadonlySet<GrantColumn> = new Set([
+  'Subject kind',
+  'Subject name',
+  'Access mode',
+  'Priority',
+]);
 
-/** Placeholder of an empty cell (OCP's `-`). */
-const EMPTY = '-';
 
 /** PatternFly utility class for secondary text. */
 const SUBTLE = 'pf-v6-u-text-color-subtle';
@@ -122,7 +128,7 @@ function GrantCell({ grant, column }: { grant: Grant; column: GrantColumn }) {
     case 'Access mode':
       return <AccessModeLabel accessMode={grant.accessMode} environment={grant.clusterEnvironment} />;
     case 'Priority':
-      return grant.priority ?? EMPTY;
+      return grant.priority ?? DASH;
     case 'Credential':
       return (
         <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsXs' }}>

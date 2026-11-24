@@ -92,6 +92,8 @@ describe('Group Cluster access tab and bulk grant (T-0264)', () => {
     // The group's own grant marks staging-eu-1 as already granted.
     expect(within(dialog).getByRole('checkbox', { name: 'Select staging-eu-1' })).toBeDisabled();
     await selectAndPrioritize(user, dialog, ['dev-1', 'dev-2'], '20');
+    // The review restates the one priority chosen for every cluster.
+    expect(within(dialog).getByText('Read only access with priority 20 to 2 clusters.')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
     expect(await screen.findByText('Granted group sre ReadOnly on 2 clusters')).toBeInTheDocument();

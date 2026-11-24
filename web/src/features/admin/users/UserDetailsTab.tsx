@@ -1,14 +1,12 @@
 import { HelperText, HelperTextItem } from '@patternfly/react-core';
 import { Link } from 'react-router';
 import type { UserDetail } from '@/shared/api';
-import { DetailsColumn, DetailsGrid, DetailsItem, LabelList, RelativeTime, SectionHeading } from '@/shared/ui';
+import { DASH, DetailsColumn, DetailsGrid, DetailsItem, LabelList, RelativeTime, SectionHeading } from '@/shared/ui';
 import { adminSourceText } from './adminSource';
 import { READ_ONLY_EXPLANATION } from './UserActionDialogs';
 import { UserStatusLabel } from './UserStatusLabel';
 import { fleetAdminPath } from '@/shared/routing';
 
-/** Placeholder for missing values, as elsewhere in the console. */
-const EMPTY = '—';
 
 /** Link target of "View audit entries": the audit log filtered to the user as actor or target (USR-7, AUD-4). */
 export const userAuditPath = (username: string) => fleetAdminPath(`audit?${new URLSearchParams({ user: username })}`);
@@ -57,7 +55,7 @@ export function UserDetailsTab({ user }: UserDetailsTabProps) {
       <DetailsGrid>
         <DetailsColumn aria-label="User details">
           <DetailsItem label="Username">{user.username}</DetailsItem>
-          <DetailsItem label="Display name">{user.displayName ?? EMPTY}</DetailsItem>
+          <DetailsItem label="Display name">{user.displayName ?? DASH}</DetailsItem>
           <DetailsItem label="Role">
             <WithHelp value={user.role === 'admin' ? 'Administrator' : 'User'} help={roleSources(user)} />
           </DetailsItem>
@@ -79,7 +77,7 @@ export function UserDetailsTab({ user }: UserDetailsTabProps) {
             {user.groups.length > 0 ? (
               <LabelList labels={user.groups} max={user.groups.length} aria-label={`Groups of ${user.username}`} />
             ) : (
-              EMPTY
+              DASH
             )}
           </DetailsItem>
           <DetailsItem label="Cluster grants">{user.grantCount}</DetailsItem>

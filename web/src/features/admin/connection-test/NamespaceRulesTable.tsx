@@ -1,12 +1,13 @@
 import { Alert, Stack, StackItem } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import type { NamespaceRules } from '@/shared/api';
+import { DASH } from '@/shared/ui';
 
 /** Shown when the cluster flagged its rule list as incomplete (TEST-3). */
 export const INCOMPLETE_RULES_TEXT = 'The cluster reported an incomplete rule list.';
 
-/** Comma-separated list, or a subtle dash for an empty one. */
-function joined(values: readonly string[], empty = '—'): string {
+/** Comma-separated list, or `DASH` for an empty one. */
+function joined(values: readonly string[], empty = DASH): string {
   return values.length === 0 ? empty : values.join(', ');
 }
 

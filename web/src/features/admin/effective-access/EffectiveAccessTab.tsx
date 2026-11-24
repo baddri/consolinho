@@ -2,6 +2,7 @@ import { Alert, Label, LabelGroup, Skeleton } from '@patternfly/react-core';
 import { Link } from 'react-router';
 import type { EffectiveAccess } from '@/shared/api';
 import {
+  DASH,
   DetailsColumn,
   DetailsGrid,
   DetailsItem,
@@ -13,11 +14,10 @@ import {
 import { groupDetailPath } from '../groups/groupPaths';
 import { useEffectiveAccess } from './api';
 import { EffectiveAccessTable } from './EffectiveAccessTable';
-import { EMPTY } from './effectiveAccessText';
 
-/** The user's recorded groups as compact labels linking to each group's page, or "—" without groups. */
+/** The user's recorded groups as compact labels linking to each group's page, or "-" without groups. */
 function GroupLabels({ access }: { access: EffectiveAccess }) {
-  if (access.groups.length === 0) return <>{EMPTY}</>;
+  if (access.groups.length === 0) return <>{DASH}</>;
   return (
     <LabelGroup numLabels={access.groups.length} aria-label={`Groups of ${access.username}`}>
       {access.groups.map((group) => (

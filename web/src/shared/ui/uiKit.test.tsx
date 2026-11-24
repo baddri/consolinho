@@ -405,7 +405,7 @@ describe('RelativeTime', () => {
 
   it('renders the empty text for null', () => {
     const { rerender } = render(<RelativeTime value={null} />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
 
     rerender(<RelativeTime value={null} emptyText="Never" />);
     expect(screen.getByText('Never')).toBeInTheDocument();

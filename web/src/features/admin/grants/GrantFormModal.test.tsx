@@ -61,6 +61,8 @@ describe('Grant access dialog — Subject section (T-0262)', () => {
   it('UIG-1/3: User by default; Group clears the name, focuses it and adds Priority with used values', async () => {
     const { user, dialog } = await openCreate('staging-eu-1');
     expect(within(dialog).getByRole('heading', { level: 2, name: 'Subject' })).toBeInTheDocument();
+    // Access fields sit in their own titled section, so the gap after Subject is section spacing (OCP `bindings.tsx`).
+    expect(within(dialog).getByRole('heading', { level: 2, name: 'Access' })).toBeInTheDocument();
     const kinds = within(dialog).getByRole('radiogroup', { name: 'Subject kind' });
     expect(within(kinds).getByRole('radio', { name: 'User' })).toBeChecked();
     expect(within(dialog).queryByRole('spinbutton', { name: 'Priority' })).not.toBeInTheDocument();

@@ -1,5 +1,5 @@
 import { PROJECT_ANNOTATIONS, type K8sResource } from '@/shared/k8s';
-import { DetailsItem } from '@/shared/ui';
+import { DASH, DetailsItem } from '@/shared/ui';
 
 /** A Namespace or Project: both carry `status.phase` and the OpenShift project annotations. */
 export type NamespaceLike = K8sResource & { status?: { phase?: string } };
@@ -19,8 +19,8 @@ export function NamespaceDetails({ obj }: NamespaceDetailsProps) {
   return (
     <>
       <DetailsItem label="Status" path="status.phase">{obj.status?.phase ?? 'Unknown'}</DetailsItem>
-      <DetailsItem label="Display name">{annotations[PROJECT_ANNOTATIONS.displayName] ?? '—'}</DetailsItem>
-      <DetailsItem label="Description">{annotations[PROJECT_ANNOTATIONS.description] ?? '—'}</DetailsItem>
+      <DetailsItem label="Display name">{annotations[PROJECT_ANNOTATIONS.displayName] ?? DASH}</DetailsItem>
+      <DetailsItem label="Description">{annotations[PROJECT_ANNOTATIONS.description] ?? DASH}</DetailsItem>
       {requester !== undefined && <DetailsItem label="Requester">{requester}</DetailsItem>}
     </>
   );

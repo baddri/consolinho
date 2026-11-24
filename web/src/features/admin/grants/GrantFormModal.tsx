@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Form, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core';
+import { Alert, Button, Form, FormSection, Modal, ModalBody, ModalFooter, ModalHeader } from '@patternfly/react-core';
 import { useId } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import {
@@ -107,7 +107,8 @@ const grantedOf = (grants: readonly Grant[], kind: GrantSubjectKind): ReadonlySe
 /**
  * Create / change dialog of one grant (GRANT-1/2/3, Q7, UIG-1/3/5). Create runs from a cluster's Access tab: the
  * `SubjectSection` picks User (default) or Group and the subject name, existing holders offered disabled (the user
- * page grants through the bulk wizard). Groups also need a Priority, unique per cluster. Then the credential
+ * page grants through the bulk wizard); in create mode the access fields follow in an "Access" `FormSection`. Groups
+ * also need a Priority, unique per cluster. Then the credential
  * (`CredentialPicker`, pre-selected when the cluster has one) and the access mode, read only by default. Read write
  * on a production cluster shows an inline warning naming it (and the group). Edit changes mode, credential and a
  * group's priority, with the grant's `version`; a stale one shows `ConflictAlert` without losing input. A duplicate
@@ -262,37 +263,50 @@ function GrantForm(props: GrantFormModalProps) {
     });
   };
 
+  const accessFields = (
+    <>
+      {subjectKind === 'group' && (
+        <PriorityField control={form.control} name="priority" usedPriorities={usedPriorities} />
+      )}
+      <CredentialPicker control={form.control} clusterName={clusterName} />
+      <RadioGroupField
+        control={form.control}
+        name="accessMode"
+        label="Access mode"
+        isRequired
+        options={ACCESS_MODE_OPTIONS}
+      />
+      {accessMode === 'readWrite' && environment === 'production' && (
+        <Alert
+          variant="warning"
+          isInline
+          isPlain
+          title={
+            subjectKind === 'group'
+              ? productionGroupWriteWarning(target, clusterName)
+              : productionWriteWarning(clusterName)
+          }
+        />
+      )}
+    </>
+  );
+
   return (
     <>
       <ModalBody>
         <Form id={formId} noValidate onSubmit={(event) => void submit(event)}>
           <ConflictAlert problem={problem} onReload={reload} />
           <FormProblemAlert problem={problem} />
-          {props.mode === 'create' && (
-            <SubjectSection control={form.control} granted={granted} onKindChange={clearSubject} />
-          )}
-          {subjectKind === 'group' && (
-            <PriorityField control={form.control} name="priority" usedPriorities={usedPriorities} />
-          )}
-          <CredentialPicker control={form.control} clusterName={clusterName} />
-          <RadioGroupField
-            control={form.control}
-            name="accessMode"
-            label="Access mode"
-            isRequired
-            options={ACCESS_MODE_OPTIONS}
-          />
-          {accessMode === 'readWrite' && environment === 'production' && (
-            <Alert
-              variant="warning"
-              isInline
-              isPlain
-              title={
-                subjectKind === 'group'
-                  ? productionGroupWriteWarning(target, clusterName)
-                  : productionWriteWarning(clusterName)
-              }
-            />
+          {props.mode === 'create' ? (
+            <>
+              <SubjectSection control={form.control} granted={granted} onKindChange={clearSubject} />
+              {/* OCP `bindings.tsx` titles every group of its form, so subject and access fields get section spacing. */}
+              <FormSection title="Access" titleElement="h2">
+                {accessFields}
+              </FormSection>
+            </>
+          ) : (
+            accessFields
           )}
         </Form>
       </ModalBody>

@@ -22,6 +22,10 @@ export interface CredentialsByCluster {
   isLoadError: boolean;
 }
 
+/** The group priority clause of the summary (GPG-3: one priority for every cluster); users have none. */
+const priorityText = (kind: BulkGrantSubject['kind'], priority: number | null): string =>
+  kind === 'group' && priority !== null ? ` with priority ${priority}` : '';
+
 /** Props for {@link ReviewStep}. */
 export interface ReviewStepProps {
   control: Control<BulkGrantFormValues>;
@@ -124,7 +128,7 @@ export function ReviewStep({
   problem,
   onRemove,
 }: ReviewStepProps) {
-  const [items, accessMode] = useWatch({ control, name: ['items', 'accessMode'] });
+  const [items, accessMode, priority] = useWatch({ control, name: ['items', 'accessMode', 'priority'] });
   const { errors } = useFormState({ control, name: 'items' });
   const hasFlaggedRows = items.some((_, index) => errors.items?.[index] !== undefined);
   const production = items
@@ -140,7 +144,8 @@ export function ReviewStep({
         <Alert variant="danger" isInline title={bulkRowsRefusedText(subject.kind)} className="pf-v6-u-mb-md" />
       )}
       <Content component="p">
-        {`${ACCESS_MODE_TEXT[accessMode]} access to ${items.length} ${items.length === 1 ? 'cluster' : 'clusters'}.`}
+        {`${ACCESS_MODE_TEXT[accessMode]} access${priorityText(subject.kind, priority)} to ${items.length} `}
+        {`${items.length === 1 ? 'cluster' : 'clusters'}.`}
         {missing > 0 && ` Select a credential for ${missing} more ${missing === 1 ? 'cluster' : 'clusters'}.`}
       </Content>
       {accessMode === 'readWrite' && production.length > 0 && (

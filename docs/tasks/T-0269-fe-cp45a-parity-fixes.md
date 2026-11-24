@@ -1,7 +1,7 @@
 ---
 id: T-0269
 title: CP4.5a parity fixes — Access tab headers, Group details sections, wizard review priority, grant form gap
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4.5a
 depends_on: [T-0267]
@@ -50,14 +50,28 @@ Item 1 blocks QG-5; items 2-4 are small parity/clarity fixes on the same screens
   nav 250px (`--pf-v6-c-wizard__nav--lg--Width` 15.625rem), body padding 24px, title 28px/600 (PF defaults, which OCP keeps).
 
 ## Acceptance criteria
-- [ ] Probe at 1280: no Access tab header has `scrollWidth > clientWidth`; at 1920 unchanged.
-- [ ] Group details: "Users" section starts after a 1px top border, like Cluster details' further sections.
-- [ ] Group bulk wizard review states the priority; user bulk wizard review text unchanged.
-- [ ] Grant modal: equal spacing between the subject fields and the access fields (no lone 56px gap).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Probe at 1280: no Access tab header has `scrollWidth > clientWidth`; at 1920 unchanged.
+- [x] Group details: "Users" section starts after a 1px top border, like Cluster details' further sections.
+- [x] Group bulk wizard review states the priority; user bulk wizard review text unchanged.
+- [x] Grant modal: equal spacing between the subject fields and the access fields (no lone 56px gap).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: Access mode + Priority added to `NOWRAP_GRANT_COLUMNS` (probe 1280: 107/75px, overflow
+  visible, table still 894px, Granted not hidden); Group Details tab = two sibling `DetailsSubsection`s in a plain
+  `div role=tabpanel` (probe: Users section 1px #e0e0e0 top border); group review "… access with priority N to …";
+  create-mode grant modal wraps access fields in `FormSection title="Access" titleElement="h2"`. Tests added.
 
 ## Review
+- 2026-11-24 ux-designer, round 1: **APPROVE** (mock :5199, 1280 light; scoped `check-fe.sh` grants+groups green, 59 tests).
+  - 1 Access tab: no header overflows at 1280 (Access mode 107px, Priority 75px, table 894px = container, Granted kept); 1920 unchanged — OCP `RBAC/bindings.tsx:useRoleBindingsColumns` nowrap. OK.
+  - 2 Group details: two sibling sections, "Users" has 1px #e0e0e0 top border, same padding as section 1 — OCP `group.tsx:GroupDetails` two `PaneBody`s. OK.
+  - 3 Group review copy "Read only access with priority 20 to 2 clusters." (GroupGrants.test L96); user copy unchanged (BulkGrantWizard.test L90). OK.
+  - 4 Grant modal (measured via Playwright, opened the dialog): Subject and Access are titled h2 16px/600 sections; 24px between groups inside each, 56px only at the section boundary (32px section margin + 24px gap), same structure as OCP `bindings.tsx` L622/L645 (`FormSection titleElement="h2"`). Edit mode unwrapped, OK. Accepted.
 
 ## Handover notes
+- Grant modal: chose the second titled section ("Access", h2) over reordering; edit mode has no Subject section, so its
+  fields stay unwrapped (no lone heading). The modal gap was not probed (the probe can't open dialogs); spacing is PF
+  `FormSection` default, asserted by the h2 heading test.
+- Group details tab panel is now a plain `div` (like the user Effective access tab), since `DetailsSubsection`s must be
+  direct siblings and PageGroup drops `aria-label`.

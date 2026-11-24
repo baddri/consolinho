@@ -54,7 +54,7 @@ function GroupNotFound({ name }: { name: string }) {
 const isGroupNotFound = (error: unknown) => isApiError(error) && error.status === 404;
 
 /**
- * URL-driven tabs of a loaded group as `PageTabs` (`UX.md` §4), then the active tab's content in a `PageBody`
+ * URL-driven tabs of a loaded group as `PageTabs` (`UX.md` §4), then the active tab's content in a tab panel
  * labelled by the tab: Details, or Cluster access with "Grant access" opening the bulk grant wizard (GPG-2/3).
  */
 function GroupTabs({ group, tab }: { group: GroupDetail; tab: GroupDetailTab }) {
@@ -63,13 +63,16 @@ function GroupTabs({ group, tab }: { group: GroupDetail; tab: GroupDetailTab }) 
   return (
     <>
       <PageTabs tabs={tabs} activeKey={tab} aria-label="Group detail tabs" />
-      <PageBody role="tabpanel" aria-label={GROUP_DETAIL_TAB_TITLES[tab]}>
-        {tab === 'access' ? (
+      {tab === 'access' ? (
+        <PageBody role="tabpanel" aria-label={GROUP_DETAIL_TAB_TITLES[tab]}>
           <GroupGrantsTab group={group} onGrantAccess={() => setBulkGrantOpen(true)} />
-        ) : (
+        </PageBody>
+      ) : (
+        // A plain element: the Details sections are sibling page sections, and PageGroup drops `aria-label`.
+        <div role="tabpanel" aria-label={GROUP_DETAIL_TAB_TITLES[tab]}>
           <GroupDetailsTab group={group} />
-        )}
-      </PageBody>
+        </div>
+      )}
       <BulkGrantWizard
         subject={{ kind: 'group', name: group.name }}
         isOpen={isBulkGrantOpen}

@@ -49,7 +49,7 @@ export const replicationControllerStatusColumn: ColumnDef<ReplicationControllerR
   sortValue: (rc) => replicationControllerCurrent(rc) / Math.max(replicationControllerDesired(rc), 1),
 };
 
-/** Phase column: the deployment phase as an OCP status icon + text, "—" for an RC outside a DeploymentConfig. */
+/** Phase column: the deployment phase as an OCP status icon + text, "-" for an RC outside a DeploymentConfig. */
 export const replicationControllerPhaseColumn: ColumnDef<ReplicationControllerResource> = {
   id: 'phase',
   title: 'Phase',
