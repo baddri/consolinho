@@ -4,6 +4,7 @@ using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Auth;
 using FleetConsole.Application.Credentials;
 using FleetConsole.Application.Proxy;
+using FleetConsole.Infrastructure.Caching;
 using FleetConsole.Infrastructure.Crypto;
 using FleetConsole.Infrastructure.Events;
 using FleetConsole.Infrastructure.Kubernetes;
@@ -24,6 +25,7 @@ namespace FleetConsole.Infrastructure;
 /// Registers the Infrastructure adapters for the Application ports: the EF Core <see cref="ConsoleDbContext"/> (also the
 /// <see cref="IUnitOfWork"/>), the repositories, <see cref="IReadModel"/>, <see cref="IClock"/>,
 /// <see cref="IDomainEventDispatcher"/>, Data Protection with <see cref="ITokenProtector"/>, the
+/// query cache (<see cref="FleetConsole.Application.Abstractions.Caching.IQueryCache"/>), the
 /// <see cref="CredentialsOptions"/>, the login <see cref="AuthOptions"/> and the Kubernetes <see cref="IClusterProbeClient"/>.
 /// Called once by the Api composition root.
 /// </summary>
@@ -38,6 +40,12 @@ public static class DependencyInjection
     /// Registered by <see cref="LoadDataProtectionKeyRingInBackground"/>.
     /// </summary>
     public const string KeyRingHealthCheckName = "keyring";
+
+    /// <summary>
+    /// Name of the Redis readiness check (registered only when <c>ConnectionStrings:redis</c> is set). It reports
+    /// Degraded, never Unhealthy, when Redis is unreachable, so <c>/health</c> stays 200 (ADR-0040 §7, CACHE-7).
+    /// </summary>
+    public const string RedisHealthCheckName = "redis";
 
     /// <summary>
     /// Budget of the database readiness check; below the readiness probe's 3 s timeout so <c>/health</c> answers 503
@@ -55,6 +63,9 @@ public static class DependencyInjection
     /// regular scoped context and call <c>EnrichNpgsqlDbContext</c>, which adds the same Aspire extras (retries, health
     /// check, logging, OpenTelemetry).</para>
     /// <para><b>Development:</b> pending migrations are applied on startup (<see cref="DevelopmentDatabaseMigrator"/>).</para>
+    /// <para><b>Query cache</b> (ADR-0040): <c>IQueryCache</c> on FusionCache, L1-only unless
+    /// <c>ConnectionStrings:redis</c> is set (then Redis L2 + backplane); the connection string is required outside
+    /// Development, <c>Cache:Duration</c> is validated on start.</para>
     /// <para><b>Data Protection</b> (ADR-0004): key ring in the database, shared by the session cookie and SA token
     /// encryption; encrypted with <c>DataProtection:KeyEncryptionCertificatePath</c> (required outside Development).</para>
     /// </remarks>
@@ -129,6 +140,8 @@ public static class DependencyInjection
             RetiredHandlerGracePeriod = ClusterForwardingClientPool.GracePeriodFor(
                 services.GetRequiredService<IOptions<ProxyOptions>>().Value),
         });
+
+        builder.AddQueryCache();
 
         builder.AddConsoleDataProtection();
         builder.Services.AddSingleton<ITokenProtector, DataProtectionTokenProtector>();

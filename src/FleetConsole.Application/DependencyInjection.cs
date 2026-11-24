@@ -1,4 +1,5 @@
 using System.Reflection;
+using FleetConsole.Application.Abstractions.Caching;
 using FleetConsole.Application.Abstractions.Events;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Access;
@@ -7,6 +8,7 @@ using FleetConsole.Application.Behaviors;
 using FleetConsole.Application.Credentials.ConnectionTesting;
 using FleetConsole.Application.Proxy;
 using FleetConsole.Application.Proxy.Policies;
+using FleetConsole.Domain.Common;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -32,7 +34,8 @@ public static class DependencyInjection
     ///   <item><c>ReadOnlyGuardBehavior</c> — <c>IMutatingCommand</c> refused for globally read-only users (403).
     ///   Before validation so a read-only admin gets <c>Auth.ReadOnly</c>, never field errors (contract §7 check order).</item>
     ///   <item><c>ValidationBehavior</c> — FluentValidation → validation <c>Result</c>.</item>
-    ///   <item><c>CachingBehavior</c> — <c>ICacheableQuery</c> (future).</item>
+    ///   <item><c>CachingBehavior</c> — <c>ICacheableQuery</c>; registered closed per query by
+    ///   <see cref="AddCacheableQuery{TQuery, TValue}"/>, which inserts it right here (ADR-0040 §3).</item>
     ///   <item><c>UnitOfWorkBehavior</c> — commands only; saves after a successful handler.</item>
     /// </list>
     /// <para>Everything is scoped so handlers and behaviors share the request's unit of work and current user.
@@ -71,9 +74,42 @@ public static class DependencyInjection
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ReadOnlyGuardBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
-        // (future) services.AddScoped(typeof(IPipelineBehavior<,>), typeof(CachingBehavior<,>));
+        // Step 5, CachingBehavior: no open-generic registration (it can't map Result<TValue>). Each cacheable query
+        // registers it closed with AddCacheableQuery<TQuery, TValue>(), which inserts it right after ValidationBehavior.
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
 
+        return services;
+    }
+
+    /// <summary>
+    /// Turns on caching for <typeparamref name="TQuery"/>: registers <see cref="CachingBehavior{TQuery, TValue}"/>
+    /// closed for it, at pipeline step 5 — directly after <see cref="ValidationBehavior{TRequest, TResponse}"/>, before
+    /// every later behavior and the handler (ADR-0040 §3).
+    /// </summary>
+    /// <remarks>
+    /// The container returns behaviors in descriptor order, mixing closed and open-generic registrations, so the
+    /// position in the collection <em>is</em> the pipeline position. Appending would put the behavior after anything
+    /// registered later; the descriptor is therefore inserted after the <c>ValidationBehavior</c> registration, which
+    /// makes the call order irrelevant. Call it after the pipeline registrations in <see cref="AddApplication"/>.
+    /// </remarks>
+    /// <typeparam name="TQuery">The cacheable query.</typeparam>
+    /// <typeparam name="TValue">The value of its successful result.</typeparam>
+    /// <param name="services">The service collection holding the Application pipeline.</param>
+    /// <returns>The same collection, for chaining.</returns>
+    /// <exception cref="InvalidOperationException">The pipeline (its <c>ValidationBehavior</c>) is not registered yet.</exception>
+    internal static IServiceCollection AddCacheableQuery<TQuery, TValue>(this IServiceCollection services)
+        where TQuery : ICacheableQuery<TValue>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var validation = services.LastOrDefault(descriptor =>
+            descriptor.ServiceType == typeof(IPipelineBehavior<,>) && descriptor.ImplementationType == typeof(ValidationBehavior<,>))
+            ?? throw new InvalidOperationException(
+                $"Register the Application pipeline before calling {nameof(AddCacheableQuery)} for '{typeof(TQuery)}'.");
+
+        services.Insert(
+            services.IndexOf(validation) + 1,
+            ServiceDescriptor.Scoped<IPipelineBehavior<TQuery, Result<TValue>>, CachingBehavior<TQuery, TValue>>());
         return services;
     }
 

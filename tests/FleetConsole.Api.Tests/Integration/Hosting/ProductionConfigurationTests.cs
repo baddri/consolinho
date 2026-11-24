@@ -36,6 +36,7 @@ public sealed class ProductionConfigurationTests(ApiFactory factory)
     [Theory]
     [InlineData("Console:PublicOrigin")]
     [InlineData($"ConnectionStrings:{ConsoleDbContext.ConnectionName}")]
+    [InlineData("ConnectionStrings:redis")]
     public async Task MissingRequiredSetting_FailsStartValidation_NamingTheKeyOnly(string key)
     {
         await using var host = ProductionHost.Create(factory, new Dictionary<string, string?> { [key] = "" });
@@ -45,6 +46,19 @@ public sealed class ProductionConfigurationTests(ApiFactory factory)
         exception.Failures.ShouldContain(failure => failure.StartsWith(key, StringComparison.Ordinal));
         exception.Message.ShouldNotContain(DevOAuthFlow.ClientSecret);
         exception.Message.ShouldNotContain(TestHostConfiguration.CertificatePassword);
+    }
+
+    /// <summary>The query cache's lifetime must stay within 1 s..60 s (ADR-0040 §6).</summary>
+    [Theory]
+    [InlineData("00:00:00")]
+    [InlineData("00:01:01")]
+    public async Task CacheDurationOutOfRange_FailsStartValidation(string duration)
+    {
+        await using var host = ProductionHost.Create(factory, new Dictionary<string, string?> { ["Cache:Duration"] = duration });
+
+        var exception = Should.Throw<OptionsValidationException>(() => RunStartValidation(host));
+
+        exception.Failures.ShouldContain(failure => failure.StartsWith("Cache:Duration", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Aspire orchestration for local development: Postgres + DevOAuth emulator + Api + the Vite dev server (web/).
+  <!-- Aspire orchestration for local development: Postgres + Redis + DevOAuth emulator + Api + the Vite dev server (web/).
        Plain Microsoft.NET.Sdk + the Aspire.Hosting.AppHost package (Aspire.AppHost.Sdk is obsolete since Aspire 17,
        ADR-0025). Services are added by path (AddDotnetProject), so there are no ProjectReferences here. Running it needs
        the Aspire CLI bundle (ASPIRE013) at the same version as the Aspire.Hosting.* packages. -->
@@ -15,5 +15,6 @@
     <PackageReference Include="Aspire.Hosting.Dotnet" />
     <PackageReference Include="Aspire.Hosting.JavaScript" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
   </ItemGroup>
 </Project>

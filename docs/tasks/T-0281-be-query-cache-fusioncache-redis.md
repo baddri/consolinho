@@ -1,7 +1,7 @@
 ---
 id: T-0281
 title: Query cache core — IQueryCache on FusionCache (L1 + Redis L2 + backplane), CachingBehavior, Redis wiring + health
-status: todo
+status: in_review
 owner: backend-engineer
 checkpoint: 4.5b
 depends_on: []
@@ -79,21 +79,39 @@ internal static IServiceCollection AddCacheableQuery<TQuery, TValue>(this IServi
   `ConnectionStrings:redis`), `tests/.../Integration/Hosting/ProductionProbeTests.cs`, `Readiness.cs`.
 
 ## Acceptance criteria
-- [ ] Behavior unit tests (fake `IQueryCache`): success cached once and served from cache; failure never cached; tags
+- [x] Behavior unit tests (fake `IQueryCache`): success cached once and served from cache; failure never cached; tags
       come from the value; pipeline order test (step 5).
-- [ ] Adapter tests against `RedisFixture`: value round-trips through L2 (second app instance / second FusionCache reads
+- [x] Adapter tests against `RedisFixture`: value round-trips through L2 (second app instance / second FusionCache reads
       it); `RemoveByTagsAsync` on instance A makes instance B reload (backplane) — the machinery half of CACHE-3.
-- [ ] Fail-safe off (CACHE-5 machinery): entry expired + loader throws → the exception propagates, the stale value is
+- [x] Fail-safe off (CACHE-5 machinery): entry expired + loader throws → the exception propagates, the stale value is
       not returned.
-- [ ] Redis unreachable (closed port): `GetOrLoadAsync` still loads and serves from L1, a Warning is logged, `/health`
+- [x] Redis unreachable (closed port): `GetOrLoadAsync` still loads and serves from L1, a Warning is logged, `/health`
       returns 200 with check `redis` Degraded (CACHE-7).
-- [ ] Production start without `ConnectionStrings:redis` fails with one Critical line naming the key; `Cache:Duration`
+- [x] Production start without `ConnectionStrings:redis` fails with one Critical line naming the key; `Cache:Duration`
       of 0 or > 60 s fails start.
-- [ ] `aspire run` starts Redis (podman) and the Api gets `ConnectionStrings__redis` (note in Work log).
-- [ ] XML docs on all public types/members; `scripts/check-be.sh` green (CLAUDE.md rule 4)
+- [x] `aspire run` starts Redis (podman) and the Api gets `ConnectionStrings__redis` (note in Work log).
+- [x] XML docs on all public types/members; `scripts/check-be.sh` green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 backend-engineer: in_progress → in_review. Worktree was on 899c85c; merged 1b14a34 first. StackExchange.Redis used
+  directly (Aspire.StackExchange.Redis 17 pulls OTel 1.18 + an Unhealthy check). AC6 checked via the AppHost publish
+  manifest (redis container, Api env `ConnectionStrings__redis`), not a live `aspire run`. Outside paths: `ApiFactory.cs`
+  (owns a RedisFixture, gives non-Development hosts `ConnectionStrings:redis`) and `DataProtectionSetupTests.cs` (adds
+  the key to its Production hosts).
 
 ## Review
 
 ## Handover notes
+- Port: `IQueryCache` + `ICacheableQuery<T>` + `CacheTags` (Application/Abstractions/Caching). Make a query cacheable by
+  implementing `ICacheableQuery<T>` and calling `services.AddCacheableQuery<TQuery,T>()` after `AddApplication`'s
+  pipeline (inserts the closed `CachingBehavior` right after `ValidationBehavior`; throws if the pipeline is missing).
+- Failures are never cached (the behavior throws a private exception through the loader and unwraps it).
+- Redis L2/backplane are attached in FusionCache's post-setup from `IOptions<RedisConnectionOptions>`, not at
+  registration: WebApplicationFactory config sources aren't visible in Program before `Build()`. L1-only when no
+  connection string (Development/tests only; validated on start elsewhere).
+- FusionCache's default instance can't take a custom `CacheName` via DI (throws), so isolation is by key prefix
+  `fleetconsole:` only; backplane channel uses the default name.
+- `redis` health check always registered: Healthy if unconfigured, Degraded on PING failure/timeout (1 s), never
+  Unhealthy; description carries no exception text. Logs asserted free of the Redis password.
+- `DistributedCacheHardTimeout` 1 s, circuit breakers 5 s (L2 + backplane), all Redis errors logged at Warning.
+- Test Redis image `docker.io/library/redis:8.0`; AppHost uses Aspire's default (8.10).

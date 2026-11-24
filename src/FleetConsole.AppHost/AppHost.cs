@@ -1,7 +1,7 @@
-// Aspire orchestration for local development (`aspire run`). Starts a Postgres container (via podman, see CLAUDE.md),
-// the DevOAuth emulator standing in for the host cluster's OpenShift OAuth server, the Api project with the database
-// connection string injected as ConnectionStrings__consoledb, and the Vite dev server for web/ with the Api's
-// endpoints injected for its /api proxy (and the Vite URL injected into the Api as its public origin).
+// Aspire orchestration for local development (`aspire run`). Starts a Postgres and a Redis container (via podman, see
+// CLAUDE.md), the DevOAuth emulator standing in for the host cluster's OpenShift OAuth server, the Api project with the
+// database and Redis connection strings injected as ConnectionStrings__consoledb / ConnectionStrings__redis, and the
+// Vite dev server for web/ with the Api's endpoints injected for its /api proxy (and the Vite URL injected into the Api as its public origin).
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Fake stand-in for FleetConsole's host SA token (ADR-0039 §5): the emulator lets this bearer list groups, and the Api
@@ -14,6 +14,10 @@ var postgres = builder.AddPostgres("postgres")
     .WithDataVolume();
 
 var consoleDb = postgres.AddDatabase("consoledb");
+
+// Query cache L2 + backplane (ADR-0040 §7). The resource name "redis" is a contract: it becomes
+// ConnectionStrings__redis, the key the Api (and the kustomize manifests) use. No data volume: the cache is disposable.
+var redis = builder.AddRedis("redis");
 
 // Development-only emulator of the OpenShift OAuth server + users/~ (ADR-0007, ADR-0010); never deployed. Always its
 // "http" launch profile (fixed port http://localhost:5190), whichever profile the AppHost runs with, so the login URL
@@ -33,6 +37,8 @@ var devOAuth = builder.AddDotnetProject(
 var api = builder.AddDotnetProject("api", "../FleetConsole.Api/FleetConsole.Api.csproj")
     .WithReference(consoleDb)
     .WaitFor(consoleDb)
+    .WithReference(redis)
+    .WaitFor(redis)
     .WithEnvironment("Auth__OpenShift__HostApiServerUrl", devOAuth.GetEndpoint("http"))
     .WithEnvironment("Auth__HostGroups__Token", DevGroupsReaderToken)
     .WaitFor(devOAuth);
