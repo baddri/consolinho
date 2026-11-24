@@ -20,3 +20,4 @@ cross-pod decryption), so the router's default sticky cookie only hides imbalanc
 
 ## Work log
 - 2026-11-24 orchestrator: annotations added to base route.yaml; `oc kustomize` renders; applied live with `oc annotate` in consolinho; /healthz now returns no set-cookie.
+- 2026-11-24: request spread across replicas left to the human to verify after the CP4c deploy (human directive).
