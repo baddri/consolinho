@@ -219,6 +219,34 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Users");
     }
 
+    [Theory]
+    [InlineData("/api/admin/groups/{groupName}/grants", "get", "ListGroupGrants")]
+    [InlineData("/api/admin/groups/{groupName}/grants", "post", "CreateGroupGrant")]
+    [InlineData("/api/admin/groups/{groupName}/grants/bulk", "post", "BulkGroupGrant")]
+    public async Task GroupGrantOperations_HaveContractOperationIds(string path, string method, string operationId)
+    {
+        var document = await GetDocumentAsync();
+
+        var operation = document.GetProperty("paths").GetProperty(path).GetProperty(method);
+        operation.GetProperty("operationId").GetString().ShouldBe(operationId);
+        operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Grants");
+    }
+
+    [Fact]
+    public async Task GrantSchema_PublishesSubjectFields_AndPriorityOnUpdate()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        var grant = schemas.GetProperty("Grant").GetProperty("properties");
+        foreach (var name in new[] { "subjectKind", "subjectName", "priority", "username" })
+        {
+            grant.TryGetProperty(name, out _).ShouldBeTrue(name);
+        }
+
+        schemas.GetProperty("UpdateGrantRequest").GetProperty("properties").TryGetProperty("priority", out _).ShouldBeTrue();
+    }
+
     [Fact]
     public async Task UserSchemas_DropTheDtoSuffix_AndPublishStatusAsStringEnum()
     {

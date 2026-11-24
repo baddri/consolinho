@@ -26,6 +26,18 @@ public interface IGrantRepository
     /// <returns>The cluster ids (empty when the user has no grants).</returns>
     Task<IReadOnlySet<ClusterId>> GetClusterIdsForUserAsync(UserId userId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// The group grants on the given clusters as <see cref="GroupGrantSlot"/>s: the fact <see cref="Grant.CreateForGroup"/>
+    /// and <see cref="Grant.ChangeGroupGrant"/> need to enforce one grant per (group, cluster) and one priority per cluster
+    /// (GRP-4/5). One query for any number of clusters, so a bulk group grant stays constant in round trips; the partial
+    /// unique indexes catch races.
+    /// </summary>
+    /// <param name="clusterIds">The clusters to read.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The slots by cluster; a cluster without group grants has an empty sequence.</returns>
+    Task<ILookup<ClusterId, GroupGrantSlot>> GetGroupGrantSlotsAsync(
+        IReadOnlyCollection<ClusterId> clusterIds, CancellationToken cancellationToken);
+
     /// <summary>Counts the grants that use a credential (CRED-6: a credential in use can't be deleted).</summary>
     /// <param name="id">The credential.</param>
     /// <param name="cancellationToken">Cancellation token.</param>

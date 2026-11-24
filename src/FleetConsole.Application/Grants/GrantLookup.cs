@@ -56,6 +56,24 @@ internal static class GrantLookup
     public static ValidationError FieldErrors(Dictionary<string, List<string>> errors) =>
         Error.Validation(errors.ToDictionary(e => e.Key, e => e.Value.ToArray(), StringComparer.Ordinal));
 
+    /// <summary>
+    /// Maps the <em>input</em> errors of <see cref="Grant.CreateForGroup"/> / <see cref="Grant.ChangeGroupGrant"/> to
+    /// field errors (<c>CredentialId</c>, <c>Priority</c>); the conflicts (<c>Grants.AlreadyExists</c>,
+    /// <c>Grants.PriorityTaken</c>) stay 409s, so they return <see langword="null"/>.
+    /// </summary>
+    /// <param name="error">The domain error.</param>
+    /// <returns>The field error, or <see langword="null"/> when <paramref name="error"/> is not an input error.</returns>
+    public static ValidationError? GroupGrantFieldError(Error error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+
+        string? field =
+            error.Code == GrantErrors.CredentialNotInCluster().Code ? "CredentialId"
+            : error.Code == GrantErrors.PriorityOutOfRange().Code ? "Priority"
+            : null;
+        return field is null ? null : FieldErrors(new() { [field] = [error.Message] });
+    }
+
     /// <summary>Adds <paramref name="message"/> to the messages of <paramref name="field"/>.</summary>
     /// <param name="errors">The collected field errors.</param>
     /// <param name="field">The C# property path.</param>

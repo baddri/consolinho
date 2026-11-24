@@ -35,6 +35,29 @@ internal static class GrantsApi
             new { accessMode, items = items.Select(i => new { clusterName = i.ClusterName, credentialId = i.CredentialId }) },
             Ct);
 
+    /// <summary>POST /api/admin/groups/{groupName}/grants.</summary>
+    public static Task<HttpResponseMessage> CreateGroupAsync(
+        HttpClient client, string groupName, string clusterName, Guid credentialId, int priority, string accessMode = "readOnly") =>
+        client.PostAsJsonAsync(
+            $"/api/admin/groups/{Uri.EscapeDataString(groupName)}/grants", new { clusterName, credentialId, priority, accessMode }, Ct);
+
+    /// <summary>POST /api/admin/groups/{groupName}/grants/bulk with (cluster, credential) items.</summary>
+    public static Task<HttpResponseMessage> BulkGroupAsync(
+        HttpClient client, string groupName, int priority, params (string ClusterName, Guid CredentialId)[] items) =>
+        client.PostAsJsonAsync(
+            $"/api/admin/groups/{Uri.EscapeDataString(groupName)}/grants/bulk",
+            new { accessMode = "readOnly", priority, items = items.Select(i => new { clusterName = i.ClusterName, credentialId = i.CredentialId }) },
+            Ct);
+
+    /// <summary>PUT /api/admin/grants/{id} with a priority (group grants; forbidden on user grants).</summary>
+    public static Task<HttpResponseMessage> UpdateWithPriorityAsync(
+        HttpClient client, Guid grantId, string accessMode, Guid credentialId, uint version, int? priority) =>
+        client.PutAsJsonAsync($"{GrantsPath}/{grantId}", new { accessMode, credentialId, version, priority }, Ct);
+
+    /// <summary>GET /api/admin/groups/{groupName}/grants.</summary>
+    public static Task<IReadOnlyList<JsonElement>> GroupGrantsAsync(HttpClient client, string groupName) =>
+        GetArrayAsync(client, $"/api/admin/groups/{Uri.EscapeDataString(groupName)}/grants");
+
     /// <summary>GETs a path that returns a JSON array and returns its elements.</summary>
     public static async Task<IReadOnlyList<JsonElement>> GetArrayAsync(HttpClient client, string path)
     {

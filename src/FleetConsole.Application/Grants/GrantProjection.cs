@@ -13,8 +13,8 @@ namespace FleetConsole.Application.Grants;
 /// report the same fields and markers (GRANT-5).
 /// </summary>
 /// <remarks>
-/// <para><b>One statement, whatever the number of rows:</b> grants joined with their user, cluster and credential. No
-/// per-row lookups (no N+1).</para>
+/// <para><b>One statement, whatever the number of rows:</b> grants joined with their cluster and credential, and
+/// <em>left</em>-joined with their user (group grants have none, ADR-0034). No per-row lookups (no N+1).</para>
 /// <para><b>Never the token.</b> Only credential metadata columns are selected (CRED-2).</para>
 /// <para><b>Derived values in memory.</b> The credential's expiry status (against <see cref="IClock"/> and
 /// <c>Credentials:ExpiryWarningDays</c>) and the test summary's staleness are not columns, so they are computed after
@@ -59,19 +59,28 @@ internal static class GrantProjection
     {
         var rowQuery =
             from g in grants
-            join u in readModel.Users on g.UserId equals u.Id
             join c in readModel.Clusters on g.ClusterId equals c.Id
             join cr in readModel.Credentials on g.CredentialId equals cr.Id
+            join uj in readModel.Users on g.UserId equals (UserId?)uj.Id into users
+            from u in users.DefaultIfEmpty()
             select new
             {
                 g.Id,
-                u.Username,
-                UserDisplayName = u.DisplayName,
+                g.SubjectKind,
+                g.GroupName,
+                g.Priority,
+
+                // u is null for group grants: every user column is projected through a null check so SQL NULLs never
+                // land in non-nullable members.
+                Username = u == null ? null : u.Username,
+                UserDisplayName = u == null ? null : u.DisplayName,
 
                 // User.Status is not a column; same precedence as the aggregate (deactivated, then pending, then active).
-                UserStatus = u.IsDeactivated
-                    ? UserStatus.Deactivated
-                    : u.LastLoginAt == null ? UserStatus.Pending : UserStatus.Active,
+                UserStatus = u == null
+                    ? (UserStatus?)null
+                    : u.IsDeactivated
+                        ? UserStatus.Deactivated
+                        : u.LastLoginAt == null ? UserStatus.Pending : UserStatus.Active,
                 ClusterName = c.Name,
                 ClusterDisplayName = c.DisplayName,
                 ClusterEnvironment = c.Environment,
@@ -93,7 +102,12 @@ internal static class GrantProjection
         var window = options.ExpiryWarningWindow;
         return rows.ConvertAll(row => new GrantDto(
             row.Id.Value,
-            row.Username.Value,
+            row.SubjectKind,
+
+            // The check constraint guarantees a username (user grant) or a group name (group grant).
+            row.Username?.Value ?? row.GroupName!.Value,
+            row.Priority,
+            row.Username?.Value,
             row.UserDisplayName,
             row.UserStatus,
             row.ClusterName.Value,

@@ -41,6 +41,7 @@ interface Grant {
 | `PUT /grants/{grantId}` | `UpdateGrantRequest` gains `priority?: number \| null`: **required** (1–1000) for group grants, must be absent/null for user grants. |
 | `DELETE /grants/{grantId}` | Unchanged; works for both kinds. |
 | `POST /grants`, `POST /users/{username}/grants/bulk` | Unchanged (user subject). |
+| `GET /clusters`, `GET /clusters/{name}` | `grantCount` counts **user** grants only (users with direct access); group grants are not counted. |
 
 ## 3. Group grants (new)
 
@@ -50,7 +51,7 @@ interface Grant {
 | Route | Body | Success | Errors |
 |---|---|---|---|
 | `GET /groups/{groupName}/grants` | — | 200 `Grant[]` (order: `clusterName`) | — (unknown/invalid name → `[]`) |
-| `POST /groups/{groupName}/grants` | `CreateGroupGrantRequest` | 201 `Grant`, `Location: /api/admin/grants/{id}` | 400, 404, 409 |
+| `POST /groups/{groupName}/grants` | `CreateGroupGrantRequest` | 201 `Grant`, `Location: /api/admin/grants/{id}` | 400, 409 |
 | `POST /groups/{groupName}/grants/bulk` | `BulkGroupGrantRequest` | same as `POST /users/{u}/grants/bulk` | 400 (per-item), 409 |
 
 ```ts
@@ -68,7 +69,7 @@ Error codes (messages are the user-facing copy):
 | validation | 400 | `priority` | `Priority applies to group grants only.` (PUT on a user grant) |
 | `Grants.AlreadyExists` | 409 | — | `Group "X" already has access to "C".` (GRP-5) |
 | `Grants.PriorityTaken` | 409 | — | ``Priority N is already used by group `X` on this cluster.`` (GRP-4; FE shows it on Priority) |
-| `Clusters.NotFound` / credential errors | 404 / 400 | as `POST /grants` today | |
+| validation | 400 | `clusterName` / `credentialId` | as `POST /grants` today: unknown cluster, unknown credential, credential of another cluster (no 404; the group itself never 404s) |
 
 **Bulk (GPG-3)** is all-or-nothing like the user bulk: when any item fails nothing is written and the 400 lists
 **every** failing item as `items[i].clusterName` (priority taken, already granted, cluster not found) /

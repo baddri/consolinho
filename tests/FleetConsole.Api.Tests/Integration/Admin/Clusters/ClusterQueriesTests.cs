@@ -27,6 +27,9 @@ public sealed class ClusterQueriesTests(ApiFactory factory)
         var soon = await JwtCredentialAsync(factory, cluster.Name, DateTimeOffset.UtcNow.AddDays(3));
         await JwtCredentialAsync(factory, cluster.Name, DateTimeOffset.UtcNow.AddDays(300));
         await factory.Data.GrantAsync(user, cluster.Name, opaque.Id);
+        // A group grant is not a user with access: grantCount counts direct user grants only (CP4.5).
+        using var groupGrant = await Grants.GrantsApi.CreateGroupAsync(admin, $"g-{TestData.Unique()}", cluster.Name, opaque.Id.Value, 1);
+        groupGrant.StatusCode.ShouldBe(HttpStatusCode.Created);
         // After seeding, so not before the cluster's ConnectionSettingsChangedAt (registration time).
         var testedAt = DateTimeOffset.UtcNow;
         await RecordTestAsync(factory, cluster.Name, opaque.Id, testedAt.AddMinutes(-5), succeeded: false);
@@ -43,6 +46,7 @@ public sealed class ClusterQueriesTests(ApiFactory factory)
         item.GetProperty("credentialCount").GetInt32().ShouldBe(3);
         item.GetProperty("worstCredentialExpiryStatus").GetString().ShouldBe("expiringSoon");
         item.GetProperty("grantCount").GetInt32().ShouldBe(1);
+        (await admin.GetFromJsonAsync<JsonElement>($"/api/admin/clusters/{cluster.Name}", Ct)).GetProperty("grantCount").GetInt32().ShouldBe(1);
         item.GetProperty("lastTest").GetProperty("succeeded").GetBoolean().ShouldBeTrue();
         item.GetProperty("lastTest").GetProperty("isStale").GetBoolean().ShouldBeFalse();
         item.GetProperty("lastTestCredentialName").GetString().ShouldStartWith("jwt-");

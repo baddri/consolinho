@@ -9,7 +9,8 @@ namespace FleetConsole.Application.Grants.UpdateGrant;
 
 /// <summary>
 /// Handles <see cref="UpdateGrantCommand"/>: loads the grant, checks its version, resolves the requested credential and
-/// lets <see cref="Grant.Change"/> apply the change (and refuse a credential of another cluster).
+/// lets <see cref="Grant.Change"/> (user grant) or <see cref="Grant.ChangeGroupGrant"/> (group grant, checked against
+/// the cluster's group grant slots, one query) apply the change and refuse invalid input or a taken priority.
 /// </summary>
 /// <param name="grants">Grant repository.</param>
 /// <param name="users">User repository (audit labels).</param>
@@ -41,6 +42,18 @@ internal sealed class UpdateGrantHandler(
             return GrantLookup.ConcurrencyConflict;
         }
 
+        // The priority's presence depends on the kind; checked before any further lookup.
+        var isGroupGrant = grant.SubjectKind == GrantSubjectKind.Group;
+        if (isGroupGrant && request.Priority is null)
+        {
+            return PriorityFieldError(GrantValidation.PriorityMessage);
+        }
+
+        if (!isGroupGrant && request.Priority is not null)
+        {
+            return PriorityFieldError(GrantValidation.PriorityOnUserGrantMessage);
+        }
+
         var credential = await credentials.GetByIdAsync(new CredentialId(request.CredentialId), cancellationToken)
             .ConfigureAwait(false);
         if (credential is null)
@@ -50,9 +63,28 @@ internal sealed class UpdateGrantHandler(
 
         // Labels carry the name of the credential the grant uses *before* the change (old → new in the audit entry).
         var labels = await GrantLookup.LabelsAsync(grant, users, clusters, credentials, cancellationToken).ConfigureAwait(false);
-        var changed = grant.Change(request.AccessMode, credential, labels, GrantLookup.Actor(currentUser), clock.UtcNow);
-        return changed.IsFailure ? CredentialFieldError(changed.Error.Message) : Result.Success();
+        var actor = GrantLookup.Actor(currentUser);
+        if (!isGroupGrant)
+        {
+            var changed = grant.Change(request.AccessMode, credential, labels, actor, clock.UtcNow);
+            return changed.IsFailure ? CredentialFieldError(changed.Error.Message) : Result.Success();
+        }
+
+        // ChangeGroupGrant ignores the grant's own slot, so all of the cluster's slots can be passed.
+        var slots = await grants.GetGroupGrantSlotsAsync([grant.ClusterId], cancellationToken).ConfigureAwait(false);
+        var groupChanged = grant.ChangeGroupGrant(
+            request.AccessMode, credential, request.Priority!.Value, [.. slots[grant.ClusterId]], labels, actor, clock.UtcNow);
+        if (groupChanged.IsFailure)
+        {
+            // Invalid input becomes field errors; PriorityTaken stays the 409.
+            return GrantLookup.GroupGrantFieldError(groupChanged.Error) is { } fieldError ? fieldError : groupChanged.Error;
+        }
+
+        return Result.Success();
     }
+
+    private static ValidationError PriorityFieldError(string message) =>
+        GrantLookup.FieldErrors(new() { [nameof(UpdateGrantCommand.Priority)] = [message] });
 
     private static ValidationError CredentialFieldError(string message) =>
         GrantLookup.FieldErrors(new() { [nameof(UpdateGrantCommand.CredentialId)] = [message] });

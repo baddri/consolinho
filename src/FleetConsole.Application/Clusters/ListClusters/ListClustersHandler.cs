@@ -1,3 +1,4 @@
+using FleetConsole.Domain.Access;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Application.Common;
@@ -37,7 +38,7 @@ internal sealed class ListClustersHandler(IReadModel readModel, IClock clock, IO
             c.IsEnabled,
             c.ConnectionSettingsChangedAt,
             c.Version,
-            GrantCount = grants.Count(g => g.ClusterId == c.Id),
+            GrantCount = grants.Count(g => g.ClusterId == c.Id && g.SubjectKind == GrantSubjectKind.User),
 
             // Translated into a join of the same statement; never the token column.
             Credentials = credentials

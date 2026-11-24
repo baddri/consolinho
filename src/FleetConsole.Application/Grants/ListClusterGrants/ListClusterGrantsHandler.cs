@@ -30,8 +30,12 @@ internal sealed class ListClusterGrantsHandler(IReadModel readModel, IClock cloc
             .LoadAsync(readModel, readModel.Grants.Where(g => g.ClusterId == clusterId), clock.UtcNow, options.Value, cancellationToken)
             .ConfigureAwait(false);
 
-        // Ordinal in memory: usernames are case-sensitive keys and the order must not depend on the database collation.
-        IReadOnlyList<GrantDto> sorted = [.. grants.OrderBy(g => g.Username, StringComparer.Ordinal)];
+        // User grants first, then group grants (UIG-4), each by subject name. Ordinal in memory: usernames and group names
+        // are case-sensitive keys and the order must not depend on the database collation.
+        IReadOnlyList<GrantDto> sorted =
+        [
+            .. grants.OrderBy(g => g.SubjectKind).ThenBy(g => g.SubjectName, StringComparer.Ordinal),
+        ];
         return Result.Success(sorted);
     }
 }
