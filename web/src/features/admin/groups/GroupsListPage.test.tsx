@@ -80,7 +80,7 @@ describe('GroupsListPage (GPG-1, GPG-4, Q7)', () => {
     expect(
       screen.getByText('Could not list groups on the host cluster. Only groups that have cluster access are shown.'),
     ).toBeInTheDocument();
-    expect(visibleGroups(table)).toEqual(['ghost-team', 'sre']);
+    expect(visibleGroups(table)).toEqual(['ghost-team', 'platform', 'sre']);
     const sre = rowOf(table, 'sre');
     expect(within(sre).queryByText('Not found on host cluster')).not.toBeInTheDocument();
     await user.hover(within(sre).getByText('-'));
