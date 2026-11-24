@@ -160,8 +160,8 @@ export type EffectiveClusterAccess = schemas['EffectiveClusterAccess'];
 export type AccessSource = schemas['AccessSource'];
 /** One matching grant with why it won or lost (EFF-2). */
 export type AccessCandidate = schemas['AccessCandidate'];
-/** Why a candidate grant won or lost. */
-export type AccessCandidateOutcome = schemas['AccessCandidateOutcome'];
+/** Why a candidate grant won or lost. The backend schema is named `CandidateOutcome`; the FE keeps the more specific name. */
+export type AccessCandidateOutcome = schemas['CandidateOutcome'];
 
 // ---- Audit (§10)
 /** One page of the audit log; `nextCursor` null = last page. */
