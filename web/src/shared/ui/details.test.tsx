@@ -150,9 +150,26 @@ describe('DetailsItem field help (HELP-1)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Replicas' }));
 
     const popover = await screen.findByRole('dialog');
-    expect(within(popover).getByRole('region', { name: 'Replicas' })).toHaveTextContent('Number of desired pods.');
+    expect(within(popover).getByRole('region', { name: 'Replicas' })).toHaveTextContent(
+      'Number of desired pods.',
+    );
     const crumbs = within(within(popover).getByRole('navigation')).getAllByRole('listitem');
     expect(crumbs.map((item) => item.textContent)).toEqual(['Deployment', 'spec', 'replicas']);
+  });
+
+  it("links the description's URLs to a new tab and keeps its line breaks (OCP LinkifyExternal, co-pre-line)", async () => {
+    const url = 'https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids';
+    renderItem({ ...help, describe: () => `Unique id.\n\nMore info: ${url}.` }, 'spec.replicas');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Replicas' }));
+
+    const region = within(await screen.findByRole('dialog')).getByRole('region', { name: 'Replicas' });
+    const link = within(region).getByRole('link', { name: url });
+    expect(link).toHaveAttribute('href', url);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    // The text before the link keeps its newlines; the trailing full stop is not part of the URL.
+    expect(region.textContent).toBe(`Unique id.\n\nMore info: ${url}.`);
   });
 
   it.each([

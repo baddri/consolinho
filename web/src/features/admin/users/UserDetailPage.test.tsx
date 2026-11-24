@@ -36,7 +36,7 @@ describe('UserDetailPage (T-0032)', () => {
       renderApp('/fleet/admin/users/alice');
       const list = await findDetails(COLD_START_TIMEOUT_MS);
 
-      expect(screen.getByRole('heading', { name: 'alice', level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'User alice', level: 1 })).toBeInTheDocument();
       // OCP details heading: large kind badge, name and status; no subtitle (the display name is a details item).
       expect(screen.queryByText('Alice Example', { selector: 'p' })).not.toBeInTheDocument();
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
@@ -153,7 +153,7 @@ describe('UserDetailPage (T-0032)', () => {
 
     renderApp('/fleet/admin/users/system%3Asa%40corp');
 
-    expect(await screen.findByRole('heading', { name: 'system:sa@corp', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'User system:sa@corp', level: 1 })).toBeInTheDocument();
     expect(await screen.findByText('Encoded Name')).toBeInTheDocument();
     expect(paths).toContain('/api/admin/users/system%3Asa%40corp');
   });

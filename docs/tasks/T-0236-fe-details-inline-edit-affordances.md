@@ -1,12 +1,12 @@
 ---
 id: T-0236
 title: Details metadata — inline Labels "Edit" and "N annotations" edit links like OCP
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4c
 depends_on: [T-0218]
 paths: [web/src/features/resources/details, web/src/shared/ui/page]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -39,13 +39,19 @@ clickable "N annotations" (found in the T-0222 live side-by-side).
 - OCP: `details-page.tsx:ResourceSummary`, `details-item.tsx:DetailsItem`, `public/components/utils/inline-edit-button` (if present).
 
 ## Acceptance criteria
-- [ ] Admin (`?mockUser=admin`): Labels shows "Edit", which opens Edit labels. Annotations shows "N annotations" plus the icon, which opens Edit annotations.
-- [ ] A user without patch access (`?mockUser=alice` on a read-only namespace): no Edit, plain "N annotations".
+- [x] Admin (`?mockUser=admin`): Labels shows "Edit", which opens Edit labels. Annotations shows "N annotations" plus the icon, which opens Edit annotations.
+- [x] A user without patch access (`?mockUser=alice` on a read-only namespace): no Edit, plain "N annotations".
 - [ ] Probe vs OCP deployment details: dt row height 21px, link 14px/400. Both themes.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4).
+- [x] Build, lint and tests green (CLAUDE.md rule 4).
 
 ## Work log
+- 2026-11-24 frontend-engineer: `DetailsItem` gets `onEdit` (OCP `editAsGroup` Split + `InlineEditButton`, exported); `useMetadataEdit` (same `patch` review as the Actions menu, owns the Edit labels/annotations modals); `MetadataSection` drops the annotations ExpandableSection. Labels box only when editable (OCP `co-editable-label-group`). RTL tests for admin and alice.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. The structure mirrors OCP `details-item.tsx:66-125`: `DescriptionListTermHelpText` > `Split pf-v6-u-w-100`, with the filled help/label item and `InlineEditButton` "Edit". `InlineEditButton` is a faithful copy of OCP's own (link, isInline, edit icon at the end). Annotations: inline-edit "N annotation(s)" with access, plain text without, as in `details-page.tsx:134-148`. Gating: `useMetadataEdit` uses `useResourceAccess` with `{verb:'patch', model, namespace, name}`, the same review key as `ResourceActionsMenu` (`reviewByName: true`). It adds no new request and the fleet read-only reasons short-circuit. `canEdit` is false while the check is pending. RTL tests cover the admin and alice cases. The gate is green.
+- Deviations accepted: Tolerations stay a plain count (recorded in parity row 38). Labels are boxed only when editable, like OCP `co-editable-label-group`. No `data-test` (we use roles).
+- Nit (optional): AC 3 (live probe vs OCP) is still open because the OCP ref console was down. The orchestrator should carry it to the next live UX pass; it does not block. `MetadataSection.tsx` has a prettier-only reflow (Name, searchPath), which is harmless.
 
 ## Handover notes
+- Probe (ours, both themes): dt 21px; annotations link 14px/400, gap 8px, link colour. The Labels "Edit" inherits the dt weight 600, as OCP's structure does; not confirmed live (OCP ref console down), so AC 3 is left open.
+- Tolerations stay plain text (parity row 38 deviation). No data-test attributes added (we use roles).

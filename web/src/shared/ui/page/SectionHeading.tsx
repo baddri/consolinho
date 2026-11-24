@@ -13,11 +13,14 @@ export interface SectionHeadingProps {
   actions?: ReactNode;
 }
 
-/** Section title inside a page body, e.g. "Pod details" (OCP `utils/headings.tsx:SectionHeading`, `UX.md` §6). */
+/**
+ * Section title inside a page body, e.g. "Pod details" (OCP `SecondaryHeading` / `SectionHeading`, `UX.md` §6). No
+ * `size`: PF renders `pf-m-h2` (20px/26px/600), as OCP does.
+ */
 export function SectionHeading({ text, id, actions }: SectionHeadingProps) {
   if (actions === undefined)
     return (
-      <Title headingLevel="h2" size="lg" id={id} className="pf-v6-u-mb-md">
+      <Title headingLevel="h2" id={id} className="pf-v6-u-mb-md">
         {text}
       </Title>
     );
@@ -30,7 +33,7 @@ export function SectionHeading({ text, id, actions }: SectionHeadingProps) {
       flexWrap={{ default: 'nowrap' }}
     >
       <FlexItem>
-        <Title headingLevel="h2" size="lg" id={id}>
+        <Title headingLevel="h2" id={id}>
           {text}
         </Title>
       </FlexItem>

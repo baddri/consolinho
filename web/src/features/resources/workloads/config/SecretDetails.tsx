@@ -10,18 +10,17 @@ type SecretObject = Secret & K8sResource;
 
 /** The Secret's Type in the right column of "Secret details" (OCP `SecretDetails`); nothing when unset. */
 export function SecretSummary({ obj }: { obj: Secret }) {
-  return obj.type ? <DetailsItem label="Type" path="type">{obj.type}</DetailsItem> : null;
+  return obj.type ? (
+    <DetailsItem label="Type" path="type">
+      {obj.type}
+    </DetailsItem>
+  ) : null;
 }
 
 /** OCP `SecretDataRevealButton`: a right-aligned link button toggling "Reveal values" / "Hide values". */
 function RevealButton({ reveal, onToggle }: { reveal: boolean; onToggle: () => void }) {
   return (
-    <Button
-      variant="link"
-      icon={reveal ? <RhUiViewOffIcon /> : <RhUiViewIcon />}
-      onClick={onToggle}
-      className="pf-v6-u-pr-0"
-    >
+    <Button variant="link" icon={reveal ? <RhUiViewOffIcon /> : <RhUiViewIcon />} onClick={onToggle}>
       {reveal ? 'Hide values' : 'Reveal values'}
     </Button>
   );

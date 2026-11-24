@@ -1,12 +1,12 @@
 ---
 id: T-0237
 title: Kind badge screen-reader text; field-help popover linkifies URLs and keeps line breaks
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4c
 depends_on: []
 paths: [web/src/shared/ui/kind-badge, web/src/shared/ui/page/DetailsGrid.tsx]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -33,12 +33,20 @@ makes it a link and keeps the schema's line breaks.
 - Tests asserting accessible names that will now include the kind (`getByRole('heading', { name })`). Update them.
 
 ## Acceptance criteria
-- [ ] The details h1 accessible name is "Deployment web" (an RTL test). Badge links read "<Kind> <name>".
-- [ ] A popover description with a URL renders an external link. Newlines in descriptions are preserved.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4).
+- [x] The details h1 accessible name is "Deployment web" (an RTL test). Badge links read "<Kind> <name>".
+- [x] A popover description with a URL renders an external link. Newlines in descriptions are preserved.
+- [x] Build, lint and tests green (CLAUDE.md rule 4).
 
 ## Work log
+- 2026-11-24 frontend-engineer: `KindBadge` renders `pf-v6-u-screen-reader` kind + a space text node before the aria-hidden pill; popover body linkifies URLs with `ExternalLinkButton` (react-component-groups, already a dep; no new package). Updated heading-name / row-text tests and `withoutBadges`.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. The `pf-v6-u-screen-reader` kind comes before the aria-hidden pill, as in OCP `resource-icon.tsx:20`. The separate `' '` text node is correct: without it the name computes as "Deploymentweb". It stays invisible because the out-of-flow sr span lets the space collapse at line start or next to existing spaces ("Labels for ", "Container: "), and a whitespace-only flex item is dropped. The popover body matches OCP `details-item.tsx` (`LinkifyExternal` + `co-pre-line`) and uses the existing `ExternalLinkButton` (no new dependency). The test covers href, `_blank`, rel, newlines and trailing punctuation.
+- Deviations accepted: links keep their own name and the badge sits beside the link, as in OCP `ResourceLink`. Option names now include the kind; the orchestrator updated `EditDeploymentPage.test.tsx` L522/532/533.
+- Nit (optional): `DetailsGrid.tsx:76` — move `URL_PATTERN`/`LinkifiedText` to `shared/ui/text` if a second caller appears. Popover min-width is still not re-measured.
 
 ## Handover notes
+- The space is a separate text node, not inside the sr span: dom-accessibility-api (and Chrome) trim per element, so "Deploymentweb" otherwise. It is invisible (out-of-flow sr span / whitespace-only flex item).
+- Options with a badge now read the kind too (e.g. "ConfigMap web-config"), as OCP. **`deployments/form/EditDeploymentPage.test.tsx` L522/L532** need `name: 'ConfigMap web-config'` (that folder is owned by another task; not touched).
+- Links keep their own name ("web"): the badge sits beside the link, not in it, as in OCP `ResourceLink`; the row/cell reads "Deployment web". Playwright `exact` link names stay valid.
+- Popover min-width not re-measured (OCP ref console down).

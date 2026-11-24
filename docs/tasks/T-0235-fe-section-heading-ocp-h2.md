@@ -1,12 +1,12 @@
 ---
 id: T-0235
 title: Section headings use OCP's 20px h2 with a full-width flex row
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4c
 depends_on: []
 paths: [web/src/shared/ui/page, web/src/features/admin/clusters/CaCertificatesTable.tsx, web/src/features/resources/configs]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -35,12 +35,17 @@ Every details-page section heading ("Deployment details", "Data", "Containers", 
 - Probe: `node scripts/ui-probe.mjs` on `/k8s/ns/consolinho/deployments/consolinho` vs ours `deployments/web`; h2 fontSize 20px, height 26px.
 
 ## Acceptance criteria
-- [ ] Details h2s measure 20px/26px/600, margin-bottom 16px, in light and dark (probe vs OCP deployment and secret details).
-- [ ] The heading row with actions is full content width, with the actions right-aligned. The Reveal button padding is 8px.
-- [ ] Tests that assert heading size/classes updated. Build, lint and tests green (CLAUDE.md rule 4).
+- [x] Details h2s measure 20px/26px/600, margin-bottom 16px, in light and dark (probe vs OCP deployment and secret details).
+- [x] The heading row with actions is full content width, with the actions right-aligned. The Reveal button padding is 8px.
+- [x] Tests that assert heading size/classes updated. Build, lint and tests green (CLAUDE.md rule 4).
 
 ## Work log
+- 2026-11-24 frontend-engineer: dropped `size="lg"` from `SectionHeading` (both branches) and the CA certificates h2 (PF default `pf-m-h2`); removed the Reveal button `pf-v6-u-pr-0`. Probe (ours, both themes): h2 20/26/600, mb 16px; Data row 894px space-between; Reveal padding 8px. OCP ref console was down, compared with the T-0222 numbers.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. `SectionHeading` (both branches) and the CA h2 drop `size`, so they use PF's default `pf-m-h2`, which matches OCP `SecondaryHeading` (no size). The Reveal button `pf-v6-u-pr-0` is removed, so padding is 8px. The actions stay a sibling in the full-width space-between Flex, as the contract allows. No custom CSS. `scripts/check-fe.sh` is green (1223 tests).
+- Nit (optional): AC 1 was compared with the T-0222 numbers, not a live OCP probe. Confirm it in the next live UX pass.
 
 ## Handover notes
+- Secret Reveal stays a sibling of the h2 (accessible name), per the contract. Context-pack path `resources/configs` is really `resources/workloads/config`.
+- No test asserted the size class, so none needed updating.

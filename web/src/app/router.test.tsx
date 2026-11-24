@@ -50,7 +50,7 @@ describe('routes', () => {
     renderApp(path);
 
     expect(
-      await screen.findByRole('heading', { name: 'web-7d4b9c8f6d-2xkqp', level: 1 }),
+      await screen.findByRole('heading', { name: 'Pod web-7d4b9c8f6d-2xkqp', level: 1 }),
     ).toBeInTheDocument();
     expect(await screen.findByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');
   });
@@ -58,7 +58,7 @@ describe('routes', () => {
   it('renders cluster-scoped details routes', async () => {
     renderApp('/c/dev-1/k8s/cluster/namespaces/shop');
 
-    expect(await screen.findByRole('heading', { name: 'shop', level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Namespace shop', level: 1 })).toBeInTheDocument();
   });
 
   it.each([
@@ -112,14 +112,14 @@ describe('routes', () => {
   });
 
   // The user (T-0032) and cluster (T-0035) detail pages title themselves with the decoded route name, also for an
-  // unknown one (404 state); tab selection is covered by their page tests.
+  // unknown one (404 state), after the kind badge's screen-reader text; tab selection is covered by their page tests.
   it.each([
-    ['/fleet/admin/users/alice', 'alice'],
-    ['/fleet/admin/users/alice/access', 'alice'],
-    ['/fleet/admin/users/kube%3Aadmin', 'kube:admin'],
-    ['/fleet/admin/clusters/dev-1', 'dev-1'],
-    ['/fleet/admin/clusters/dev-1/credentials', 'dev-1'],
-    ['/fleet/admin/clusters/dev-1/access', 'dev-1'],
+    ['/fleet/admin/users/alice', 'User alice'],
+    ['/fleet/admin/users/alice/access', 'User alice'],
+    ['/fleet/admin/users/kube%3Aadmin', 'User kube:admin'],
+    ['/fleet/admin/clusters/dev-1', 'Cluster dev-1'],
+    ['/fleet/admin/clusters/dev-1/credentials', 'Cluster dev-1'],
+    ['/fleet/admin/clusters/dev-1/access', 'Cluster dev-1'],
   ])('renders %s', async (path, title) => {
     renderApp(path);
 

@@ -62,9 +62,7 @@ export function CaCertificatesTable({ cluster }: CaCertificatesTableProps) {
   return (
     <Stack hasGutter>
       <StackItem>
-        <Title headingLevel="h2" size="lg">
-          CA certificates
-        </Title>
+        <Title headingLevel="h2">CA certificates</Title>
       </StackItem>
       {skipTlsVerify && (
         <StackItem>

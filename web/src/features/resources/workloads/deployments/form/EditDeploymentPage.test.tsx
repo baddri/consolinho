@@ -519,7 +519,7 @@ describe('EditDeploymentPage', () => {
       await user.type(defined(names().at(-1)), 'LOG_LEVEL');
       expect(section.getByRole('button', { name: 'Select a key' })).toBeDisabled();
       await user.click(section.getByRole('button', { name: 'Select a resource' }));
-      await user.click(await screen.findByRole('option', { name: 'web-config' }));
+      await user.click(await screen.findByRole('option', { name: 'ConfigMap web-config' }));
       // The cleared key isn't validated yet: only the toggle says "Select a key", no error.
       expect(section.getAllByText('Select a key')).toHaveLength(1);
       await user.click(section.getByRole('button', { name: 'Select a key' }));
@@ -529,8 +529,8 @@ describe('EditDeploymentPage', () => {
       await user.type(defined(names().at(-1)), 'DB_PASSWORD');
       await user.click(section.getByRole('button', { name: 'Select a resource' }));
       await user.type(screen.getByRole('textbox', { name: 'ConfigMap or Secret' }), 'db');
-      expect(screen.queryByRole('option', { name: 'web-config' })).not.toBeInTheDocument();
-      await user.click(await screen.findByRole('option', { name: 'db-credentials' }));
+      expect(screen.queryByRole('option', { name: 'ConfigMap web-config' })).not.toBeInTheDocument();
+      await user.click(await screen.findByRole('option', { name: 'Secret db-credentials' }));
       await user.click(section.getByRole('button', { name: 'Select a key' }));
       expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
         'password',

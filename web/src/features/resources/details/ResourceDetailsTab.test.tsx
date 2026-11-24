@@ -68,8 +68,35 @@ describe('details field help (HELP-1, OCP DetailsItem path)', () => {
 
     expect(await screen.findByText('Restart policy')).toBeInTheDocument();
     await forbidden;
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Restart policy' })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Restart policy' })).not.toBeInTheDocument(),
+    );
     expect(screen.queryByRole('button', { name: 'Labels' })).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+});
+
+describe('details metadata inline edit (OCP ResourceSummary canUpdate)', () => {
+  it('admin: Labels "Edit" and the annotation count open the Actions menu modals', async () => {
+    const { user } = renderApp(POD_PATH);
+
+    const metadata = await screen.findByLabelText('Metadata', {}, { timeout: COLD_START_TIMEOUT_MS });
+    await user.click(await within(metadata).findByRole('button', { name: 'Edit' }));
+    expect(await screen.findByRole('dialog', { name: 'Edit labels' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+    await user.click(within(metadata).getByRole('button', { name: /^\d+ annotations?$/ }));
+    expect(await screen.findByRole('dialog', { name: 'Edit annotations' })).toBeInTheDocument();
+  });
+
+  it('alice on a read-only grant: no Edit and a plain annotation count', async () => {
+    setMockUser('alice');
+    renderApp('/c/prod-eu-1/k8s/ns/shop/pods/web-7d4b9c8f6d-2xkqp');
+
+    const metadata = await screen.findByLabelText('Metadata', {}, { timeout: COLD_START_TIMEOUT_MS });
+    expect(await within(metadata).findByText(/^\d+ annotations?$/)).toBeInTheDocument();
+    expect(within(metadata).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(within(metadata).queryByRole('button', { name: /annotation/ })).not.toBeInTheDocument();
   });
 });

@@ -90,7 +90,7 @@ describe('ClusterDetailPage (T-0035)', () => {
       renderApp('/fleet/admin/clusters/prod-eu-1');
       const list = await findDetails(COLD_START_TIMEOUT_MS);
 
-      expect(screen.getByRole('heading', { name: 'prod-eu-1', level: 1 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Cluster prod-eu-1', level: 1 })).toBeInTheDocument();
       // OCP details heading: large kind badge, name and status; no subtitle (the display name is a details item).
       expect(screen.queryByText('Production EU 1', { selector: 'p' })).not.toBeInTheDocument();
       const labels = screen.getByRole('list', { name: 'Cluster labels' });
@@ -99,11 +99,18 @@ describe('ClusterDetailPage (T-0035)', () => {
       // Header status label + details Status.
       expect(screen.getAllByText('Enabled')).toHaveLength(2);
       const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' });
-      expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute('href', '/fleet/admin/clusters');
+      expect(within(crumbs).getByRole('link', { name: 'Clusters' })).toHaveAttribute(
+        'href',
+        '/fleet/admin/clusters',
+      );
       expect(within(crumbs).getByText('Cluster details')).toHaveAttribute('aria-current', 'page');
       expect(screen.getByRole('heading', { name: 'Cluster details', level: 2 })).toBeInTheDocument();
 
-      expect(within(list).getAllByRole('term').map((term) => term.textContent)).toEqual([
+      expect(
+        within(list)
+          .getAllByRole('term')
+          .map((term) => term.textContent),
+      ).toEqual([
         'Name',
         'Display name',
         'Environment',
@@ -220,7 +227,10 @@ describe('ClusterDetailPage (T-0035)', () => {
 
     await waitFor(() => expect(screen.queryByText('Disabled')).not.toBeInTheDocument());
     expect(screen.getAllByText('Enabled')).toHaveLength(2);
-    expect(setData).toHaveBeenCalledWith(adminKeys.cluster('dev-2'), expect.objectContaining({ isEnabled: true }));
+    expect(setData).toHaveBeenCalledWith(
+      adminKeys.cluster('dev-2'),
+      expect.objectContaining({ isEnabled: true }),
+    );
     expect(invalidate).toHaveBeenCalledWith({ queryKey: accessibleClustersQueryKey });
   });
 
@@ -288,7 +298,9 @@ describe('ClusterDetailPage (T-0035)', () => {
   });
 
   it('QG-3: other errors show the detail with a working Retry', async () => {
-    server.use(http.get('/api/admin/clusters/{name}', () => problem(500, { detail: 'Database unavailable.' })));
+    server.use(
+      http.get('/api/admin/clusters/{name}', () => problem(500, { detail: 'Database unavailable.' })),
+    );
     const { user } = renderApp('/fleet/admin/clusters/dev-1');
 
     expect(await screen.findByText('Could not load cluster')).toBeInTheDocument();

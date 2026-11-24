@@ -1,42 +1,18 @@
-import { ExpandableSection, List, ListItem } from '@patternfly/react-core';
-import { useState } from 'react';
 import { Link } from 'react-router';
 import { NamespaceModel, type K8sResource } from '@/shared/k8s';
-import { DetailsItem, kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
+import { DetailsItem, InlineEditButton, kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { OwnerReferences } from '../components/ObjectReferenceLink';
 import { BadgedName } from '../components/ResourceLink';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
 import { PodSelectorLink, labelSelectorString } from '../registry/columns';
 import type { ResourceDescriptor } from '../registry/types';
 import { searchPath } from '../search/searchPath';
+import { useMetadataEdit } from './useMetadataEdit';
 import { useNamespaceModel } from './useNamespaceModel';
 
 /** "1 annotation" / "N annotations" (and tolerations): OCP's `{{count}} annotation` plural. */
 function countText(count: number, noun: string): string {
   return `${String(count)} ${noun}${count === 1 ? '' : 's'}`;
-}
-
-/** "N annotations", expandable to the `key=value` list (annotations can be long, so collapsed by default). */
-function Annotations({ annotations }: { annotations: Record<string, string> }) {
-  const [expanded, setExpanded] = useState(false);
-  const entries = Object.entries(annotations);
-  const count = countText(entries.length, 'annotation');
-  if (entries.length === 0) return <>{count}</>;
-  return (
-    <ExpandableSection
-      toggleText={count}
-      isExpanded={expanded}
-      onToggle={(_event, next) => setExpanded(next)}
-    >
-      <List isPlain>
-        {entries.map(([key, value]) => (
-          <ListItem key={key}>
-            {key}={value}
-          </ListItem>
-        ))}
-      </List>
-    </ExpandableSection>
-  );
 }
 
 /**
@@ -60,7 +36,9 @@ export interface MetadataSectionProps {
  * Left column of the Details tab, OCP `ResourceSummary` (`details-page.tsx`, `UX.md` §6): Name, Namespace (`NS` badge,
  * linking to the project/namespace), Labels (kind-coloured, each linking to Search with it and the kind preselected, SRCH-4), the
  * descriptor's optional Pod selector / Node selector / Tolerations, Annotations, its `Extra` rows, "Created at" and
- * Owner. Renders `DetailsItem`s only; the caller supplies the vertical `DescriptionList`.
+ * Owner. With `patch` access, Labels has OCP's inline "Edit" and the annotation count is a link, both opening the
+ * Actions menu's modals; otherwise both are plain. Tolerations stay a plain count (no tolerations modal yet).
+ * Renders `DetailsItem`s (and the open modal) only; the caller supplies the vertical `DescriptionList`.
  */
 export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionProps) {
   const namespaceModel = useNamespaceModel(cluster);
@@ -68,9 +46,13 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
   const { name, namespace, labels = {}, annotations = {}, creationTimestamp } = obj.metadata;
   // OCP `getTolerationsPath` / `PodResourceSummary`: a Pod's own spec, every other kind's pod template.
   const podSpecPath = model.kind === 'Pod' ? 'spec' : 'spec.template.spec';
+  const edit = useMetadataEdit(cluster, model, obj);
+  const annotationCount = countText(Object.keys(annotations).length, 'annotation');
   return (
     <>
-      <DetailsItem label="Name" path="metadata.name">{name}</DetailsItem>
+      <DetailsItem label="Name" path="metadata.name">
+        {name}
+      </DetailsItem>
       {namespace !== undefined && (
         <DetailsItem label="Namespace" path="metadata.namespace">
           <BadgedName badge={NamespaceModel}>
@@ -78,12 +60,18 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
           </BadgedName>
         </DetailsItem>
       )}
-      <DetailsItem label="Labels" path="metadata.labels">
+      <DetailsItem label="Labels" path="metadata.labels" onEdit={edit.canEdit ? edit.openLabels : undefined}>
+        {/* OCP boxes the labels (`co-editable-label-group`) only when they are editable. */}
         <ResourceLabels
+          isBoxed={edit.canEdit}
           labels={labels}
           color={kindLabelColor(model.kind)}
           linkTo={(key, value) =>
-            searchPath(cluster, { namespace: namespace ?? ALL_NAMESPACES, kinds: [model], labels: [`${key}=${value}`] })
+            searchPath(cluster, {
+              namespace: namespace ?? ALL_NAMESPACES,
+              kinds: [model],
+              labels: [`${key}=${value}`],
+            })
           }
         />
       </DetailsItem>
@@ -103,7 +91,11 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
         </DetailsItem>
       )}
       <DetailsItem label="Annotations" path="metadata.annotations">
-        <Annotations annotations={annotations} />
+        {edit.canEdit ? (
+          <InlineEditButton onClick={edit.openAnnotations}>{annotationCount}</InlineEditButton>
+        ) : (
+          annotationCount
+        )}
       </DetailsItem>
       {/* Rendered as a component (not called) so it may use hooks. */}
       {summary?.Extra && <summary.Extra obj={obj} />}
@@ -113,6 +105,7 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
       <DetailsItem label="Owner" path="metadata.ownerReferences">
         <OwnerReferences obj={obj} />
       </DetailsItem>
+      {edit.dialog}
     </>
   );
 }

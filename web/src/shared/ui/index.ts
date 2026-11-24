@@ -28,6 +28,7 @@ export {
   DetailsColumn,
   DetailsGrid,
   DetailsItem,
+  InlineEditButton,
   type DetailsColumnProps,
   type DetailsItemProps,
 } from './page/DetailsGrid';

@@ -82,7 +82,7 @@ describe('UsersListPage (USR-1)', () => {
     const paul = within(rowOf(table, 'pending-paul'));
     expect(paul.getByText('Pending')).toBeInTheDocument();
     expect(paul.getByText('Never')).toBeInTheDocument();
-    expect(paul.getByText('User')).toBeInTheDocument();
+    expect(paul.getByRole('cell', { name: 'User' })).toBeInTheDocument();
 
     expect(within(rowOf(table, 'dave')).getByText('Deactivated')).toBeInTheDocument();
     expect(within(rowOf(table, 'ines')).getByText('Read only')).toBeInTheDocument();

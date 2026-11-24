@@ -55,4 +55,21 @@ describe('KindBadge (OCP co-m-resource-icon)', () => {
     expect(badge).toHaveTextContent('P');
     expect(badge).toHaveAttribute('aria-hidden', 'true');
   });
+
+  it('prefixes a title or link with the kind for screen readers (OCP resource-icon pf-v6-u-screen-reader)', () => {
+    render(
+      <>
+        <h1>
+          <KindBadge kind="Deployment" size="lg" />
+          web
+        </h1>
+        <a href="/cm">
+          <KindBadge kind="ConfigMap" />
+          web-config
+        </a>
+      </>,
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Deployment web');
+    expect(screen.getByRole('link')).toHaveAccessibleName('ConfigMap web-config');
+  });
 });
