@@ -94,7 +94,10 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   masthead uses the dark-theme logo (`LOGO_SRC.dark`); the nav header frame is sm padding cancelled by negative margins
   (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
 - Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
-  the theme uses no red/orange; the band (first row of the main card, below the navy masthead; red-20 vs navy 8.3:1 light, 6.7:1 dark — T-0172) stays the dominant cue.
+  the theme uses no red/orange; the band stays the dominant cue. It is not flush under the masthead: with the glass/felt page it is the first row
+  of the main card (y=90 vs masthead bottom 73), separated by the page background, so band vs the 3px accent edge is
+  not an adjacency. Measured band vs navy (T-0172): light `#fbc5c5` 8.34:1, dark `#f9a8a8` 6.72:1; band text 12.08:1 /
+  8.79:1.
 - Icons (`aria-hidden`, distinct shapes): OpenShift `OpenshiftIcon` from `@patternfly/react-icons`, Kubernetes
   `CubesIcon` (generic until CP5.5: PF ships no Kubernetes logo icon), Fleet management `GlobeIcon` (round).
   **Logo exception (human directive, 2026-11-24, T-0203):** `OpenshiftIcon` is allowed **only** as the cluster type
