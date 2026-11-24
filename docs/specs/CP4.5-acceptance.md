@@ -130,3 +130,11 @@ Defects filed: none (the one failure was a stale test, fixed in place).
 - T-0271 (QGC-1/OAPI-3 flake) fixed test-side: the Monaco Find widget sometimes resumed at the 2nd `replicas: 1` (under `status`, caret line 34 vs 15, diagnosed by instrumenting the caret). `findInEditor` now steps to match "1 of N".
 
 Defects filed: none.
+
+## ACCEPT (CP4.5b) (product owner, 2026-11-25, @ 33841ce)
+**Verdict: ACCEPTED (build scope).** CACHE-1 to CACHE-8, OPS-1, QG-1 and QG-4 are met per VERIFY. OPS-2/OPS-3 are open until T-0286; CP4.5 is not closed before then.
+- CACHE-1 deviation accepted: a FusionCache `IQueryCache` port with tags taken from the loaded result is the hybrid cache the AC wants. Up-front `HybridCache` tags would need a second user lookup per event. Caching still runs in a pipeline behavior. AC wording is met in spirit (ADR-0040 §2).
+- CACHE-6 goes further than the AC asked: Redis and L1 hold only ciphertext and the token is decrypted per request. This is accepted. Revisit only if OPS-3 shows decryption cost.
+- R1 accepted. A fresh pod can miss an invalidation for a few ms before its backplane subscribes, and the 30 s `Cache:Duration` bounds it. This is the same exposure as the post-commit race in ADR-0040. Condition for T-0286: revoke only after both pods have served traffic, and record the refusal on the other pod.
+- T-0286 must record OPS-3 next to the T-0242 baseline (p95 71 ms, Postgres peak 177m). HPA/requests change only if the data says so.
+- Backlog (later): subscribe to the backplane eagerly at startup (readiness waits for it) to close R1 instead of relying on the TTL.
