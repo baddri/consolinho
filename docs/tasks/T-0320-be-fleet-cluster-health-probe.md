@@ -1,12 +1,12 @@
 ---
 id: T-0320
 title: Fleet core — IClusterHealthReader port, FleetOptions, cached per-(cluster, credential) ClusterHealthProbe, fleet DTOs, probe metric
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 5c
 depends_on: []
 paths: [src/FleetConsole.Application/Fleet/, src/FleetConsole.Application/Abstractions/Kubernetes/IClusterHealthReader.cs, src/FleetConsole.Application/Abstractions/Kubernetes/ClusterHealthReading.cs, src/FleetConsole.Application/Abstractions/Caching/IQueryCache.cs, src/FleetConsole.Infrastructure/Caching/FusionQueryCache.cs, src/FleetConsole.Application/ApplicationDiagnostics.cs, src/FleetConsole.Application/DependencyInjection.cs, tests/FleetConsole.Application.Tests/Fleet/, tests/FleetConsole.Api.Tests/Caching/]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -105,18 +105,41 @@ verify the member in the FusionCache XML docs); fail-safe stays off. Add one tes
 - Invalidation needs **no new handler**: `Application/Access/AccessCacheInvalidation.cs` already removes `cluster:`/`credential:` tags.
 
 ## Acceptance criteria
-- [ ] Port, reading types, `FleetProbePaths`, `FleetOptions`, DTOs, enums, `ClusterHealthFacts` exist with XML docs (why/how).
-- [ ] Mapper table-driven tests: each `ProbeFailureKind` → failure, precedence with mixed kinds, forbidden/notFound
+- [x] Port, reading types, `FleetProbePaths`, `FleetOptions`, DTOs, enums, `ClusterHealthFacts` exist with XML docs (why/how).
+- [x] Mapper table-driven tests: each `ProbeFailureKind` → failure, precedence with mixed kinds, forbidden/notFound
       sections, notReady arithmetic, Kubernetes (null CV/CO) vs OpenShift (null version).
-- [ ] Probe tests (NSubstitute reader/protector/cache-pass-through): key + tags contain cluster and **winner credential**;
+- [x] Probe tests (NSubstitute reader/protector/cache-pass-through): key + tags contain cluster and **winner credential**;
       policy refusal → BlockedByPolicy, reader and `Unprotect` never called, cache not called; timeout (reader awaits
       cancellation, budget 50 ms) → Timeout facts; caller cancellation → throws OCE; `CacheDuration` passed through.
-- [ ] Facts JSON round-trip test; metric recorded once per load (`MetricCollector<double>`); no token in captured logs.
-- [ ] `IQueryCache` duration overload implemented and tested (entry expires after the given duration).
-- [ ] `scripts/check-be.sh` green.
+- [x] Facts JSON round-trip test; metric recorded once per load (`MetricCollector<double>`); no token in captured logs.
+- [x] `IQueryCache` duration overload implemented and tested (entry expires after the given duration).
+- [x] `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-25 backend-engineer: implemented port/reading types, `FleetProbePaths` (+ `FleetProbeRequest(Path, QueryString)`),
+  `FleetOptions`, DTOs/enums, `ClusterHealthFacts` (+ `Failed`, `ToStatus`), mapper, `ClusterHealthProbe`, `FleetMetrics`,
+  `IQueryCache` duration overload (FusionCache `CreateEntryOptions(duration:)`). Outside paths (minimal): the 3 test
+  `IQueryCache` fakes gained the overload; `ServiceProviderBuilder` registers a test `IMeterFactory`; package
+  `Microsoft.Extensions.Diagnostics.Testing` 10.0.0 (MIT) for MetricCollector/FakeLogger. `check-be.sh` green.
 
 ## Review
+- 2026-11-25 backend-architect, round 1: **APPROVE**. Matches ADR-0041 §2–§6 and contract §2/§3 (DTO shapes, wire
+  names, paths, `includeObject=None`); policies before cache/decrypt, decrypt only in loader, credential-keyed entry, budget
+  vs caller OCE, one log + one histogram per load, overload keeps fail-safe off (no `DistributedCacheDuration` default to override).
+- Deviations accepted: (1) probe DI deferred — T-0321 now registers it (path added, merges after T-0322), T-0322 notes the
+  reader DI; (2) `FleetProbeRequest(Path, QueryString)` is clearer than string pairs; (3) `Microsoft.Extensions.Diagnostics.Testing`
+  10.0.0 (MIT, test-only) and the 3 fake/`ServiceProviderBuilder` edits are the minimum the overload/meter require.
+- Optional nit: `ClusterHealthProbe.cs` — `const Restricted` sits between methods; move it to the top with the other statics.
 
 ## Handover notes
+- **Deviation — probe not registered in DI yet.** `AddApplication` registers `AddOptions<FleetOptions>()` + `FleetMetrics`
+  only. Registering `ClusterHealthProbe` now would fail the Api's validate-on-build (no `IClusterHealthReader` until
+  T-0322). T-0321 must add `services.AddScoped<IClusterHealthProbe, ClusterHealthProbe>()`; T-0322 registers the reader
+  (Api.Tests/ServiceProviderBuilder need it, or a substitute, at the same time).
+- `FleetMetrics` needs `IMeterFactory` (host's AddMetrics; Application.Tests uses `Fleet/TestMeterFactory`).
+- `ClusterHealthFacts.ToStatus(AccessibleClusterDto)` builds the line for T-0321; the facts are internal, DTOs public.
+- `FleetProbePaths.For` returns `FleetProbeRequest(Path, QueryString)`; Table requests use `TableQuery`
+  (`?includeObject=None`); T-0322 adds the Table `Accept` header itself.
+- Probe log EventId 5300; metric tag `outcome` = failure wire name (`tlsError`, …), `ok` or `restricted`;
+  BlockedByPolicy is neither logged nor measured (no load).
+- Timeout detection: OCE while the caller's token is not cancelled → cached `Timeout` facts.

@@ -108,5 +108,7 @@
     <PackageVersion Include="Testcontainers.Redis" Version="4.17.0" />
     <!-- Real DI container for dispatcher/behavior tests (the Api tests get it from the ASP.NET Core shared framework). -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <!-- MetricCollector / FakeLogger for Application unit tests (fleet probe metric and log, T-0320). MIT. -->
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.0.0" />
   </ItemGroup>
 </Project>

@@ -42,6 +42,9 @@ internal static class ServiceProviderBuilder
 
             // The query cache port (Infrastructure): the closed CachingBehavior and AccessCacheInvalidation need it.
             services.AddSingleton<IQueryCache, Behaviors.FakeQueryCache>();
+
+            // The host's meter factory (AddMetrics): FleetMetrics (ADR-0041 §6) needs it.
+            services.AddSingleton<System.Diagnostics.Metrics.IMeterFactory, Fleet.TestMeterFactory>();
             services.AddScoped<IAuditEntryRepository, CapturingAuditEntryRepository>();
             services.AddScoped<ICurrentUser>(_ => FakeCurrentUser.Anonymous);
 

@@ -182,6 +182,20 @@ internal sealed class FakeQueryCache : IQueryCache
         return value;
     }
 
+    /// <summary>The duration passed to the last duration overload call; the fake itself never expires entries.</summary>
+    public TimeSpan? LastDuration { get; private set; }
+
+    public ValueTask<TValue> GetOrLoadAsync<TValue>(
+        string key,
+        Func<CancellationToken, Task<TValue>> load,
+        Func<TValue, IReadOnlyCollection<string>> tagsFor,
+        TimeSpan duration,
+        CancellationToken cancellationToken)
+    {
+        LastDuration = duration;
+        return GetOrLoadAsync(key, load, tagsFor, cancellationToken);
+    }
+
     public ValueTask RemoveByTagsAsync(IReadOnlyCollection<string> tags, CancellationToken cancellationToken) =>
         ValueTask.CompletedTask;
 }

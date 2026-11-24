@@ -91,6 +91,10 @@ public sealed class AccessCacheTtlTests(AccessCacheTtlTests.Host fixture) : ICla
             string key, Func<CancellationToken, Task<TValue>> load, Func<TValue, IReadOnlyCollection<string>> tagsFor, CancellationToken cancellationToken) =>
             inner.GetOrLoadAsync(key, load, tagsFor, cancellationToken);
 
+        public ValueTask<TValue> GetOrLoadAsync<TValue>(
+            string key, Func<CancellationToken, Task<TValue>> load, Func<TValue, IReadOnlyCollection<string>> tagsFor, TimeSpan duration, CancellationToken cancellationToken) =>
+            inner.GetOrLoadAsync(key, load, tagsFor, duration, cancellationToken);
+
         public ValueTask RemoveByTagsAsync(IReadOnlyCollection<string> tags, CancellationToken cancellationToken) => ValueTask.CompletedTask;
     }
 }

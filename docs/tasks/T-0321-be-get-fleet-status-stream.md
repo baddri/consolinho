@@ -5,7 +5,7 @@ status: todo
 owner: backend-engineer
 checkpoint: 5c
 depends_on: [T-0320]
-paths: [src/FleetConsole.Application/Fleet/GetFleetStatus/, src/FleetConsole.Application/Clusters/ListAccessibleClusters/, tests/FleetConsole.Application.Tests/Fleet/GetFleetStatus/]
+paths: [src/FleetConsole.Application/Fleet/GetFleetStatus/, src/FleetConsole.Application/DependencyInjection.cs, src/FleetConsole.Application/Clusters/ListAccessibleClusters/, tests/FleetConsole.Application.Tests/Fleet/GetFleetStatus/]
 review_rounds: 0
 ---
 
@@ -37,6 +37,9 @@ cluster's line as soon as it completes.
   a line with `Failure = UpstreamError`, `CheckedAt = now`; other clusters continue. OCE from `ct` propagates.
 - `IClusterHealthProbe` is scoped and concurrency-safe by contract (T-0320); the handler resolves it once and shares
   it — **do not** dispatch further queries from inside the parallel loop (shared request scope, ADR-0041 §3).
+- **DI (deferred from T-0320):** register `services.AddScoped<IClusterHealthProbe, ClusterHealthProbe>()` in
+  `AddApplication` (replace the deferral comment there). The Api validates the container on build, so this task (and the
+  handler, which needs the probe) **merges after T-0322** registers `IClusterHealthReader`; develop in parallel.
 
 ## Context pack
 - Docs: `BACKEND.md` §CQRS (query recipe), ADR-0041 §1, §3 (last paragraph), §5.

@@ -8,7 +8,7 @@ namespace FleetConsole.Application.Abstractions.Caching;
 /// <remarks>
 /// <para>Implemented in Infrastructure on FusionCache; FusionCache types never leak past that adapter. Use cases don't
 /// call it directly for reads: a query opts in by implementing <see cref="ICacheableQuery{TValue}"/>, and the
-/// <c>CachingBehavior</c> calls <see cref="GetOrLoadAsync{TValue}"/>. Invalidation (post-commit event handlers) calls
+/// <c>CachingBehavior</c> calls <see cref="GetOrLoadAsync{TValue}(string, Func{CancellationToken, Task{TValue}}, Func{TValue, IReadOnlyCollection{string}}, CancellationToken)"/>. Invalidation (post-commit event handlers) calls
 /// <see cref="RemoveByTagsAsync"/> with tags built by <see cref="CacheTags"/>.</para>
 /// <para>Fail-safe is off: when an entry has expired and the loader throws, the exception propagates; a stale value is
 /// never served (CACHE-5). Values must be serializable with System.Text.Json (they travel through Redis) and must not
@@ -31,6 +31,26 @@ public interface IQueryCache
         string key,
         Func<CancellationToken, Task<TValue>> load,
         Func<TValue, IReadOnlyCollection<string>> tagsFor,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Like <see cref="GetOrLoadAsync{TValue}(string, Func{CancellationToken, Task{TValue}}, Func{TValue, IReadOnlyCollection{string}}, CancellationToken)"/>,
+    /// but a freshly loaded entry lives for <paramref name="duration"/> instead of the cache's default
+    /// (<c>Cache:Duration</c>). For caches with their own staleness budget, such as the fleet probe facts
+    /// (<c>Fleet:CacheDuration</c>, ADR-0041 §3); every other entry option (fail-safe off, timeouts) stays the default.
+    /// </summary>
+    /// <typeparam name="TValue">The cached value type; System.Text.Json serializable.</typeparam>
+    /// <param name="key">The versioned cache key; bump the version on shape changes.</param>
+    /// <param name="load">Produces the value on a miss. An exception it throws propagates and nothing is cached.</param>
+    /// <param name="tagsFor">The tags of a freshly loaded value (built with <see cref="CacheTags"/>).</param>
+    /// <param name="duration">How long a freshly loaded entry lives, in memory and in Redis.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The cached or freshly loaded value.</returns>
+    ValueTask<TValue> GetOrLoadAsync<TValue>(
+        string key,
+        Func<CancellationToken, Task<TValue>> load,
+        Func<TValue, IReadOnlyCollection<string>> tagsFor,
+        TimeSpan duration,
         CancellationToken cancellationToken);
 
     /// <summary>

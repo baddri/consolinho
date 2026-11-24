@@ -37,6 +37,9 @@ classified failures. Nothing raw (body, message, header) leaves the adapter.
   `Degraded == "True"`, `Progressing == "True"`. ClusterVersion JSON: rules in contract §2 (`currentVersion` = newest
   `history[]` with `state == "Completed"`, else `desired.version`; conditions by `type`; `availableUpdates` length).
 - One `LoggerMessage` Debug per failed probe (cluster id, probe name, kind) — no URL query, no body, no token.
+- **DI (deferred from T-0320):** register `IClusterHealthReader` → `ClusterHealthReader` in Infrastructure DI; the
+  probe itself is registered by T-0321 (which merges after this task). `FleetProbePaths.For` returns
+  `FleetProbeRequest(Path, QueryString)`; Table requests carry `FleetProbePaths.TableQuery` — add the Table `Accept` yourself.
 
 ## Context pack
 - Docs: ADR-0041 §2; contract `docs/specs/CP5-api-contract.md` §2–§3; `BACKEND.md` §The proxy (pool, TLS trust).
