@@ -9,6 +9,12 @@ namespace FleetConsole.Application.Abstractions.Persistence;
 public static class PersistenceErrors
 {
     /// <summary>
+    /// The <c>code</c> of the 503 ProblemDetails for <see cref="PersistenceUnavailableException"/> (ADR-0040 §8). Not an
+    /// <see cref="Error"/>: an outage is an exception mapped by the Api's exception handler, not a handler result.
+    /// </summary>
+    public const string UnavailableCode = "Persistence.Unavailable";
+
+    /// <summary>
     /// The row changed between load and save (<see cref="ConcurrencyConflictException"/>). Same code as the
     /// resource-specific version checks in handlers (ADR-0013 §4), with a generic noun.
     /// </summary>

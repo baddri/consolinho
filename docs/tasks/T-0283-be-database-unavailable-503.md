@@ -1,7 +1,7 @@
 ---
 id: T-0283
 title: Database unreachable → 503 ProblemDetails Persistence.Unavailable (CACHE-5 error path)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5b
 depends_on: []
@@ -43,15 +43,35 @@ public sealed class PersistenceUnavailableException(string message, Exception in
   (`configureServices` to swap in a failing `IReadModel`, or point `ConnectionStrings:consoledb` at a closed port after start).
 
 ## Acceptance criteria
-- [ ] Unit tests: each translated exception type → `PersistenceUnavailableException`; a non-transient
+- [x] Unit tests: each translated exception type → `PersistenceUnavailableException`; a non-transient
       `PostgresException` is not translated.
-- [ ] Api test: signed-in user, database unreachable → `GET /api/clusters` and a proxy `GET /api/clusters/{name}/k8s/...`
+- [x] Api test: signed-in user, database unreachable → `GET /api/clusters` and a proxy `GET /api/clusters/{name}/k8s/...`
       both answer 503 `application/problem+json` with `code` `Persistence.Unavailable` and `Retry-After`; no token or
       connection string in body or logs (`TokenLeakScanner`).
-- [ ] XML docs; `scripts/check-be.sh` green (CLAUDE.md rule 4)
+- [x] XML docs; `scripts/check-be.sh` green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 backend-engineer: todo → in_review. Exception (+ standard ctors, like ConcurrencyConflictException),
+  `PersistenceErrors.UnavailableCode`, translation in `ReadModel` (4 terminal methods) and `IUnitOfWork.SaveChangesAsync`
+  via shared `ConsoleDbContext.IsUnavailable/Unavailable` (internal static), 503 + Retry-After 5 + Warning EventId 2003
+  in `GlobalExceptionHandler` (searches the inner chain). check-be green (970 Api tests).
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. ReadModel + unit-of-work translation suffices for CACHE-5: the
+  proxy authz path (`ClusterAccessReader`) reads only via `IReadModel`; T-0282's Contract now requires its snapshot
+  loader to stay on `IReadModel`. Repository loads → 500 are command paths, outside CACHE-5 (follow-up only if wanted).
+  Retries disabled in tests only is right; note production waits out Aspire's retry backoff before the 503.
+- Optional: `src/FleetConsole.Infrastructure/Persistence/ConsoleDbContext.cs:401` — `IsUnavailable` walks into an
+  `OperationCanceledException`'s inner chain; Npgsql can throw OCE wrapping a transient `NpgsqlException` on client
+  abort, which would turn a 499 into a 503 + Warning. Return false when the outer exception is an OCE.
 
 ## Handover notes
+- Classification: `NpgsqlException{IsTransient:true}` (covers transient `PostgresException`, e.g. 57P03),
+  `TimeoutException`, `RetryLimitExceededException`, anywhere in the inner chain. Non-transient SQLSTATEs pass through.
+- Only `ReadModel` queries and the unit-of-work save translate. Repository loads (`FindAsync` etc. in Infrastructure)
+  and other direct DbContext use still surface raw exceptions → 500. Extend `IsUnavailable` there if needed (follow-up).
+- T-0281/T-0282: the handler finds the exception even when the cache wraps it (inner-chain walk), so no extra mapping needed.
+- Log: Warning 2003 with method, path and the cause's type name only. Development `Detail` unchanged.
+- Api test (`Integration/PersistenceUnavailableTests.cs`) sets `Aspire:...:DisableRetry=true` (otherwise each request
+  backs off ~1 min) and repoints `ConnectionStrings:consoledb` to a closed port after login. It uses
+  `ProxyTestClient` because the proxy route needs the emulated raw target.

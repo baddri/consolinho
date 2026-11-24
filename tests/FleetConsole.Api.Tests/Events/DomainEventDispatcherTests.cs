@@ -1,11 +1,14 @@
 using FleetConsole.Application.Abstractions.Events;
 using FleetConsole.Domain.Common;
 using FleetConsole.Infrastructure.Events;
+using FleetConsole.Api.Tests.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FleetConsole.Api.Tests.Events;
 
-/// <summary>Unit tests of <see cref="DomainEventDispatcher"/> with a plain container (no database).</summary>
+/// <summary>Unit tests of <see cref="DomainEventDispatcher"/> (both stages) with a plain container (no database).</summary>
 public sealed class DomainEventDispatcherTests
 {
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -22,7 +25,7 @@ public sealed class DomainEventDispatcherTests
         });
         await using var scope = provider.CreateAsyncScope();
 
-        await new DomainEventDispatcher(scope.ServiceProvider)
+        await NewDispatcher(scope)
             .DispatchAsync([new Pinged("a"), new Ponged("b"), new Pinged("c")], Ct);
 
         log.ShouldBe(["first a", "second a", "pong b", "first c", "second c"]);
@@ -35,7 +38,7 @@ public sealed class DomainEventDispatcherTests
         await using var provider = Build(log, _ => { });
         await using var scope = provider.CreateAsyncScope();
 
-        await new DomainEventDispatcher(scope.ServiceProvider).DispatchAsync([new Pinged("x")], Ct);
+        await NewDispatcher(scope).DispatchAsync([new Pinged("x")], Ct);
 
         log.ShouldBeEmpty();
     }
@@ -52,7 +55,7 @@ public sealed class DomainEventDispatcherTests
         await using var scope = provider.CreateAsyncScope();
 
         await Should.ThrowAsync<InvalidOperationException>(
-            () => new DomainEventDispatcher(scope.ServiceProvider).DispatchAsync([new Pinged("a"), new Ponged("b")], Ct));
+            () => NewDispatcher(scope).DispatchAsync([new Pinged("a"), new Ponged("b")], Ct));
 
         log.ShouldBeEmpty();
     }
@@ -69,10 +72,73 @@ public sealed class DomainEventDispatcherTests
         await using var scope = provider.CreateAsyncScope();
         var marker = scope.ServiceProvider.GetRequiredService<ScopeMarker>();
 
-        await new DomainEventDispatcher(scope.ServiceProvider).DispatchAsync([new Pinged("a")], Ct);
+        await NewDispatcher(scope).DispatchAsync([new Pinged("a")], Ct);
 
         log.ShouldBe([marker.Id.ToString()]);
     }
+
+    [Fact]
+    public async Task DispatchPostCommit_RunsEveryPostCommitHandler_InEventThenRegistrationOrder_AndNoPreCommitHandler()
+    {
+        var log = new List<string>();
+        await using var provider = Build(log, services =>
+        {
+            services.AddScoped<IDomainEventHandler<Pinged>, FirstPingHandler>();
+            services.AddScoped<IPostCommitDomainEventHandler<Pinged>, PostCommitPingHandler>();
+            services.AddScoped<IPostCommitDomainEventHandler<Pinged>, SecondPostCommitPingHandler>();
+            services.AddScoped<IPostCommitDomainEventHandler<Ponged>, PostCommitPongHandler>();
+        });
+        await using var scope = provider.CreateAsyncScope();
+
+        await NewDispatcher(scope).DispatchPostCommitAsync([new Pinged("a"), new Ponged("b"), new Pinged("c")], Ct);
+
+        log.ShouldBe(["post a", "post2 a", "post pong b", "post c", "post2 c"]);
+    }
+
+    [Fact]
+    public async Task Dispatch_PreCommit_DoesNotRunPostCommitHandlers()
+    {
+        var log = new List<string>();
+        await using var provider = Build(log, services => services.AddScoped<IPostCommitDomainEventHandler<Pinged>, PostCommitPingHandler>());
+        await using var scope = provider.CreateAsyncScope();
+
+        await NewDispatcher(scope).DispatchAsync([new Pinged("a")], Ct);
+
+        log.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData(typeof(InvalidOperationException))]
+    [InlineData(typeof(OperationCanceledException))]
+    public async Task DispatchPostCommit_AThrowingHandler_IsLoggedAndSwallowed_LaterHandlersAndEventsStillRun(Type exceptionType)
+    {
+        var log = new List<string>();
+        await using var provider = Build(log, services =>
+        {
+            services.AddSingleton(new ThrowingPostCommitPingHandler((Exception)Activator.CreateInstance(exceptionType, "secret-payload-text")!));
+            services.AddScoped<IPostCommitDomainEventHandler<Pinged>>(sp => sp.GetRequiredService<ThrowingPostCommitPingHandler>());
+            services.AddScoped<IPostCommitDomainEventHandler<Pinged>, PostCommitPingHandler>();
+            services.AddScoped<IPostCommitDomainEventHandler<Ponged>, PostCommitPongHandler>();
+        });
+        await using var scope = provider.CreateAsyncScope();
+        var captured = new CapturedLogs();
+        using var loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(captured));
+
+        await new DomainEventDispatcher(scope.ServiceProvider, loggerFactory.CreateLogger<DomainEventDispatcher>())
+            .DispatchPostCommitAsync([new Pinged("a"), new Ponged("b")], Ct);
+
+        log.ShouldBe(["post a", "post pong b"]);
+        var warning = captured.Entries.ShouldHaveSingleItem();
+        warning.Level.ShouldBe(LogLevel.Warning);
+        warning.EventId.ShouldBe(DomainEventDispatcher.PostCommitHandlerFailedEventId);
+        warning.Text.ShouldContain(nameof(Pinged));
+        warning.Text.ShouldContain(nameof(ThrowingPostCommitPingHandler));
+        warning.Text.ShouldContain(exceptionType.Name);
+        warning.Text.ShouldNotContain("secret-payload-text", customMessage: "only type names are logged");
+    }
+
+    private static DomainEventDispatcher NewDispatcher(AsyncServiceScope scope) =>
+        new(scope.ServiceProvider, NullLogger<DomainEventDispatcher>.Instance);
 
     private static ServiceProvider Build(List<string> log, Action<IServiceCollection> configure)
     {
@@ -122,6 +188,42 @@ public sealed class DomainEventDispatcherTests
     {
         public Task Handle(Pinged domainEvent, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("boom");
+    }
+
+    internal sealed class PostCommitPingHandler(List<string> log) : IPostCommitDomainEventHandler<Pinged>
+    {
+        public Task HandleAsync(Pinged domainEvent, CancellationToken cancellationToken)
+        {
+            log.Add($"post {domainEvent.Value}");
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class SecondPostCommitPingHandler(List<string> log) : IPostCommitDomainEventHandler<Pinged>
+    {
+        public async Task HandleAsync(Pinged domainEvent, CancellationToken cancellationToken)
+        {
+            await Task.Yield();
+            log.Add($"post2 {domainEvent.Value}");
+        }
+    }
+
+    internal sealed class PostCommitPongHandler(List<string> log) : IPostCommitDomainEventHandler<Ponged>
+    {
+        public Task HandleAsync(Ponged domainEvent, CancellationToken cancellationToken)
+        {
+            log.Add($"post pong {domainEvent.Value}");
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class ThrowingPostCommitPingHandler(Exception exception) : IPostCommitDomainEventHandler<Pinged>
+    {
+        public async Task HandleAsync(Pinged domainEvent, CancellationToken cancellationToken)
+        {
+            await Task.Yield();
+            throw exception;
+        }
     }
 
     internal sealed class ScopeReportingHandler(ScopeMarker marker, List<string> log) : IDomainEventHandler<Pinged>

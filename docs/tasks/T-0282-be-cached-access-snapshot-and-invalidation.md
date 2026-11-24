@@ -44,6 +44,7 @@ internal sealed record AccessSnapshotRow(Guid ClusterId, string ClusterName, str
   to value objects and runs `AccessResolver` + the tie log per request. The three callers stay unchanged apart from
   comments (verify `AuthorizeProxyRequestHandler` still decrypts only the winner, after policies — no decrypted token
   in any cached type).
+- CACHE-5 (T-0283): the snapshot handler queries only through `IReadModel` terminal operators (no repository/`DbContext`), so an outage surfaces as `PersistenceUnavailableException` → 503; the cache must not catch it or serve stale.
 - `Application/Access/AccessCacheInvalidation.cs`: one class implementing `IPostCommitDomainEventHandler<T>` for each
   event below, calling `IQueryCache.RemoveByTagsAsync` with `CacheTags.*`:
 

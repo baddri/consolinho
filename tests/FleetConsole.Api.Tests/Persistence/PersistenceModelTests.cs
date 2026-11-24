@@ -200,5 +200,7 @@ public sealed class PersistenceModelTests
     private sealed class NullDispatcher : IDomainEventDispatcher
     {
         public Task DispatchAsync(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task DispatchPostCommitAsync(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 }

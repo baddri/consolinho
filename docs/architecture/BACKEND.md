@@ -95,7 +95,10 @@ in registration order. Handlers and validators are registered by assembly scanni
    queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`
    implementation (`ConsoleDbContext`) owns domain events: it collects them from tracked `IHasDomainEvents` aggregates,
    hands them to the `IDomainEventDispatcher` port **before** writing (handlers stage audit entries in the same
-   context), writes everything in one transaction, then clears them (ADR-0008). Collection needs the change tracker, so
+   context), writes everything in one transaction, then clears them (ADR-0008). Once the write committed, it hands the
+   same events to `IDomainEventDispatcher.DispatchPostCommitAsync`, which runs the `IPostCommitDomainEventHandler<T>`s
+   (cache invalidation) with `CancellationToken.None`; a failing post-commit handler is logged (Warning 3600) and
+   swallowed, never failing the command (ADR-0040 §1). Collection needs the change tracker, so
    it lives in Infrastructure, not in the behavior. The behavior maps `ConcurrencyConflictException` (stale `xmin`, or
    a foreign key violation 23503 from a concurrent delete/insert) → 409 `Concurrency.Conflict` and
    `DuplicateKeyException` → 409 `Persistence.DuplicateKey` (races the handler's own checks couldn't see). Exceptions
@@ -268,8 +271,12 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   everything in one transaction, and clears the events after success. A failed write persists neither the change nor
   its audit entries; the staged entities stay tracked, so the context is discarded with its scope and never saved
   again (the events would be dispatched twice). Synchronous `SaveChanges` throws `NotSupportedException` for application data; only Data
-  Protection key rows (its EF key repository saves synchronously) may be saved that way. Post-commit side effects
-  (cache invalidation) will be a separate, later stage.
+  Protection key rows (its EF key repository saves synchronously) may be saved that way.
+- **Post-commit stage (ADR-0040 §1):** after a successful write the same captured events go to the
+  `IPostCommitDomainEventHandler<T>`s (registered by `AddApplication`'s scan or by their feature), sequentially in the
+  request scope, with `CancellationToken.None`. At-most-once, best effort: a handler exception (cancellation included)
+  is logged as a Warning (event + handler type only) and swallowed, the next handler still runs. Handlers must not use
+  the `DbContext`, raise events or block unboundedly. A failed write dispatches nothing.
 - **Data Protection** key ring lives in Postgres (`data_protection_keys`, `ConsoleDbContext : IDataProtectionKeyContext`);
   used for session cookies and SA token encryption (purpose `FleetConsole.Credentials.v1`, ADR-0004).
 - **Foreign keys (CP1):** credentials→clusters and grants→clusters cascade; grants→credentials is `NO ACTION` (checked

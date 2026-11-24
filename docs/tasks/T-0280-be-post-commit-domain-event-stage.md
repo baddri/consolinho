@@ -1,7 +1,7 @@
 ---
 id: T-0280
 title: Post-commit domain event stage (IPostCommitDomainEventHandler, ADR-0008 §6)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5b
 depends_on: []
@@ -47,17 +47,35 @@ Task DispatchPostCommitAsync(IReadOnlyList<IDomainEvent> domainEvents, Cancellat
   feature, e.g. T-0282 — add an assembly-scan only if `AddApplication` already scans `IDomainEventHandler<>`; mirror it).
 
 ## Acceptance criteria
-- [ ] Integration test (Api.Tests, Testcontainers Postgres): a test post-commit handler registered via
+- [x] Integration test (Api.Tests, Testcontainers Postgres): a test post-commit handler registered via
       `configureServices` observes the event only after the row is visible in a fresh scope; a failing write (e.g.
       duplicate key) dispatches nothing.
-- [ ] A throwing post-commit handler: the command still returns success, the change is persisted, a Warning is logged
+- [x] A throwing post-commit handler: the command still returns success, the change is persisted, a Warning is logged
       (`CapturedLogs`), later handlers still run.
-- [ ] Unit test: request cancellation after commit still dispatches (token passed is `None`).
-- [ ] BACKEND.md Pipeline step 6 mentions the post-commit stage; XML docs on all new public members.
-- [ ] `scripts/check-be.sh` green (CLAUDE.md rule 4)
+- [x] Unit test: request cancellation after commit still dispatches (token passed is `None`).
+- [x] BACKEND.md Pipeline step 6 mentions the post-commit stage; XML docs on all new public members.
+- [x] `scripts/check-be.sh` green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 backend-engineer: in_progress → in_review. Port + `DispatchPostCommitAsync` (per-handler try/catch, Warning
+  EventId 3600, type names only), context dispatch after commit with `CancellationToken.None`, design-time no-op, BACKEND.md.
+  Outside `paths` (minimal, as the task's touch points ask): `Application/DependencyInjection.cs` — the existing
+  `AddDomainEventHandlers` scan now also registers `IPostCommitDomainEventHandler<>`. check-be green (944 Api tests).
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. Best-effort post-commit with `CancellationToken.None` matches
+  ADR-0040 §1 / CACHE-4 (a missed invalidation is bounded by `Cache:Duration`); `Application/DependencyInjection.cs`
+  scan extension is what the Context pack asked for (mirror existing scan) — accepted. Filtered tests 42/42 green.
+- Optional: `src/FleetConsole.Infrastructure/Events/DomainEventDispatcher.cs:325` — `GetServices` resolution sits outside
+  the try, so a handler-construction failure throws after the commit (500 for a committed write); consider resolving
+  inside the isolation or leave it (config bug, caught by T-0282's integration tests).
 
 ## Handover notes
+- Post-commit handlers: implement `IPostCommitDomainEventHandler<TEvent>` anywhere in the Application assembly — the
+  scan registers them scoped; elsewhere register them explicitly. They receive `CancellationToken.None`.
+- Failures log Warning `DomainEventDispatcher.PostCommitHandlerFailedEventId` (3600) with event/handler/exception *type
+  names only* (exception text could carry payload) — no stack trace; T-0282 handlers should log details themselves if needed.
+- Tests: `Api.Tests/Events/DomainEventDispatcherTests.cs` (unit, incl. OCE swallowed),
+  `Api.Tests/Persistence/PostCommitDispatchTests.cs` (variant hosts: visibility in a fresh scope, failing write,
+  throwing handler via HTTP register-cluster, token None via a `SaveChangesInterceptor` cancelling after the save).
+- `DomainEventDispatcher` ctor now takes `ILogger<DomainEventDispatcher>`.

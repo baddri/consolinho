@@ -18,6 +18,9 @@ namespace FleetConsole.Application;
 /// </summary>
 public static class DependencyInjection
 {
+    /// <summary>The open generic handler contracts <see cref="AddDomainEventHandlers"/> registers (both stages).</summary>
+    private static readonly Type[] DomainEventHandlerContracts = [typeof(IDomainEventHandler<>), typeof(IPostCommitDomainEventHandler<>)];
+
     /// <summary>
     /// Adds the dispatcher, handlers, validators and pipeline behaviors.
     /// </summary>
@@ -110,8 +113,9 @@ public static class DependencyInjection
 
     /// <summary>
     /// Registers every concrete, non-generic class in <paramref name="assembly"/> (including internal ones) as a scoped
-    /// <see cref="IDomainEventHandler{TEvent}"/> for each event type it handles. An event may have several handlers;
-    /// the <c>IDomainEventDispatcher</c> resolves all of them from the request scope before the write (ADR-0008).
+    /// <see cref="IDomainEventHandler{TEvent}"/> and/or <see cref="IPostCommitDomainEventHandler{TEvent}"/> for each event
+    /// type it handles. An event may have several handlers; the <c>IDomainEventDispatcher</c> resolves all of them from
+    /// the request scope, before the write (ADR-0008) or after the commit (ADR-0040 §1).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="assembly">The assembly to scan.</param>
@@ -122,7 +126,7 @@ public static class DependencyInjection
             from type in assembly.GetTypes()
             where type is { IsClass: true, IsAbstract: false, IsGenericTypeDefinition: false }
             from contract in type.GetInterfaces()
-            where contract.IsGenericType && contract.GetGenericTypeDefinition() == typeof(IDomainEventHandler<>)
+            where contract.IsGenericType && DomainEventHandlerContracts.Contains(contract.GetGenericTypeDefinition())
             select (Contract: contract, Implementation: type);
 
         foreach (var (contract, implementation) in registrations)
