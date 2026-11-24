@@ -1,5 +1,5 @@
 // k6 load test for FleetConsole (T-0242): the request mix of people browsing the console, against one managed cluster.
-// Runs inside the cluster as a Job (see job.yaml); a session Cookie header comes from the Secret consolinho-loadtest.
+// Runs inside the cluster as a Job (see job.yaml); the session cookie(s) come from the Secret consolinho-loadtest.
 // Arrival rate steps up so per-pod CPU can be read against req/s from Prometheus at each plateau.
 import http from 'k6/http';
 import { check } from 'k6';
@@ -7,7 +7,24 @@ import { check } from 'k6';
 const BASE = __ENV.BASE_URL;
 const CLUSTER = __ENV.CLUSTER;
 const NS = __ENV.NAMESPACE || 'consolinho';
-const params = { headers: { Cookie: __ENV.COOKIE, Accept: 'application/json' }, tags: {} };
+const params = { headers: { Accept: 'application/json' }, tags: {} };
+
+// The session goes into each VU's cookie jar, not a fixed Cookie header: the server renews the cookie (it carries the
+// revalidation timestamp, Auth:RevalidationInterval), and like a browser k6 must send the renewed one back. A fixed
+// header makes every request look overdue and re-sync the user's host groups (T-0286 finding).
+let seeded = false;
+function seedJar() {
+  if (seeded) return;
+  const jar = http.cookieJar();
+  for (const pair of (__ENV.COOKIE || '').split(';')) {
+    const i = pair.indexOf('=');
+    // Only the session cookie: a browser-copied header also carries analytics cookies whose values k6's jar rejects.
+    if (i > 0 && pair.slice(0, i).trim() === 'FleetConsole.Session') {
+      jar.set(BASE, 'FleetConsole.Session', pair.slice(i + 1).trim());
+    }
+  }
+  seeded = true;
+}
 
 // [weight, name, path]: list pages dominate, as in the console; the rest are the calls every page shell makes.
 const MIX = [
@@ -26,6 +43,8 @@ const steps = (__ENV.RATES || '5,20,40,80,120').split(',').map(Number);
 export const options = {
   insecureSkipTLSVerify: true,
   discardResponseBodies: true,
+  // Keep each VU's jar across iterations (k6 clears it per iteration by default): it holds the renewed session.
+  noCookiesReset: true,
   scenarios: {
     browse: {
       executor: 'ramping-arrival-rate',
@@ -39,12 +58,14 @@ export const options = {
 
 let podNames = [];
 export function setup() {
+  seedJar();
   const r = http.get(`${BASE}${MIX[0][2]}`, { headers: params.headers, responseType: 'text' });
   if (r.status !== 200) throw new Error(`session check failed: HTTP ${r.status} (cookie expired?)`);
   return { pods: (r.json('items') || []).map((p) => p.metadata.name) };
 }
 
 export default function (data) {
+  seedJar();
   podNames = data.pods;
   let pick = Math.random() * TOTAL;
   const [, name, path] = MIX.find((m) => (pick -= m[0]) < 0);

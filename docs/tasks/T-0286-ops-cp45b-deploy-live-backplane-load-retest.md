@@ -1,7 +1,7 @@
 ---
 id: T-0286
 title: Deploy CP4.5b to consolinho, show cross-pod revoke live (OPS-2), re-run the k6 load test (OPS-3)
-status: blocked
+status: done
 owner: orchestrator
 checkpoint: 4.5b
 depends_on: [T-0285]
@@ -35,9 +35,9 @@ T-0242 baseline (p95 71 ms, Postgres CPU peak 177m); change requests/HPA only if
 
 ## Acceptance criteria
 - [x] Deployed; all server pods and Redis Ready; `/health` Healthy (OPS-1 live).
-- [ ] OPS-2 cross-pod revoke shown and recorded.
-- [ ] OPS-3 table with baseline vs CP4.5b recorded; request/HPA change only with a stated reason.
-- [ ] Spec CP4.5b VERIFY block updated for OPS-2/OPS-3.
+- [x] OPS-2 cross-pod revoke shown and recorded.
+- [x] OPS-3 table with baseline vs CP4.5b recorded; request/HPA change only with a stated reason.
+- [x] Spec CP4.5b VERIFY block updated for OPS-2/OPS-3.
 
 ## Work log
 - 2026-11-25 (qa): `deploy-dev.sh --yes` @ b2d79ed ok (created Secret consolinho-redis). Redis image pulled in 16.6 s;
@@ -45,6 +45,24 @@ T-0242 baseline (p95 71 ms, Postgres CPU peak 177m); change requests/HPA only if
   overlays; `check-deploy.sh` ok. 3/3 server pods + redis Ready, `/health` Healthy on the Route and on each pod (OPS-1).
 - 2026-11-25 (qa): BLOCKED on OPS-2/OPS-3: they need a console session; the cluster has no IdP besides kube:admin
   (password unknown to agents; oauth-server ignores bearer at /oauth/authorize -> /login). Need a human Cookie header.
+- 2026-11-25 (orch): OPS-2 PASS 00:29 on pods A=…dmfsj/B=…dtws2: revoke on A 204, B answered 404 `Proxy.NotAvailable`
+  1.35 s later (5/5), restore 201 → both 200. Mutating curl needs `X-Console-Request: 1`.
+- 2026-11-25 (orch): `console-mix.js` fixed: a fixed Cookie header made every request revalidate (renewed cookie never
+  returned). Now seeds only `FleetConsole.Session` into each VU's jar + `noCookiesReset: true` (k6 clears jars per
+  iteration). OPS-3 below is the valid run (HPA pinned 3/3 like T-0242, restored to 3/6 after).
+
+### OPS-3 (same Job, mix, 5/20/40/80/120 req/s × 2 min; HPA 3/3)
+| | T-0242 baseline | CP4.5b |
+|---|---|---|
+| requests / errors | 35 950 / 0 | 35 950 / 0 |
+| p95 / p99 | 71 / 106 ms | 72 / 107 ms |
+| server CPU per pod (5/20/40/80/120) | ~30/83/133/264/373m | ~16/51/95/168/218m |
+| Postgres CPU (5→120) | peak 177m | 8/8/9/10/14m |
+| Redis | — | ~5m CPU, 6 MiB |
+
+40 req/s probe, `pg_stat_user_tables` delta over 5 600 requests: grants/clusters/credentials 6 scans each (≈ one per
+30 s TTL), users 876 (`/me` + per-VU revalidation), user_group_checks 153 updates. Latency is upstream-bound and
+unchanged; Postgres load is gone. No request/HPA change: the server limits keep headroom; revisit at CP5 sizing.
 
 ## Review
 

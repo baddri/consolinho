@@ -12,8 +12,8 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 3.5 | OCP look & feel | done (tag cp-3.5) |
 | 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
 | 3.7 | Fleet foundations | done (tag cp-3.7) |
-| 4 | Workloads day-2 operations | in_progress (tags cp-4a, cp-4b, cp-4c; CP4.5a+b accepted, T-0286 deploy verify open) |
-| 4.5 | Access at scale (groups + cache) | planned |
+| 4 | Workloads day-2 operations | done (tags cp-4a, cp-4b, cp-4c) |
+| 4.5 | Access at scale (groups + cache) | done (tags cp-4.5a, cp-4.5b; live verify T-0286) |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 5.5 | Kubernetes clusters | planned |
 | 6 | Hardening, observability & polish | planned |
@@ -110,7 +110,7 @@ conditions, allocatable), MachineSets (read), Projects; cluster overview dashboa
 health, node status, recent warning events); Operators (CSV/Subscription read-only); fleet view: status of all clusters
 on one page.
 
-## CP4.5 — Access at scale — ACCEPTED (tags cp-4.5a, cp-4.5b); closes when T-0286 records OPS-2/OPS-3 on consolinho
+## CP4.5 — Access at scale — DONE (tags cp-4.5a, cp-4.5b; OPS-2/OPS-3 live on consolinho, T-0286)
 - Groups (decided 2026-11-23): a grant's subject is a user **or** a host-OpenShift group name (string; membership =
   `User.Groups` recorded at login, refreshed with session revalidation). FleetConsole-local groups optional later.
   Precedence: a direct user grant beats group grants; among group grants the highest admin-set priority wins (ties refused

@@ -122,7 +122,8 @@ Defects filed: none (the one failure was a stale test, fixed in place).
 | CACHE-7 | NEW `AccessCacheFailureTests.Redis_down_keeps_login_and_proxy_working…` (Redis container stopped: L1 hit, new login + miss, revoke refused at once, `redis` Degraded, `/health` 200 "Degraded", Warning logged); `QueryCacheTests.RedisDown_*` (no password leak) | pass |
 | CACHE-8 | `BACKEND.md` §Recipes › "Caching a query": key, tags, event→tag table (L225–245) | pass |
 | OPS-1 | AppHost `AddRedis("redis")` (e2e ran on it); kustomize base `redis.yaml` (`--save ""`, `--appendonly no`, emptyDir, `--requirepass` from Secret `consolinho-redis`), `networkpolicy-redis.yaml` (ingress 6379 only from `component: server`); `check-deploy.sh` green | pass |
-| OPS-2, OPS-3 | live replicas / k6 re-test | deferred → T-0286 |
+| OPS-2 | live, T-0286: revoke on pod A → pod B 404 `Proxy.NotAvailable` 1.35 s later (5/5); restore → 200 on both | pass |
+| OPS-3 | live, T-0286: 35 950 req, 0 errors, p95/p99 72/107 ms (baseline 71/106); Postgres 8–14m (baseline peak 177m); server/pod −40% at 120 req/s | pass |
 | QG-4 | CACHE-3/5/6 above, Testcontainers Redis; 18 cache tests green 3 consecutive runs | pass |
 
 **Risks (not blocking)**
