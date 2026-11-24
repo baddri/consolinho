@@ -21,16 +21,24 @@ export const ENVIRONMENT_TEXT: Record<ClusterEnvironment, string> = {
   development: 'development',
 };
 
-/** Toast title after a grant was created. */
-export const grantedText = (grant: Pick<Grant, 'subjectName' | 'clusterName' | 'accessMode'>) =>
-  `Granted ${grant.subjectName} ${ACCESS_MODE_TOAST[grant.accessMode]} on ${grant.clusterName}`;
+/** The subject and cluster a toast or title names. */
+type GrantSubjectRef = Pick<Grant, 'subjectKind' | 'subjectName' | 'clusterName'>;
 
-/** Toast title after a grant was changed. */
-export const changedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
-  `Changed ${grant.subjectName}'s access to ${grant.clusterName}`;
+/** Toast title after a grant was created; group grants name the group ("Granted group sre ReadOnly on dev-1"). */
+export const grantedText = (grant: GrantSubjectRef & Pick<Grant, 'accessMode'>) =>
+  `Granted ${grant.subjectKind === 'group' ? 'group ' : ''}${grant.subjectName} ${ACCESS_MODE_TOAST[grant.accessMode]} on ${grant.clusterName}`;
 
-/** The subject and cluster a toast names; without `subjectKind` the subject is a user. */
-type GrantSubjectRef = Pick<Grant, 'subjectName' | 'clusterName'> & Partial<Pick<Grant, 'subjectKind'>>;
+/** Toast title after a grant was changed; group grants use the revoke toast's wording (spec §5). */
+export const changedText = (grant: GrantSubjectRef) =>
+  grant.subjectKind === 'group'
+    ? `Changed access of group ${grant.subjectName} to ${grant.clusterName}`
+    : `Changed ${grant.subjectName}'s access to ${grant.clusterName}`;
+
+/** Title of the edit dialog: users keep GRANT-3's wording, groups the spec's "access of group" form. */
+export const editTitleText = (grant: GrantSubjectRef) =>
+  grant.subjectKind === 'group'
+    ? `Edit access of group ${grant.subjectName} to ${grant.clusterName}`
+    : `Change ${grant.subjectName}'s access to ${grant.clusterName}`;
 
 /** Toast title after a grant was revoked; group grants name the group (spec §5). */
 export const revokedText = (grant: GrantSubjectRef) =>
@@ -41,6 +49,18 @@ export const revokedText = (grant: GrantSubjectRef) =>
 /** GRANT-2 warning shown while read-write access to a production cluster is selected. */
 export const productionWriteWarning = (clusterName: string) =>
   `This user will be able to change production cluster ${clusterName}.`;
+
+/** UIG-5: the production read-write warning for a group grant, naming the group once one is entered. */
+export const productionGroupWriteWarning = (groupName: string, clusterName: string) =>
+  `Members of ${groupName.trim() === '' ? 'this group' : groupName.trim()} will be able to change resources on ${clusterName}.`;
+
+/** UIG-3 helper text of the Priority field (spec copy, verbatim). */
+export const PRIORITY_HELPER_TEXT =
+  'When a user is in several groups with access to this cluster, the highest priority wins. A direct user grant always wins.';
+
+/** GRP-4 copy: the Api's 409 `Grants.PriorityTaken` detail without its markdown backticks (UX copy style). */
+export const priorityTakenText = (priority: number, groupName: string) =>
+  `Priority ${priority} is already used by group ${groupName} on this cluster.`;
 
 /** Warning toast title when the grant turned out to be revoked meanwhile (404 on change or revoke). */
 export const alreadyRevokedText = (grant: GrantSubjectRef) =>

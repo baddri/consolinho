@@ -207,7 +207,7 @@ describe('Grants tabs (T-0039)', () => {
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
 
-    await pick(user, 'User', 'bob', 'bob');
+    await pick(user, 'Subject name', 'bob', 'bob');
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'),
     );
@@ -234,7 +234,7 @@ describe('Grants tabs (T-0039)', () => {
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to prod-us-1/ });
 
-    await pick(user, 'User', 'bob', 'bob');
+    await pick(user, 'Subject name', 'bob', 'bob');
     expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent(
       'Select a credential',
     );
@@ -258,7 +258,7 @@ describe('Grants tabs (T-0039)', () => {
     await user.click(screen.getByRole('button', { name: 'Grant access' }));
     const dialog = await screen.findByRole('dialog', { name: /Grant access to prod-eu-1/ });
 
-    await user.click(within(dialog).getByRole('combobox', { name: 'User' }));
+    await user.click(within(dialog).getByRole('combobox', { name: 'Subject name' }));
     expect(await screen.findByRole('option', { name: /^alice/ })).toBeDisabled();
     await user.paste('bob');
     await user.click(await screen.findByRole('option', { name: /^bob/ }));
@@ -288,13 +288,13 @@ describe('Grants tabs (T-0039)', () => {
     const { user } = renderApp('/fleet/admin/clusters/dev-1/access');
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to dev-1/ });
-    await pick(user, 'User', 'bob', 'bob');
+    await pick(user, 'Subject name', 'bob', 'bob');
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-edit'),
     );
 
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
-    const picker = within(dialog).getByRole('combobox', { name: 'User' });
+    const picker = within(dialog).getByRole('combobox', { name: 'Subject name' });
     await waitFor(() => expect(picker).toHaveAttribute('aria-invalid', 'true'));
     expect(picker).toHaveAccessibleDescription(
       expect.stringContaining('bob already has access to dev-1 — change the existing grant instead'),
@@ -384,7 +384,7 @@ describe('Grants tabs (T-0039)', () => {
     const { user } = renderApp('/fleet/admin/clusters/prod-eu-1/access');
     await clickFirst(user, 'Grant access');
     await screen.findByRole('dialog', { name: /Grant access to prod-eu-1/ });
-    await user.click(screen.getByRole('combobox', { name: 'User' }));
+    await user.click(screen.getByRole('combobox', { name: 'Subject name' }));
     expect(await screen.findByRole('option', { name: 'Could not load users' })).toBeDisabled();
   });
 
@@ -396,7 +396,7 @@ describe('Grants tabs (T-0039)', () => {
 
     await clickFirst(user, 'Grant access');
     const dialog = await screen.findByRole('dialog', { name: /Grant access to staging-eu-1/ });
-    await pick(user, 'User', 'admin', 'admin');
+    await pick(user, 'Subject name', 'admin', 'admin');
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Credential' })).toHaveTextContent('fleet-admin'),
     );
@@ -492,7 +492,7 @@ describe('Group grants on the cluster Access tab (T-0261)', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Group' }));
 
     expect(router.state.location.search).toBe('?kind=group');
-    await waitFor(() => expect(subjectNames(table)).toEqual(['ghost-team', 'sre']));
+    await waitFor(() => expect(subjectNames(table)).toEqual(['ghost-team', 'platform', 'sre']));
     expect(screen.getByRole('button', { name: 'Clear all filters' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Close Group' }));
     expect(router.state.location.search).toBe('');

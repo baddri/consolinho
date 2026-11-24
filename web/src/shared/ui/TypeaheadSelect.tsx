@@ -135,7 +135,11 @@ export function TypeaheadSelect({
     } else if (event.key === 'Enter') {
       event.preventDefault();
       if (focused !== undefined) choose(focused.value);
-      else onEnterWithoutHighlight?.();
+      else if (onEnterWithoutHighlight) {
+        // Like picking an option: the free text is applied, so the menu closes.
+        onEnterWithoutHighlight();
+        close();
+      }
     } else if (event.key === 'Escape' && isOpen) {
       event.stopPropagation();
       close();

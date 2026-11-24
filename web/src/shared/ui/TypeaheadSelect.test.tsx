@@ -6,7 +6,7 @@ import { TypeaheadSelect, type TypeaheadItem } from './TypeaheadSelect';
 const ITEMS: TypeaheadItem[] = [{ value: 'alpha' }, { value: 'beta', isDisabled: true }, { value: 'gamma' }];
 
 /** Harness owning the input text, like the real callers. */
-function Harness({ onSelect }: { onSelect: (value: string) => void }) {
+function Harness({ onSelect, onEnter }: { onSelect: (value: string) => void; onEnter?: () => void }) {
   const [text, setText] = useState('');
   return (
     <TypeaheadSelect
@@ -17,6 +17,7 @@ function Harness({ onSelect }: { onSelect: (value: string) => void }) {
       onInputChange={setText}
       items={ITEMS.filter((item) => item.value.includes(text))}
       onSelect={onSelect}
+      onEnterWithoutHighlight={onEnter}
     />
   );
 }
@@ -38,6 +39,20 @@ describe('TypeaheadSelect', () => {
 
     await user.keyboard('{Enter}');
     expect(onSelect).toHaveBeenCalledWith('gamma');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes the menu after Enter without a highlight applied the free text', async () => {
+    const user = userEvent.setup();
+    const onEnter = vi.fn();
+    render(<Harness onSelect={vi.fn()} onEnter={onEnter} />);
+    const input = screen.getByRole('combobox', { name: 'Pick' });
+
+    await user.click(input);
+    await user.keyboard('a');
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    await user.keyboard('{Enter}');
+    expect(onEnter).toHaveBeenCalledTimes(1);
     expect(input).toHaveAttribute('aria-expanded', 'false');
   });
 });

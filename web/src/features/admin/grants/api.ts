@@ -7,6 +7,7 @@ import {
   unwrap,
   unwrapNoContent,
   type CreateGrantRequest,
+  type CreateGroupGrantRequest,
   type Grant,
   type UpdateGrantRequest,
 } from '@/shared/api';
@@ -21,9 +22,13 @@ export function useUserGrants(username: string) {
   });
 }
 
-/** Loads `GET /api/admin/clusters/{name}/grants` (CLU-8, US-9): who can access a cluster, sorted by username. */
-export function useClusterGrants(clusterName: string) {
+/**
+ * Loads `GET /api/admin/clusters/{name}/grants` (CLU-8, US-9): who can access a cluster, sorted by username.
+ * `enabled: false` skips the request, e.g. the grant dialog needs the cluster's group priorities only for groups.
+ */
+export function useClusterGrants(clusterName: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled,
     queryKey: adminKeys.clusterGrants(clusterName),
     queryFn: ({ signal }): Promise<Grant[]> =>
       unwrap(
@@ -102,6 +107,26 @@ export function useCreateGrant() {
   return useMutation({
     mutationFn: (body: CreateGrantRequest): Promise<Grant> =>
       unwrap(apiClient.POST('/api/admin/grants', { body })),
+    onSuccess: () => invalidateAfterSuccess(queryClient),
+    onError: (error) => invalidateAfterError(queryClient, error),
+  });
+}
+
+/** Variables of {@link useCreateGroupGrant}: the group's name plus the `CreateGroupGrantRequest` body. */
+export type CreateGroupGrantVariables = CreateGroupGrantRequest & { groupName: string };
+
+/**
+ * `POST /api/admin/groups/{groupName}/grants` (UIG-1/3): 201 `Grant`. 409 `Grants.AlreadyExists` (GRP-5) or
+ * `Grants.PriorityTaken` (GRP-4); a `system:*` or invalid name, a bad priority, cluster or credential are 400 field
+ * errors. openapi-fetch encodes the name into the path segment.
+ */
+export function useCreateGroupGrant() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupName, ...body }: CreateGroupGrantVariables): Promise<Grant> =>
+      unwrap(
+        apiClient.POST('/api/admin/groups/{groupName}/grants', { params: { path: { groupName } }, body }),
+      ),
     onSuccess: () => invalidateAfterSuccess(queryClient),
     onError: (error) => invalidateAfterError(queryClient, error),
   });
