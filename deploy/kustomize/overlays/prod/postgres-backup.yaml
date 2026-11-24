@@ -1,0 +1,70 @@
+# Nightly logical backup (pg_dump custom format) to its own PVC, keeps the last 14 dumps.
+# Copy the dumps off-cluster regularly: a PVC on the same cluster is not a real backup on its own.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup
+  labels:
+    app.kubernetes.io/component: database-backup
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  labels:
+    app.kubernetes.io/component: database-backup
+spec:
+  schedule: "0 2 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: database-backup
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: pg-dump
+              image: registry.redhat.io/rhel9/postgresql-16:1   # same image (and digest) as the StatefulSet
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  f=/backup/consolinho-$(date +%Y%m%d-%H%M%S).dump
+                  pg_dump -h postgres -U "$PGUSER" -d "$PGDATABASE" -Fc -f "$f.tmp"
+                  mv "$f.tmp" "$f"
+                  ls -1t /backup/consolinho-*.dump | tail -n +15 | xargs -r rm --
+                  ls -lh /backup
+              env:
+                - name: PGUSER
+                  valueFrom: {secretKeyRef: {name: consolinho-postgres, key: database-user}}
+                - name: PGPASSWORD
+                  valueFrom: {secretKeyRef: {name: consolinho-postgres, key: database-password}}
+                - name: PGDATABASE
+                  valueFrom: {secretKeyRef: {name: consolinho-postgres, key: database-name}}
+              resources:
+                requests: {cpu: 50m, memory: 128Mi}
+                limits: {memory: 512Mi}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities: {drop: ["ALL"]}
+              volumeMounts:
+                - {name: backup, mountPath: /backup}
+          volumes:
+            - name: backup
+              persistentVolumeClaim: {claimName: postgres-backup}

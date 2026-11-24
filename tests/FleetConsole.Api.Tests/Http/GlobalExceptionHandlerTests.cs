@@ -1,4 +1,5 @@
 using FleetConsole.Api.Http;
+using FleetConsole.Application.Abstractions.Persistence;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,6 +67,40 @@ public sealed class GlobalExceptionHandlerTests
         var (_, status, _) = await HandleAsync(new OperationCanceledException(), "Production");
 
         status.ShouldBe(StatusCodes.Status500InternalServerError);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PersistenceUnavailable_DirectOrWrapped_Returns503WithCodeAndRetryAfter(bool wrapped)
+    {
+        // Wrapped: a cache may surface its loader's exception inside its own (ADR-0040 §8).
+        var unavailable = new PersistenceUnavailableException("The database could not be reached.", new TimeoutException(SecretMessage));
+        Exception exception = wrapped ? new InvalidOperationException("cache factory failed", unavailable) : unavailable;
+        await using var services = HttpResultExecutor.BuildServices("Production");
+        var context = HttpResultExecutor.CreateContext(services);
+
+        (await Handler(services).TryHandleAsync(context, exception, CancellationToken.None)).ShouldBeTrue();
+
+        var (status, contentType, body) = await HttpResultExecutor.ReadAsync(context);
+        status.ShouldBe(StatusCodes.Status503ServiceUnavailable);
+        contentType.ShouldBe("application/problem+json");
+        context.Response.Headers.RetryAfter.ToString().ShouldBe("5");
+        var json = body.ShouldNotBeNull();
+        json.GetProperty("status").GetInt32().ShouldBe(503);
+        json.GetProperty("title").GetString().ShouldBe("The service is temporarily unavailable.");
+        json.GetProperty(ResultExtensions.ErrorCodeExtension).GetString().ShouldBe(PersistenceErrors.UnavailableCode);
+        json.GetProperty("traceId").GetString().ShouldNotBeNullOrEmpty();
+        json.GetRawText().ShouldNotContain("hunter2");
+    }
+
+    [Fact]
+    public async Task PersistenceUnavailable_InDevelopment_KeepsTheDevelopmentDetail()
+    {
+        var (_, status, body) = await HandleAsync(new PersistenceUnavailableException("The database could not be reached."), "Development");
+
+        status.ShouldBe(StatusCodes.Status503ServiceUnavailable);
+        (body.ShouldNotBeNull().GetProperty("detail").GetString() ?? string.Empty).ShouldContain(nameof(PersistenceUnavailableException));
     }
 
     private static async Task<(bool Handled, int Status, System.Text.Json.JsonElement? Body)> HandleAsync(Exception exception, string environment)

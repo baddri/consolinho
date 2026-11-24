@@ -28,5 +28,9 @@ internal sealed class DesignTimeConsoleDbContextFactory : IDesignTimeDbContextFa
     {
         public Task DispatchAsync(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken) =>
             throw new NotSupportedException("The design-time ConsoleDbContext is for EF tooling only and never saves.");
+
+        // Unreachable in practice (DispatchAsync refuses every save first); a no-op keeps the post-commit stage harmless.
+        public Task DispatchPostCommitAsync(IReadOnlyList<IDomainEvent> domainEvents, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 }

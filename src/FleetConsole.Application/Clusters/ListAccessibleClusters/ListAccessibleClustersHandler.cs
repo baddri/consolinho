@@ -6,7 +6,7 @@ using FleetConsole.Domain.Common;
 namespace FleetConsole.Application.Clusters.ListAccessibleClusters;
 
 /// <summary>
-/// Answers <see cref="ListAccessibleClustersQuery"/> from <see cref="ClusterAccessReader"/> (one SQL statement; direct
+/// Answers <see cref="ListAccessibleClustersQuery"/> from <see cref="ClusterAccessReader"/> (the cached access snapshot; direct
 /// and group grants resolved per cluster exactly as the proxy does, PREC-8), sorted in memory.
 /// </summary>
 /// <remarks>

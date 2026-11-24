@@ -1,0 +1,111 @@
+# Redis for the access cache (ADR-0040 §9): FusionCache L2 + backplane shared by the >= 3 server replicas. Ephemeral by
+# design: no persistence (RDB `save ""`, AOF off, emptyDir), so a restart only empties the cache and every replica
+# reloads from Postgres. Password from the Secret consolinho-redis (key `password`, created out of band, CFG-5);
+# reachable only from the server pods (networkpolicy-redis.yaml). Single replica, no HA/Sentinel/TLS (ADR-0040
+# Consequences): during an outage the app keeps serving from L1 + Postgres (health check `redis` = Degraded).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consolinho-redis
+  labels:
+    app.kubernetes.io/component: redis
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  # Never two instances side by side: the cache is disposable, a short gap is cheaper than a split cache.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: redis
+    spec:
+      automountServiceAccountToken: false
+      # No runAsUser/fsGroup: the restricted-v2 SCC assigns the namespace's UID range.
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          # Logical name; every overlay maps it with one `images:` entry (default registry.redhat.io/rhel9/redis-7),
+          # which is the only line a disconnected install rewrites to its mirror.
+          image: redis
+          imagePullPolicy: IfNotPresent
+          # redis-server is started directly instead of the rhel9 image's run-redis entrypoint: run-redis appends
+          # `requirepass` to /etc/redis/redis.conf at start, which readOnlyRootFilesystem forbids. Without a config
+          # file every setting is an argument, which also works unchanged with other Redis images.
+          command: ["redis-server"]
+          # $(REDIS_PASSWORD) is expanded by the kubelet from the env below, so the pod spec never holds the value;
+          # Redis >= 7 rewrites its process title, so the password does not show in `ps` either.
+          args:
+            - --port
+            - "6379"
+            - --requirepass
+            - $(REDIS_PASSWORD)
+            # Persistence off: RDB snapshots disabled (empty `save`) and no append-only file.
+            - --save
+            - ""
+            - --appendonly
+            - "no"
+            # ~75 % of the memory limit; the rest covers fragmentation, client/pub-sub buffers. Evict any key LRU
+            # instead of failing writes (every entry is a re-loadable cache entry).
+            - --maxmemory
+            - 192mb
+            - --maxmemory-policy
+            - allkeys-lru
+            - --dir
+            - /var/lib/redis/data
+          ports:
+            - name: redis
+              containerPort: 6379
+              protocol: TCP
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-redis
+                  key: password
+            # redis-cli reads its password from REDISCLI_AUTH (keeps it off the probe's command line).
+            - name: REDISCLI_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-redis
+                  key: password
+          # Ready = answers an authenticated PING (an unauthenticated one gets NOAUTH, and redis-cli exits 0 on error
+          # replies, hence the grep). Liveness stays a plain TCP check so a slow command never restarts the cache.
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "redis-cli ping | grep -qx PONG"]
+            initialDelaySeconds: 2
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            tcpSocket:
+              port: redis
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          # Memory limit = request: maxmemory is derived from it. No CPU limit (single-threaded, short bursts).
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/redis/data
+      volumes:
+        # Working directory only (nothing is persisted); memory-backed would count against the limit, so disk.
+        - name: data
+          emptyDir:
+            sizeLimit: 64Mi

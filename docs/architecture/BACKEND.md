@@ -90,12 +90,17 @@ in registration order. Handlers and validators are registered by assembly scanni
    It runs **before** validation (contract §7 check order: CSRF → 401 → `Auth.Forbidden` → `Auth.ReadOnly` → field
    validation), so a read-only admin gets `Auth.ReadOnly`, never field errors.
 4. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
-5. *(future)* `CachingBehavior` — queries implementing `ICacheableQuery`.
+5. `CachingBehavior` — queries implementing `ICacheableQuery<TValue>` (ADR-0040 §3). Registered closed per query by
+   `AddCacheableQuery<TQuery, TValue>()`, which inserts it right after `ValidationBehavior`, so authorization, the
+   read-only guard and validation always run before a cache hit can answer; failure results are never cached.
 6. `UnitOfWorkBehavior` — commands only (constrained on `IBaseCommand`, so the container never builds it for
    queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`
    implementation (`ConsoleDbContext`) owns domain events: it collects them from tracked `IHasDomainEvents` aggregates,
    hands them to the `IDomainEventDispatcher` port **before** writing (handlers stage audit entries in the same
-   context), writes everything in one transaction, then clears them (ADR-0008). Collection needs the change tracker, so
+   context), writes everything in one transaction, then clears them (ADR-0008). Once the write committed, it hands the
+   same events to `IDomainEventDispatcher.DispatchPostCommitAsync`, which runs the `IPostCommitDomainEventHandler<T>`s
+   (cache invalidation) with `CancellationToken.None`; a failing post-commit handler is logged (Warning 3600) and
+   swallowed, never failing the command (ADR-0040 §1). Collection needs the change tracker, so
    it lives in Infrastructure, not in the behavior. The behavior maps `ConcurrencyConflictException` (stale `xmin`, or
    a foreign key violation 23503 from a concurrent delete/insert) → 409 `Concurrency.Conflict` and
    `DuplicateKeyException` → 409 `Persistence.DuplicateKey` (races the handler's own checks couldn't see). Exceptions
@@ -212,19 +217,32 @@ Api/Proxy/
 
 Policies are registered in order with `services.AddProxyPolicy<T>()` (in `AddApplication`). **To stop users from
 mutating even when their token allows it, you add or configure a policy — the endpoint never changes.**
-No access cache in CP2 (one indexed query per request); TLS failures are classified from `HttpRequestError`, not
+Access comes from the cached per-user snapshot (`ClusterAccessReader` → `LoadAccessSnapshotQuery`, below): one
+authorization statement per cache miss, none on a hit; precedence, the enabled filter and the session read-only flag
+are resolved per request. `Cache:Duration` (default 30 s) bounds staleness only if an invalidation is lost. TLS failures are classified from `HttpRequestError`, not
 `TlsValidationRecord` (probe-only). Never add response buffering/compression on the proxy route (watches stream).
 
 ## Recipes (keep these working; they are the maintainability contract)
 
-### Adding a cache later
-Decided for CP4.5 in ADR-0035 (FusionCache as the `HybridCache`, Redis L2 + backplane, tags, fail-safe off for
-authorization, decrypted tokens only in L1); the steps below stay the shape of the change.
-1. Extract the access lookup of `AuthorizeProxyRequestHandler` into its own query and mark it: `public sealed record ResolveClusterAccessQuery(...) : IQuery<ClusterAccess>, ICacheableQuery { string CacheKey => ...; TimeSpan Ttl => ...; }` (policies keep running per request, uncached).
-2. Register `CachingBehavior<,>` (uses `HybridCache`) in the pipeline before the handler.
-3. Invalidate from **post-commit** domain event handlers (`GrantRevoked` → remove key). That stage doesn't exist yet
-   (ADR-0008 §6) — add it then; never invalidate from the pre-commit handlers, which run before the write. No use case
-   handler code changes.
+### Caching a query
+ADR-0040: FusionCache L1 + Redis L2 + backplane, tags, fail-safe off; failures and `PersistenceUnavailableException`
+are never cached or served stale (CACHE-5 → 503); never cache decrypted tokens.
+1. Make the query `ICacheableQuery<T>` (`CacheKey`, `TagsFor(value)` built with `CacheTags`) and return primitives only
+   (System.Text.Json round-trip, test it). Version the key (`…:v1:…`) and bump it on any shape change.
+2. Register `services.AddCacheableQuery<TQuery, T>()` in `AddApplication`; the handler stays plain and reads only
+   through `IReadModel` terminal operators.
+3. Invalidate in an `IPostCommitDomainEventHandler<TEvent>` (runs after commit, never pre-commit) calling
+   `IQueryCache.RemoveByTagsAsync`. A reflection coverage test makes every `IDomainEvent` handled or allow-listed.
+
+Access snapshot — key `access:v1:user:{id}`, tags `user:`, `cluster:`/`credential:` of every row, `group:{sha256}` (names are never logged) of every
+user group; `Application/Access/AccessCacheInvalidation.cs`:
+
+| Events | Tag removed |
+|---|---|
+| `GrantCreated`, `GrantChanged`, `GrantRevoked` | `user:{UserId}`, or `group:{sha256(SubjectName)}` for group grants |
+| `UserDeactivated`, `UserReactivated`, `UserReadOnlyChanged`, `UserGroupsChanged`, `UserLoggedIn` | `user:{UserId}` |
+| `ClusterUpdated`, `ClusterEnabled`, `ClusterDisabled`, `ClusterDeleted` | `cluster:{ClusterId}` |
+| `CredentialRotated`, `CredentialDeleted` | `credential:{CredentialId}` |
 
 ### Blocking a class of operations
 Add `IProxyPolicy` (e.g. `DenyDeleteNamespacePolicy`, `BusinessHoursChangeWindowPolicy`) or an `IPipelineBehavior` for
@@ -268,8 +286,12 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   everything in one transaction, and clears the events after success. A failed write persists neither the change nor
   its audit entries; the staged entities stay tracked, so the context is discarded with its scope and never saved
   again (the events would be dispatched twice). Synchronous `SaveChanges` throws `NotSupportedException` for application data; only Data
-  Protection key rows (its EF key repository saves synchronously) may be saved that way. Post-commit side effects
-  (cache invalidation) will be a separate, later stage.
+  Protection key rows (its EF key repository saves synchronously) may be saved that way.
+- **Post-commit stage (ADR-0040 §1):** after a successful write the same captured events go to the
+  `IPostCommitDomainEventHandler<T>`s (registered by `AddApplication`'s scan or by their feature), sequentially in the
+  request scope, with `CancellationToken.None`. At-most-once, best effort: a handler exception (cancellation included)
+  is logged as a Warning (event + handler type only) and swallowed, the next handler still runs. Handlers must not use
+  the `DbContext`, raise events or block unboundedly. A failed write dispatches nothing.
 - **Data Protection** key ring lives in Postgres (`data_protection_keys`, `ConsoleDbContext : IDataProtectionKeyContext`);
   used for session cookies and SA token encryption (purpose `FleetConsole.Credentials.v1`, ADR-0004).
 - **Foreign keys (CP1):** credentials→clusters and grants→clusters cascade; grants→credentials is `NO ACTION` (checked
@@ -289,6 +311,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   `Console:PublicOrigin`, cookies are `Secure` by policy outside Development.
 - Production configuration is validated on start (`ValidateOnStart`, messages name keys, never values); `Program`
   turns failures into one Critical line each and exit code 1. New required settings follow the same pattern.
+- Cache (ADR-0040): `ConnectionStrings:redis` (required outside Development), `Cache:Duration` (1 s–1 min, default
+  30 s); health check `redis` reports Degraded, never Unhealthy (the app serves from Postgres without it).
 - Logs: JSON console outside Development; the request-line log category is capped at Warning in code.
 - Manifests and the configuration contract (env keys, Secret/ConfigMap names): ADR-0030, `deploy/kustomize/`;
   operations: `docs/ops/RUNBOOK.md`.

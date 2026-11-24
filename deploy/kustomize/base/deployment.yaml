@@ -95,6 +95,16 @@ spec:
                 secretKeyRef:
                   name: consolinho-oauth
                   key: client-secret
+            # Access cache L2 + backplane (ADR-0040 §7/§9), server only (migrate needs no cache). ORDER MATTERS:
+            # $(REDIS_PASSWORD) expands only from variables defined EARLIER in this list; keep REDIS_PASSWORD first.
+            # abortConnect=false: a Redis outage degrades the cache (health `redis` = Degraded), never the start.
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-redis
+                  key: password
+            - name: ConnectionStrings__redis
+              value: consolinho-redis:6379,password=$(REDIS_PASSWORD),abortConnect=false
           # Let the router drop the endpoint before SIGTERM (default 30 s grace period).
           lifecycle:
             preStop:

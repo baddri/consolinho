@@ -9,6 +9,7 @@ using FleetConsole.Infrastructure.Persistence.Conventions;
 using FleetConsole.Infrastructure.Persistence.Converters;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 
 namespace FleetConsole.Infrastructure.Persistence;
@@ -79,15 +80,16 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     /// <summary>
-    /// Commits the command's changes, including the pre-commit domain event dispatch (see
-    /// <see cref="SaveChangesAsync(bool, CancellationToken)"/>), and translates the expected commit-time races into the
-    /// Application's persistence exceptions.
+    /// Commits the command's changes, including both domain event stages (see
+    /// <see cref="SaveChangesAsync(bool, CancellationToken)"/>), and translates the expected commit-time races and an
+    /// unreachable database into the Application's persistence exceptions.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task that completes when the changes are durable.</returns>
     /// <exception cref="ConcurrencyConflictException">A row to update or delete changed (or vanished) since it was loaded,
     /// or a foreign key rejected the write because of a concurrent delete or insert (SQLSTATE 23503).</exception>
     /// <exception cref="DuplicateKeyException">A unique index rejected the write.</exception>
+    /// <exception cref="PersistenceUnavailableException">The database could not be reached (<see cref="IsUnavailable"/>).</exception>
     async Task IUnitOfWork.SaveChangesAsync(CancellationToken cancellationToken)
     {
         // Only database errors are translated: an exception from an event handler (dispatch runs inside this call) is a
@@ -112,12 +114,45 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
             throw new ConcurrencyConflictException(
                 $"A concurrent change or delete violated foreign key '{postgres.ConstraintName}'.", exception);
         }
+        catch (Exception exception) when (IsUnavailable(exception))
+        {
+            throw Unavailable(exception);
+        }
     }
 
     /// <summary>
-    /// Saves changes with pre-commit domain event dispatch (ADR-0008): captures the pending events of tracked
-    /// aggregates, dispatches them (handlers stage audit entries in this context), asserts that no handler raised a new
-    /// event, writes everything in one transaction, then clears the events.
+    /// Whether <paramref name="exception"/> means "the database can't be reached right now" (ADR-0040 §8): a transient
+    /// <see cref="NpgsqlException"/> (refused/dropped connection, timeout, or a transient SQLSTATE such as
+    /// <c>cannot_connect_now</c>), a <see cref="TimeoutException"/>, or EF's <see cref="RetryLimitExceededException"/>
+    /// (the Aspire-enabled retrying strategy gave up). EF wraps write failures in <see cref="DbUpdateException"/>, so the
+    /// inner-exception chain is searched. A <see cref="PostgresException"/> with a non-transient SQLSTATE is not matched.
+    /// </summary>
+    /// <param name="exception">The exception thrown by a database call.</param>
+    /// <returns>True when the exception should become a <see cref="PersistenceUnavailableException"/>.</returns>
+    internal static bool IsUnavailable(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is NpgsqlException { IsTransient: true } or TimeoutException or RetryLimitExceededException)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The Application exception for an unreachable database; the message names no host, SQL or values.</summary>
+    /// <param name="exception">The provider exception, kept as inner exception for the logs.</param>
+    /// <returns>The exception to throw.</returns>
+    internal static PersistenceUnavailableException Unavailable(Exception exception) =>
+        new("The database could not be reached.", exception);
+
+    /// <summary>
+    /// Saves changes with domain event dispatch: captures the pending events of tracked aggregates, dispatches them to
+    /// the pre-commit handlers (ADR-0008; they stage audit entries in this context), asserts that no handler raised a new
+    /// event, writes everything in one transaction, clears the events, then dispatches the same events to the
+    /// post-commit handlers (ADR-0040 §1; failures there are logged, never thrown).
     /// </summary>
     /// <param name="acceptAllChangesOnSuccess">See <see cref="DbContext.SaveChangesAsync(bool, CancellationToken)"/>.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -136,7 +171,19 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
         // One SaveChanges = one transaction: the aggregates' changes and the staged audit entries commit together.
         var written = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
 
+        // pending.Events is a copied list, so it survives Clear() emptying the aggregates' own event lists. Reached only
+        // when the write committed: an exception above (failed write, handler bug) skips the post-commit stage.
+        var committedEvents = pending.Events;
         pending.Clear();
+
+        if (committedEvents.Count > 0)
+        {
+            // CancellationToken.None on purpose: the commit happened, so a client that aborts the request now must not
+            // skip post-commit side effects such as cache invalidation (ADR-0040 §1). Handlers bound their own I/O, and
+            // the dispatcher swallows (logs) their failures, so this call never undoes or fails the save.
+            await _domainEventDispatcher.DispatchPostCommitAsync(committedEvents, CancellationToken.None).ConfigureAwait(false);
+        }
+
         return written;
     }
 

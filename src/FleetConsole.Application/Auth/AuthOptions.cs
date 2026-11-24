@@ -31,7 +31,8 @@ public sealed class AuthOptions
     /// <summary>
     /// OpenShift groups whose members are administrators by configuration (<c>Auth:AdminGroups</c>), matched exactly
     /// (ordinal) in this order; the first match is shown as the source (<c>"group &lt;name&gt;"</c>). Virtual
-    /// <c>system:*</c> groups are refused by validation: every OAuth user is in <c>system:authenticated</c>.
+    /// <c>system:*</c> groups (in any case, like <see cref="OpenShiftGroups.IsVirtual"/>) are refused by validation:
+    /// every OAuth user is in <c>system:authenticated</c>, and such groups are never recorded for a user anyway.
     /// </summary>
     public IList<string> AdminGroups { get; } = [];
 }

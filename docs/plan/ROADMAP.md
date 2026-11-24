@@ -12,7 +12,7 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 3.5 | OCP look & feel | done (tag cp-3.5) |
 | 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
 | 3.7 | Fleet foundations | done (tag cp-3.7) |
-| 4 | Workloads day-2 operations | in_progress (tags cp-4a, cp-4b, cp-4c; CP4.5 next) |
+| 4 | Workloads day-2 operations | in_progress (tags cp-4a, cp-4b, cp-4c; CP4.5a+b accepted, T-0286 deploy verify open) |
 | 4.5 | Access at scale (groups + cache) | planned |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 5.5 | Kubernetes clusters | planned |
@@ -110,14 +110,14 @@ conditions, allocatable), MachineSets (read), Projects; cluster overview dashboa
 health, node status, recent warning events); Operators (CSV/Subscription read-only); fleet view: status of all clusters
 on one page.
 
-## CP4.5 — Access at scale
+## CP4.5 — Access at scale — ACCEPTED (tags cp-4.5a, cp-4.5b); closes when T-0286 records OPS-2/OPS-3 on consolinho
 - Groups (decided 2026-11-23): a grant's subject is a user **or** a host-OpenShift group name (string; membership =
   `User.Groups` recorded at login, refreshed with session revalidation). FleetConsole-local groups optional later.
   Precedence: a direct user grant beats group grants; among group grants the highest admin-set priority wins (ties refused
   at save; read-only wins if one slips through); the user's read-only flag always applies. No `system:*` groups. Admin group
   picker lists host `Group` objects via FleetConsole's SA (read-only role). "Effective access" admin view (user × cluster:
   which grant wins and why).
-- Access cache: FusionCache behind `HybridCache` — memory L1 + Redis L2 + Redis backplane; tags per user/cluster/credential/
+- Access cache (as built, ADR-0040): FusionCache behind the app port `IQueryCache` (not `HybridCache`) — memory L1 + Redis L2 + Redis backplane; tags per user/cluster/credential/
   group, invalidated from the existing domain events after commit; short TTL backstop; **fail-safe off** for authorization;
   the decrypted token never leaves L1 (Redis holds the encrypted one). Redis in the AppHost and the OpenShift manifests.
 
@@ -131,6 +131,7 @@ Caching of discovery (access caching moved to CP4.5), rate limiting, security re
 dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 
 ## Backlog / ideas (product owner adds here)
+- (CP4.5b ACCEPT R1) Subscribe the cache backplane at startup and gate readiness on it, so a just-started pod cannot miss a revoke (today bounded by `Cache:Duration` 30 s).
 - (CP4.5a ACCEPT) Stored `system:` group grant row (direct SQL only) → 500: read it tolerantly (skip + log warning) instead of the GroupName converter throwing.
 - (CP4 spec) Environment tab (env editor) for Pods/Deployments/StatefulSets/DaemonSets.
 - (CP4 spec) Debug container ("Debug in terminal" for CrashLoopBackOff pods).

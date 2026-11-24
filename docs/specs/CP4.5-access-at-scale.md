@@ -103,6 +103,25 @@ service. Exact type, endpoint and field names are the architects' call unless qu
 - **QG-4** Security tests (CP4.5b, Testcontainers Redis): decrypted token never in Redis (CACHE-6); fail-safe off (CACHE-5); stale-grant invalidation across two app instances sharing Redis (CACHE-3).
 - **QG-5** ux-designer pass on the Subject section, Access tab columns, Groups and Effective access against the OCP references (`RBAC/bindings.tsx`, Groups list), recorded in `ocp-parity.md`.
 
+### 4b. CP4.5b design (backend-architect, 2026-11-24)
+Decisions: ADR-0040 (amends ADR-0035). **Deviation from CACHE-1 wording:** Application code uses a small
+`IQueryCache` port implemented by FusionCache (L1 + Redis L2 + backplane), not `HybridCache` directly —
+`HybridCache` fixes tags before the load runs, and CACHE-2's `cluster:`/`credential:`/`group:` tags come from the
+loaded result. Cached unit: one access snapshot per user (`access:v1:user:{id}`) holding **ciphertext only**; the
+token is decrypted per request (stricter than CACHE-6). Redis down → `redis` health Degraded; other replicas' L1 heal
+within `Cache:Duration` (30 s). Database down → 503 `Persistence.Unavailable`. No FE or public API change.
+
+| Wave | Lane BE-A | Lane BE-B | Light lane / QA / ops |
+|---|---|---|---|
+| 1 | T-0280 post-commit event stage (0.5 d) → T-0283 DB-unavailable 503 (0.5 d) | T-0281 query cache core, Redis wiring, AppHost (1 d) | T-0284 Redis kustomize + NetworkPolicy + Secret (no .NET build) |
+| 2 | T-0282 cached access snapshot + invalidation + BACKEND.md recipe (1 d; needs 0280, 0281, 0283) | — | — |
+| 3 | — | — | T-0285 QA: QG-4 tests (Testcontainers Redis, two instances) + VERIFY |
+| 4 | — | — | T-0286 deploy consolinho, OPS-2 live revoke, OPS-3 k6 re-test |
+
+AC map: CACHE-1 T-0281/T-0282 · CACHE-2 T-0280/T-0282 · CACHE-3 T-0281 (machinery), T-0285, T-0286 · CACHE-4
+T-0281/T-0282 · CACHE-5 T-0281/T-0283/T-0285 · CACHE-6 T-0282/T-0285 · CACHE-7 T-0281/T-0285 · CACHE-8 T-0282 ·
+OPS-1 T-0281 (AppHost)/T-0284 · OPS-2/OPS-3 T-0286 · QG-1 every task · QG-4 T-0285. T-0272/T-0273 untouched.
+
 ## 5. UX notes
 
 - **Subject section**: PF `FormSection title="Subject"`, `Radio` stack, then `FormGroup label="Subject name"` — same wording as OCP. Priority as PF `NumberInput` (min 1), only for Group.

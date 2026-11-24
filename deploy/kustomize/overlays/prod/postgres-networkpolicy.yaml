@@ -1,0 +1,24 @@
+# Only the consolinho server pods (incl. the migrate init container) and the backup job reach Postgres.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+  labels:
+    app.kubernetes.io/component: database
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: database
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: server
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/component: database-backup
+      ports:
+        - protocol: TCP
+          port: 5432

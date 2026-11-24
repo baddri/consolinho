@@ -43,6 +43,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     private const string DefaultDatabase = "fleetconsole_tests";
 
     private readonly PostgresFixture _postgres;
+    private readonly RedisFixture _redis;
     private readonly bool _ownsPostgres;
     private readonly string _database;
     private readonly IReadOnlyDictionary<string, string?> _overrides;
@@ -50,12 +51,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     /// <summary>Creates the shared default host (xUnit collection fixture); it owns the container.</summary>
     public ApiFactory()
-        : this(new PostgresFixture(), ownsPostgres: true, DefaultDatabase, new Dictionary<string, string?>(), clock: null, configureServices: null)
+        : this(new PostgresFixture(), new RedisFixture(), ownsPostgres: true, DefaultDatabase, new Dictionary<string, string?>(), clock: null, configureServices: null)
     {
     }
 
     private ApiFactory(
         PostgresFixture postgres,
+        RedisFixture redis,
         bool ownsPostgres,
         string database,
         IReadOnlyDictionary<string, string?> overrides,
@@ -63,6 +65,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Action<IServiceCollection>? configureServices)
     {
         _postgres = postgres;
+        _redis = redis;
         _ownsPostgres = ownsPostgres;
         _database = database;
         _overrides = overrides;
@@ -85,6 +88,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>The container, for tests that need further databases on the same server.</summary>
     public PostgresFixture Postgres => _postgres;
 
+    /// <summary>The Redis container that hosts outside Development use (and the query cache adapter tests).</summary>
+    public RedisFixture Redis => _redis;
+
     /// <summary>The emulated host cluster (OAuth server + <c>users/~</c>).</summary>
     public TestOAuthServer OAuthServer { get; } = new();
 
@@ -97,13 +103,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     /// <summary>Seeds users, clusters, credentials and grants below HTTP.</summary>
     public TestData Data => new(this);
 
-    /// <summary>Starts the container (default host only) and the emulator; xUnit calls this before the first test.</summary>
-    /// <returns>A task that completes when the database accepts connections.</returns>
+    /// <summary>
+    /// Starts the containers (default host only: Postgres, and Redis for hosts outside Development) and the emulator;
+    /// xUnit calls this before the first test.
+    /// </summary>
+    /// <returns>A task that completes when the database and Redis accept connections.</returns>
     public async ValueTask InitializeAsync()
     {
         if (_ownsPostgres)
         {
-            await _postgres.StartAsync(TestContext.Current.CancellationToken);
+            var ct = TestContext.Current.CancellationToken;
+            await Task.WhenAll(_postgres.StartAsync(ct), _redis.StartAsync(ct));
         }
 
         // Start the emulator before the Api's warm-up can reach it from a background thread.
@@ -129,7 +139,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         Action<IServiceCollection>? configureServices = null,
         bool kestrel = false)
     {
-        var variant = new ApiFactory(_postgres, ownsPostgres: false, $"fleetconsole_v_{Guid.NewGuid():N}", overrides, clock, configureServices);
+        var variant = new ApiFactory(_postgres, _redis, ownsPostgres: false, $"fleetconsole_v_{Guid.NewGuid():N}", overrides, clock, configureServices);
         configureHost?.Invoke(variant.HostStub);
         await variant.InitializeAsync();
         if (kestrel)
@@ -145,6 +155,31 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         }
 
         return variant;
+    }
+
+    /// <summary>
+    /// Builds a second host over the <b>same</b> database as this one (so the same Data Protection key ring, users,
+    /// grants and credentials), with the same overrides and test services: a second replica ("pod") for tests of
+    /// cross-instance behaviour such as the Redis backplane (CACHE-3). Unlike <see cref="CreateVariantAsync"/> no new
+    /// database is created.
+    /// </summary>
+    /// <remarks>The sibling has its own emulator, whose pool-user counter is independent: take usernames from the
+    /// original host only, so the two never hand out the same user. Pool users exist in every emulator, so a user taken
+    /// from the original can log in on the sibling.</remarks>
+    /// <param name="overrides">Extra configuration on top of this host's overrides (e.g. another <c>ConnectionStrings:redis</c>).</param>
+    /// <returns>The started sibling; the caller disposes it.</returns>
+    internal async Task<ApiFactory> CreateSiblingAsync(IReadOnlyDictionary<string, string?>? overrides = null)
+    {
+        var merged = new Dictionary<string, string?>(_overrides);
+        foreach (var (key, value) in overrides ?? new Dictionary<string, string?>())
+        {
+            merged[key] = value;
+        }
+
+        var sibling = new ApiFactory(_postgres, _redis, ownsPostgres: false, _database, merged, Clock, _configureServices);
+        await sibling.InitializeAsync();
+        _ = sibling.Server;
+        return sibling;
     }
 
     /// <summary>
@@ -275,6 +310,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         if (_ownsPostgres)
         {
             await _postgres.DisposeAsync();
+            await _redis.DisposeAsync();
         }
     }
 
@@ -297,12 +333,17 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         }
 
         // Derived hosts that switch to another environment (WithWebHostBuilder + UseEnvironment) can't use the http
-        // emulator (https is required outside Development): give them the offline login settings.
+        // emulator (https is required outside Development): give them the offline login settings, and the shared Redis
+        // (required outside Development, ADR-0040 §7) unless the test set ConnectionStrings:redis itself.
         builder.ConfigureAppConfiguration((context, configuration) =>
         {
             if (!context.HostingEnvironment.IsDevelopment())
             {
                 configuration.AddInMemoryCollection(TestHostConfiguration.Offline());
+                if (context.Configuration.GetConnectionString("redis") is null)
+                {
+                    configuration.AddInMemoryCollection([new("ConnectionStrings:redis", _redis.ConnectionString)]);
+                }
             }
         });
 

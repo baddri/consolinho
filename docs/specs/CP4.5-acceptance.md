@@ -58,7 +58,7 @@ DevOAuth user `e2e-member` (group `e2e-team`) is reserved for this; global setup
 | ID | Evidence | Status |
 |---|---|---|
 | QG-2 | `web/e2e/groups.e2e.ts` `QG-2: a group grant gives read-only access…`: the member's switcher shows "read only"; Delete Pod is aria-disabled with the RO reason; Effective access reads "Group e2e-team (priority 100)", then "Direct grant", and the candidate reads "Overridden by direct grant". Green with `--repeat-each=2` (2/2) | met |
-| UIG-1/2/3 (live) | same spec, step 1: Access tab › Grant access › Group radio (User is the default) › Subject name `Use "e2e-team"` › Priority 100 with its helper text › toast "Granted group e2e-team ReadOnly on …" | met |
+| UIG-1/2/3 (live) | same spec, step 1: Access tab › Grant access › Group radio (User is the default) › Subject name `Use "e2e-team"` › Priority 100 with its helper text › toast "Granted group e2e-team read only on …" | met |
 | QG-1 | `scripts/check-fe.sh` green on the branch after all FE tasks (see T-0266 Work log) | met |
 
 Full e2e suite: 37/38 in each of the last two runs. The one failure is `workloads.e2e.ts` QGC-1/OAPI-3, a pre-existing
@@ -104,3 +104,37 @@ Defects filed: none (the one failure was a stale test, fixed in place).
 - Toast copy: "ReadOnly"/"ReadWrite" exposes enum names. The rest of the UI says "Read only"/"Read write" (switcher, tables), and OCP toasts use plain language. Not a blocker, but it should change: **T-0273** (FE, 4.5b).
 - T-0271 (QGC-1 completion flake, CP4c test) does not block. It is test-only, the feature passes in isolation and QA owns it. It must be fixed before the CP4.5b VERIFY so the e2e suite gives a clean signal.
 - Process note from VERIFY is accepted: DevOAuth fixture changes must re-run `check-be.sh`.
+
+## CP4.5b VERIFY (QA, T-0285, 2026-11-25, branch `cp/4.5-access-at-scale` @ 5d4895a + QA test changes)
+
+**Verdict: PASS (CP4.5b build scope).** No blocking defects. OPS-2/OPS-3 deferred to T-0286 (live, post-deploy).
+
+**Gates (QG-1)**: `check-be.sh` build ok, Domain 431, Application 840, Api 992 (incl. the 6 new QG-4 tests). `check-fe.sh` lint/typecheck/build ok, 124 files 1304/1304. `check-deploy.sh` ok. e2e (Aspire + Redis): 38/38 in 2 consecutive solo full runs (QGC-1/OAPI-3 green in both; `--repeat-each=5` on the T-0271 specs 5/5).
+
+| AC | Evidence | Verdict |
+|---|---|---|
+| CACHE-1 | `CachingBehaviorTests` (7, step 5 after validation, hit skips pipeline, failures never cached); `AccessCacheTests.Second_request_is_served_from_the_cache_without_access_sql`. Deviation `IQueryCache` port vs `HybridCache` recorded in spec §4b/ADR-0040 | pass |
+| CACHE-2 | `AccessSnapshotTests` (tags), `AccessCacheInvalidationTests` (every `IDomainEvent` handled or allow-listed; event→tag), `AccessCacheTests` (direct/group revoke, leave group, new group grant, rotation, disabled cluster → next request) | pass |
+| CACHE-3 | NEW `AccessCacheReplicaTests`: two hosts, one DB + one Redis, 60 s TTL; direct revoke, group revoke, user read-only set on A → refused on B within 2 s. Negative control (B without Redis) fails all three | pass |
+| CACHE-4 | `AccessCacheTtlTests` (lost invalidation heals at expiry); `ProductionConfigurationTests` rejects `Cache:Duration` outside 1 s–60 s | pass |
+| CACHE-5 | NEW `AccessCacheFailureTests.Expired_entry_with_the_database_unreachable_answers_503…`: fresh entry serves with DB down, after expiry 3 × 503 `Persistence.Unavailable`, nothing forwarded; plus `QueryCacheTests.ExpiredEntry_WithFailingLoad_Throws…`, `PersistenceUnavailableTests` | pass |
+| CACHE-6 | NEW `AccessCacheReplicaTests.Redis_never_holds_the_decrypted_SA_token`: SCAN all keys, GET/HGETALL every value after both replicas cached; no plaintext, JSON-escaped, percent-escaped or base64 (3 alignments) token, no OAuth access token; access key + user id + username seen | pass |
+| CACHE-7 | NEW `AccessCacheFailureTests.Redis_down_keeps_login_and_proxy_working…` (Redis container stopped: L1 hit, new login + miss, revoke refused at once, `redis` Degraded, `/health` 200 "Degraded", Warning logged); `QueryCacheTests.RedisDown_*` (no password leak) | pass |
+| CACHE-8 | `BACKEND.md` §Recipes › "Caching a query": key, tags, event→tag table (L225–245) | pass |
+| OPS-1 | AppHost `AddRedis("redis")` (e2e ran on it); kustomize base `redis.yaml` (`--save ""`, `--appendonly no`, emptyDir, `--requirepass` from Secret `consolinho-redis`), `networkpolicy-redis.yaml` (ingress 6379 only from `component: server`); `check-deploy.sh` green | pass |
+| OPS-2, OPS-3 | live replicas / k6 re-test | deferred → T-0286 |
+| QG-4 | CACHE-3/5/6 above, Testcontainers Redis; 18 cache tests green 3 consecutive runs | pass |
+
+**Risks (not blocking)**
+- R1: the backplane subscription is set up lazily on a pod's first cache use. An invalidation published in that window (ms) is missed and heals within `Cache:Duration` (30 s, CACHE-4). Tests handshake first; T-0286 should revoke only after both pods have served traffic.
+- T-0271 (QGC-1/OAPI-3 flake) fixed test-side: the Monaco Find widget sometimes resumed at the 2nd `replicas: 1` (under `status`, caret line 34 vs 15, diagnosed by instrumenting the caret). `findInEditor` now steps to match "1 of N".
+
+Defects filed: none.
+
+## ACCEPT (CP4.5b) (product owner, 2026-11-25, @ 33841ce)
+**Verdict: ACCEPTED (build scope).** CACHE-1 to CACHE-8, OPS-1, QG-1 and QG-4 are met per VERIFY. OPS-2/OPS-3 are open until T-0286; CP4.5 is not closed before then.
+- CACHE-1 deviation accepted: a FusionCache `IQueryCache` port with tags taken from the loaded result is the hybrid cache the AC wants. Up-front `HybridCache` tags would need a second user lookup per event. Caching still runs in a pipeline behavior. AC wording is met in spirit (ADR-0040 §2).
+- CACHE-6 goes further than the AC asked: Redis and L1 hold only ciphertext and the token is decrypted per request. This is accepted. Revisit only if OPS-3 shows decryption cost.
+- R1 accepted. A fresh pod can miss an invalidation for a few ms before its backplane subscribes, and the 30 s `Cache:Duration` bounds it. This is the same exposure as the post-commit race in ADR-0040. Condition for T-0286: revoke only after both pods have served traffic, and record the refusal on the other pod.
+- T-0286 must record OPS-3 next to the T-0242 baseline (p95 71 ms, Postgres peak 177m). HPA/requests change only if the data says so.
+- Backlog (later): subscribe to the backplane eagerly at startup (readiness waits for it) to close R1 instead of relying on the TTL.

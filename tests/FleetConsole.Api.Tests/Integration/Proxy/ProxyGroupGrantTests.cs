@@ -21,7 +21,7 @@ namespace FleetConsole.Api.Tests.Integration.Proxy;
 /// CP4.5 PREC-2..7 end to end: group grants reach the proxy and the switcher (<c>GET /api/clusters</c>) through the
 /// shared resolver — a group member signs in and proxies with the winning grant's credential, direct beats group,
 /// priority picks the credential, the read-only flag narrows, a disabled cluster stays unavailable — and ADR-0019: one
-/// SQL statement per proxy authorization, matching the user's groups with <c>= ANY</c>.
+/// SQL statement per proxy authorization cache miss (none on a hit, ADR-0040), matching the user's groups with <c>= ANY</c>.
 /// </summary>
 /// <remarks>
 /// One variant for the class, with a command recorder on the <c>ConsoleDbContext</c>. PREC-2 logs in a pool admin, whose
@@ -156,20 +156,28 @@ public sealed class ProxyGroupGrantTests(ProxyGroupGrantTests.Host fixture) : IC
         string[] groups = [group];
         var (cluster, _) = await GroupClusterAsync(server, group, AccessMode.ReadWrite, priority: 10);
         using var client = await LoginWithGroupsAsync(username, groups);
-        using (var warmUp = await client.SendAsync(HttpMethod.Get, cluster.Name, Pods))
+
+        // Cache miss (ADR-0040 §4): the snapshot is one statement; the next request is served from the cache.
+        fixture.Commands.Clear();
+        using (var miss = await client.SendAsync(HttpMethod.Get, cluster.Name, Pods))
         {
-            warmUp.StatusCode.ShouldBe(HttpStatusCode.OK);
+            miss.StatusCode.ShouldBe(HttpStatusCode.OK);
         }
 
-        fixture.Commands.Clear();
-        using var response = await client.SendAsync(HttpMethod.Get, cluster.Name, Pods);
-
-        response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        var grantQueries = fixture.Commands.Where(sql => sql.Contains("FROM users", StringComparison.Ordinal)
-            && sql.Contains("grants", StringComparison.Ordinal)).ToList();
+        var grantQueries = GrantQueries();
         grantQueries.Count.ShouldBe(1, string.Join("\n---\n", fixture.Commands));
-        grantQueries[0].ShouldContain("= ANY (u.groups)");
+        grantQueries[0].ShouldContain("= ANY (u0.groups)");
+
+        fixture.Commands.Clear();
+        using var hit = await client.SendAsync(HttpMethod.Get, cluster.Name, Pods);
+
+        hit.StatusCode.ShouldBe(HttpStatusCode.OK);
+        GrantQueries().ShouldBeEmpty();
     }
+
+    private List<string> GrantQueries() =>
+        fixture.Commands.Where(sql => sql.Contains("FROM users", StringComparison.Ordinal)
+            && sql.Contains("grants", StringComparison.Ordinal)).ToList();
 
     // Signs in, then stores the user's groups as a login or revalidation would record them (PREC-1). The emulator's
     // users/~ only reports configured groups, so the test writes the membership the resolver reads directly.

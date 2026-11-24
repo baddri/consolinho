@@ -204,6 +204,8 @@ public sealed class DataProtectionSetupTests : IDisposable
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             [$"ConnectionStrings:{ConsoleDbContext.ConnectionName}"] = connectionString,
+            // Required outside Development (query cache, ADR-0040 §7); never connected to by these tests.
+            ["ConnectionStrings:redis"] = "redis.invalid:6379",
         });
         builder.Configuration.AddInMemoryCollection(settings ?? []);
         builder.AddInfrastructure();

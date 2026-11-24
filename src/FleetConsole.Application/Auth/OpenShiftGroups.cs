@@ -16,13 +16,18 @@ public static class OpenShiftGroups
     /// <summary>Prefix of OpenShift/Kubernetes virtual groups.</summary>
     public const string VirtualGroupPrefix = "system:";
 
-    /// <summary>Whether <paramref name="group"/> is a virtual <c>system:*</c> group (ordinal prefix match).</summary>
+    /// <summary>
+    /// Whether <paramref name="group"/> is a virtual <c>system:*</c> group. The prefix match ignores case
+    /// (<see cref="StringComparison.OrdinalIgnoreCase"/>) so it agrees with <c>GroupName</c> and the access resolver,
+    /// which reject/ignore <c>system:</c> in any case (GRP-3); otherwise a host group such as <c>System:Ops</c> would be
+    /// stored and shown although it can never grant anything (T-0272).
+    /// </summary>
     /// <param name="group">A group name.</param>
     /// <returns><see langword="true"/> for virtual groups.</returns>
     public static bool IsVirtual(string group)
     {
         ArgumentNullException.ThrowIfNull(group);
-        return group.StartsWith(VirtualGroupPrefix, StringComparison.Ordinal);
+        return group.StartsWith(VirtualGroupPrefix, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

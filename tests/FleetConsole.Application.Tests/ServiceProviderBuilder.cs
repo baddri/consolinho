@@ -1,4 +1,5 @@
 using FleetConsole.Application.Abstractions;
+using FleetConsole.Application.Abstractions.Caching;
 using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Tests.Audit;
 using FluentValidation;
@@ -38,6 +39,9 @@ internal static class ServiceProviderBuilder
         if (withAuditPorts)
         {
             services.AddSingleton<IClock, FixedClock>();
+
+            // The query cache port (Infrastructure): the closed CachingBehavior and AccessCacheInvalidation need it.
+            services.AddSingleton<IQueryCache, Behaviors.FakeQueryCache>();
             services.AddScoped<IAuditEntryRepository, CapturingAuditEntryRepository>();
             services.AddScoped<ICurrentUser>(_ => FakeCurrentUser.Anonymous);
 

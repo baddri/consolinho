@@ -96,7 +96,7 @@ describe('Group Cluster access tab and bulk grant (T-0264)', () => {
     expect(within(dialog).getByText('Read only access with priority 20 to 2 clusters.')).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
-    expect(await screen.findByText('Granted group sre ReadOnly on 2 clusters')).toBeInTheDocument();
+    expect(await screen.findByText('Granted group sre read only on 2 clusters')).toBeInTheDocument();
     expect(bodies).toEqual([
       {
         accessMode: 'readOnly',
@@ -143,7 +143,7 @@ describe('Group Cluster access tab and bulk grant (T-0264)', () => {
     expect(within(dialog).queryByText(message)).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
-    expect(await screen.findByText('Granted group qa ReadOnly on 1 cluster')).toBeInTheDocument();
+    expect(await screen.findByText('Granted group qa read only on 1 cluster')).toBeInTheDocument();
     expect(mockDb.grants).toHaveLength(grantsBefore + 1);
   });
 
@@ -163,7 +163,7 @@ describe('Group Cluster access tab and bulk grant (T-0264)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Next' }));
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
-    expect(await screen.findByText('Granted group qa ReadOnly on 2 clusters')).toBeInTheDocument();
+    expect(await screen.findByText('Granted group qa read only on 2 clusters')).toBeInTheDocument();
     expect(bodies.at(-1)).toMatchObject({ priority: 11 });
   });
 

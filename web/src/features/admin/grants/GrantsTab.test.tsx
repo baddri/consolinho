@@ -214,7 +214,7 @@ describe('Grants tabs (T-0039)', () => {
     expect(within(dialog).getByRole('radio', { name: /Read only/ })).toBeChecked();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
-    expect(await screen.findByText('Granted bob ReadOnly on staging-eu-1')).toBeInTheDocument();
+    expect(await screen.findByText('Granted bob read only on staging-eu-1')).toBeInTheDocument();
     expect(writes).toEqual([
       {
         method: 'POST',
@@ -269,7 +269,7 @@ describe('Grants tabs (T-0039)', () => {
     ).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Grant access' }));
 
-    expect(await screen.findByText('Granted bob ReadWrite on prod-eu-1')).toBeInTheDocument();
+    expect(await screen.findByText('Granted bob read write on prod-eu-1')).toBeInTheDocument();
     expect(writes[0]?.body).toEqual({
       username: 'bob',
       clusterName: 'prod-eu-1',

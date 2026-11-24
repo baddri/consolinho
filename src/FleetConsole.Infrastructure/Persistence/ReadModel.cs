@@ -13,6 +13,10 @@ namespace FleetConsole.Infrastructure.Persistence;
 /// EF Core implementation of <see cref="IReadModel"/>: <c>AsNoTracking()</c> queryables over the request's
 /// <see cref="ConsoleDbContext"/>, and the EF Core async operators that execute queries built from them.
 /// </summary>
+/// <remarks>
+/// The operators are the boundary where queries hit the database, so they translate an unreachable database into
+/// <see cref="PersistenceUnavailableException"/> (ADR-0040 §8; classification in <see cref="ConsoleDbContext.IsUnavailable"/>).
+/// </remarks>
 /// <param name="db">The scoped context.</param>
 internal sealed class ReadModel(ConsoleDbContext db) : IReadModel
 {
@@ -36,17 +40,30 @@ internal sealed class ReadModel(ConsoleDbContext db) : IReadModel
 
     /// <inheritdoc />
     public Task<List<T>> ToListAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
-        EntityFrameworkQueryableExtensions.ToListAsync(query, cancellationToken);
+        TranslateUnavailable(() => EntityFrameworkQueryableExtensions.ToListAsync(query, cancellationToken));
 
     /// <inheritdoc />
     public Task<T?> FirstOrDefaultAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
-        EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(query, cancellationToken);
+        TranslateUnavailable(() => EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(query, cancellationToken));
 
     /// <inheritdoc />
     public Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
-        EntityFrameworkQueryableExtensions.CountAsync(query, cancellationToken);
+        TranslateUnavailable(() => EntityFrameworkQueryableExtensions.CountAsync(query, cancellationToken));
 
     /// <inheritdoc />
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) =>
-        EntityFrameworkQueryableExtensions.AnyAsync(query, cancellationToken);
+        TranslateUnavailable(() => EntityFrameworkQueryableExtensions.AnyAsync(query, cancellationToken));
+
+    /// <summary>Runs one query, turning a connectivity failure into <see cref="PersistenceUnavailableException"/>.</summary>
+    private static async Task<TResult> TranslateUnavailable<TResult>(Func<Task<TResult>> query)
+    {
+        try
+        {
+            return await query().ConfigureAwait(false);
+        }
+        catch (Exception exception) when (ConsoleDbContext.IsUnavailable(exception))
+        {
+            throw ConsoleDbContext.Unavailable(exception);
+        }
+    }
 }

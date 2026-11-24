@@ -1,0 +1,16 @@
+# In-namespace address of the access-cache Redis (ADR-0040 §9): the server's ConnectionStrings__redis points at
+# consolinho-redis:6379. Selects component=redis only, so it never routes to server pods (and vice versa).
+apiVersion: v1
+kind: Service
+metadata:
+  name: consolinho-redis
+  labels:
+    app.kubernetes.io/component: redis
+spec:
+  selector:
+    app.kubernetes.io/component: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+      protocol: TCP

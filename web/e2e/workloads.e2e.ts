@@ -58,6 +58,8 @@ const NEW_IMAGE = 'registry.example.com/web:3';
  * Searches the Monaco editor from the top with its Find widget (Monaco renders only visible lines, so the DOM can't be
  * read for off-screen text) and returns the match count text ("1 of 2", "No results") and the first match's box.
  * The widget stays open; Escape closes it and leaves the match selected.
+ * The widget sometimes resumes after the previous match instead of at the caret (T-0271: `replicas: 1` then landed in
+ * `status`), so it steps with Enter (next match, wraps) until the current match is the first one in the document.
  */
 async function findInEditor(page: Page, text: string) {
   // Focus, not click: a click on the (scrolled) lines can land under the code editor's sticky header controls.
@@ -65,9 +67,16 @@ async function findInEditor(page: Page, text: string) {
   await page.keyboard.press('Control+Home');
   await page.keyboard.press('Control+f');
   const widget = page.locator('.find-widget');
-  await widget.getByRole('textbox', { name: 'Find' }).fill(text);
+  const input = widget.getByRole('textbox', { name: 'Find' });
+  await input.fill(text);
   const count = widget.locator('.matchesCount');
-  await expect(count).not.toHaveText('');
+  await expect(async () => {
+    const current = (await count.textContent()) ?? '';
+    if (/ of \d+$/.test(current) && !current.startsWith('1 of ')) {
+      await input.press('Enter');
+    }
+    expect(current).toMatch(/^(1 of \d+|No results)$/);
+  }).toPass({ timeout: 5_000 });
   const match = page.locator('.monaco-editor .currentFindMatch').first();
   return {
     count: (await count.textContent()) ?? '',

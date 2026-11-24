@@ -1,5 +1,5 @@
 # K8S-6/Q4: egress of the server pods restricted by port only (destinations of ~40 managed clusters are unknown IPs):
-# DNS (53/5353, OpenShift DNS listens on 5353), Postgres 5432, HTTPS 443 (OAuth route) and 6443 (API servers).
+# DNS (53/5353, OpenShift DNS listens on 5353), Postgres 5432, Redis 6379 (ADR-0040 §9), HTTPS 443 (OAuth route) and 6443 (API servers).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -24,6 +24,8 @@ spec:
           port: 5353
         - protocol: TCP
           port: 5432
+        - protocol: TCP
+          port: 6379
         - protocol: TCP
           port: 443
         - protocol: TCP

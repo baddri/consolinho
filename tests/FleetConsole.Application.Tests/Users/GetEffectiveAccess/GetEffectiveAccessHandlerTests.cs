@@ -1,3 +1,4 @@
+using FleetConsole.Application.Tests.Access;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Access;
@@ -177,7 +178,7 @@ public sealed class GetEffectiveAccessHandlerTests
     }
 
     private GetEffectiveAccessHandler Handler() =>
-        new(_model, new ClusterAccessReader(_model, NullLogger<ClusterAccessReader>.Instance));
+        new(_model, TestAccessReader.Create(_model));
 
     private Grant AddDirect(User user, Cluster cluster, AccessMode mode, string credentialName)
     {
