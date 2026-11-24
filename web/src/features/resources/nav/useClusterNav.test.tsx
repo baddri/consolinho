@@ -88,7 +88,15 @@ async function sectionItems(
   return result;
 }
 
-const CLUSTER_SECTIONS = ['Home', 'Workloads', 'Networking', 'Storage', 'Administration'];
+const CLUSTER_SECTIONS = [
+  'Home',
+  'Operators',
+  'Workloads',
+  'Networking',
+  'Storage',
+  'Compute',
+  'Administration',
+];
 
 /** The registry-driven section toggles of the sidebar, in order (the cluster switcher and Favorites left out). */
 async function sectionTitles(): Promise<string[]> {
@@ -109,6 +117,28 @@ describe('Networking and Storage navigation (NAV-1/2)', () => {
       Storage: ['PersistentVolumes', 'PersistentVolumeClaims', 'StorageClasses'],
     });
     expect(await sectionTitles()).toEqual(CLUSTER_SECTIONS);
+  });
+
+  it('adds Overview, Operators, Compute and Cluster Settings on OpenShift (T-0331)', async () => {
+    const { user } = renderApp('/c/dev-1/k8s/cluster/projects');
+
+    await screen.findByRole('grid', { name: 'Projects' });
+    const items = await sectionItems(user, ['Home', 'Operators', 'Compute', 'Administration']);
+    expect(items.Home?.[0]).toBe('Overview');
+    expect(items.Operators).toEqual(['Installed Operators']);
+    expect(items.Compute).toEqual(['Nodes', 'Machines', 'MachineSets']);
+    expect(items.Administration?.slice(0, 2)).toEqual(['Cluster Settings', 'Namespaces']);
+  });
+
+  it('keeps only Nodes of the CP5b items on vanilla Kubernetes', async () => {
+    const { user } = renderApp('/c/prod-k8s-1/k8s/cluster/namespaces');
+
+    await screen.findByRole('grid', { name: 'Namespaces' });
+    const items = await sectionItems(user, ['Operators', 'Compute', 'Administration']);
+    expect(items.Operators).toEqual([]);
+    expect(items.Compute).toEqual(['Nodes']);
+    expect(items.Administration).not.toContain('Cluster Settings');
+    expect(await sectionTitles()).not.toContain('Operators');
   });
 
   it('hides Routes on vanilla Kubernetes', async () => {

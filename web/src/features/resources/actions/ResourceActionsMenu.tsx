@@ -34,6 +34,8 @@ function ActionsMenu({ cluster, descriptor, obj }: ResourceActionsMenuProps) {
     onDeleted: () => void navigate(resourcePath(cluster, descriptor.model, { namespace })),
   });
 
+  // OCP `headings.tsx`: no Actions button when the kind has no actions (a read-only kind like ClusterOperator).
+  if (items.length === 0) return dialog;
   return (
     <>
       <Dropdown

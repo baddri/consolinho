@@ -134,6 +134,10 @@ column `DetailsSection` (shared `DetailsItem`s only, no tables or headings) — 
 and actions generic (Edit YAML, Delete, gated by `useResourceAccess`). The `detailTabs`/`actions` fields above arrive
 with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (registry + discovery).
 CP5a: `ListActions` (list heading buttons); the Pods tab shows only when `podsSelector(obj)` returns a selector (T-0301).
+CP5b (T-0331): `readOnly` (kind actions only, YAML read-only with a notice, no SSAR), `KindTabs` (Machines,
+Subscription, Related objects: shown when in `extraTabs` **and** given a component, routed via `ResourceKindTab`),
+`allNamespacesLabelSelector` (a `LabelSelector` ANDed with `?label=` in all-namespaces mode, CSV `!olm.copiedFrom`),
+`nav.label` (CSV "Installed Operators"); static nav items may `require` a model discovery must serve (Cluster Settings).
 
 ## Data fetching rules
 
@@ -146,6 +150,11 @@ CP5a: `ListActions` (list heading buttons); the Pods tab shows only when `podsSe
 - Exception (CP4b, SRCH-5): Search result sections are **one-shot lists** (`k8sListAll`, no watch, `staleTime` 30 s,
   key `['k8s', cluster, 'search', modelKey, ns, labelSelector]`), at most 6 requests in flight through one shared
   `p-limit(6)` limiter — N live watches would hold N long-lived connections (HTTP/1.1 allows 6 per origin).
+- Fleet status (CP5c, ADR-0041): `GET /api/fleet/status` is an NDJSON stream read by TanStack `streamedQuery`
+  (`features/fleet/api`, key `['api','fleet','status']`, `staleTime: 0`, `retry: false`, refetch every 60 s while
+  visible). `refetchMode: 'append'` plus a reducer over `{ current, previous }` keep the last complete stream's lines
+  visible until the refresh replaces them; once a stream completes, clusters without a line are dropped. Unmount and
+  refetch abort the request (the server cancels its probes).
 - Cluster OpenAPI (CP4c, ADR-0038): `shared/k8s/openapi.ts` only. Index `['k8s', cluster, 'openapi']`, one document per
   group-version `['k8s', cluster, 'openapi', gvPath]`, `staleTime: Infinity`; failures degrade to "no schema" silently.
   Derived schemas are memoised per document, never cached under their own keys.
@@ -165,6 +174,7 @@ CP5a: `ListActions` (list heading buttons); the Pods tab shows only when `podsSe
   | `['api','system','info']` | `GET /api/system/info` |
   | `['api','auth','me']` | `GET /api/auth/me` |
   | `['api','clusters']` | `GET /api/clusters` (switcher; refetch on focus, every 5 min) |
+  | `['api','fleet','status']` | `GET /api/fleet/status` (NDJSON stream, CP5c) |
   | `['api','admin','users']` / `[…,'users',username]` / `[…,'users',username,'grants']` | users list / detail / grants |
   | `['api','admin','clusters']` / `[…,'clusters',name]` / `[…,name,'credentials']` / `[…,name,'grants']` | clusters |
   | `['api','admin','credentials']` | fleet credentials |

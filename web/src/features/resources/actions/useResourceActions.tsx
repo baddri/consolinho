@@ -47,7 +47,7 @@ function noKindActions(): KindActions {
  * details Actions menu offer the same items: the kind's own items (`descriptor.useKindActions`) first, then OCP's
  * common actions in `useCommonActions` order, worded as OCP and in normal colour — "Edit labels" and "Edit annotations"
  * (modals, gated by `patch`), "Edit <Kind>" (opens the YAML tab, gated by `update` as OCP's) and "Delete <Kind>" (gated
- * by `delete`), each write gated by {@link useActionAccess} (ACT-4).
+ * by `delete`), each write gated by {@link useActionAccess} (ACT-4). A `readOnly` descriptor gets its kind items only.
  *
  * Callers key the menu by `modelKey(descriptor.model)`, so the kind hook runs on every render of one instance and a
  * kind change remounts the menu instead of swapping hooks (rules of hooks).
@@ -69,12 +69,29 @@ export function useResourceActions({
     ? descriptor.useKindActions({ cluster, obj, reviewByName })
     : noKindActions();
   const [open, setOpen] = useState<CommonDialog | null>(null);
-  const patchAccess = useActionAccess(cluster, { verb: 'patch', model, namespace, name }, reviewByName);
-  const updateAccess = useActionAccess(cluster, { verb: 'update', model, namespace, name }, reviewByName);
-  const deleteAccess = useActionAccess(cluster, { verb: 'delete', model, namespace, name }, reviewByName);
+  // Read-only kinds never show the common items, so their access reviews are skipped (hooks still run).
+  const reviewCommon = !descriptor.readOnly;
+  const patchAccess = useActionAccess(
+    cluster,
+    { verb: 'patch', model, namespace, name },
+    reviewByName,
+    reviewCommon,
+  );
+  const updateAccess = useActionAccess(
+    cluster,
+    { verb: 'update', model, namespace, name },
+    reviewByName,
+    reviewCommon,
+  );
+  const deleteAccess = useActionAccess(
+    cluster,
+    { verb: 'delete', model, namespace, name },
+    reviewByName,
+    reviewCommon,
+  );
   const close = () => setOpen(null);
 
-  const common: ResourceActionItem[] = [
+  const commonItems: ResourceActionItem[] = [
     {
       itemKey: 'edit-labels',
       title: 'Edit labels',
@@ -126,5 +143,7 @@ export function useResourceActions({
         onClose={close}
       />
     ) : null;
-  return { items: [...kind.items, ...common], dialog: kind.dialog ?? commonDialog };
+  // Read-only kinds (Machines, ClusterOperators, CSVs) keep only their own items, as OCP offers no edits there.
+  if (descriptor.readOnly) return kind;
+  return { items: [...kind.items, ...commonItems], dialog: kind.dialog ?? commonDialog };
 }

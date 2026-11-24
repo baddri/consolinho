@@ -19,7 +19,7 @@ import { ALL_NAMESPACES, resourcePath } from '../paths';
 import { descriptorForPlural } from '../registry/registry';
 import type { ResourceDescriptor } from '../registry/types';
 import { useResourceRoute } from '../resourceRoute';
-import type { ResourceDetailsContext } from './detailsContext';
+import { useResourceDetails, type ResourceDetailsContext } from './detailsContext';
 import { ResourceHeader } from './ResourceHeader';
 import { RESOURCE_TABS, useResourceTab, type ResourceTab } from './useResourceTab';
 
@@ -29,6 +29,9 @@ const TAB_TITLES: Record<ResourceTab, string> = {
   yaml: 'YAML',
   replicasets: 'ReplicaSets',
   replicationcontrollers: 'ReplicationControllers',
+  machines: 'Machines',
+  subscription: 'Subscription',
+  'related-objects': 'Related objects',
   pods: 'Pods',
   jobs: 'Jobs',
   logs: 'Logs',
@@ -38,7 +41,8 @@ const TAB_TITLES: Record<ResourceTab, string> = {
 
 /**
  * Whether `descriptor`'s details page has the tab `tab`: Pods only with a pod selector, Events unless opted out, the
- * kind tabs (ReplicaSets, ReplicationControllers, Jobs, Logs, Terminal) only when listed in `extraTabs` (ADR-0037 §2).
+ * kind tabs (ReplicaSets, ReplicationControllers, Jobs, Logs, Terminal) only when listed in `extraTabs` (ADR-0037 §2),
+ * the descriptor-owned ones (Machines, Subscription, Related objects) only when also given a `KindTabs` component.
  */
 function hasTab(descriptor: ResourceDescriptor, tab: ResourceTab): boolean {
   switch (tab) {
@@ -52,9 +56,26 @@ function hasTab(descriptor: ResourceDescriptor, tab: ResourceTab): boolean {
     case 'logs':
     case 'terminal':
       return descriptor.extraTabs?.includes(tab) ?? false;
+    case 'machines':
+    case 'subscription':
+    case 'related-objects':
+      return (descriptor.extraTabs?.includes(tab) ?? false) && descriptor.KindTabs?.[tab] !== undefined;
     default:
       return true;
   }
+}
+
+/**
+ * Body of a descriptor-owned kind tab (Machines, Subscription, Related objects): the descriptor's `KindTabs` component
+ * for the active tab. Lazy route module of those tabs; `hasTab` has already redirected when the component is missing.
+ */
+export function ResourceKindTab() {
+  const { cluster, descriptor, obj } = useResourceDetails();
+  const tab = useResourceTab();
+  const kindTab = tab === 'machines' || tab === 'subscription' || tab === 'related-objects' ? tab : undefined;
+  // eslint-disable-next-line @typescript-eslint/unbound-method -- rendered as a component, never called on `this`
+  const Tab = kindTab ? descriptor.KindTabs?.[kindTab] : undefined;
+  return Tab ? <Tab cluster={cluster} obj={obj} /> : null;
 }
 
 /** Full-page empty state (unsupported or unserved kind). */

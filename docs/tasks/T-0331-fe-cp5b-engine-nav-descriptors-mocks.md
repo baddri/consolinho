@@ -1,12 +1,12 @@
 ---
 id: T-0331
 title: CP5b foundation — registry extensions, Operators/Compute nav, minimal descriptors, MSW fixtures
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5b
 depends_on: [T-0330]
-paths: [web/src/features/resources/registry/registry.ts, web/src/features/resources/registry/types.ts, web/src/features/resources/registry/kinds/nodes.tsx, web/src/features/resources/registry/kinds/machines.tsx, web/src/features/resources/registry/kinds/machinesets.tsx, web/src/features/resources/registry/kinds/clusteroperators.tsx, web/src/features/resources/registry/kinds/clusterserviceversions.tsx, web/src/features/resources/registry/kinds/kinds.test.tsx, web/src/features/resources/nav, web/src/features/resources/details/useResourceTab.ts, web/src/features/resources/details/ResourceDetailsPage.tsx, web/src/features/resources/routes.tsx, web/src/features/resources/paths.ts, web/src/features/resources/index.ts, web/src/features/resources/actions/useResourceActions.tsx, web/src/features/resources/yaml/ResourceYamlTab.tsx, web/src/features/resources/list/ResourceListPage.tsx, web/src/mocks/k8s, docs/architecture/FRONTEND.md]
-review_rounds: 0
+paths: [web/src/features/resources/registry/registry.ts, web/src/features/resources/registry/types.ts, web/src/features/resources/registry/kinds/nodes.tsx, web/src/features/resources/registry/kinds/machines.tsx, web/src/features/resources/registry/kinds/machinesets.tsx, web/src/features/resources/registry/kinds/clusteroperators.tsx, web/src/features/resources/registry/kinds/clusterserviceversions.tsx, web/src/features/resources/registry/kinds/kinds.test.tsx, web/src/features/resources/nav, web/src/features/resources/details/useResourceTab.ts, web/src/features/resources/details/ResourceDetailsPage.tsx, web/src/features/resources/routes.tsx, web/src/features/resources/paths.ts, web/src/features/resources/index.ts, web/src/features/resources/actions/useResourceActions.tsx, web/src/features/resources/actions/useActionAccess.ts, web/src/features/resources/actions/ResourceActionsMenu.tsx, web/src/features/resources/actions/ResourceRowActions.tsx, web/src/features/resources/yaml/ResourceYamlTab.tsx, web/src/features/resources/list/ResourceListPage.tsx, web/src/mocks/k8s, docs/architecture/FRONTEND.md]
+review_rounds: 1
 ---
 
 ## Goal
@@ -75,15 +75,45 @@ done once so Lane C (compute) and Lane O (cluster/operators) own disjoint files 
   (section order), L1083 (Installed Operators), L1518–1600 (Compute), L1722 (Cluster Settings).
 
 ## Acceptance criteria
-- [ ] Sidebar on an OpenShift mock cluster: Home(Overview first) · Operators · Workloads · Networking · Storage · Compute · Administration(Cluster Settings); `prod-k8s-1` has no Operators, Machines, MachineSets, Cluster Settings.
-- [ ] Read-only kind: fake descriptor test shows no common actions and a read-only YAML editor with the notice.
-- [ ] New tab: fake descriptor with `extraTabs: ['machines']` + `KindTabs.machines` renders the tab at `/machines`; without the component no tab.
-- [ ] `allNamespacesLabelSelector` sent only for all-namespaces (MSW request assertion); copied CSVs absent there.
-- [ ] `mocks/k8s.test.ts` "project.openshift.io everywhere except on vanilla lab-1" green again: lab-1 `/apis` lists no config/machine/operators groups (red since T-0330 added the models).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Sidebar on an OpenShift mock cluster: Home(Overview first) · Operators · Workloads · Networking · Storage · Compute · Administration(Cluster Settings); `prod-k8s-1` has no Operators, Machines, MachineSets, Cluster Settings.
+- [x] Read-only kind: fake descriptor test shows no common actions and a read-only YAML editor with the notice.
+- [x] New tab: fake descriptor with `extraTabs: ['machines']` + `KindTabs.machines` renders the tab at `/machines`; without the component no tab.
+- [x] `allNamespacesLabelSelector` sent only for all-namespaces (MSW request assertion); copied CSVs absent there.
+- [x] `mocks/k8s.test.ts` "project.openshift.io everywhere except on vanilla lab-1" green again: lab-1 `/apis` lists no config/machine/operators groups (red since T-0330 added the models).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: registry extensions (readOnly, KindTabs + `ResourceKindTab` route, allNamespacesLabelSelector, nav.label), nav sections/static items with `requires`, paths, five minimal descriptors.
+- 2026-11-25: MSW `computeFixtures.ts` / `clusterFixtures.ts` + scenarios (dev-2 NotReady worker-3 and Degraded ingress, staging-eu-1 updating, prod-us-1 view denied clusteroperators via `credentialAllows`).
+- 2026-11-25: tests in kinds.test.tsx (read-only, kind tab, CSV selector) and useClusterNav.test.tsx; orchestrator-requested one-line fix in AppShell.test.tsx and registry.test.ts (`nodes` is registered now).
+- 2026-11-25 round 1 fixes: no Actions button / row kebab when `items` is empty; `useActionAccess` `enabled` skips the common SSARs for `readOnly`; comment wraps; paths += actions menu/row/access files.
 
 ## Review
+- 2026-11-25 frontend-architect, round 1: **CHANGES_REQUESTED** (check-fe on resources/app/mocks/k8s: lint/typecheck ok, 628 tests green).
+  Scope: no foreign file carries T-0331 changes (HANDOVER/T-0310/T-0341/mocks fixtures+handlers are others' work); own diffs have no
+  formatting churn (prettier deltas pre-exist at HEAD). Deviations accepted: `LabelSelector` (reuses `fixedSelector`); notice copy
+  ours (OCP `edit-yaml.tsx` L809 only sets `readOnly`, no alert).
+- `actions/ResourceActionsMenu.tsx` + `actions/ResourceRowActions.tsx` — a `readOnly` kind with no kind items renders an empty
+  Actions dropdown / row kebab; OCP renders no Actions button without actions (`public/components/utils/headings.tsx` L102–104)
+  and ClusterOperator never has any (`cluster-settings/cluster-operator.tsx` L361, no row kebab) — render nothing when `items` is
+  empty (row cell empty), add both files to `paths`, and change `kinds.test.tsx` "readOnly" test to assert no Actions button.
+- Optional: `useResourceActions.tsx:72-74` — skip the three common-action SSARs for `readOnly` (add `enabled` to `useActionAccess`),
+  so FRONTEND.md's "no SSAR" holds for the menu too.
+- Nit: comment lines >120 chars — `useResourceTab.ts:6-7`, `useClusterNav.ts:87-88`, `paths.ts:8`, `routes.tsx:62`; `index.ts:2-3`
+  odd wrap ("and the" / "cluster Overview…").
+- Note for UX/PO (no action here): OCP's ClusterOperator YAML tab is editable per access (`navFactory.editYaml()`); `readOnly` on
+  clusteroperators is the contract's choice (UX §5).
 
 ## Handover notes
+- Deviation: `allNamespacesLabelSelector` is a `LabelSelector` (not `string`) so it reuses `useResourceDataView`'s
+  `fixedSelector`; CSV uses `matchExpressions: [{ key: 'olm.copiedFrom', operator: 'DoesNotExist' }]` → `!olm.copiedFrom`.
+- OCP `edit-yaml.tsx` has no read-only alert copy (it only sets the editor read-only); our info alert
+  "<Kinds> are read-only in the console." is our own copy — UX may adjust.
+- Empty action lists render no Actions button / row kebab (OCP `headings.tsx`); `readOnly` skips the common SSARs.
+- Descriptor tab bodies render via `ResourceKindTab` in `ResourceDetailsPage.tsx` (one eslint `unbound-method`
+  disable: the method-syntax component is rendered, never called on `this`).
+- Mocks: `computeFixtures.ts` (Lane C) and `clusterFixtures.ts` (Lane O) are appended last in `seedClusterObjects`, so
+  older uids are stable. Node pods: DaemonSet `node-exporter` + ReplicaSet `metrics-proxy-…` (openshift-monitoring),
+  bare `node-debug-<node>` (kube-system). `infrastructureName(cluster)` = `<cluster>-x7k2p` names MachineSets.
+- RBAC: `rbac.ts:credentialAllows` adds per-cluster view denials (`prod-us-1` clusteroperators); apiServer uses it.
+- CSV list heading/grid name is still the model's "ClusterServiceVersions" (T-0337 owns the OCP "Installed Operators" title).

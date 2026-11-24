@@ -3,6 +3,7 @@ import { setWatchTimingForTests } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { mockDb } from '@/test/handlers';
 import { renderApp } from '@/test/render';
+import { server } from '@/test/server';
 import { resourceRoutes } from '../../routes';
 import { descriptorForPlural } from '../registry';
 
@@ -328,4 +329,112 @@ describe('CP4b kinds (T-0189 foundation)', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(pod));
     expect(await screen.findByRole('tab', { name: 'Details', selected: true })).toBeInTheDocument();
   });
+});
+
+/** A registered descriptor the CP5b engine tests mutate (restored when the test ends). */
+function storageClassDescriptor() {
+  const descriptor = descriptorForPlural('storageclasses');
+  if (!descriptor) throw new Error('storageclasses not registered');
+  return descriptor;
+}
+
+/** `labelSelector` of every CSV list request the proxy receives (`null` when the request sends none). */
+function recordCsvListSelectors(): (string | null)[] {
+  const selectors: (string | null)[] = [];
+  const listener = ({ request }: { request: Request }) => {
+    const url = new URL(request.url);
+    if (request.method === 'GET' && url.pathname.endsWith('/clusterserviceversions')) {
+      selectors.push(url.searchParams.get('labelSelector'));
+    }
+  };
+  server.events.on('request:start', listener);
+  onTestFinished(() => {
+    server.events.removeListener('request:start', listener);
+  });
+  return selectors;
+}
+
+describe('CP5b engine (T-0331)', () => {
+  it(
+    'a readOnly kind has no common actions and a read-only YAML tab with the notice',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const descriptor = storageClassDescriptor();
+      descriptor.readOnly = true;
+      onTestFinished(() => {
+        delete descriptor.readOnly;
+      });
+      const { user } = renderApp('/c/dev-1/k8s/cluster/storageclasses/standard-csi/yaml');
+
+      expect(
+        await screen.findByText('StorageClasses are read-only in the console.', undefined, {
+          timeout: COLD_START_TIMEOUT_MS,
+        }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: 'YAML editor' })).toHaveAttribute('readonly');
+      expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+      // No kind actions either: OCP shows no Actions button at all.
+      expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
+      await user.click(screen.getByRole('tab', { name: 'Details' }));
+      expect(
+        await screen.findByRole('heading', { name: 'StorageClass details', level: 2 }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
+    },
+  );
+
+  it(
+    'renders a descriptor-owned kind tab at its segment, and no tab without a component',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const descriptor = storageClassDescriptor();
+      descriptor.extraTabs = ['machines'];
+      descriptor.KindTabs = {
+        machines: ({ cluster, obj }) => <p>Machines of {`${cluster}/${obj.metadata.name}`}</p>,
+      };
+      onTestFinished(() => {
+        delete descriptor.extraTabs;
+        delete descriptor.KindTabs;
+      });
+      const path = '/c/dev-1/k8s/cluster/storageclasses/standard-csi';
+      const first = renderApp(`${path}/machines`);
+
+      expect(await screen.findByRole('tab', { name: 'Machines', selected: true })).toBeInTheDocument();
+      expect(await screen.findByText('Machines of dev-1/standard-csi')).toBeInTheDocument();
+      expect(first.router.state.location.pathname).toBe(`${path}/machines`);
+      first.unmount();
+
+      delete descriptor.KindTabs;
+      const { router } = renderApp(`${path}/machines`);
+      await waitFor(() => expect(router.state.location.pathname).toBe(path));
+      expect(screen.queryByRole('tab', { name: 'Machines' })).not.toBeInTheDocument();
+    },
+  );
+
+  it(
+    'lists each CSV once across namespaces (!olm.copiedFrom), and the copy in its namespace',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const selectors = recordCsvListSelectors();
+      const { unmount } = renderApp('/c/dev-1/k8s/all-namespaces/clusterserviceversions');
+
+      const table = await screen.findByRole(
+        'grid',
+        { name: 'ClusterServiceVersions' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      await findRow(table, 'log-forwarder-operator.v5.9.3');
+      expect(within(table).getAllByRole('link', { name: 'cert-utils-operator.v1.3.12' })).toHaveLength(1);
+      expect(selectors).not.toHaveLength(0);
+      expect(selectors.every((selector) => selector === '!olm.copiedFrom')).toBe(true);
+      unmount();
+
+      selectors.length = 0;
+      renderApp('/c/dev-1/k8s/ns/shop/clusterserviceversions');
+      const shop = await screen.findByRole('grid', { name: 'ClusterServiceVersions' });
+      await findRow(shop, 'cert-utils-operator.v1.3.12');
+      expect(selectors).not.toHaveLength(0);
+      expect(selectors.every((selector) => selector === null)).toBe(true);
+    },
+  );
 });

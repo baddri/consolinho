@@ -85,7 +85,7 @@ describe('AppShell', () => {
       .getAllByRole('button')
       .filter((button) => !button.getAttribute('aria-label')?.endsWith('switch cluster'))
       .map((button) => button.textContent);
-    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Storage', 'Administration']);
+    expect(sections).toEqual(['Home', 'Favorites', 'Operators', 'Workloads', 'Networking', 'Storage', 'Compute', 'Administration']);
     await expandSection(user, nav, 'Home');
     const events = within(nav).getByRole('link', { name: 'Events' });
     expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
@@ -97,7 +97,7 @@ describe('AppShell', () => {
     const { user } = renderApp('/c/dev-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
-    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Storage', 'Administration']) {
+    for (const title of ['Home', 'Favorites', 'Operators', 'Workloads', 'Networking', 'Storage', 'Compute', 'Administration']) {
       expect(within(nav).getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false');
     }
     expect(within(nav).getByRole('button', { name: 'Workloads' }).closest('li')).toHaveClass('pf-m-current');

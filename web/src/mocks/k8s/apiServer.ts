@@ -20,7 +20,7 @@ import {
 import type { MockCredential } from '../fixtures';
 import { servesProjects } from './fixtures';
 import { settlePvcResize } from './networkingStorageFixtures';
-import { forbiddenMessage, isAllowed, profileOf, rbacResource, subjectOf } from './rbac';
+import { credentialAllows, forbiddenMessage, rbacResource, subjectOf } from './rbac';
 import { openApiResponse } from './openapi';
 import { parseFieldSelector, parseLabelSelector, type ObjectPredicate } from './selectors';
 import { notFound, statusResponse, unknownResource } from './status';
@@ -460,7 +460,7 @@ async function accessReview(api: ApiServerRequest): Promise<Response> {
   if (!spec || !attributes) return badRequest('spec.resourceAttributes is required');
   const verb = attributes.verb ?? '';
   const resource = attributes.resource ?? '';
-  const allowed = isAllowed(profileOf(api.credential), verb, resource);
+  const allowed = credentialAllows(api.credential, verb, resource);
   const review: SelfSubjectAccessReview = {
     apiVersion: 'authorization.k8s.io/v1',
     kind: 'SelfSubjectAccessReview',
@@ -545,7 +545,7 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
   const handler = subresource === undefined ? undefined : SUBRESOURCES[subresource];
   if (subresource !== undefined && !handler?.appliesTo(model)) return unknownResource();
   const resource = rbacResource(model.plural, subresource);
-  if (!isAllowed(profileOf(api.credential), verb, resource)) {
+  if (!credentialAllows(api.credential, verb, resource)) {
     return statusResponse(
       403,
       'Forbidden',

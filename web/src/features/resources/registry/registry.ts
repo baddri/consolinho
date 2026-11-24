@@ -1,4 +1,6 @@
 import { apiVersionOf } from '@/shared/k8s';
+import { clusterOperatorDescriptor } from './kinds/clusteroperators';
+import { clusterServiceVersionDescriptor } from './kinds/clusterserviceversions';
 import { configMapDescriptor } from './kinds/configmaps';
 import { cronJobDescriptor } from './kinds/cronjobs';
 import { daemonSetDescriptor } from './kinds/daemonsets';
@@ -8,8 +10,11 @@ import { eventDescriptor } from './kinds/events';
 import { horizontalPodAutoscalerDescriptor } from './kinds/horizontalpodautoscalers';
 import { ingressDescriptor } from './kinds/ingresses';
 import { jobDescriptor } from './kinds/jobs';
+import { machineDescriptor } from './kinds/machines';
+import { machineSetDescriptor } from './kinds/machinesets';
 import { namespaceDescriptor } from './kinds/namespaces';
 import { networkPolicyDescriptor } from './kinds/networkpolicies';
+import { nodeDescriptor } from './kinds/nodes';
 import { persistentVolumeClaimDescriptor } from './kinds/persistentvolumeclaims';
 import { persistentVolumeDescriptor } from './kinds/persistentvolumes';
 import { podDescriptor } from './kinds/pods';
@@ -34,6 +39,8 @@ export function resourceDescriptors(): readonly ResourceDescriptor[] {
   registry ??= [
     projectDescriptor,
     eventDescriptor,
+    // Operators (OLM-1).
+    clusterServiceVersionDescriptor,
     // Workloads in OCP nav order (WL-1).
     podDescriptor,
     deploymentDescriptor,
@@ -55,7 +62,13 @@ export function resourceDescriptors(): readonly ResourceDescriptor[] {
     persistentVolumeDescriptor,
     persistentVolumeClaimDescriptor,
     storageClassDescriptor,
+    // Compute (NODE-1, MS-1).
+    nodeDescriptor,
+    machineDescriptor,
+    machineSetDescriptor,
     namespaceDescriptor,
+    // Reached from Cluster Settings, no sidebar entry (CS-3).
+    clusterOperatorDescriptor,
   ];
   return registry;
 }

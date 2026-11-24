@@ -20,7 +20,7 @@ describe('resource registry', () => {
 
   it('looks descriptors up by plural and by apiVersion + kind', () => {
     expect(descriptorForPlural('pods')?.model.kind).toBe('Pod');
-    expect(descriptorForPlural('nodes')).toBeUndefined();
+    expect(descriptorForPlural('controllerrevisions')).toBeUndefined();
     expect(descriptorForKind('v1', 'ConfigMap')?.model.plural).toBe('configmaps');
     expect(descriptorForKind('apps/v1', 'ReplicaSet')?.model.plural).toBe('replicasets');
     expect(descriptorForKind('apps/v1', 'ControllerRevision')).toBeUndefined();
