@@ -150,6 +150,27 @@ have no project bar.
 - **QG5A-2** Playwright: Route Location opens a new tab URL (asserted, not followed); RW expands a PVC (fake apiserver); RO sees Expand PVC / Create Project disabled; `prod-k8s-1` shows no Routes nav item.
 - **QG5A-3** `docs/architecture/ocp-parity.md` rows for every new list/details page + Expand PVC + Create Project modals, all `match` (or an accepted, recorded gap) at accept.
 
+### 5a.11 Design / lanes (frontend-architect, 2026-11-25)
+No new ADR: kind code lives in the engine per ADR-0037 §1 (`features/resources/{networking,storage,projects}/`); the
+descriptor `ListActions` slot is a registry extension documented in FRONTEND.md (T-0300).
+
+| Order | Tasks | Paths (disjoint per lane) |
+|---|---|---|
+| First (alone) | T-0300 foundation: models, types, registry stubs, Storage nav section, `ListActions`, mock fixtures, FRONTEND.md | `shared/k8s`, `mocks/k8s`, `registry.ts`, `registry/types.ts`, `registry/kinds/<new kinds>`, `nav/`, `list/` |
+| Lane N (networking) | T-0301 Services Pods tab + Routes item → T-0302 Routes list + link-out → T-0303 Route details → T-0304 Ingresses → T-0305 NetworkPolicies | `networking/`, `registry/kinds/{services,routes,ingresses,networkpolicies}.tsx`, `details/ResourcePodsTab.tsx` |
+| Lane S (storage + projects) | T-0306 SC + PV → T-0307 PVCs + `parseQuantity` → T-0308 Expand PVC → T-0309 Create Project | `storage/`, `projects/`, `registry/kinds/{storageclasses,persistentvolumes,persistentvolumeclaims,projects,namespaces}.tsx`, `shared/k8s/quantity.ts`, `admin/audit/auditActionLabels.ts` |
+| Last | T-0310 UX probe/side-by-side → T-0311 QA e2e + parity | docs, `web/e2e/` |
+
+Design deviations (to record as parity gaps in T-0311): Route Backend health column and metrics tab omitted; Route
+TLS cert/key shown as "Set/Not set" (SAFE5-4); Service Pods tab shows an empty state for selector-less Services
+instead of all pods; PVC Used column + donut omitted (Q6); Expand PVC adds a StorageClass `allowVolumeExpansion`
+disabled reason (PVC-3, not in OCP); no Events tab on Project/Namespace details (as OCP); audit labels keep the T-0220
+map's imperative tense ("Create Project") rather than SAFE5-5's past tense.
+
+Backend asks: Api tests for SAFE5-2/3 (RO PATCH `persistentvolumeclaims` / POST `projectrequests` → 403, grant token
+upstream); an audit hint (e.g. JSON-Patch path) if "Patch PersistentVolumeClaim" should read "Expand PVC"; no proxy
+allow-list change expected (structural `ProxyPath`).
+
 ---
 
 ## CP5b — Compute, cluster health, Operators
