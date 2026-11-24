@@ -1,7 +1,7 @@
 ---
 id: T-0263
 title: Fleet administration › Groups — list page and group detail Details tab (GPG-1, GPG-2 details, GPG-4)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4.5a
 depends_on: [T-0260]    # lane B (groups); parallel with T-0261/T-0262 and T-0265; runs on mocks, BE T-0256
@@ -49,15 +49,39 @@ counts, and open a group to see who is in it. Mirrors OCP's User Management › 
 - OCP reference: `/home/bad/works/openshift-console/frontend/public/components/group.tsx:useGroupColumns` (L72-105, Name/Users/Created), `:GroupDetails` (L199-218, "Group details" + "Users" sections), `:UsersTable` (L171-196).
 
 ## Acceptance criteria
-- [ ] GPG-1: sidebar Fleet administration shows Groups after Users; list has Name / Users / Clusters; grant-only group shows "Not found on host cluster"; `system:*` never listed; Name filter in the URL.
-- [ ] Q7: unknown member count shows `-` with tooltip; `hostStatus` forbidden shows the warning alert and the grant-only groups.
-- [ ] GPG-4: empty list shows "No groups found" with the host-permission hint.
-- [ ] GPG-2 (Details): members table, registered users linked, unregistered labelled; unknown members state; unknown group → 404 page.
-- [ ] Route-level code splitting kept (lazy page modules); deep link + reload of `/fleet/admin/groups/sre` works.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] GPG-1: sidebar Fleet administration shows Groups after Users; list has Name / Users / Clusters; grant-only group shows "Not found on host cluster"; `system:*` never listed; Name filter in the URL.
+- [x] Q7: unknown member count shows `-` with tooltip; `hostStatus` forbidden shows the warning alert and the grant-only groups.
+- [x] GPG-4: empty list shows "No groups found" with the host-permission hint.
+- [x] GPG-2 (Details): members table, registered users linked, unregistered labelled; unknown members state; unknown group → 404 page.
+- [x] Route-level code splitting kept (lazy page modules); deep link + reload of `/fleet/admin/groups/sre` works.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 frontend-engineer: ff-merged cp/4.5-access-at-scale (T-0260). Read OCP `group.tsx` (GroupPage, GroupDetails,
+  UsersTable). Added Groups section/tab constants/routes (lazy), `GroupsListPage`, `GroupDetailPage`, `GroupDetailsTab`,
+  `groupColumns`, `GroupHostLabels`; tests for list (filter, forbidden host, empty) and details (members, grant-only,
+  empty, 404). AppShell nav test lists Groups. `scripts/check-fe.sh` green.
+- 2026-11-24 fix round 1: `-` tooltip says "The group doesn't exist on the host cluster." for grant-only groups (list + details,
+  tests for both cases); empty title "No Groups found"; `-` placeholder throughout the group pages.
 
 ## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. Conforms to contract, FRONTEND.md, OCP `group.tsx` (GroupDetails/UsersTable: compact bordered table, "Group details" + "Users" sections). Lazy routes, `PRODUCT_NAME` from `@/shared/branding` as elsewhere in the app, admin-internal `../users/*` imports have precedent (grants, audit). `check-fe.sh` green (1264 tests).
+- Nit (optional): `groups/GroupDetailsTab.tsx` Users item — for a grant-only group (`foundOnHost === false`) the `-` tooltip says the product "can't read groups on the host cluster", which is wrong there. Pass a reason, or render `—` with no tooltip.
+- Nit (optional): `groups/GroupDetailsTab.tsx` — the same DetailsGrid mixes `-` (Users, from `GroupMemberCount`) with `—` (`EMPTY`, Source). Pick one placeholder per page.
+- 2026-11-24 ux-designer, round 1: **CHANGES_REQUESTED** (probe + clipped shots, mock admin, light 1280; OCP `public/components/group.tsx`, `user.tsx`)
+  - Groups list + Group details (Users item) — `-` tooltip says "Member count unavailable: Consolinho can't read groups on the host cluster." also for grant-only groups while the host read is `ok` (ghost-team), which is false — OCP n/a (fleet) — `GroupMemberCount` takes `foundOnHost`; when `false` the tooltip reads "The group doesn't exist on the host cluster." (same text as the Members empty state); keep the current text only for `foundOnHost === null`.
+  - Groups list empty — title "No groups found" — OCP `user.tsx:112` "No Users found" / `ConsoleDataView.tsx:66` "No {{label}} found" with label "Groups"; siblings `ClustersListPage`/`CredentialsListPage` "No Clusters/Credentials found" — use "No Groups found" (update the test and the spec text).
+  - OK: own `EmptyState` with host hint (OCP `user.tsx:NoDataEmptyMsg` pattern, as Clusters/Credentials); `PRODUCT_NAME` in copy (UX.md §11); no subtitle (OCP `GroupPage` has no helpText; UX.md §3); `-` + keyboard tooltip for unknown count (OCP `DASH = '-'`, `console-shared/src/constants/ui.ts`).
+  - OK: h1 24px/600, compact table, Name sticky nowrap, label 12px gap 8px, breadcrumb `Groups › Group details`, "Group details"/"Users" sections (OCP `GroupDetails` L199-218), members table compact+borders (OCP `UsersTable`), 404 as `UserDetailPage`.
+  - Follow-up (not this task): admin details use `—` while lists/OCP use `-` (`DASH`); one admin-wide decision, note in UX.md.
 
 ## Handover notes
+- Files: `groups/{GroupsListPage,GroupDetailPage,GroupDetailsTab,groupColumns,GroupHostLabels}.tsx` + 2 test files;
+  `adminSections.ts` (Groups after Users), `adminTabs.ts` (`GROUP_DETAIL_TABS`), `routes.tsx` (2 lazy routes).
+- T-0264: append `access` to `GROUP_DETAIL_TABS`/titles, add the `groups/:groupName/access` route with `handle: tab('access')`
+  (widen the `tab` helper's param type to include `GroupDetailTab`), and switch on `tab` in `GroupTabs`
+  (`GroupDetailPage.tsx`; a comment marks the spot).
+- Empty list (GPG-4) renders its own `EmptyState` instead of `ConsoleDataView` (whose built-in empty has no body).
+- Host hint uses `PRODUCT_NAME` (branding is "Consolinho"), not the literal "FleetConsole"; same for "No <product> user".
+- Members `null` + `foundOnHost === false` says "The group doesn't exist on the host cluster."; otherwise the permission hint.
+- No subtitle on the list heading (OCP's Groups list has none). Style probe not run (coordinator asked for gate only after the pause).

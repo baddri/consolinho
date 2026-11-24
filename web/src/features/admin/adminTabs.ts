@@ -22,6 +22,13 @@ export const CLUSTER_DETAIL_TAB_TITLES: Record<ClusterDetailTab, string> = {
   access: 'Access',
 };
 
+/** Tabs of the group detail page, in display order; each is a URL segment (`/fleet/admin/groups/:groupName`). */
+export const GROUP_DETAIL_TABS = ['details'] as const;
+/** A tab of the group detail page. */
+export type GroupDetailTab = (typeof GROUP_DETAIL_TABS)[number];
+/** Tab titles of the group detail page, also the accessible names of their panels. */
+export const GROUP_DETAIL_TAB_TITLES: Record<GroupDetailTab, string> = { details: 'Details' };
+
 /**
  * `PageTabs` entries of a detail page at `basePath` (e.g. `/fleet/admin/users/alice`, already encoded): the first tab
  * is the index route (`basePath` itself), every other one the URL segment named like its key (FRONTEND.md "Routing").

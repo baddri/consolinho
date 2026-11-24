@@ -43,6 +43,14 @@ export const adminRoute: RouteObject = {
       lazy: () => import('./users/UserDetailPage').then((m) => ({ Component: m.UserDetailPage })),
     },
     {
+      path: 'groups',
+      lazy: () => import('./groups/GroupsListPage').then((m) => ({ Component: m.GroupsListPage })),
+    },
+    {
+      path: 'groups/:groupName',
+      lazy: () => import('./groups/GroupDetailPage').then((m) => ({ Component: m.GroupDetailPage })),
+    },
+    {
       path: 'clusters',
       lazy: () => import('./clusters/ClustersListPage').then((m) => ({ Component: m.ClustersListPage })),
     },
