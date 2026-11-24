@@ -105,6 +105,16 @@ it holds, so these rules are strict.
 - Access is resolved per request (no cache in CP2): revoking a grant, deactivating a user or disabling a cluster takes
   effect on the next request.
 
+## Fleet status (ADR-0041)
+- Fleet probes are read-only GETs sent with the user's **winning grant token**, through the same proxy policy chain and
+  forwarding pool as the proxy, so the fleet page can never read what the proxy would refuse (refusal → `blockedByPolicy`
+  line, nothing decrypted or sent).
+- Probe facts are cached keyed by (cluster, credential), never by user and never containing the token: users sharing a
+  credential share facts that token can read; rotation/deletion of the credential invalidates them.
+- Lines carry only classified facts and failure codes, never upstream response text (FBE-6).
+- DoS bound: the pod-wide `fleet-status` concurrency limiter (503 `Fleet.Busy`) runs after authentication, so
+  anonymous requests can't consume permits; per-cluster fan-out is capped and time-boxed.
+
 ## Audit
 - Admin commands and all proxy mutations (allowed and denied) write `AuditEntry` (user, cluster, verb, path, status, timestamp, correlation id).
   Proxy entries are written after the response in their own unit of work; a failed audit write is logged at Error and

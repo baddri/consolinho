@@ -100,6 +100,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/fleet/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Streams the health of every cluster the signed-in user may access: one `FleetClusterStatus` JSON object per
+         *     line, flushed as each cluster completes (not sorted). A user without access gets 200 with an empty body; 503
+         *     `Fleet.Busy` (with `Retry-After`) when the pod is already computing its maximum of fleet requests.
+         */
+        get: operations["GetFleetStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/users": {
         parameters: {
             query?: never;
@@ -1293,6 +1314,109 @@ export interface components {
              */
             candidates: components["schemas"]["AccessCandidate"][];
         };
+        /** @enum {string} */
+        FleetClusterFailure: "unreachable" | "timeout" | "tlsError" | "tokenInvalid" | "upstreamError" | "blockedByPolicy";
+        /** @description ClusterOperator counts (OpenShift only). */
+        FleetClusterOperators: {
+            /** @description How the probe went; the counts are null unless it is ok. */
+            outcome: components["schemas"]["FleetProbeOutcome"];
+            /**
+             * Format: int32
+             * @description Number of ClusterOperators.
+             */
+            total: null | number;
+            /**
+             * Format: int32
+             * @description Operators with Degraded True.
+             */
+            degraded: null | number;
+            /**
+             * Format: int32
+             * @description Operators whose Available is not True (False, Unknown or missing).
+             */
+            unavailable: null | number;
+            /**
+             * Format: int32
+             * @description Operators with Progressing True.
+             */
+            progressing: null | number;
+        };
+        /**
+         * @description The health facts of one cluster the user may access. Sections are null when not probed (Kubernetes clusters have no
+         *     clusterVersion/clusterOperators, OpenShift clusters no kubernetesVersion) and all of them are null when
+         *     Failure is set.
+         */
+        FleetClusterStatus: {
+            /** @description The cluster, as `GET /api/clusters` lists it (with the user's effective access mode). */
+            cluster: components["schemas"]["AccessibleCluster"];
+            /**
+             * Format: date-time
+             * @description When the facts were probed; cached for `Fleet:CacheDuration`, so it is "Last checked".
+             */
+            checkedAt: string;
+            failure: null | components["schemas"]["FleetClusterFailure"];
+            kubernetesVersion: null | components["schemas"]["FleetKubernetesVersion"];
+            clusterVersion: null | components["schemas"]["FleetClusterVersion"];
+            clusterOperators: null | components["schemas"]["FleetClusterOperators"];
+            nodes: null | components["schemas"]["FleetNodes"];
+        };
+        /** @description The OpenShift version and update state (ClusterVersion `version`). */
+        FleetClusterVersion: {
+            /** @description How the probe went; every other field is null unless it is ok. */
+            outcome: components["schemas"]["FleetProbeOutcome"];
+            /** @description The newest Completed history entry's version, else the desired version. */
+            currentVersion: null | string;
+            /** @description The version the cluster is heading to ("Updating to …"). */
+            desiredVersion: null | string;
+            /** @description Condition Available is True (null when the condition is absent). */
+            available: null | boolean;
+            /** @description Condition Progressing is True (an update is running). */
+            progressing: null | boolean;
+            /** @description Condition Failing is True. */
+            failing: null | boolean;
+            /**
+             * Format: int32
+             * @description Number of available updates.
+             */
+            availableUpdates: null | number;
+        };
+        /** @description The Kubernetes version of a plain Kubernetes cluster (`GET /version`). */
+        FleetKubernetesVersion: {
+            /** @description How the probe went. */
+            outcome: components["schemas"]["FleetProbeOutcome"];
+            /** @description The reported version, e.g. `v1.31.4`; null unless Outcome is ok. */
+            gitVersion: null | string;
+        };
+        /** @description Node counts (every distribution). */
+        FleetNodes: {
+            /** @description How the probe went; the counts are null unless it is ok. */
+            outcome: components["schemas"]["FleetProbeOutcome"];
+            /**
+             * Format: int32
+             * @description Number of nodes.
+             */
+            total: null | number;
+            /**
+             * Format: int32
+             * @description Nodes whose Ready condition is True.
+             */
+            ready: null | number;
+            /**
+             * Format: int32
+             * @description Total minus ready (Ready False or Unknown).
+             */
+            notReady: null | number;
+            /**
+             * Format: int32
+             * @description Cordoned nodes (SchedulingDisabled).
+             */
+            unschedulable: null | number;
+        };
+        /**
+         * @description How one probe of a reachable cluster went (contract §2). The section's counts are null unless FleetProbeOutcome.Ok.
+         * @enum {string}
+         */
+        FleetProbeOutcome: "ok" | "forbidden" | "notFound";
         /**
          * @description A user's or a host group's access to one cluster through a ServiceAccount credential, with the state of user, cluster
          *     and credential so the UI can mark grants of deactivated users, disabled clusters and expired credentials.
@@ -2105,6 +2229,89 @@ export interface operations {
             };
             /** @description Internal Server Error */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetFleetStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-ndjson": components["schemas"]["FleetClusterStatus"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

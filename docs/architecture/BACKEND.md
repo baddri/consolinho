@@ -222,6 +222,20 @@ authorization statement per cache miss, none on a hit; precedence, the enabled f
 are resolved per request. `Cache:Duration` (default 30 s) bounds staleness only if an invalidation is lost. TLS failures are classified from `HttpRequestError`, not
 `TlsValidationRecord` (probe-only). Never add response buffering/compression on the proxy route (watches stream).
 
+## Fleet status (ADR-0041)
+`GET /api/fleet/status` streams one NDJSON line (`FleetClusterStatusDto`) per cluster the user can read, in
+**completion order**, flushed per line, `Cache-Control: no-store`; no grants → 200 with an empty body. Path:
+`GetFleetStatusQuery` → `FleetStatusStream` (lazy, ≤ `Fleet:MaxClusterConcurrency` probes at once, one cluster's
+exception becomes its own failure line) → `ClusterHealthProbe` (proxy policy chain, then `IQueryCache` keyed by
+cluster + winning credential) → `IClusterHealthReader` over the proxy's forwarding pool. The Api writes the stream
+with `Api/Fleet/NdjsonResult<T>` (app `JsonOptions`, enumerates with `RequestAborted`, client abort ends quietly);
+validation/access failures are ordinary ProblemDetails before any byte.
+Bounds: each cluster `Fleet:ClusterTimeout` (5 s → `timeout` line); facts cached `Fleet:CacheDuration` (30 s); a
+pod-wide rate-limiter policy `fleet-status` (one global `ConcurrencyLimiter`, `Fleet:MaxConcurrentRequests` 16,
+queue `Fleet:RequestQueueLimit` 64, oldest first) holds its permit for the whole stream; rejection → 503
+`Fleet.Busy` + `Retry-After: 5`. `UseRateLimiter` runs after `UseAuthorization`, so anonymous callers get 401 first.
+Options are validated on start (`FleetOptions.IsValid`); probe durations go to meter `ApplicationDiagnostics.MeterName`.
+
 ## Recipes (keep these working; they are the maintainability contract)
 
 ### Caching a query
@@ -233,6 +247,9 @@ are never cached or served stale (CACHE-5 → 503); never cache decrypted tokens
    through `IReadModel` terminal operators.
 3. Invalidate in an `IPostCommitDomainEventHandler<TEvent>` (runs after commit, never pre-commit) calling
    `IQueryCache.RemoveByTagsAsync`. A reflection coverage test makes every `IDomainEvent` handled or allow-listed.
+
+Exception: fan-out services that are not one query per request (the fleet probe, ADR-0041) call `IQueryCache`
+directly with their own per-entry key/tags, because one request reads N independently cached entries.
 
 Access snapshot — key `access:v1:user:{id}`, tags `user:`, `cluster:`/`credential:` of every row, `group:{sha256}` (names are never logged) of every
 user group; `Application/Access/AccessCacheInvalidation.cs`:

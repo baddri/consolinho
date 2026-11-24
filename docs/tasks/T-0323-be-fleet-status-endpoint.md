@@ -1,7 +1,7 @@
 ---
 id: T-0323
 title: Fleet endpoint — GET /api/fleet/status NDJSON, pod-wide concurrency limiter (Fleet.Busy), Fleet options, metrics, OpenAPI, docs
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 5c
 depends_on: [T-0321, T-0322]
@@ -54,17 +54,41 @@ document the new conventions.
   `ProxyClusterAsync` (L193) + `FakeKubeApiServer` helpers from T-0322 for a real end-to-end line.
 
 ## Acceptance criteria
-- [ ] Anonymous → 401; deactivated → 401; user with no grants → 200 empty body, `application/x-ndjson`, `no-store`.
-- [ ] Two granted clusters (one OpenShift fake, one closed port) → two lines; one `failure: "unreachable"`, the other
+- [x] Anonymous → 401; deactivated → 401; user with no grants → 200 empty body, `application/x-ndjson`, `no-store`.
+- [x] Two granted clusters (one OpenShift fake, one closed port) → two lines; one `failure: "unreachable"`, the other
       full facts; JSON is camelCase with string enums; first line readable before a delayed third cluster finishes.
-- [ ] Limiter: `MaxConcurrentRequests=1, RequestQueueLimit=0`, first request held by a gated fake → second gets 503
+- [x] Limiter: `MaxConcurrentRequests=1, RequestQueueLimit=0`, first request held by a gated fake → second gets 503
       `Fleet.Busy` + `Retry-After: 5`; anonymous request while saturated still gets 401.
-- [ ] Invalid `Fleet:*` config fails start-up (one test like the Proxy options test).
-- [ ] OpenAPI test green; `schema.gen.ts` regenerated; BACKEND.md + SECURITY.md updated.
-- [ ] `scripts/check-be.sh` green (and `scripts/check-fe.sh` still typechecks with the new schema).
+- [x] Invalid `Fleet:*` config fails start-up (one test like the Proxy options test).
+- [x] OpenAPI test green; `schema.gen.ts` regenerated; BACKEND.md + SECURITY.md updated.
+- [x] `scripts/check-be.sh` green (and `scripts/check-fe.sh` still typechecks with the new schema).
 
 ## Work log
+- 2026-11-25 (backend-engineer): implemented endpoint, `NdjsonResult`, `FleetSetup` (options + limiter), meter, appsettings,
+  13 integration/OpenAPI/config tests, docs; `schema.gen.ts` from live `npm run gen:api`. Deviations: constant is
+  `FleetOptions.InvalidMessage` (task said `ValidationMessage`); no explicit `RequireAuthorization()` (the `/api` group
+  already requires it, endpoint-enumeration test covers it); `NdjsonResult` flushes right after `StartAsync` so headers
+  reach the client before the first line (TestServer needs it). Status went todo → in_review directly.
 
 ## Review
+- 2026-11-25 (backend-architect), round 1: **APPROVE**. `dotnet test tests/FleetConsole.Api.Tests` (filter `~Fleet`
+  matches the whole namespace) 1036/1036 green.
+  Deviations judged:
+  - No endpoint `RequireAuthorization()`: accepted — `/api` group applies it (ApiEndpoints.cs:34); repeating it adds nothing.
+  - `FleetOptions.InvalidMessage`: accepted — the existing T-0320 constant; the task text was wrong.
+  - Early flush after `StartAsync`: accepted — headers only, no body bytes, so no buffering and no change to the contract.
+  - `UseRateLimiter` after `UseAuthorization` (Program.cs:98): this is what the task asked for, not a deviation; the 401-while-saturated test covers it.
+  Verified: the lease is a `using` around `_next` in RateLimitingMiddleware, so it is held while `NdjsonResult` runs and released on
+  completion, abort or exception (`AbortedStream_FreesItsSlot`). No buffering: `DisableBuffering`, per-line serialize to `Body` + flush.
+  Optional: tests/FleetConsole.Api.Tests/Integration/Fleet/FleetStatusLimiterTests.cs — add an assertion that a completed stream
+  frees its slot (today only the abort path is tested explicitly).
 
 ## Handover notes
+- Files: `Api/Endpoints/FleetEndpoints.cs`, `Api/Fleet/{FleetSetup,NdjsonResult}.cs`, Program.cs (AddFleetStatus,
+  WithMetrics AddMeter, `UseRateLimiter` after `UseAuthorization`), appsettings `Fleet` defaults (10/5s/30s/16/64).
+- Limiter: one global partition `ConcurrencyLimiter`, OldestFirst; permit held for the whole stream; `OnRejected`
+  writes 503 ProblemDetails via `IProblemDetailsService` with `code: Fleet.Busy` + `Retry-After: 5`.
+- Tests: `tests/FleetConsole.Api.Tests/Integration/Fleet/` (endpoint, limiter with gated `IClusterHealthReader`,
+  start-up validation theory + OpenAPI shape).
+- FE: `schema.gen.ts` has the `GetFleetStatus` op (content `application/x-ndjson`) and Fleet* schemas; the FE must
+  read the body as a stream (openapi-fetch `parseAs: "stream"`), not JSON.
