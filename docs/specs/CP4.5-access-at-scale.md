@@ -50,7 +50,7 @@ service. Exact type, endpoint and field names are the architects' call unless qu
 - **GRP-7** Audit entries for create/update/revoke of a group grant name the subject kind, group name and priority (Audit log filter can find them by group name).
 
 ### 4.2 Membership and precedence (PREC) — CP4.5a
-- **PREC-1** Membership = `User.Groups` recorded at login. Session revalidation (ADR-0009) re-reads the user's groups from the host; Given Sam is removed from `sre-emea` on the host, When `Auth:RevalidationInterval` elapses, Then his next proxied request on a cluster granted only via `sre-emea` returns 403 and the cluster leaves his switcher. Access decisions never call the host per request.
+- **PREC-1** Membership = `User.Groups` recorded at login. Session revalidation (ADR-0009) re-reads the user's groups from the host; Given Sam is removed from `sre-emea` on the host, When `Auth:RevalidationInterval` elapses, Then his next proxied request on a cluster granted only via `sre-emea` returns 404 `Proxy.NotAvailable` (same as any cluster without access, CP2 contract) and the cluster leaves his switcher. Access decisions never call the host per request.
 - **PREC-2** Given a group member with no FleetConsole user yet and `Auth:AutoProvision` on, When he logs in, Then he sees the group's clusters without admin action.
 - **PREC-3** Direct user grant beats every group grant on that cluster (even a read-write group grant over a read-only user grant).
 - **PREC-4** Among group grants, the highest priority wins; its credential and access mode apply.

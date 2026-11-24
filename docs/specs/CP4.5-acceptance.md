@@ -95,3 +95,12 @@ Test-only fixes: the SRCH-1/2 option regex was stale since T-0237 (the sr-only k
 - Process: e2e and fixture changes that touch `src/FleetConsole.DevOAuth` must re-run `check-be.sh` (this is how the stale test got through).
 
 Defects filed: none (the one failure was a stale test, fixed in place).
+
+## ACCEPT (CP4.5a) (product owner, 2026-11-24, @ 3da319f)
+**Verdict: ACCEPTED.** All CP4.5a ACs are met per VERIFY. Gates are green. QG-2 e2e is green.
+- R1 accepted. The row can only be created by direct SQL, which bypasses GRP-3 validation. The request fails closed (500, no token leaks). Backlog: tolerant read + log warning.
+- R2 accepted for CP4.5a. GRP-3 ("any case") is met for access, but showing `System:Ops` in /me and Effective access misleads admins. Fix in **T-0272** (BE, 4.5b).
+- R3: the 404 `Proxy.NotAvailable` is correct because it matches the CP2 no-access contract and hides whether the cluster exists. PREC-1 wording is aligned to 404.
+- Toast copy: "ReadOnly"/"ReadWrite" exposes enum names. The rest of the UI says "Read only"/"Read write" (switcher, tables), and OCP toasts use plain language. Not a blocker, but it should change: **T-0273** (FE, 4.5b).
+- T-0271 (QGC-1 completion flake, CP4c test) does not block. It is test-only, the feature passes in isolation and QA owns it. It must be fixed before the CP4.5b VERIFY so the e2e suite gives a clean signal.
+- Process note from VERIFY is accepted: DevOAuth fixture changes must re-run `check-be.sh`.
