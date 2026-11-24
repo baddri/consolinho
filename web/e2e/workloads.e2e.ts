@@ -68,7 +68,10 @@ async function findInEditor(page: Page, text: string) {
   const count = widget.locator('.matchesCount');
   await expect(count).not.toHaveText('');
   const match = page.locator('.monaco-editor .currentFindMatch').first();
-  return { count: (await count.textContent()) ?? '', box: (await match.count()) ? await match.boundingBox() : null };
+  return {
+    count: (await count.textContent()) ?? '',
+    box: (await match.count()) ? await match.boundingBox() : null,
+  };
 }
 
 /** Puts the caret after the first `text` (from the top) and opens a new line below it (Monaco keeps the indentation). */
@@ -158,7 +161,10 @@ test.afterEach(() => {
   const testInfo = test.info();
   // Requests the fake did not serve explain most UI failures; attached to the report only when a test failed.
   if (testInfo.status !== testInfo.expectedStatus) {
-    void testInfo.attach('fake-api-unknown-requests', { body: fake.unknown.join('\n'), contentType: 'text/plain' });
+    void testInfo.attach('fake-api-unknown-requests', {
+      body: fake.unknown.join('\n'),
+      contentType: 'text/plain',
+    });
   }
 });
 
@@ -232,7 +238,10 @@ test.describe('read-write user on a production cluster', () => {
     expect(fake.deployment().spec?.paused).toBe(true);
 
     await page.getByRole('button', { name: 'Actions' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Restart rollout' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('menuitem', { name: 'Restart rollout' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
     await page.keyboard.press('Escape');
 
     await page.getByRole('button', { name: 'Resume rollouts' }).click();
@@ -241,7 +250,9 @@ test.describe('read-write user on a production cluster', () => {
 
     await (await enabledAction(page, 'Restart rollout')).click();
     await expect(page.getByText(`Rollout restarted for ${DEPLOYMENT} on ${DISPLAY_NAME}`)).toBeVisible();
-    const template = fake.deployment().spec?.template as { metadata?: { annotations?: Record<string, string> } };
+    const template = fake.deployment().spec?.template as {
+      metadata?: { annotations?: Record<string, string> };
+    };
     const restartedAt = template.metadata?.annotations?.['kubectl.kubernetes.io/restartedAt'] ?? '';
     expect(Number.isNaN(Date.parse(restartedAt))).toBe(false);
     expect(mutations().every((r) => r.method === 'PATCH' && r.token === EDITOR_TOKEN)).toBe(true);
@@ -296,7 +307,9 @@ test.describe('read-write user on a production cluster', () => {
     await page.getByRole('option', { name: 'Previous log' }).click();
     await expect(panel.getByText('panic: config reload failed')).toBeVisible();
     await expect(panel.getByText('Log stream ended.', { exact: true })).toBeVisible();
-    expect(fake.requests.some((r) => r.path.endsWith('/log') && r.query.get('previous') === 'true')).toBe(true);
+    expect(fake.requests.some((r) => r.path.endsWith('/log') && r.query.get('previous') === 'true')).toBe(
+      true,
+    );
   });
 
   test('TERM-1/2: the Terminal tab opens a shell that echoes', async ({ page }) => {
@@ -327,14 +340,20 @@ test.describe('read-write user: CP4b workloads and carried CP4a flows', () => {
     expect(create?.path).toBe(`/apis/batch/v1/namespaces/${WORK_NAMESPACE}/jobs`);
     expect(create?.token).toBe(EDITOR_TOKEN);
     const job = create?.body as {
-      metadata: { name: string; annotations: Record<string, string>; ownerReferences: { kind: string; name: string }[] };
+      metadata: {
+        name: string;
+        annotations: Record<string, string>;
+        ownerReferences: { kind: string; name: string }[];
+      };
       spec: { template: { spec: { containers: { image: string }[] } } };
     };
     expect(job.metadata.annotations).toEqual({
       'example.com/team': 'reports',
       'cronjob.kubernetes.io/instantiate': 'manual',
     });
-    expect(job.metadata.ownerReferences).toMatchObject([{ kind: 'CronJob', name: CRONJOB, controller: true }]);
+    expect(job.metadata.ownerReferences).toMatchObject([
+      { kind: 'CronJob', name: CRONJOB, controller: true },
+    ]);
     expect(job.spec.template.spec.containers[0]?.image).toBe('registry.example.com/batch:1');
     await expect(page.getByRole('heading', { level: 1, name: new RegExp(job.metadata.name) })).toBeVisible();
     expect(fake.objects('jobs').map((j) => j.metadata.name)).toEqual([job.metadata.name]);
@@ -371,7 +390,9 @@ test.describe('read-write user: CP4b workloads and carried CP4a flows', () => {
     await expect(rows('Services').filter({ hasText: SERVICE })).toHaveCount(1);
     for (const plural of ['deployments', 'pods', 'services']) {
       const lists = fake.requests.filter(
-        (r) => r.path === `${plural === 'deployments' ? '/apis/apps/v1' : '/api/v1'}/namespaces/${WORK_NAMESPACE}/${plural}` &&
+        (r) =>
+          r.path ===
+            `${plural === 'deployments' ? '/apis/apps/v1' : '/api/v1'}/namespaces/${WORK_NAMESPACE}/${plural}` &&
           r.query.get('labelSelector') === 'app=web',
       );
       expect(lists.length, `${plural} list with labelSelector`).toBeGreaterThan(0);
@@ -432,7 +453,7 @@ test.describe('read-write user: CP4b workloads and carried CP4a flows', () => {
     await expect(page.getByRole('tabpanel', { name: 'Logs' })).toBeVisible();
   });
 
-  test('LOG-6: a server-side cut of a running container\'s log reconnects with sinceTime, no duplicates', async ({
+  test("LOG-6: a server-side cut of a running container's log reconnects with sinceTime, no duplicates", async ({
     page,
   }) => {
     await openAs(page, RW_USER, `${podPath()}/logs`);
@@ -490,9 +511,6 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
   test('QGC-1/OAPI-3: the YAML tab hovers a field description, completes spec children and flags a wrong type', async ({
     page,
   }) => {
-    // T-0239: the monaco-yaml worker never starts (monaco-editor 0.55 createWebWorker API). Remove once fixed —
-    // `test.fail` turns red as soon as this passes.
-    test.fail(true, 'T-0239: monaco-yaml worker never starts');
     await openAs(page, RW_USER, `${deploymentPath()}/yaml`);
     // The sidebar toggle appears once the cluster's schema for the kind loaded (OAPI-1 through the proxy).
     await expect(page.getByRole('button', { name: 'Show sidebar' })).toBeVisible();
@@ -507,6 +525,9 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
       await page.mouse.move((box?.x ?? 0) + 20, (box?.y ?? 0) + (box?.height ?? 0) / 2);
       await expect(hover).toContainText(REPLICAS_DESCRIPTION, { timeout: 2_000 });
     }).toPass({ timeout: 15_000 });
+    // Move off the hover, or it sits over the editor and swallows the next click.
+    await page.mouse.move(0, 0);
+    await expect(hover).toBeHidden();
 
     await newLineAfter(page, 'replicas: 1');
     await page.keyboard.press('Control+Space');
@@ -518,11 +539,15 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     // An unknown key: real cluster schemas have no `additionalProperties: false`, so the meaningful check is that
     // the schema validates at all; a wrong type on a known key is flagged.
     await page.keyboard.type('paused: notABoolean');
-    await expect(page.locator('.monaco-editor .squiggly-error, .monaco-editor .squiggly-warning').first()).toBeVisible();
+    await expect(
+      page.locator('.monaco-editor .squiggly-error, .monaco-editor .squiggly-warning').first(),
+    ).toBeVisible();
     expect(fake.unknown.filter((u) => u.includes('openapi'))).toEqual([]);
   });
 
-  test('POL-2: YAML tab Cancel asks before discarding edits, Reload restores the live object', async ({ page }) => {
+  test('POL-2: YAML tab Cancel asks before discarding edits, Reload restores the live object', async ({
+    page,
+  }) => {
     await openAs(page, RW_USER, `${deploymentPath()}/yaml`);
     await editorReady(page);
     await newLineAfter(page, 'replicas: 1');
@@ -544,7 +569,9 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     expect(mutations()).toEqual([]);
   });
 
-  test('§4b.8: DC Start rollout POSTs instantiate and adds the next ReplicationController', async ({ page }) => {
+  test('§4b.8: DC Start rollout POSTs instantiate and adds the next ReplicationController', async ({
+    page,
+  }) => {
     await openAs(page, RW_USER, `${nsPath()}/deploymentconfigs/${DEPLOYMENT_CONFIG}`);
     await (await enabledAction(page, 'Start rollout')).click();
 
@@ -558,10 +585,14 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     ]);
     expect((mutations()[0]?.body as { kind: string }).kind).toBe('DeploymentRequest');
     expect(fake.object('deploymentconfigs', DEPLOYMENT_CONFIG).status?.latestVersion).toBe(3);
-    expect(fake.objects('replicationcontrollers').map((rc) => rc.metadata.name)).toContain(`${DEPLOYMENT_CONFIG}-3`);
+    expect(fake.objects('replicationcontrollers').map((rc) => rc.metadata.name)).toContain(
+      `${DEPLOYMENT_CONFIG}-3`,
+    );
   });
 
-  test('§4b.8: RC Rollback restores the old ReplicationController template on the DeploymentConfig', async ({ page }) => {
+  test('§4b.8: RC Rollback restores the old ReplicationController template on the DeploymentConfig', async ({
+    page,
+  }) => {
     await openAs(page, RW_USER, `${nsPath()}/replicationcontrollers/${OLD_CONTROLLER}`);
     await (await enabledAction(page, 'Rollback')).click();
     const dialog = page.getByRole('dialog', { name: 'Rollback' });
@@ -581,7 +612,9 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     expect(template.spec.containers[0]?.image).toBe(OLD_IMAGE);
   });
 
-  test('§4b.8: RC Cancel rollout confirms, then annotates the running ReplicationController', async ({ page }) => {
+  test('§4b.8: RC Cancel rollout confirms, then annotates the running ReplicationController', async ({
+    page,
+  }) => {
     await openAs(page, RW_USER, `${nsPath()}/replicationcontrollers/${RUNNING_CONTROLLER}`);
     await (await enabledAction(page, 'Cancel rollout')).click();
     const dialog = page.getByRole('dialog', { name: 'Cancel rollout' });
@@ -591,10 +624,16 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     await expect(dialog).toBeHidden();
     await expect(page.getByText(/Rollout of .* cancelled/)).toBeVisible();
     expect(mutations().map((r) => [r.method, r.path, r.token])).toEqual([
-      ['PATCH', `/api/v1/namespaces/${WORK_NAMESPACE}/replicationcontrollers/${RUNNING_CONTROLLER}`, EDITOR_TOKEN],
+      [
+        'PATCH',
+        `/api/v1/namespaces/${WORK_NAMESPACE}/replicationcontrollers/${RUNNING_CONTROLLER}`,
+        EDITOR_TOKEN,
+      ],
     ]);
     expect(
-      fake.object('replicationcontrollers', RUNNING_CONTROLLER).metadata.annotations?.['openshift.io/deployment.cancelled'],
+      fake.object('replicationcontrollers', RUNNING_CONTROLLER).metadata.annotations?.[
+        'openshift.io/deployment.cancelled'
+      ],
     ).toBe('true');
   });
 
@@ -603,7 +642,9 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     const increase = page.getByRole('button', { name: 'Increase the Pod count' });
     await expect(increase).toBeEnabled();
     await increase.click();
-    await expect.poll(() => fake.object('statefulsets', STATEFUL_SET).spec?.replicas, { timeout: 5_000 }).toBe(2);
+    await expect
+      .poll(() => fake.object('statefulsets', STATEFUL_SET).spec?.replicas, { timeout: 5_000 })
+      .toBe(2);
     expect(mutations().map((r) => [r.method, r.path, r.body, r.token])).toEqual([
       [
         'PATCH',
@@ -649,7 +690,10 @@ test.describe('read-only user on a production cluster', () => {
   test('ACT-4: Edit Deployment is aria-disabled for a read-only user', async ({ page }) => {
     await openAs(page, RO_USER, deploymentPath());
     await page.getByRole('button', { name: 'Actions' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Edit Deployment' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('menuitem', { name: 'Edit Deployment' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   test('CJ-2/ACT-4: Start Job and Suspend are aria-disabled for a read-only user', async ({ page }) => {
@@ -663,7 +707,9 @@ test.describe('read-only user on a production cluster', () => {
     await expect(page).toHaveURL(new RegExp(`${cronJobPath()}$`));
   });
 
-  test('FORM-3/ACT-4: the Edit Deployment form is read-only with the reason and has no Save', async ({ page }) => {
+  test('FORM-3/ACT-4: the Edit Deployment form is read-only with the reason and has no Save', async ({
+    page,
+  }) => {
     await openAs(page, RO_USER, `${deploymentPath()}/form`);
     await expect(page.getByText(`Your access to ${cluster} is read-only.`)).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Image Name' })).not.toBeEditable();
@@ -676,7 +722,10 @@ test.describe('read-only user on a production cluster', () => {
     await page.getByRole('button', { name: 'Reveal values' }).click();
     await expect(page.getByText(SECRET_VALUES.password)).toBeVisible();
     await page.getByRole('button', { name: 'Actions' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Edit Secret' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(page.getByRole('menuitem', { name: 'Edit Secret' })).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   });
 
   test('TERM-4: the Terminal tab explains read-only access and opens no socket', async ({ page }) => {

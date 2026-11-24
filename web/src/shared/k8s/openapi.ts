@@ -51,7 +51,11 @@ export interface OpenApiSchema {
   doc: OpenApiDocument;
   /** Schema name in `components.schemas`, e.g. `io.k8s.api.apps.v1.Deployment`. */
   rootName: string;
-  /** `{ $ref: '#/components/schemas/<root>', components: { schemas } }` with only the root's `$ref` closure. */
+  /**
+   * `{ allOf: [{ $ref: '#/components/schemas/<root>' }], components: { schemas } }` with only the root's `$ref`
+   * closure. The `allOf` wrapper matters: the language server applies draft-07 rules and drops a `$ref`'s siblings, so
+   * a root `$ref` next to `components` would lose every schema it points to (T-0239).
+   */
   jsonSchema: JSONSchema;
 }
 
@@ -120,7 +124,9 @@ function targetName(schema: JSONSchema): string | undefined {
 
 /** The map value schema of a free-form object (`additionalProperties` without `properties`). */
 function mapValue(schema: JSONSchema): JSONSchema | undefined {
-  return typeof schema.additionalProperties === 'object' && !schema.properties ? schema.additionalProperties : undefined;
+  return typeof schema.additionalProperties === 'object' && !schema.properties
+    ? schema.additionalProperties
+    : undefined;
 }
 
 /**
@@ -268,7 +274,7 @@ export function openApiSchemaFor(doc: OpenApiDocument, model: K8sModel): OpenApi
           doc,
           rootName,
           jsonSchema: {
-            $ref: `${SCHEMA_REF_PREFIX}${rootName}`,
+            allOf: [{ $ref: `${SCHEMA_REF_PREFIX}${rootName}` }],
             components: { schemas: refClosure(doc.components?.schemas ?? {}, rootName) },
           },
         };
@@ -305,7 +311,9 @@ export function useOpenApiSchema(cluster: string, model: K8sModel): OpenApiSchem
   // `/openapi/v3/` (or with `..`) is ignored so a hostile cluster can't steer the GET elsewhere.
   const rawUrl = (index.data as Partial<OpenApiIndex> | undefined)?.paths?.[path]?.serverRelativeURL;
   const url =
-    typeof rawUrl === 'string' && rawUrl.startsWith('/openapi/v3/') && !rawUrl.includes('..') ? rawUrl : undefined;
+    typeof rawUrl === 'string' && rawUrl.startsWith('/openapi/v3/') && !rawUrl.includes('..')
+      ? rawUrl
+      : undefined;
   const document = useQuery({
     queryKey: k8sQueryKeys.openapiDocument(cluster, path),
     queryFn: ({ signal }) => k8sGetPath<OpenApiDocument>(`${proxyBasePath(cluster)}${url ?? ''}`, signal),

@@ -28,7 +28,10 @@ function coreDocument(): OpenApiDocument {
           description: 'Pod is a collection of containers.',
           type: 'object',
           properties: {
-            metadata: { allOf: [ref('io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta')], description: 'Metadata.' },
+            metadata: {
+              allOf: [ref('io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta')],
+              description: 'Metadata.',
+            },
             spec: { allOf: [ref('io.k8s.api.core.v1.PodSpec')], description: 'Pod spec.' },
           },
           'x-kubernetes-group-version-kind': [{ group: '', version: 'v1', kind: 'Pod' }],
@@ -43,7 +46,11 @@ function coreDocument(): OpenApiDocument {
           type: 'object',
           required: ['containers'],
           properties: {
-            containers: { type: 'array', items: { allOf: [ref('io.k8s.api.core.v1.Container')] }, description: 'C.' },
+            containers: {
+              type: 'array',
+              items: { allOf: [ref('io.k8s.api.core.v1.Container')] },
+              description: 'C.',
+            },
             args: { type: 'array', items: { type: 'string' } },
           },
         },
@@ -94,12 +101,21 @@ describe('resolveSchemaPath', () => {
 
   it('resolves the root with its properties and follows $ref / allOf', () => {
     const root = resolveSchemaPath(doc, POD, []);
-    expect(root).toMatchObject({ name: 'Pod', type: 'object', description: 'Pod is a collection of containers.' });
+    expect(root).toMatchObject({
+      name: 'Pod',
+      type: 'object',
+      description: 'Pod is a collection of containers.',
+    });
     expect(root?.properties?.spec).toEqual({ type: 'object', description: 'Pod spec.', drillable: true });
 
     // allOf wrapper: the property's own description wins; children come from the referenced schema.
     const spec = resolveSchemaPath(doc, POD, ['spec']);
-    expect(spec).toMatchObject({ name: 'spec', type: 'object', description: 'Pod spec.', required: ['containers'] });
+    expect(spec).toMatchObject({
+      name: 'spec',
+      type: 'object',
+      description: 'Pod spec.',
+      required: ['containers'],
+    });
     // Plain $ref (no allOf): description falls back to the target's.
     expect(resolveSchemaPath(doc, POD, ['spec', 'containers', 'resources'])).toMatchObject({
       type: 'object',
@@ -111,7 +127,11 @@ describe('resolveSchemaPath', () => {
     const containers = resolveSchemaPath(doc, POD, ['spec', 'containers']);
     expect(containers).toMatchObject({ type: '[]Container', required: ['name'] });
     expect(Object.keys(containers?.properties ?? {})).toEqual(['name', 'resources', 'pullPolicy']);
-    expect(containers?.properties?.pullPolicy).toEqual({ type: 'string', enum: ['Always', 'Never'], drillable: false });
+    expect(containers?.properties?.pullPolicy).toEqual({
+      type: 'string',
+      enum: ['Always', 'Never'],
+      drillable: false,
+    });
     expect(resolveSchemaPath(doc, POD, ['spec', 'args'])).toMatchObject({ type: '[]string', required: [] });
   });
 
@@ -141,7 +161,7 @@ describe('openApiSchemaFor', () => {
     const doc = coreDocument();
     const schema = openApiSchemaFor(doc, PodModel);
     expect(schema?.rootName).toBe(POD);
-    expect(schema?.jsonSchema.$ref).toBe(`${S}${POD}`);
+    expect(schema?.jsonSchema.allOf).toEqual([{ $ref: `${S}${POD}` }]);
     expect(Object.keys(schema?.jsonSchema.components?.schemas ?? {}).sort()).toEqual([
       'io.k8s.api.core.v1.Container',
       'io.k8s.api.core.v1.Pod',
@@ -159,7 +179,9 @@ describe('openApiSchemaFor', () => {
   it('parses a >= 2 MB core/v1-sized document, finds the kind and resolves a nested path in < 100 ms (OAPI-4)', () => {
     const doc = coreDocument();
     const schemas = doc.components?.schemas ?? {};
-    const filler = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. '.repeat(4);
+    const filler = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor. '.repeat(
+      4,
+    );
     for (let i = 0; i < 2_500; i++) {
       schemas[`io.k8s.api.core.v1.Synthetic${String(i)}`] = {
         description: filler,
@@ -167,7 +189,10 @@ describe('openApiSchemaFor', () => {
         required: ['a'],
         properties: {
           a: { type: 'string', description: filler },
-          b: { type: 'array', items: { allOf: [ref(`io.k8s.api.core.v1.Synthetic${String((i + 1) % 2_500)}`)] } },
+          b: {
+            type: 'array',
+            items: { allOf: [ref(`io.k8s.api.core.v1.Synthetic${String((i + 1) % 2_500)}`)] },
+          },
           c: { type: 'object', additionalProperties: { type: 'string' } },
         },
         'x-kubernetes-group-version-kind': [{ group: '', version: 'v1', kind: `Synthetic${String(i)}` }],
@@ -179,7 +204,8 @@ describe('openApiSchemaFor', () => {
     const started = performance.now();
     const parsed = JSON.parse(body) as OpenApiDocument;
     const schema = openApiSchemaFor(parsed, PodModel);
-    const limits = schema && resolveSchemaPath(parsed, schema.rootName, ['spec', 'containers', 'resources', 'limits']);
+    const limits =
+      schema && resolveSchemaPath(parsed, schema.rootName, ['spec', 'containers', 'resources', 'limits']);
     const elapsed = performance.now() - started;
 
     expect(limits?.type).toBe('map[string]string');

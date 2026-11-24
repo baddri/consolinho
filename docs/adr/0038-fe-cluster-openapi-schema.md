@@ -43,7 +43,8 @@ already forwards `/openapi/...` (non-resource GET, `ProxyPath` allow-list). The 
    schema prop changes and clears it on unmount — only one YAML editor is mounted at a time. `enableSchemaRequest: false`
    means the worker never fetches anything (CSP `connect-src`, no token leaks). The chunk rule `vendor-monaco` in
    `vite.config.ts` also captures `monaco-yaml`.
-7. **Per-kind JSON Schema** handed to the worker: `{ $ref: '#/components/schemas/<root>', components: { schemas } }`
+7. **Per-kind JSON Schema** handed to the worker: `{ allOf: [{ $ref: '#/components/schemas/<root>' }], components: { schemas } }`
+   (amended by T-0239: the language server applies draft-07 rules and drops a root `$ref`'s siblings, `components` included)
    where `schemas` is the transitive `$ref` closure of the root only (Deployment ≈ 150 schemas instead of the whole
    document) — keeps the structured clone to the worker small. OpenAPI v3 schemas are used as JSON Schema unchanged
    (`allOf`/`$ref` wrappers, `x-kubernetes-*` extensions are ignored by the language server).
