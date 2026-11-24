@@ -214,6 +214,36 @@ allow-list change expected (structural `ProxyPath`).
 - **QG5B-2** Playwright: RW marks a node unschedulable (modal names cluster) and schedulable again; Overview renders all four cards against the fake apiserver and degrades on `prod-k8s-1` (no ClusterVersion / Operators items, Kubernetes version shown); Installed Operators list hides copied CSVs.
 - **QG5B-3** Parity rows: Nodes list/details, Mark as unschedulable modal, Cluster Settings, ClusterOperators, Overview dashboard, Installed Operators list/details, Subscription tab — `match` or recorded accepted gap.
 
+### 5b.7 Design / lanes (frontend-architect, 2026-11-25)
+No new ADR: kind code lives in the engine per ADR-0037 §1 (`features/resources/{compute,cluster-settings,overview,operators}/`);
+the Overview page moves from `features/home` into `features/resources/overview/` (deleted feature). Registry
+extensions documented in FRONTEND.md by T-0331: `readOnly` (MS-3/OLM-5), tabs `machines`/`subscription`/
+`related-objects` via `KindTabs`, `allNamespacesLabelSelector` (OLM-1), `StaticNavItem.requires` (discovery).
+FLT-4/OVW-3 rules live once in `web/src/shared/health/` (pure, typed by the generated Fleet schemas; raw objects
+normalized to the same facts) and land first.
+
+| Order | Tasks | Paths (disjoint per lane) |
+|---|---|---|
+| First (alone) | T-0330 models, types, `k8sListPage`, Fleet aliases, `shared/health` → T-0331 registry extensions, Operators/Compute nav, Overview + Cluster Settings nav items, minimal descriptors, MSW fixtures, FRONTEND.md | `shared/k8s`, `shared/api/types.ts`, `shared/health`; then engine files, `nav/`, `registry/kinds/*` stubs, `mocks/k8s` |
+| Lane C (compute) | T-0332 Nodes list + details → T-0333 Node Pods tab (drain view) + Mark as (un)schedulable → T-0334 MachineSets + Machines | `compute/`, `registry/kinds/{nodes,machines,machinesets}`, `mocks/k8s/computeFixtures.ts` |
+| Lane O (cluster + operators) | T-0335 Cluster Settings + ClusterOperators → T-0336 Overview dashboard (moves `features/home`) → T-0337 Installed Operators | `cluster-settings/`, `overview/`, `operators/`, `registry/kinds/{clusteroperators,clusterserviceversions}`, `resources/routes.tsx`, `app/router.tsx` (T-0336), `mocks/k8s/clusterFixtures.ts` |
+| Last | T-0338 UX probe/side-by-side → T-0339 QA e2e + parity | docs, `web/e2e/` |
+
+Decisions: OVW-4 counts are one bounded page each (`limit` 500): exact via `remainingItemCount`, else "`<n>`+" when
+only `continue` comes back (selector-filtered lists) — never paginate to count; Pods Failed/Pending via
+`fieldSelector=status.phase=`. ClusterOperators default sort = Name (CS-3: parity wins over the fleet tweak), Status
+sortable by severity. CSV description via `react-markdown` (new dependency, raw HTML skipped, no innerHTML); CSV icons
+only from `data:` URIs. Node cordon = JSON Patch on `/spec/unschedulable` (ADR-0037 §4). Mock scenarios mirror the
+fleet MSW table (5c.5).
+
+Design deviations / gaps (record in T-0338/T-0339): Node Memory/CPU/Filesystem/Pods columns, Overview/Configuration/
+Health tabs, terminal/logs (Q6, NODE-6); no drain/evict (Q2); Utilization card, Control plane/Alerts items (Q6);
+MachineSet Edit count, autoscaler pages (Q7); Cluster Settings Configuration tab and update/channel buttons (Q9);
+OperatorHub, operand tabs, CSV/Subscription Edit/Delete/Uninstall (OLM-5). Fleet additions: Capacity and allocatable
+table, drain-view filter/count/bare-pod warning, Overview Kubernetes/FleetConsole rows.
+
+Backend asks: none (proxy only; NODE-5 Api tests done in T-0324).
+
 ---
 
 ## CP5c — Fleet overview
@@ -254,6 +284,27 @@ allow-list change expected (structural `ProxyPath`).
   T-0324 CP5 proxy mutation-verb rows · T-0325 QA (QG5C-1, QG5C-4).
 - Waves (max 2 BE agents): W1 T-0320 ‖ T-0324 → W2 T-0321 ‖ T-0322 → W3 T-0323 → W4 T-0325. CP5a FE runs in parallel
   throughout; the FE fleet page can start from the contract with MSW and switches to generated types after T-0323.
+
+### 5c.5 Frontend design (frontend-architect, 2026-11-25)
+No new ADR (consumes ADR-0041's contract). New feature `web/src/features/fleet/` (route module, `api/` data layer,
+page). The Fleet perspective opens to every signed-in user (Q3): switcher "Fleet management" for all, sidebar section
+"Fleet" > "Overview" first, "Fleet administration" admin-only; `/fleet` → `/fleet/overview` (Q10, router test updated).
+
+| Order | Tasks | Paths |
+|---|---|---|
+| W1 (parallel with T-0330) | T-0340 shell: route + redirect, Fleet nav, sidebar, switcher gating, placeholder page | `features/fleet` (shell), `app/router.tsx`, `app/layout/{navigation,AppSidebar}`, `cluster-context/{switcherRows,ClusterSwitcher}`, `shared/routing` |
+| W2 (parallel with T-0331) | T-0341 data: `useFleetStatus` (`streamedQuery`, append refetch, key `['api','fleet','status']`, 60 s visible-only refresh), `useFleetRows` (pending/drop rules §2.2), MSW NDJSON handler + scenarios, e2e fake Tables | `features/fleet/api`, `mocks/handlers/fleet.ts`, `mocks/fixtures/fleetStatus.ts`, `web/e2e/support/fakeClusterHealth.ts` |
+| W3 | T-0342 page: table, cells from `shared/health`, severity sort, filters, summary links, refresh, empty/error states, row switch → `/c/<name>/overview` | `features/fleet` (rest) |
+| Last | T-0343 UX review (+ UX.md §2) → T-0344 QA Playwright (QG5C-2) | docs, `web/e2e/` |
+
+Suggested overall waves (≤ 2 FE engineers): T-0330 ‖ T-0340 → T-0331 ‖ T-0341 → T-0332 ‖ T-0342 → T-0333 ‖ T-0335
+→ T-0334 ‖ T-0336 → T-0337 → UX/QA per sub-checkpoint. If CP5c is accepted before T-0336, QG5C-2's row click lands
+on the existing Overview placeholder (acceptable; the route does not change).
+
+Notes: MSW scenarios — `prod-eu-1` healthy + updates, `prod-us-1` Restricted (ClusterOperators forbidden),
+`prod-k8s-1` Kubernetes, `staging-eu-1` Updating, `dev-2` Degraded, `lab-1` Unreachable (timeout, slow), `dev-1`
+healthy; `Fleet.Busy` 503 renders an inline Alert with "Try again" keeping the last rows. The Fleet overview is a
+fleet invention: parity = UX.md §5 list rules (QG5C-3).
 
 ---
 
