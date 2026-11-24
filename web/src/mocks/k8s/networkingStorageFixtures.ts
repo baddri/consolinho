@@ -1,12 +1,13 @@
-import type {
-  Ingress,
-  K8sResource,
-  NetworkPolicy,
-  PersistentVolume,
-  PersistentVolumeClaim,
-  Route,
-  Secret,
-  StorageClass,
+import {
+  parseQuantity,
+  type Ingress,
+  type K8sResource,
+  type NetworkPolicy,
+  type PersistentVolume,
+  type PersistentVolumeClaim,
+  type Route,
+  type Secret,
+  type StorageClass,
 } from '@/shared/k8s';
 import { FIXTURE_NOW } from '../fixtures/time';
 import { k8sTime } from './fixtures';
@@ -353,26 +354,12 @@ export function settlePvcResize(object: K8sResource): K8sResource {
   const requested = claim.spec?.resources?.requests?.storage;
   const capacity = claim.status?.capacity?.storage;
   if (requested === undefined || claim.status?.phase !== 'Bound') return object;
-  if (capacity !== undefined && !(quantityBytes(requested) > quantityBytes(capacity))) return object;
+  if (capacity !== undefined) {
+    const requestedBytes = parseQuantity(requested);
+    const capacityBytes = parseQuantity(capacity);
+    // An unparsable quantity on either side: don't settle.
+    if (requestedBytes === undefined || capacityBytes === undefined || !(requestedBytes > capacityBytes)) return object;
+  }
   const status = { ...claim.status, capacity: { ...claim.status.capacity, storage: requested } };
   return { ...claim, status } as K8sResource;
-}
-
-const UNITS: Readonly<Record<string, number>> = {
-  '': 1,
-  k: 1e3,
-  M: 1e6,
-  G: 1e9,
-  T: 1e12,
-  Ki: 2 ** 10,
-  Mi: 2 ** 20,
-  Gi: 2 ** 30,
-  Ti: 2 ** 40,
-};
-
-/** Bytes of a storage quantity (`10Gi`, `500M`); `NaN` for forms the mock doesn't need. */
-function quantityBytes(quantity: string): number {
-  const match = /^(\d+(?:\.\d+)?)([a-zA-Z]*)$/.exec(quantity);
-  const unit = match ? UNITS[match[2] ?? ''] : undefined;
-  return match && unit !== undefined ? Number(match[1]) * unit : Number.NaN;
 }

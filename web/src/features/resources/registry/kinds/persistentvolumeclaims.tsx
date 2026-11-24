@@ -9,6 +9,7 @@ import {
   PvcVolumeLink,
   type PersistentVolumeClaimResource,
 } from '../../storage/pvcs/PersistentVolumeClaimDetails';
+import { usePVCActions } from '../../storage/pvcs/useExpandPVCAction';
 import { formatBytes, pvcCapacityBytes, pvcPhase, pvcRequestBytes } from '../../storage/pvcs/persistentVolumeClaim';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
@@ -27,7 +28,7 @@ function listedCapacityBytes(pvc: PersistentVolumeClaimResource): number | undef
  * PersistentVolumeClaims (PVC-1/PVC-2, OCP `persistent-volume-claim.tsx`). List: Name, Namespace, Status,
  * PersistentVolume, Capacity (OCP binary bytes), StorageClass, Created; Status filter Pending / Bound / Lost. Details:
  * Label selector in the metadata column, OCP's right column plus a "Pods" item, and Conditions. Used / donut need
- * Prometheus (parity gap). Expand: T-0308.
+ * Prometheus (parity gap). Actions: Expand PVC (T-0308).
  */
 export const persistentVolumeClaimDescriptor: ResourceDescriptor<PersistentVolumeClaimResource> = {
   model: PersistentVolumeClaimModel,
@@ -36,6 +37,7 @@ export const persistentVolumeClaimDescriptor: ResourceDescriptor<PersistentVolum
   summary: { Extra: PersistentVolumeClaimSummaryExtra },
   DetailsSection: PersistentVolumeClaimDetails,
   ExtraSections: PersistentVolumeClaimSections,
+  useKindActions: usePVCActions,
   columns: [
     nameColumn(PersistentVolumeClaimModel),
     namespaceColumn(PersistentVolumeClaimModel),
