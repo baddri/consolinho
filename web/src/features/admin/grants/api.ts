@@ -33,6 +33,20 @@ export function useClusterGrants(clusterName: string) {
 }
 
 /**
+ * Loads `GET /api/admin/groups/{groupName}/grants` (GPG-2): the group's Cluster access tab, sorted by cluster name.
+ * Unknown or invalid group names give `[]`, never a 404.
+ */
+export function useGroupGrants(groupName: string) {
+  return useQuery({
+    queryKey: adminKeys.groupGrants(groupName),
+    queryFn: ({ signal }): Promise<Grant[]> =>
+      unwrap(
+        apiClient.GET('/api/admin/groups/{groupName}/grants', { params: { path: { groupName } }, signal }),
+      ),
+  });
+}
+
+/**
  * Refreshes what a failed grant command proved stale: a 404/409 (revoked, changed or created meanwhile) refetches
  * every admin query so the tables and the picker's "already has access" marks catch up; a 403 `Auth.ReadOnly` /
  * `Auth.Forbidden` means our `me` is outdated (ADR-0014 §6).
@@ -57,9 +71,14 @@ function invalidateAfterSuccess(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: accessibleClustersQueryKey });
 }
 
-/** Applies `update` to the cached user and cluster grant lists that contain `grant` (before they refetch). */
+/**
+ * Applies `update` to the cached subject (user or group) and cluster grant lists that contain `grant` (before they
+ * refetch).
+ */
 function updateCachedLists(queryClient: QueryClient, grant: Grant, update: (grants: Grant[]) => Grant[]): void {
-  for (const key of [adminKeys.userGrants(grant.username), adminKeys.clusterGrants(grant.clusterName)]) {
+  const subjectKey =
+    grant.subjectKind === 'user' ? adminKeys.userGrants(grant.subjectName) : adminKeys.groupGrants(grant.subjectName);
+  for (const key of [subjectKey, adminKeys.clusterGrants(grant.clusterName)]) {
     queryClient.setQueryData<Grant[]>(key, (current) => (current === undefined ? current : update(current)));
   }
 }

@@ -53,3 +53,6 @@ admin sees who can reach the cluster and why. Prepares the `group` perspective t
 ## Review
 
 ## Handover notes
+
+## Follow-ups from T-0260 review
+- Cluster details "Users with access" now counts group grants in the mock (1→3 on staging-eu-1). Count users only, or relabel (e.g. "1 user, 2 groups"). Also fix group-name links (they point to `/admin/users/<group>`) and the user wording in row actions.

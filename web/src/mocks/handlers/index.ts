@@ -1,3 +1,4 @@
+import { effectiveAccessHandlers } from './access';
 import { adminClusterHandlers } from './adminClusters';
 import { auditHandlers } from './audit';
 import { authHandlers } from './auth';
@@ -5,6 +6,7 @@ import { clusterSwitcherHandlers } from './clusters';
 import { credentialHandlers } from './credentials';
 import { execHandler, k8sProxyHandler } from '../k8s';
 import { grantHandlers } from './grants';
+import { groupHandlers } from './groups';
 import { accessGuard, unhandledApiRoute } from './http';
 import { systemHandlers } from './system';
 import { userHandlers } from './users';
@@ -19,9 +21,11 @@ export const handlers = [
   ...authHandlers,
   ...clusterSwitcherHandlers,
   ...userHandlers,
+  ...effectiveAccessHandlers,
   ...adminClusterHandlers,
   ...credentialHandlers,
   ...grantHandlers,
+  ...groupHandlers,
   ...auditHandlers,
   k8sProxyHandler,
   // WebSocket exec relay (T-0180); `ws` links never reach the HTTP guards, so it checks access itself.

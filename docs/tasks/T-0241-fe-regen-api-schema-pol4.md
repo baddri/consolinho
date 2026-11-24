@@ -32,3 +32,6 @@ the checked-in file matches what the backend actually serves.
 ## Review
 
 ## Handover notes
+
+## Follow-ups from T-0260 review
+- After regenerating, check the generated schema names against the aliases in `web/src/shared/api/types.ts`; drop the hand-written marker in `schema.gen.ts`.

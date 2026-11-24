@@ -45,9 +45,9 @@ export function RevokeGrantModal({ grant, onClose }: RevokeGrantModalProps) {
       onClose={onClose}
     >
       <Content component="p">
-        Are you sure you want to revoke <strong>{grant.username}</strong>&apos;s access to{' '}
+        Are you sure you want to revoke <strong>{grant.subjectName}</strong>&apos;s access to{' '}
         <strong>{grant.clusterName}</strong>?{' '}
-        {`${grant.username} will no longer see it in the cluster switcher, and requests through it stop immediately.`}
+        {`${grant.subjectName} will no longer see it in the cluster switcher, and requests through it stop immediately.`}
       </Content>
     </ConfirmModal>
   );

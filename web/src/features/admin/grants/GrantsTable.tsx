@@ -61,7 +61,7 @@ export function GrantsTable({
   const visible = grants?.filter((grant) =>
     perspective === 'user'
       ? matchesText(query, grant.clusterName, grant.clusterDisplayName, grant.credentialName)
-      : matchesText(query, grant.username, grant.userDisplayName, grant.credentialName),
+      : matchesText(query, grant.subjectName, grant.userDisplayName, grant.credentialName),
   );
 
   return (

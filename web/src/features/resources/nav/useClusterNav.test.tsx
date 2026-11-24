@@ -34,7 +34,7 @@ function grantAdminOnLab1(): void {
   mockDb.grants.push({
     ...structuredClone(grant),
     id: 'grant-lab-1',
-    username: 'admin',
+    subjectName: 'admin',
     clusterName: 'lab-1',
     credentialId: 'cred-lab-1',
   });

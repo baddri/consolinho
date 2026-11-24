@@ -5,6 +5,8 @@ import type {
   ClusterDistribution,
   ClusterEnvironment,
   ConnectionTestStep,
+  GrantSubjectKind,
+  HostGroupsStatus,
   TokenType,
   UserStatus,
 } from '@/shared/api';
@@ -90,10 +92,17 @@ export interface MockCredential {
   version: number;
 }
 
-/** Access of one user to one cluster through one credential (GRANT-1: at most one per user and cluster). */
+/**
+ * Access of one user or group to one cluster through one credential (GRANT-1/GRP-5: at most one per subject and
+ * cluster). The contract's `username` is derived (`toGrant`): it is `subjectName` for user grants, `null` for groups.
+ */
 export interface MockGrant {
   id: string;
-  username: string;
+  subjectKind: GrantSubjectKind;
+  /** Username or group name. */
+  subjectName: string;
+  /** 1–1000 for group grants (unique per cluster, GRP-4); `null` for user grants. */
+  priority: number | null;
   clusterName: string;
   credentialId: string;
   accessMode: AccessMode;
@@ -102,4 +111,20 @@ export interface MockGrant {
   updatedAt: string | null;
   updatedBy: string | null;
   version: number;
+}
+
+/** One group of the host cluster (`user.openshift.io/v1` Group): its name and `users`. */
+export interface MockHostGroup {
+  name: string;
+  users: string[];
+}
+
+/**
+ * What FleetConsole's host ServiceAccount last read of the host cluster's groups (ADR-0039). When `status` isn't `ok`
+ * the groups are unknown and the Api answers from grants only.
+ */
+export interface MockHostGroups {
+  status: HostGroupsStatus;
+  readAt: string;
+  groups: MockHostGroup[];
 }

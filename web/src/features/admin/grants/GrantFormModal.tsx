@@ -43,7 +43,7 @@ export type GrantFormModalProps =
 
 /** Form values showing `grant` as it is now. */
 const valuesOf = (grant: Grant): GrantFormValues => ({
-  target: grant.username,
+  target: grant.subjectName,
   credentialId: grant.credentialId,
   accessMode: grant.accessMode,
   version: grant.version,
@@ -53,7 +53,7 @@ const valuesOf = (grant: Grant): GrantFormValues => ({
 function titleOf(props: GrantFormModalProps): { title: string; environment: ClusterEnvironment } {
   if (props.mode === 'edit') {
     return {
-      title: `Change ${props.grant.username}'s access to ${props.grant.clusterName}`,
+      title: `Change ${props.grant.subjectName}'s access to ${props.grant.clusterName}`,
       environment: props.grant.clusterEnvironment,
     };
   }
@@ -117,9 +117,14 @@ function GrantForm(props: GrantFormModalProps) {
 
   const { clusterName, username, environment } =
     props.mode === 'edit'
-      ? { ...props.grant, environment: props.grant.clusterEnvironment }
+      ? { ...props.grant, username: props.grant.subjectName, environment: props.grant.clusterEnvironment }
       : { clusterName: props.cluster.name, username: target, environment: props.cluster.environment };
-  const granted = new Set(props.mode === 'create' ? props.existing.map((grant) => grant.username) : []);
+  // Only direct grants mark a user as "already has access"; group grants on the cluster don't (PREC-3).
+  const granted = new Set(
+    props.mode === 'create'
+      ? props.existing.flatMap((grant) => (grant.subjectKind === 'user' ? [grant.subjectName] : []))
+      : [],
+  );
 
   const submit = handleSubmit(async (values) => {
     if (props.mode === 'create') {
@@ -144,7 +149,7 @@ function GrantForm(props: GrantFormModalProps) {
       props.onClose();
     } catch (error) {
       if (!isGrantGone(error)) throw error;
-      toast.warning(alreadyRevokedText({ username, clusterName }), 'Another administrator revoked it.');
+      toast.warning(alreadyRevokedText({ subjectName: username, clusterName }), 'Another administrator revoked it.');
       props.onClose();
     }
   });

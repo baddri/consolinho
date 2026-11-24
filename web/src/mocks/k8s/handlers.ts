@@ -1,5 +1,6 @@
+import { resolveAccess } from '../handlers/access';
 import { http } from '../handlers/http';
-import { actorName, currentMockUser, findCluster, findCredential, mockDb, recordAudit } from '../db';
+import { actorName, currentMockUser, findCredential, recordAudit } from '../db';
 import { problem } from '../problem';
 import { apiServer } from './apiServer';
 import { proxyAuditInput, type ProxyDenialReason, type ProxyMutation } from './proxyAudit';
@@ -81,12 +82,8 @@ export const k8sProxyHandler = http.untyped.all('*/api/clusters/:cluster/k8s/*',
     return response;
   };
 
-  const cluster = findCluster(clusterName);
-  const grant = cluster?.isEnabled
-    ? mockDb.grants.find(
-        (candidate) => candidate.username === user.username && candidate.clusterName === clusterName,
-      )
-    : undefined;
+  // The winning grant, direct or via a group (PREC-8: the same resolver as the switcher).
+  const grant = resolveAccess(user, clusterName)?.winner;
   const credential = grant && findCredential(grant.credentialId, clusterName);
   if (!grant || !credential) {
     return deny(

@@ -1,6 +1,6 @@
 import type { ClusterDistribution, ClusterEnvironment } from '@/shared/api';
 import { actorName, findCluster, mockDb, recordAudit } from '../db';
-import type { MockCluster } from '../fixtures';
+import type { MockCluster, MockGrant } from '../fixtures';
 import { conflictProblem, problem } from '../problem';
 import { bindBody, bindVersion, DNS_LABEL, isHttpsUrl, type BodyBinder, type EnumValues } from './body';
 import { http } from './http';
@@ -115,6 +115,9 @@ function setEnabled(cluster: MockCluster, isEnabled: boolean): void {
   const verb = isEnabled ? 'enabled' : 'disabled';
   auditCluster(cluster, `cluster.${verb}`, `${actor} ${verb} cluster ${cluster.name}.`, {});
 }
+
+/** Contract order of a cluster's grants by subject kind: users before groups. */
+const kindRank = (grant: MockGrant) => (grant.subjectKind === 'user' ? 0 : 1);
 
 /** `/api/admin/clusters` cluster CRUD, enable/disable and the cluster's grants (contract §8.2). */
 export const adminClusterHandlers = [
@@ -247,7 +250,8 @@ export const adminClusterHandlers = [
     if (!findCluster(params.name)) return clusterNotFound(params.name);
     const grants = mockDb.grants
       .filter((grant) => grant.clusterName === params.name)
-      .sort((a, b) => ordinal(a.username, b.username));
+      // Contract CP4.5a §2: user grants first, then group grants, each by subject name.
+      .sort((a, b) => kindRank(a) - kindRank(b) || ordinal(a.subjectName, b.subjectName));
     return response(200).json(grants.map((grant) => toGrant(grant)));
   }),
 ];

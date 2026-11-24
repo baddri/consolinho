@@ -132,6 +132,36 @@ export type UpdateGrantRequest = schemas['UpdateGrantRequest'];
 export type BulkGrantRequest = schemas['BulkGrantRequest'];
 /** One cluster of a bulk grant. */
 export type BulkGrantItem = schemas['BulkGrantItem'];
+/** Whom a grant is for: one user or every member of a group (CP4.5a). */
+export type GrantSubjectKind = schemas['GrantSubjectKind'];
+/** Body of `POST /api/admin/groups/{groupName}/grants`; `priority` 1–1000, unique per cluster (GRP-2/4). */
+export type CreateGroupGrantRequest = schemas['CreateGroupGrantRequest'];
+/** Body of the all-or-nothing group bulk grant (GPG-3). */
+export type BulkGroupGrantRequest = schemas['BulkGroupGrantRequest'];
+
+// ---- Groups (CP4.5a contract §4)
+/** Outcome of reading the host cluster's groups; `forbidden`/`unavailable` show the UIG-2 alert. */
+export type HostGroupsStatus = schemas['HostGroupsStatus'];
+/** `GET /api/admin/groups`: host groups ∪ groups named in grants. */
+export type GroupList = schemas['GroupList'];
+/** One row of the Groups list. */
+export type GroupRow = schemas['GroupRow'];
+/** `GET /api/admin/groups/{groupName}`: a group with its host members. */
+export type GroupDetail = schemas['GroupDetail'];
+/** One member of a host group, linked when a FleetConsole user exists. */
+export type GroupMember = schemas['GroupMember'];
+
+// ---- Effective access (CP4.5a contract §5)
+/** `GET /api/admin/users/{username}/effective-access`. */
+export type EffectiveAccess = schemas['EffectiveAccess'];
+/** A user's effective access to one cluster with every matching grant. */
+export type EffectiveClusterAccess = schemas['EffectiveClusterAccess'];
+/** Where the effective access comes from: direct grant or group (with priority). */
+export type AccessSource = schemas['AccessSource'];
+/** One matching grant with why it won or lost (EFF-2). */
+export type AccessCandidate = schemas['AccessCandidate'];
+/** Why a candidate grant won or lost. */
+export type AccessCandidateOutcome = schemas['AccessCandidateOutcome'];
 
 // ---- Audit (§10)
 /** One page of the audit log; `nextCursor` null = last page. */

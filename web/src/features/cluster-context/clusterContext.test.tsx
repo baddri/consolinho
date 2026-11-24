@@ -96,7 +96,9 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
     // Give ines a ReadWrite grant as well: the effective mode must still be read-only.
     mockDb.grants.push({
       id: mockGuid(0x2ff),
-      username: 'ines',
+      subjectKind: 'user',
+      subjectName: 'ines',
+      priority: null,
       clusterName: 'dev-1',
       credentialId: credentialIds.dev1Edit,
       accessMode: 'readWrite',

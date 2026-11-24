@@ -62,3 +62,6 @@ the user page: one row per reachable cluster with the one-line source, expandabl
 ## Review
 
 ## Handover notes
+
+## Follow-ups from T-0260 review
+- Add a fixture in which a user gets a cluster only through a group (e.g. `platform` → a cluster for carol), so Effective access shows a group-sourced row.

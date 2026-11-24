@@ -52,11 +52,11 @@ function UserCell({ grant }: { grant: Grant }) {
   return (
     <Flex spaceItems={{ default: 'spaceItemsSm' }} alignItems={{ default: 'alignItemsCenter' }}>
       <FlexItem>
-        <AdminResourceLink kind="User" name={grant.username} to={userDetailPath(grant.username)} />
+        <AdminResourceLink kind="User" name={grant.subjectName} to={userDetailPath(grant.subjectName)} />
         {grant.userDisplayName !== null && <div className={SUBTLE}>{grant.userDisplayName}</div>}
       </FlexItem>
       {/* "User deactivated" is a GRANT-5 state label; showing the status label too would say it twice. */}
-      {grant.userStatus !== 'deactivated' && (
+      {grant.userStatus !== null && grant.userStatus !== 'deactivated' && (
         <FlexItem>
           <UserStatusLabel status={grant.userStatus} />
         </FlexItem>

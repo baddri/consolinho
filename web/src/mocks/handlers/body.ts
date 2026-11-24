@@ -23,6 +23,8 @@ class MalformedBodyError extends Error {}
 
 /** Largest `uint` (`version` is a uint32). */
 const MAX_UINT32 = 0xffffffff;
+const MAX_INT32 = 0x7fffffff;
+const MIN_INT32 = -0x80000000;
 
 /**
  * Reads typed fields from one JSON object and collects validation errors. Binding failures throw
@@ -130,6 +132,19 @@ export class BodyBinder {
       return -1;
     }
     if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > MAX_UINT32) {
+      throw new MalformedBodyError();
+    }
+    return value;
+  }
+
+  /**
+   * Optional `int?` (C# nullable int32): absent or `null` → `null`; a quoted, fractional or out-of-range number →
+   * malformed, like System.Text.Json. Range rules are the caller's (validator) business.
+   */
+  optionalInt(key: string): number | null {
+    const value = this.body[key];
+    if (value === undefined || value === null) return null;
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < MIN_INT32 || value > MAX_INT32) {
       throw new MalformedBodyError();
     }
     return value;

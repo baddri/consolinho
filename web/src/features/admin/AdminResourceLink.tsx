@@ -4,14 +4,19 @@ import { Link } from 'react-router';
 import { KindBadge } from '@/shared/ui';
 
 /** The fleet kinds of Fleet administration. */
-export type AdminKind = 'User' | 'Cluster' | 'Credential';
+export type AdminKind = 'User' | 'Group' | 'Cluster' | 'Credential';
 
 /**
  * Badge abbreviations of the fleet kinds (`UX.md` §5): OCP's rule (capitals of the kind) in OCP's default colour.
  * Credential applies the rule to what it is, a ClusterCredential ("CC"), so it doesn't collide with Cluster "C"
- * (OCP gives colliding kinds their own `abbr`) nor with OCP's ClusterRole "CR".
+ * (OCP gives colliding kinds their own `abbr`) nor with OCP's ClusterRole "CR". Group is OCP's own Group "G".
  */
-export const ADMIN_KIND_ABBR: Readonly<Record<AdminKind, string>> = { User: 'U', Cluster: 'C', Credential: 'CC' };
+export const ADMIN_KIND_ABBR: Readonly<Record<AdminKind, string>> = {
+  User: 'U',
+  Group: 'G',
+  Cluster: 'C',
+  Credential: 'CC',
+};
 
 /** Props for {@link AdminResourceName}. */
 export interface AdminResourceNameProps {

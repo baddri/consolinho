@@ -16,24 +16,24 @@ export const ENVIRONMENT_TEXT: Record<ClusterEnvironment, string> = {
 };
 
 /** Toast title after a grant was created. */
-export const grantedText = (grant: Pick<Grant, 'username' | 'clusterName' | 'accessMode'>) =>
-  `Granted ${grant.username} ${ACCESS_MODE_TOAST[grant.accessMode]} on ${grant.clusterName}`;
+export const grantedText = (grant: Pick<Grant, 'subjectName' | 'clusterName' | 'accessMode'>) =>
+  `Granted ${grant.subjectName} ${ACCESS_MODE_TOAST[grant.accessMode]} on ${grant.clusterName}`;
 
 /** Toast title after a grant was changed. */
-export const changedText = (grant: Pick<Grant, 'username' | 'clusterName'>) =>
-  `Changed ${grant.username}'s access to ${grant.clusterName}`;
+export const changedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
+  `Changed ${grant.subjectName}'s access to ${grant.clusterName}`;
 
 /** Toast title after a grant was revoked. */
-export const revokedText = (grant: Pick<Grant, 'username' | 'clusterName'>) =>
-  `Revoked ${grant.username}'s access to ${grant.clusterName}`;
+export const revokedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
+  `Revoked ${grant.subjectName}'s access to ${grant.clusterName}`;
 
 /** GRANT-2 warning shown while read-write access to a production cluster is selected. */
 export const productionWriteWarning = (clusterName: string) =>
   `This user will be able to change production cluster ${clusterName}.`;
 
 /** Warning toast title when the grant turned out to be revoked meanwhile (404 on change or revoke). */
-export const alreadyRevokedText = (grant: Pick<Grant, 'username' | 'clusterName'>) =>
-  `${grant.username}'s access to ${grant.clusterName} was already revoked`;
+export const alreadyRevokedText = (grant: Pick<Grant, 'subjectName' | 'clusterName'>) =>
+  `${grant.subjectName}'s access to ${grant.clusterName} was already revoked`;
 
 /** Toast title after a bulk grant (GRANT-4), e.g. "Granted alice ReadOnly on 12 clusters". */
 export const bulkGrantedText = (username: string, accessMode: AccessMode, count: number) =>
