@@ -5,7 +5,7 @@ status: todo
 owner: frontend-engineer
 checkpoint: 5a
 depends_on: [T-0307]
-paths: [web/src/features/resources/registry/kinds/persistentvolumeclaims.tsx, web/src/features/resources/storage/pvcs]
+paths: [web/src/features/resources/registry/kinds/persistentvolumeclaims.tsx, web/src/features/resources/storage/pvcs, web/src/mocks/k8s/networkingStorageFixtures.ts]
 review_rounds: 0
 ---
 
@@ -47,6 +47,8 @@ PersistentVolumeClaim" modal naming the cluster, patches the request, and the ca
 - Tests in `storage/pvcs/expandPVC.test.tsx`: RW expands `db-data` 10Gi → 20Gi and capacity updates (mock resize from
   T-0300); RO sees the item disabled with the read-only reason; `scratch` disabled "PVC is not Bound"; `uploads`
   disabled with the SC reason on details; modal shows cluster name; ≤ current blocks Save.
+- **Dedupe (from T-0307 review):** `mocks/k8s/networkingStorageFixtures.ts:quantityBytes` + `UNITS` (used by
+  `settlePvcResize`) → `parseQuantity` from `@/shared/k8s` (treat `undefined` as "don't settle"); add that file to paths.
 
 ## Context pack
 - Docs: ADR-0037 §3–4 (kind actions, modal shell), FRONTEND.md § Forms.

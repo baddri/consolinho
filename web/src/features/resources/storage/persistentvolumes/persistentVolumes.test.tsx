@@ -3,7 +3,7 @@ import type { PersistentVolume } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { renderApp } from '@/test/render';
 import { resourceRoutes } from '../../routes';
-import { nodeAffinityLines, pvPhase, pvSource, quantityBytes } from './persistentVolume';
+import { nodeAffinityLines, pvPhase, pvSource } from './persistentVolume';
 
 beforeAll(() => preloadLazyRoutes(resourceRoutes));
 
@@ -64,14 +64,6 @@ describe('persistentVolume helpers', () => {
     expect(pvPhase({ status: { phase: 'Released' } })).toBe('Released');
     expect(pvPhase({})).toBe('Unknown');
   });
-
-  it('quantityBytes parses binary and decimal suffixes', () => {
-    expect(quantityBytes('1Gi')).toBe(2 ** 30);
-    expect(quantityBytes('500M')).toBe(5e8);
-    expect(quantityBytes('1024')).toBe(1024);
-    expect(quantityBytes('bogus')).toBeNull();
-    expect(quantityBytes(undefined)).toBeNull();
-  });
 });
 
 describe('PersistentVolumes (T-0306)', () => {
@@ -95,7 +87,7 @@ describe('PersistentVolumes (T-0306)', () => {
             within(row).getAllByRole('cell'),
           ]),
       );
-      expect([...rows.keys()].sort()).toEqual(['pv-db-data', 'pv-old', 'pv-spare', 'pv-uploads']);
+      expect([...rows.keys()].sort()).toEqual(['pv-db-data', 'pv-old', 'pv-spare', 'pv-uploads', 'pvc-resizing-0f9e']);
       const cell = (name: string, index: number): HTMLElement => {
         const found = rows.get(name)?.[index];
         if (!found) throw new Error(`no cell ${String(index)} of ${name}`);

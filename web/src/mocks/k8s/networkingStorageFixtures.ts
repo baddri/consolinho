@@ -71,7 +71,7 @@ function claimRef(claim: string) {
   return { kind: 'PersistentVolumeClaim', namespace: NAMESPACE, name: claim, apiVersion: 'v1' };
 }
 
-/** PVs: two Bound (CSI with node affinity, NFS), one Available, one Released. */
+/** PVs: three Bound (CSI with node affinity, NFS, the dynamically provisioned `resizing` one), one Available, one Released. */
 function persistentVolumes(nextUid: () => string): PersistentVolume[] {
   const pv = (
     name: string,
@@ -119,6 +119,11 @@ function persistentVolumes(nextUid: () => string): PersistentVolume[] {
       claimRef: claimRef('old-reports'),
       persistentVolumeReclaimPolicy: 'Retain',
       nfs: { server: 'nfs.example.com', path: '/exports/old-reports' },
+    }),
+    // Provisioned for `shop/resizing`; still 4Gi while its file system resize is pending.
+    pv('pvc-resizing-0f9e', 'standard-csi', '4Gi', 'Bound', {
+      claimRef: claimRef('resizing'),
+      csi: { driver: CSI_DRIVER, volumeHandle: 'vol-4e5f6a7b', fsType: 'xfs' },
     }),
   ];
 }

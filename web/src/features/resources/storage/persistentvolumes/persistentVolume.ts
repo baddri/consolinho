@@ -57,35 +57,3 @@ export function nodeAffinityLines(pv: PersistentVolume): string[] {
 export function pvPhase(pv: PersistentVolume): string {
   return pv.metadata?.deletionTimestamp ? 'Terminating' : (pv.status?.phase ?? 'Unknown');
 }
-
-const BINARY_SUFFIXES: Readonly<Record<string, number>> = {
-  Ki: 2 ** 10,
-  Mi: 2 ** 20,
-  Gi: 2 ** 30,
-  Ti: 2 ** 40,
-  Pi: 2 ** 50,
-  Ei: 2 ** 60,
-};
-const DECIMAL_SUFFIXES: Readonly<Record<string, number>> = {
-  m: 1e-3,
-  '': 1,
-  k: 1e3,
-  M: 1e6,
-  G: 1e9,
-  T: 1e12,
-  P: 1e15,
-  E: 1e18,
-};
-
-/**
- * Bytes of a Kubernetes storage quantity (`10Gi`, `500M`, `1e9`) for sorting the Capacity column (OCP sorts by
- * `pvStorage`); `null` when absent or unparseable, which sorts last.
- */
-export function quantityBytes(quantity: string | undefined): number | null {
-  const match = quantity === undefined ? null : /^([0-9.]+(?:[eE][0-9]+)?)([a-zA-Z]*)$/.exec(quantity.trim());
-  if (!match) return null;
-  const [, number = '', suffix = ''] = match;
-  const multiplier = BINARY_SUFFIXES[suffix] ?? DECIMAL_SUFFIXES[suffix];
-  const value = Number(number);
-  return multiplier === undefined || Number.isNaN(value) ? null : value * multiplier;
-}
