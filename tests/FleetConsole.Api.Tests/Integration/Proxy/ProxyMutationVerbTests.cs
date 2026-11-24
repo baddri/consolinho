@@ -12,7 +12,8 @@ namespace FleetConsole.Api.Tests.Integration.Proxy;
 /// CP4a proxy acceptance (T-0157): every mutation verb the workload pages send — Deployment and Pod patches, the scale
 /// subresource, Pod delete, Job create and kubectl-style exec — × {ReadOnly grant, globally read-only user, ReadWrite
 /// grant}; T-0201 adds the CP4b write paths — DeploymentConfig instantiate (Start rollout), rollback and update, and a
-/// Secret patch (Edit Secret, CFG-4). Refusals never reach the cluster and are audited as denied (ACT-5, TERM-4); allowed requests carry only the
+/// Secret patch (Edit Secret, CFG-4); T-0324 adds the CP5 shapes that ship without endpoints — PVC expand, node
+/// (un)cordon and Create Project (SAFE5-2/3, QG5B-1). Refusals never reach the cluster and are audited as denied (ACT-5, TERM-4); allowed requests carry only the
 /// grant's token upstream, no browser cookie (SAFE-2), and are audited with action and subresource (SAFE-4).
 /// </summary>
 /// <remarks>
@@ -27,6 +28,9 @@ public sealed class ProxyMutationVerbTests(ApiFactory factory)
     private const string Jobs = "/apis/batch/v1/namespaces/shop/jobs";
     private const string DeploymentConfig = "/apis/apps.openshift.io/v1/namespaces/shop/deploymentconfigs/web";
     private const string Secret = "/api/v1/namespaces/shop/secrets/web-tls";
+    private const string Pvc = "/api/v1/namespaces/shop/persistentvolumeclaims/data";
+    private const string Node = "/api/v1/nodes/worker-1";
+    private const string ProjectRequests = "/apis/project.openshift.io/v1/projectrequests";
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
@@ -44,7 +48,7 @@ public sealed class ProxyMutationVerbTests(ApiFactory factory)
     }
 
     /// <summary>
-    /// The CP4a and CP4b verb rows (method, Kubernetes path and query, body content type or null, expected audit action suffix,
+    /// The CP4a, CP4b and CP5 verb rows (method, Kubernetes path and query, body content type or null, expected audit action suffix,
     /// expected subresource) × every principal.
     /// </summary>
     public static TheoryData<Principal, string, string, string?, string, string?> Rows()
@@ -62,6 +66,9 @@ public sealed class ProxyMutationVerbTests(ApiFactory factory)
             ("POST", DeploymentConfig + "/rollback", "application/json", "create", "rollback"),       // CP4b: DC rollback
             ("PUT", DeploymentConfig, "application/json", "update", null),                           // CP4b: Edit DC
             ("PATCH", Secret, "application/merge-patch+json", "patch", null),                         // CP4b: Edit Secret
+            ("PATCH", Pvc, "application/merge-patch+json", "patch", null),                            // CP5: PVC expand
+            ("PATCH", Node, "application/strategic-merge-patch+json", "patch", null),                 // CP5: (un)cordon, cluster-scoped
+            ("POST", ProjectRequests, "application/json", "create", null),                            // CP5: Create Project
         ];
 
         var rows = new TheoryData<Principal, string, string, string?, string, string?>();
