@@ -65,3 +65,33 @@ Full e2e suite: 37/38 in each of the last two runs. The one failure is `workload
 completion-step flake (CP4c test, not CP4.5 scope) filed as **T-0271** (not blocking).
 Test-only fixes: the SRCH-1/2 option regex was stale since T-0237 (the sr-only kind makes the option "Pod Pod").
 `findInEditor` now focuses Monaco instead of clicking under the sticky header, which fixed a POL-2 flake.
+
+## CP4.5a VERIFY (QA, 2026-11-24, branch `cp/4.5-access-at-scale` @ 7bf713a)
+
+**Verdict: PASS.** No blocking defects.
+
+**Gates (QG-1)**
+- `check-be.sh`: build ok. The first run had 1 failure: `DevOAuthAuthorizeTests.GetAuthorize_RendersPicker_WithOneFormPerDevUser_AndCancel`
+  expected 7 forms and got 8. Cause: 7bf713a added the DevOAuth user `e2e-member`, and nobody re-ran the BE gate after that.
+  The test was stale and production behaves as intended, so the fix is test-only (expects `e2e-member`, 7 users + Cancel = 8).
+  After the fix: DevOAuth 43/43; Domain 431, Application 776, Api 937 (the failing test now passes).
+- `check-fe.sh`: lint, typecheck and build ok; 124 files, 1304/1304 tests. No load flakes appeared.
+
+**AC coverage (CP4.5a).** Every CP4.5a ID has test evidence. Backend: the T-0259 table above. FE unit tests (Vitest + MSW):
+- UIG-1/2/3/5: `GrantFormModal.test.tsx` (UIG-1/3, UIG-2/3, UIG-2 listing failure, UIG-5). UIG-4 and UIG-6:
+  `GrantsTab.test.tsx` (UIG-4 columns, `?kind=group` filter, group revoke copy; UIG-6 RO admin), `GroupGrants.test.tsx` UIG-6.
+- GPG-1/4: `GroupsListPage.test.tsx` (host + grant-only without system groups, forbidden host, empty state with hint).
+  GPG-2: `GroupDetailPage.test.tsx` and `GroupGrants.test.tsx` GPG-2. GPG-3: `GroupGrants.test.tsx` (6 GPG-3 tests).
+- EFF-1/2/3/4/5: `EffectiveAccessTab.test.tsx` (EFF-1/EFF-4 rows, 3 × EFF-2, EFF-3 equals switcher, EFF-5 empty and error).
+- QG-2: e2e `groups.e2e.ts` (T-0266; not re-run here). QG-3: GAS tests (T-0259). QG-5: `ocp-parity.md` rows from T-0267;
+  the gaps it found were fixed in T-0269/T-0270.
+- CP4.5b items are out of scope here: CACHE-*, OPS-*, QG-4.
+
+**Open risks (not blocking)**
+- R1: a `system:` group grant row stored by direct SQL makes requests return 500. It fails closed and no token leaks.
+- R2: the virtual-group filter is case-sensitive, so `System:Ops` is recorded and shown but grants no access. Cosmetic only.
+- R3: PREC-1 returns 404 `Proxy.NotAvailable` (CP2 contract) where the spec says 403. The spec wording should follow the code.
+- T-0271: the e2e QGC-1/OAPI-3 completion step flakes (CP4c scope). The full e2e run is 37/38.
+- Process: e2e and fixture changes that touch `src/FleetConsole.DevOAuth` must re-run `check-be.sh` (this is how the stale test got through).
+
+Defects filed: none (the one failure was a stale test, fixed in place).
