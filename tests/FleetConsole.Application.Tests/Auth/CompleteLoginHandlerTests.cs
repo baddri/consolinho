@@ -1,3 +1,4 @@
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Auth;
 using FleetConsole.Application.Auth.CompleteLogin;
 using FleetConsole.Application.Tests.Audit;
@@ -16,13 +17,14 @@ public sealed class CompleteLoginHandlerTests
 {
     private readonly InMemoryUserRepository _users = new();
     private readonly RecordingAuditTrail _audit = new();
+    private readonly RecordingGroupCheckRecorder _groupChecks = new();
     private readonly AuthOptions _options = new();
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     private async Task<LoginOutcomeDto> LoginAsync(string username, string? fullName = "Alice Example", params string[] groups)
     {
-        var handler = new CompleteLoginHandler(_users, _audit, new FixedClock(), Options.Create(_options));
+        var handler = new CompleteLoginHandler(_users, _groupChecks, _audit, new FixedClock(), Options.Create(_options));
         var result = await handler.Handle(new CompleteLoginCommand(new ExternalIdentity(username, fullName, groups)), Ct);
         result.IsSuccess.ShouldBeTrue("denied logins are successful outcomes too (ADR-0008 §4)");
         return result.Value;
@@ -48,6 +50,7 @@ public sealed class CompleteLoginHandlerTests
         login.Provisioned.ShouldBeTrue();
         login.Groups.ShouldBe(["sre"]);
         _audit.Records.ShouldBeEmpty("allowed logins are audited through the domain events");
+        _groupChecks.Checks.ShouldBe([new UserGroupCheck(user.Id, FixedClock.Now)], "the login read the groups (ADR-0039 §3)");
     }
 
     [Fact]
@@ -133,6 +136,7 @@ public sealed class CompleteLoginHandlerTests
         outcome.ShouldBe(new LoginOutcomeDto(LoginDecision.Deactivated, null));
         carol.DomainEvents.ShouldBeEmpty("nothing about the user changes");
         carol.LastLoginAt.ShouldBeNull();
+        _groupChecks.Checks.ShouldBeEmpty("a denied login records no group check");
         var record = _audit.Single;
         record.Action.ShouldBe("auth.login_denied");
         record.TargetId.ShouldBe(carol.Id.Value.ToString());

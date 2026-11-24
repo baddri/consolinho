@@ -46,6 +46,8 @@ internal static class ServiceProviderBuilder
             services.AddOptions();
             services.AddScoped<IUserRepository, Auth.InMemoryUserRepository>();
             services.AddScoped<IReadModel, Auth.InMemoryReadModel>();
+            services.AddScoped<IUserGroupCheckRecorder, Auth.RecordingGroupCheckRecorder>();
+            services.AddSingleton(_ => Substitute.For<FleetConsole.Application.Abstractions.Kubernetes.IHostGroupDirectory>());
 
             // Ports of the cluster (T-0017) and credential (T-0018) administration use cases. These tests only need the
             // handlers to be constructible; the handler tests in Clusters/ and Credentials/ use their own fakes.

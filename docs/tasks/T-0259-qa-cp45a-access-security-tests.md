@@ -46,3 +46,8 @@ Contract: `docs/specs/CP4.5-api-contract.md`. Security tests (`Integration/Secur
 ## Review
 
 ## Handover notes
+
+## Follow-ups from T-0253 review
+- Add a handler-level (AuthorizeProxyRequest) test: a stored `system:authenticated` group grant plus membership → NotAvailable (QG-3 is only covered by Domain resolver tests today).
+- PREC-1 end-to-end (deferred from T-0255): after a host group change is picked up at revalidation, the proxy returns 403 and `GET /api/clusters` drops the cluster.
+- Fix the stale comment in `Infrastructure/Persistence/Configurations/UserConfiguration.cs` ("groups never queried by element"; T-0253 now queries `= ANY (u.groups)`).

@@ -23,6 +23,8 @@ namespace FleetConsole.Application.Auth.CompleteLogin;
 /// <para>Recording the login raises <c>UserLoggedIn</c> (and <c>UserRoleChanged</c> from configuration when the role
 /// changes); their audit entries are written by <c>UserAuditHandler</c> with explicit actors, so this command saves
 /// without a session. Denials are recorded here directly and returned as success (ADR-0008 §4).</para>
+/// <para>The login has just read the user's groups (<c>users/~</c>), so the check time is recorded too
+/// (<see cref="IUserGroupCheckRecorder"/>, ADR-0039 §3); revalidation keeps them current afterwards.</para>
 /// <para>Virtual <c>system:*</c> groups are dropped before anything is stored or evaluated (<see cref="OpenShiftGroups"/>).</para>
 /// <para>Two first logins of the same new user racing each other: the second fails the unique index at commit and
 /// <c>UnitOfWorkBehavior</c> returns <c>Persistence.DuplicateKey</c>; the Api treats it as a failed login and a retry
@@ -30,6 +32,7 @@ namespace FleetConsole.Application.Auth.CompleteLogin;
 /// </remarks>
 internal sealed class CompleteLoginHandler(
     IUserRepository users,
+    IUserGroupCheckRecorder groupChecks,
     IAuditTrail auditTrail,
     IClock clock,
     IOptions<AuthOptions> options) : IRequestHandler<CompleteLoginCommand, Result<LoginOutcomeDto>>
@@ -79,6 +82,8 @@ internal sealed class CompleteLoginHandler(
             // Unreachable: RecordLogin fails only for deactivated users, handled above. Fail loudly if that changes.
             throw new InvalidOperationException($"Recording the login failed unexpectedly: {login.Error.Code}.");
         }
+
+        await groupChecks.RecordAsync(user.Id, now, cancellationToken).ConfigureAwait(false);
 
         return new LoginOutcomeDto(
             LoginDecision.Allowed,

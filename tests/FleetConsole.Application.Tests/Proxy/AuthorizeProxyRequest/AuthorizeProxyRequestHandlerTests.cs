@@ -1,5 +1,6 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Proxy;
 using FleetConsole.Application.Proxy.AuthorizeProxyRequest;
 using FleetConsole.Application.Proxy.Policies;
@@ -285,6 +286,9 @@ public sealed class AuthorizeProxyRequestHandlerTests
         public IQueryable<Grant> Grants => GrantRows.AsQueryable();
 
         public IQueryable<AuditEntry> AuditEntries => Enumerable.Empty<AuditEntry>().AsQueryable();
+
+
+        public IQueryable<UserGroupCheck> UserGroupChecks => Enumerable.Empty<UserGroupCheck>().AsQueryable();
 
         public Task<List<T>> ToListAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) => Task.FromResult(query.ToList());
 

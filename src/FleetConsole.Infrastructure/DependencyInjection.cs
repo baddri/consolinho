@@ -106,6 +106,7 @@ public static class DependencyInjection
         builder.Services.AddScoped<ICredentialRepository, CredentialRepository>();
         builder.Services.AddScoped<IGrantRepository, GrantRepository>();
         builder.Services.AddScoped<IAuditEntryRepository, AuditEntryRepository>();
+        builder.Services.AddScoped<IUserGroupCheckRecorder, UserGroupCheckRecorder>();
         builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         builder.Services.AddSingleton<IClock, SystemClock>();
 

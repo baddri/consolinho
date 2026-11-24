@@ -20,4 +20,12 @@ public static class AuthErrors
 
     /// <summary>A globally read-only user attempted a mutating command (ADM-2) → 403.</summary>
     public static readonly Error ReadOnly = Error.Forbidden("Auth.ReadOnly", "Your account is read-only.");
+
+    /// <summary>
+    /// Session revalidation could not read the host's groups while the user's recorded groups carry grants (ADR-0039 §3):
+    /// stale membership could keep access that was removed on the host, so the session ends. Internal; never mapped to
+    /// an HTTP response (the request continues anonymous and protected endpoints answer 401).
+    /// </summary>
+    public static readonly Error GroupsUnavailable = Error.Failure(
+        "Auth.GroupsUnavailable", "Your group membership could not be verified. Sign in again.");
 }

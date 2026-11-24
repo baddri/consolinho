@@ -45,9 +45,14 @@ internal sealed class InMemoryReadModel : IReadModel
 
     public IQueryable<Credential> Credentials => Enumerable.Empty<Credential>().AsQueryable();
 
-    public IQueryable<Grant> Grants => Enumerable.Empty<Grant>().AsQueryable();
+    public List<Grant> GrantRows { get; } = [];
+
+    public IQueryable<Grant> Grants => GrantRows.AsQueryable();
 
     public IQueryable<AuditEntry> AuditEntries => Enumerable.Empty<AuditEntry>().AsQueryable();
+
+
+    public IQueryable<UserGroupCheck> UserGroupChecks => Enumerable.Empty<UserGroupCheck>().AsQueryable();
 
     public Task<List<T>> ToListAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) => Task.FromResult(query.ToList());
 
@@ -56,6 +61,18 @@ internal sealed class InMemoryReadModel : IReadModel
     public Task<int> CountAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) => Task.FromResult(query.Count());
 
     public Task<bool> AnyAsync<T>(IQueryable<T> query, CancellationToken cancellationToken) => Task.FromResult(query.Any());
+}
+
+/// <summary><see cref="IUserGroupCheckRecorder"/> that remembers every recorded check, in order.</summary>
+internal sealed class RecordingGroupCheckRecorder : IUserGroupCheckRecorder
+{
+    public List<UserGroupCheck> Checks { get; } = [];
+
+    public Task RecordAsync(UserId userId, DateTimeOffset checkedAt, CancellationToken cancellationToken)
+    {
+        Checks.Add(new UserGroupCheck(userId, checkedAt));
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>An <see cref="ICurrentUser"/> signed in as a specific user (id and name chosen by the test).</summary>

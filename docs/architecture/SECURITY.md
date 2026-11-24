@@ -16,9 +16,12 @@ it holds, so these rules are strict.
 - Session: FleetConsole cookie `FleetConsole.Session`, `HttpOnly`, `Secure` (except the plain-http dev profile),
   `SameSite=Lax` (needed for the OAuth callback), sliding expiration (8h default). Revalidated against the DB every
   `Auth:RevalidationInterval` (60 s): deactivated users and users whose **security stamp** changed (rotated on
-  deactivation) are signed out; role/read-only claims are refreshed (ADR-0009). The cookie handler answers challenges
-  and forbids with 401/403 ProblemDetails (`Auth.Unauthenticated`/`Auth.Forbidden`) and never redirects — app-wide,
-  not only under `/api`: the Api has no login page, and SPA routes, static files and health endpoints never challenge.
+  deactivation) are signed out; role/read-only claims are refreshed (ADR-0009). Each revalidation also re-reads the
+  user's groups through FleetConsole's host SA (ADR-0039; snapshot ≤ `Auth:HostGroups:MaxSnapshotAge`) and audits
+  changes; if that read fails, sessions whose recorded groups carry a grant are ended (fail closed), others kept.
+  The cookie handler answers challenges and forbids with 401/403 ProblemDetails (`Auth.Unauthenticated`/
+  `Auth.Forbidden`) and never redirects — app-wide, not only under `/api`: the Api has no login page, and SPA routes,
+  static files and health endpoints never challenge.
   The OAuth login challenge uses the separate `OpenShift` scheme and is unaffected.
 - Admins come from two sources (ADR-0009): assigned in the admin UI, or configuration (`Auth:BootstrapAdminUsers`,
   `Auth:AdminGroups`) evaluated **at login only** — removal from the admin group takes effect at the next login; an

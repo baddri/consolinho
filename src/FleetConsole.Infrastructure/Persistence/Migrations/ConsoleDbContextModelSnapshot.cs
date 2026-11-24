@@ -23,6 +23,22 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("FleetConsole.Application.Abstractions.Persistence.UserGroupCheck", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTimeOffset>("CheckedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("checked_at");
+
+                    b.HasKey("UserId")
+                        .HasName("pk_user_group_checks");
+
+                    b.ToTable("user_group_checks", (string)null);
+                });
+
             modelBuilder.Entity("FleetConsole.Domain.Access.Grant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -500,6 +516,16 @@ namespace FleetConsole.Infrastructure.Persistence.Migrations
                         .HasName("pk_data_protection_keys");
 
                     b.ToTable("data_protection_keys", (string)null);
+                });
+
+            modelBuilder.Entity("FleetConsole.Application.Abstractions.Persistence.UserGroupCheck", b =>
+                {
+                    b.HasOne("FleetConsole.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_group_checks_users_user_id");
                 });
 
             modelBuilder.Entity("FleetConsole.Domain.Access.Grant", b =>

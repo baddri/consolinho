@@ -1,7 +1,11 @@
 using System.Globalization;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Messaging;
+using FleetConsole.Application.Abstractions.Persistence;
 using FleetConsole.Application.Auth.GetSessionState;
+using FleetConsole.Application.Auth.SyncUserGroups;
+using FleetConsole.Domain.Common;
+using FleetConsole.Domain.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Options;
@@ -11,8 +15,9 @@ namespace FleetConsole.Api.Auth;
 /// <summary>
 /// Keeps sessions in step with the database (AUTH-11, ADR-0009): hooked to the cookie scheme's
 /// <c>OnValidatePrincipal</c>, it re-reads the user at most every <see cref="ConsoleSessionOptions.RevalidationInterval"/>
-/// and ends sessions of deactivated users and of users whose security stamp changed; otherwise it refreshes the role,
-/// read-only flag and username claims.
+/// and ends sessions of deactivated users and of users whose security stamp changed; otherwise it re-reads the user's
+/// host group membership (<see cref="SyncUserGroupsCommand"/>, PREC-1, ADR-0039) and refreshes the role, read-only flag
+/// and username claims.
 /// </summary>
 /// <remarks>
 /// <para><b>When it checks:</b> the time of the last check is stored in the ticket's
@@ -22,6 +27,10 @@ namespace FleetConsole.Api.Auth;
 /// <para><b>Rejecting</b> = <c>RejectPrincipal()</c> + sign-out: the request continues anonymous (protected endpoints
 /// answer 401) and the browser drops the cookie. A principal whose session claims can't be parsed is rejected too, so
 /// the endpoint layer and <c>ICurrentUser</c> never disagree about whether someone is signed in.</para>
+/// <para><b>Groups:</b> read through FleetConsole's host ServiceAccount (never the user's token, which is not kept). If
+/// the host can't be read and the user's recorded groups carry grants, the session ends (fail closed); users with only
+/// direct grants keep their session. A host-side removal therefore takes effect within the revalidation interval plus
+/// <c>Auth:HostGroups:MaxSnapshotAge</c>.</para>
 /// <para><b>Refreshing</b> replaces the principal and renews the cookie (<c>ShouldRenew</c>), which also slides its
 /// expiry. Singleton; the dispatcher is resolved from the request's services only when a check is due.</para>
 /// </remarks>
@@ -85,10 +94,48 @@ internal sealed partial class SessionValidator(
             return;
         }
 
+        var groups = await SyncGroupsAsync(context.HttpContext, state.UserId).ConfigureAwait(false);
+        if (groups.IsFailure)
+        {
+            // Auth.GroupsUnavailable: the host can't be read and stale groups could keep removed access (ADR-0039 §3).
+            Log.SessionEnded(logger, session.UserId.Value, "host groups unavailable");
+            await RejectAsync(context).ConfigureAwait(false);
+            return;
+        }
+
         context.ReplacePrincipal(SessionPrincipalFactory.Create(
             new SessionUser(state.UserId, state.Username, state.Role, state.IsReadOnly, state.SecurityStamp)));
         context.Properties.Items[ValidatedAtKey] = now.ToString("O", CultureInfo.InvariantCulture);
         context.ShouldRenew = true;
+    }
+
+    /// <summary>
+    /// Dispatches <see cref="SyncUserGroupsCommand"/> in a scope of its own, retrying once after a commit race.
+    /// </summary>
+    /// <remarks>
+    /// The own scope keeps the request's <c>DbContext</c> clean: a failed commit leaves its entities tracked and the
+    /// context unusable, and a tracked, modified user would otherwise leak into the endpoint's command. The retry covers
+    /// parallel requests of one session revalidating together: both see the same membership change, one commits, the
+    /// other hits a stale <c>xmin</c>; re-running it in a fresh scope finds the groups already current and succeeds,
+    /// instead of signing the user out.
+    /// </remarks>
+    private static async Task<Result> SyncGroupsAsync(HttpContext httpContext, UserId userId)
+    {
+        var scopes = httpContext.RequestServices.GetRequiredService<IServiceScopeFactory>();
+        Result result = Result.Success();
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            result = await scope.ServiceProvider.GetRequiredService<IDispatcher>()
+                .Send(new SyncUserGroupsCommand(userId), httpContext.RequestAborted)
+                .ConfigureAwait(false);
+            if (result.IsSuccess || result.Error.Code != PersistenceErrors.ConcurrencyConflict.Code)
+            {
+                return result;
+            }
+        }
+
+        return result;
     }
 
     private bool IsDue(AuthenticationProperties properties, DateTimeOffset now)

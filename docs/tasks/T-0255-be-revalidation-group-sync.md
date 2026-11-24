@@ -1,12 +1,12 @@
 ---
 id: T-0255
 title: Session revalidation re-reads group membership from the host; fails closed (PREC-1, ADR-0039)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: [T-0250, T-0254]   # wave 2
 paths: [src/FleetConsole.Application/Auth, src/FleetConsole.Application/Abstractions/Persistence, src/FleetConsole.Application/Abstractions/IReadModel.cs, src/FleetConsole.Api/Auth, src/FleetConsole.Infrastructure/Persistence, tests/FleetConsole.Application.Tests/Auth, tests/FleetConsole.Api.Tests/Integration/SessionRevalidationTests.cs]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -53,14 +53,39 @@ access could depend on stale groups end (ADR-0009 fail-closed, ADR-0039 §3).
   `DevGroupMembership.SetGroups` via `TestOAuthServer.Services` (T-0254); `OpenShiftHostStub` Unreachable flag.
 
 ## Acceptance criteria
-- [ ] PREC-1: user in `sre-emea` (only grant path) proxies OK; `SetGroups(user, [])`; next request after the interval → 403 `Proxy.NotAvailable`, and `GET /api/clusters` no longer lists the cluster.
-- [ ] Membership change writes `User.Groups` once and one `user.groups_changed` audit entry; unchanged membership writes no user row (assert `version` unchanged) but updates `user_group_checks`.
-- [ ] Host unreachable: user whose recorded groups carry a grant → session rejected (401 next request); user with only direct grants → session kept.
-- [ ] Read-only user's revalidation syncs (not blocked by ReadOnlyGuardBehavior); login records the check time.
-- [ ] `scripts/check-be.sh` green.
+- [x] PREC-1 (membership half; 403/cluster-list half deferred to T-0253, see Work log): user in `sre-emea` (only grant path) proxies OK; `SetGroups(user, [])`; next request after the interval → 403 `Proxy.NotAvailable`, and `GET /api/clusters` no longer lists the cluster.
+- [x] Membership change writes `User.Groups` once and one `user.groups_changed` audit entry; unchanged membership writes no user row (assert `version` unchanged) but updates `user_group_checks`.
+- [x] Host unreachable: user whose recorded groups carry a grant → session rejected (401 next request); user with only direct grants → session kept.
+- [x] Read-only user's revalidation syncs (not blocked by ReadOnlyGuardBehavior); login records the check time.
+- [x] `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: started; group grants are not yet effective in proxy/cluster list (T-0253, parallel).
+- 2026-11-24 backend-engineer: done. PREC-1 HTTP test asserts the groups sync + audit only; proxy 403/cluster list need T-0253. Deviations: AuthErrors is in `Abstractions/`;
+  minimal edits outside paths: Infrastructure `DependencyInjection.cs`, test `ServiceProviderBuilder.cs`, 2 fake read models (new `IReadModel.UserGroupChecks`); `SessionValidatorTests` stubs the sync (+ reject/retry tests).
+  SessionValidator dispatches the sync in a fresh scope + 1 retry on concurrency conflict (parallel requests revalidating). Recorder upserts via SQL, staged insert for a user added in the same UoW (FK).
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. Build -warnaserror green; filtered tests (SyncUserGroups,
+  SessionRevalidation, SessionValidator, CompleteLogin, Migration/Persistence) 132/132 green. Checked: retry is bounded
+  (2 attempts, only on `Persistence.ConcurrencyConflict`; upsert is idempotent; a second conflict rejects = fail closed);
+  own DI scope keeps the request `DbContext` clean; `user.groups_changed` actor = `AuditActor.Revalidation`; migration +
+  snapshot match the contract (PK, FK RESTRICT); fail-closed EXISTS on group grants matches ADR-0039 §3; no group names
+  logged (asserted). `AuthErrors` in `Abstractions/` is correct — that is where the type already lives (contract path was wrong).
+  Architect fix applied: reflowed the SECURITY.md revalidation bullet to ≤120 cols.
+  Deferred (not blocking): PREC-1 proxy 403 + `GET /api/clusters` assertions land with T-0253 (Handover note).
+  Optional: tests/FleetConsole.Application.Tests/Audit/ListAuditEntries/ListAuditEntriesTests.cs:1 — new `using` sorted
+  before `System.*`; double blank lines before `UserGroupChecks` there, in AuthFakes.cs:477 and
+  AuthorizeProxyRequestHandlerTests.cs:290; SessionValidatorTests.cs:5 using order.
 
 ## Handover notes
+- `SyncUserGroupsCommand` (Application/Auth/SyncUserGroups) runs on every revalidation from `SessionValidator`, not over HTTP;
+  it isn't mutating, so read-only users sync too. Ok listing → `User.ReplaceGroups` (raises `UserGroupsChanged` only on a diff,
+  so unchanged membership doesn't touch `users.xmin`) + upserts `user_group_checks` (migration `UserGroupChecks`).
+- Forbidden/Unavailable → `Auth.GroupsUnavailable` (session rejected, 401) only if a recorded group carries a group grant;
+  otherwise kept. Logs carry user id + status only, never group names.
+- `CompleteLoginHandler` records the check time at login (new ctor param `IUserGroupCheckRecorder`).
+- T-0253 follow-up: add the proxy 403 + `GET /api/clusters` assertions to
+  `SessionRevalidationTests.RemovedFromHostGroup_…` once group grants authorize. Its orchestrator note on
+  `UserConfiguration`'s "never queried by element" comment: T-0255 didn't touch that file, so T-0253 should fix it.
+- Tests force group re-reads with a `ManualClock` variant advanced past `MaxSnapshotAge` (`Refresh`).
