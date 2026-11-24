@@ -43,6 +43,11 @@ export const adminRoute: RouteObject = {
       lazy: () => import('./users/UserDetailPage').then((m) => ({ Component: m.UserDetailPage })),
     },
     {
+      path: 'users/:username/effective-access',
+      handle: tab('effective-access'),
+      lazy: () => import('./users/UserDetailPage').then((m) => ({ Component: m.UserDetailPage })),
+    },
+    {
       path: 'groups',
       lazy: () => import('./groups/GroupsListPage').then((m) => ({ Component: m.GroupsListPage })),
     },

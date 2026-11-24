@@ -156,7 +156,7 @@ describe('mock groups API (contract CP4.5a §4)', () => {
     expect(list.items.map((g) => [g.name, g.foundOnHost, g.memberCount, g.clusterCount])).toEqual([
       ['auditors', true, 1, 0],
       ['ghost-team', false, null, 1],
-      ['platform', true, 1, 0],
+      ['platform', true, 1, 1],
       ['sre', true, 3, 1],
     ]);
   });
@@ -169,6 +169,7 @@ describe('mock groups API (contract CP4.5a §4)', () => {
     expect([list.hostStatus, list.hostReadAt]).toEqual(['forbidden', null]);
     expect(list.items).toEqual([
       { name: 'ghost-team', foundOnHost: null, memberCount: null, clusterCount: 1 },
+      { name: 'platform', foundOnHost: null, memberCount: null, clusterCount: 1 },
       { name: 'sre', foundOnHost: null, memberCount: null, clusterCount: 1 },
     ]);
   });

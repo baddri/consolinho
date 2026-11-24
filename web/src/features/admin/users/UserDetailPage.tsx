@@ -17,6 +17,7 @@ import {
   useAdminTab,
   type UserDetailTab,
 } from '../adminTabs';
+import { EffectiveAccessTab } from '../effective-access/EffectiveAccessTab';
 import { BulkGrantWizard } from '../grants/bulk/BulkGrantWizard';
 import { UserGrantsTab } from '../grants/GrantsTab';
 import { useUser } from './api';
@@ -91,7 +92,7 @@ function useBulkGrantOpen() {
   return [isOpen, setOpen] as const;
 }
 
-/** Content of the active tab; only that one is mounted, so e.g. the grants query runs only on its tab. */
+/** Content of the Details or Cluster access tab; only the active one is mounted, so e.g. the grants query runs only on its tab. */
 function UserTabPanel({ user, tab, onGrantAccess }: UserTabsProps) {
   if (tab === 'details') {
     return <UserDetailsTab user={user} />;
@@ -108,24 +109,32 @@ interface UserTabsProps {
 }
 
 /**
- * URL-driven Details / Cluster access tabs of a loaded user as `PageTabs` aligned with the heading (`UX.md` §4), then
- * the active tab's content in a `PageBody` labelled by the tab; selecting a tab navigates to its URL.
+ * URL-driven Details / Cluster access / Effective access tabs of a loaded user as `PageTabs` aligned with the heading
+ * (`UX.md` §4), then the active tab's content labelled by the tab — in a `PageBody`, except Effective access, which
+ * renders its own bordered sections (OCP `PaneBody`s). Selecting a tab navigates to its URL.
  */
 function UserTabs({ user, tab, onGrantAccess }: UserTabsProps) {
   const tabs = detailPageTabs(USER_DETAIL_TABS, USER_DETAIL_TAB_TITLES, userDetailPath(user.username));
   return (
     <>
       <PageTabs tabs={tabs} activeKey={tab} aria-label="User detail tabs" />
-      <PageBody role="tabpanel" aria-label={USER_DETAIL_TAB_TITLES[tab]}>
-        <UserTabPanel user={user} tab={tab} onGrantAccess={onGrantAccess} />
-      </PageBody>
+      {tab === 'effective-access' ? (
+        // A plain element: PageGroup drops `aria-label` unless it scrolls.
+        <div role="tabpanel" aria-label={USER_DETAIL_TAB_TITLES[tab]}>
+          <EffectiveAccessTab username={user.username} />
+        </div>
+      ) : (
+        <PageBody role="tabpanel" aria-label={USER_DETAIL_TAB_TITLES[tab]}>
+          <UserTabPanel user={user} tab={tab} onGrantAccess={onGrantAccess} />
+        </PageBody>
+      )}
     </>
   );
 }
 
 /**
- * `/fleet/admin/users/:username[/access]` — who a user is and what they can do (USR-7): `PageHeading` with labels and
- * the shared Actions menu, then Details and Cluster access tabs whose selection comes from the URL (`useAdminTab`). The
+ * `/fleet/admin/users/:username[/access|/effective-access]` — who a user is and what they can do (USR-7): `PageHeading` with labels and
+ * the shared Actions menu, then Details, Cluster access and Effective access tabs whose selection comes from the URL (`useAdminTab`). The
  * router decodes the username; `useUser` re-encodes it for the API (ADR-0013 §1), so names like `system:admin` work.
  * Loading shows skeletons, `Users.NotFound` an empty state with a way back, other errors `ErrorState` with Retry —
  * both only while nothing is loaded: a failed background refetch keeps the loaded data, and a 404 after load sends
