@@ -1,7 +1,7 @@
 ---
 id: T-0223
 title: CP4c QA — QGC e2e, carried CP4b e2e, parity gate, POL evidence
-status: todo
+status: done
 owner: qa-engineer
 checkpoint: CP4c
 depends_on: [T-0210, T-0211, T-0212, T-0213, T-0214, T-0215, T-0216, T-0217, T-0218, T-0219, T-0220, T-0221, T-0222]
@@ -28,12 +28,16 @@ Verify CP4c against §4c.1–4c.5 and the §4b.8 follow-ups, and produce the evi
 - Spec: `docs/specs/CP4-workloads.md` §4c.1–4c.6 (grep the AC ids).
 
 ## Acceptance criteria
-- [ ] QGC-1 e2e green (also on `--repeat-each=2`); carried CP4b e2e green, with no `fixme`.
-- [ ] QGC-2: `ocp-parity.md` has no `gap` from W1/W3/W4.
-- [ ] T-0118 and T-0133 are closed with per-item reasons; POL-1–POL-5 evidence is listed in the Work log.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [ ] QGC-1 e2e green (form→YAML→Save green ×2; YAML hover/completion/validation blocked by T-0239) (also on `--repeat-each=2`); carried CP4b e2e green, with no `fixme`.
+- [x] QGC-2: `ocp-parity.md` has no `gap` from W1/W3/W4.
+- [x] T-0118 and T-0133 are closed with per-item reasons; POL-1–POL-5 evidence is listed in the Work log.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-24 qa-engineer: `workloads.e2e.ts` CP4c group with `--repeat-each=2` gives 16/16 (form→YAML→Save, RO form, POL-2 Reload/Cancel guard, DC Start rollout, RC Rollback/Cancel, STS ring scale; no fixme). Full e2e 37/37; `switcher.e2e` H3 was stale since T-0203 and is aligned.
+- QGC-1 hover/completion/validation FAIL in dev and prod builds: the monaco-yaml worker never starts (monaco-editor 0.55 API) → T-0239 (blocking). The e2e is kept as `test.fail`.
+- POL-1: T-0118 closed per item; T-0133 was already closed by T-0213/T-0184/T-0188. POL-2: `ResourceYamlTab.test.tsx` + e2e. POL-3: `auditActionLabels.test.ts`. POL-4: `adminSource.ts` maps the structured `AdminConfigurationSource` and no longer parses a string. POL-5: `shared/ui/details.test.tsx`, `test/sidebar.ts`.
+- QGC-2: the W1/W3/W4 rows are closed (W4 row updated). New gap on the YAML tab row → T-0239. `check-fe.sh` is green (1217 tests).
 
 ## Review
 

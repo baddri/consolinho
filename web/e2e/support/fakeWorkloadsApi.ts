@@ -22,6 +22,16 @@ export const SERVICE = 'web';
 export const SECRET = 'db-credentials';
 /** Obviously fake Secret values (base64-decoded by the UI). */
 export const SECRET_VALUES = { username: 'shop', password: 'fake-password-not-real' } as const;
+/**
+ * CP4c (T-0223): DeploymentConfig {@link DEPLOYMENT_CONFIG} with its RCs `api-1` (Complete, scaled to 0: the Rollback
+ * target, image {@link OLD_IMAGE}) and `api-2` (rollout Running: Cancel rollout), and StatefulSet {@link STATEFUL_SET}.
+ */
+export const DEPLOYMENT_CONFIG = 'api';
+export const OLD_CONTROLLER = 'api-1';
+export const RUNNING_CONTROLLER = 'api-2';
+export const STATEFUL_SET = 'db';
+/** The `DeploymentSpec.replicas` description the fake's OpenAPI document serves (YAML hover, OAPI-3). */
+export const REPLICAS_DESCRIPTION = 'Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.';
 
 /** ServiceAccount names in the fake tokens: the editor may do anything, the viewer only read (cluster RBAC). */
 export const EDITOR_SA = 'e2e-editor';
@@ -58,6 +68,8 @@ export interface FakeWorkloadsApi {
   cutLogStreams: () => void;
   /** Stored objects of one plural (e.g. `jobs`), live. */
   objects: (plural: string) => K8sObject[];
+  /** The stored object `name` of `plural` in {@link WORK_NAMESPACE} (live); throws when it is gone. */
+  object: (plural: string, name: string) => K8sObject;
   close: () => Promise<void>;
 }
 
@@ -153,17 +165,65 @@ const KNOWN_COLLECTIONS: Record<string, string> = {
   '/apis/batch/v1 jobs': 'Job',
   '/apis/batch/v1 cronjobs': 'CronJob',
   '/apis/autoscaling/v2 horizontalpodautoscalers': 'HorizontalPodAutoscaler',
+  '/apis/apps.openshift.io/v1 deploymentconfigs': 'DeploymentConfig',
 };
 
 /** Discovery (`/api`, `/apis`): core plus the groups of {@link KNOWN_COLLECTIONS} — a vanilla Kubernetes cluster. */
-const DISCOVERY_GROUPS = ['apps/v1', 'batch/v1', 'autoscaling/v2'];
+const DISCOVERY_GROUPS = ['apps/v1', 'batch/v1', 'autoscaling/v2', 'apps.openshift.io/v1'];
+
+/** The deployer's label and annotations on a DeploymentConfig's RCs. */
+const DC_NAME = 'openshift.io/deployment-config.name';
+const DC_VERSION = 'openshift.io/deployment-config.latest-version';
+const DC_PHASE = 'openshift.io/deployment.phase';
+
+/**
+ * A trimmed `GET /openapi/v3/apis/apps/v1` (CP4c, T-0223): the Deployment root with a few `DeploymentSpec` fields, so
+ * the YAML editor gets validation, hover and completion (OAPI-3). Like a real cluster, no `additionalProperties: false`.
+ */
+const SCHEMAS = 'io.k8s.api.apps.v1';
+const APPS_V1_OPENAPI = {
+  openapi: '3.0.0',
+  components: {
+    schemas: {
+      [`${SCHEMAS}.Deployment`]: {
+        description: 'Deployment enables declarative updates for Pods and ReplicaSets.',
+        type: 'object',
+        properties: {
+          apiVersion: { type: 'string', description: 'APIVersion defines the versioned schema of this representation of an object.' },
+          kind: { type: 'string', description: 'Kind is a string value representing the REST resource this object represents.' },
+          metadata: { type: 'object', description: 'Standard object metadata.' },
+          spec: { $ref: `#/components/schemas/${SCHEMAS}.DeploymentSpec` },
+          status: { type: 'object', description: 'Most recently observed status of the Deployment.' },
+        },
+        'x-kubernetes-group-version-kind': [{ group: 'apps', kind: 'Deployment', version: 'v1' }],
+      },
+      [`${SCHEMAS}.DeploymentSpec`]: {
+        description: 'DeploymentSpec is the specification of the desired behavior of the Deployment.',
+        type: 'object',
+        required: ['selector', 'template'],
+        properties: {
+          minReadySeconds: { type: 'integer', format: 'int32', description: 'Minimum number of seconds for which a newly created pod should be ready.' },
+          paused: { type: 'boolean', description: 'Indicates that the deployment is paused.' },
+          progressDeadlineSeconds: { type: 'integer', format: 'int32', description: 'The maximum time in seconds for a deployment to make progress.' },
+          replicas: { type: 'integer', format: 'int32', description: REPLICAS_DESCRIPTION },
+          revisionHistoryLimit: { type: 'integer', format: 'int32', description: 'The number of old ReplicaSets to retain.' },
+          selector: { type: 'object', description: 'Label selector for pods.' },
+          strategy: { type: 'object', description: 'The deployment strategy to use to replace existing pods with new ones.' },
+          template: { type: 'object', description: 'Template describes the pods that will be created.' },
+        },
+      },
+    },
+  },
+};
+const OPENAPI_INDEX = { paths: { 'apis/apps/v1': { serverRelativeURL: '/openapi/v3/apis/apps/v1?hash=E2E0223' } } };
 
 /**
  * Starts a stateful Kubernetes API stand-in for the CP4a e2e (QGA-2): one Deployment with two ReplicaSets (revisions
  * 2 and 1) and its running pod, behind the real FleetConsole proxy. It serves lists, gets and watches (MODIFIED events
  * after every change), JSON Patch on objects and on `…/scale` (`fast-json-patch`, as the MSW mock), pod logs
  * (`follow` streams until the client goes; `previous`; `sinceTime`), and `pods/exec` over `base64.channel.k8s.io`
- * with an echo shell. RBAC is by token: the editor SA is allowed everything, the viewer only reads (SSAR denied,
+ * with an echo shell. CP4c adds PUT (409 on a stale `resourceVersion`), DeploymentConfig `instantiate`/`rollback` and
+ * a trimmed OpenAPI v3 (`/openapi/v3`, `apps/v1` only; other group-versions 404). RBAC is by token: the editor SA is allowed everything, the viewer only reads (SSAR denied,
  * writes 403). Every request is recorded so the spec can assert what the proxy forwarded, and with which token.
  */
 export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
@@ -261,6 +321,14 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       });
       return;
     }
+    if (method === 'GET' && url.pathname === '/openapi/v3') {
+      json(response, 200, OPENAPI_INDEX);
+      return;
+    }
+    if (method === 'GET' && url.pathname === '/openapi/v3/apis/apps/v1') {
+      json(response, 200, APPS_V1_OPENAPI);
+      return;
+    }
     const match = RESOURCE_PATH.exec(url.pathname);
     if (!match) {
       notFound(response, `${method} ${url.pathname}`);
@@ -342,6 +410,14 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       json(response, 200, scaleOf(entry.object));
       return;
     }
+    if (method === 'POST' && plural === 'deploymentconfigs' && subresource === 'instantiate') {
+      instantiate(response, entry);
+      return;
+    }
+    if (method === 'POST' && plural === 'deploymentconfigs' && subresource === 'rollback') {
+      rollback(response, entry, record.body as { spec?: { revision?: number; from?: { name?: string } } });
+      return;
+    }
     if (subresource !== undefined) {
       notFound(response, `${method} ${url.pathname}`);
       return;
@@ -354,6 +430,17 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       const patched = patchOrFail(response, record, entry.object);
       if (!patched) return;
       store(entry, settle(patched));
+      json(response, 200, entry.object);
+      return;
+    }
+    if (method === 'PUT') {
+      // Optimistic concurrency as the API server: a stale `resourceVersion` is a 409, never an overwrite (FORM-3).
+      const next = record.body as K8sObject;
+      if (next.metadata.resourceVersion !== entry.object.metadata.resourceVersion) {
+        json(response, 409, status(409, 'Conflict', `Operation cannot be fulfilled on ${plural} "${name}": the object has been modified; please apply your changes to the latest version and try again`));
+        return;
+      }
+      store(entry, settle(structuredClone(next)));
       json(response, 200, entry.object);
       return;
     }
@@ -388,6 +475,36 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       }
     }
     json(response, 201, entry.object);
+  }
+
+  /**
+   * `POST deploymentconfigs/<name>/instantiate` (Start rollout): bumps `status.latestVersion`, adds RC
+   * `<name>-<version>` (phase New) and answers 201 with the DeploymentConfig, like the MSW mock.
+   */
+  function instantiate(response: ServerResponse, dc: Entry): void {
+    const version = ((dc.object.status?.latestVersion as number | undefined) ?? 0) + 1;
+    const next = structuredClone(dc.object);
+    next.status = { ...next.status, latestVersion: version, details: { message: 'manual change' } };
+    store(dc, next);
+    revision += 1;
+    entries.push(controller(version, 'New', next.spec?.replicas ?? 1, dcImage(next), String(revision)));
+    json(response, 201, dc.object);
+  }
+
+  /**
+   * `POST deploymentconfigs/<name>/rollback`: answers 200 with the DeploymentConfig carrying the RC's pod template,
+   * without storing it (the client PUTs it, OCP `rollback-modal.tsx`). The RC is found by `spec.revision`, else `from`.
+   */
+  function rollback(response: ServerResponse, dc: Entry, body: { spec?: { revision?: number; from?: { name?: string } } }): void {
+    const rcName = body.spec?.revision ? `${dc.object.metadata.name}-${String(body.spec.revision)}` : body.spec?.from?.name;
+    const rc = rcName === undefined ? undefined : find('/api/v1', 'replicationcontrollers', WORK_NAMESPACE, rcName);
+    if (!rc) {
+      json(response, 422, status(422, 'Invalid', "spec.revision: couldn't find deployment for rollback"));
+      return;
+    }
+    const template = structuredClone(rc.object.spec?.template) as { metadata?: { labels?: Record<string, string> } };
+    delete template.metadata?.labels?.deployment;
+    json(response, 200, { ...dc.object, spec: { ...dc.object.spec, template } });
   }
 
   /** `…/log`: the previous log (ends), or the current one from `sinceTime`, kept open with `follow`. */
@@ -514,6 +631,13 @@ export async function startFakeWorkloadsApi(): Promise<FakeWorkloadsApi> {
       logFollowers.clear();
     },
     objects: (plural) => entries.filter((e) => e.plural === plural).map((e) => e.object),
+    object: (plural, name) => {
+      const entry = entries.find(
+        (e) => e.plural === plural && e.object.metadata.namespace === WORK_NAMESPACE && e.object.metadata.name === name,
+      );
+      if (!entry) throw new Error(`fake API: ${plural}/${name} is gone`);
+      return entry.object;
+    },
     close: () =>
       new Promise<void>((resolve) => {
         server.closeAllConnections();
@@ -564,7 +688,7 @@ function line(offsetMs: number, text: string): LogLine {
 
 /** The controller's view after a write: the Deployment's status follows `spec.replicas` at once. */
 function settle(object: K8sObject): K8sObject {
-  if (object.kind !== 'Deployment') return object;
+  if (object.kind !== 'Deployment' && object.kind !== 'StatefulSet') return object;
   const replicas = object.spec?.replicas ?? 1;
   object.status = {
     ...object.status,
@@ -583,7 +707,10 @@ function scaleOf(object: K8sObject) {
     kind: 'Scale',
     metadata: { name, namespace, uid, resourceVersion, creationTimestamp },
     spec: { replicas: object.spec?.replicas ?? 1 },
-    status: { replicas: (object.status?.replicas as number | undefined) ?? 0, selector: `app=${DEPLOYMENT}` },
+    status: {
+      replicas: (object.status?.replicas as number | undefined) ?? 0,
+      selector: `app=${object.metadata.labels?.app ?? DEPLOYMENT}`,
+    },
   };
 }
 
@@ -625,10 +752,48 @@ function replicaSet(name: string, hash: string, revisionNumber: string, image: s
   };
 }
 
+/** The image of a DeploymentConfig's (or RC's) first container. */
+function dcImage(object: K8sObject): string {
+  return (object.spec?.template as { spec: { containers: { image: string }[] } }).spec.containers[0]?.image ?? '';
+}
+
+/** RC `api-<version>` of {@link DEPLOYMENT_CONFIG} in deployment `phase`, as the deployer creates it. */
+function controller(version: number, phase: string, replicas: number, image: string, resourceVersion = '100'): Entry {
+  const name = `${DEPLOYMENT_CONFIG}-${String(version)}`;
+  return {
+    prefix: '/api/v1',
+    plural: 'replicationcontrollers',
+    object: {
+      apiVersion: 'v1',
+      kind: 'ReplicationController',
+      metadata: meta(name, `00000000-0000-4000-8000-0000000a${String(version).padStart(4, '0')}`, {
+        resourceVersion,
+        labels: { app: DEPLOYMENT_CONFIG, [DC_NAME]: DEPLOYMENT_CONFIG },
+        annotations: { [DC_NAME]: DEPLOYMENT_CONFIG, [DC_VERSION]: String(version), [DC_PHASE]: phase },
+        ownerReferences: [
+          { apiVersion: 'apps.openshift.io/v1', kind: 'DeploymentConfig', name: DEPLOYMENT_CONFIG, uid: DC_UID, controller: true },
+        ],
+      }),
+      spec: {
+        replicas,
+        selector: { app: DEPLOYMENT_CONFIG, deployment: name },
+        template: {
+          metadata: { labels: { app: DEPLOYMENT_CONFIG, deployment: name } },
+          spec: { containers: [{ name: CONTAINER, image }] },
+        },
+      },
+      status: { replicas, readyReplicas: replicas, availableReplicas: replicas },
+    },
+  };
+}
+
+const DC_UID = '00000000-0000-4000-8000-00000000dc01';
+
 /**
  * The seeded objects: namespace, Deployment `web` (1 replica, revision 2), its two ReplicaSets and its pod; for CP4b a
  * standalone CrashLoopBackOff pod (label `app=worker`, so Search by `app=web` and the Deployment ignore it), the
- * Service `web`, the CronJob {@link CRONJOB} and the Secret {@link SECRET}.
+ * Service `web`, the CronJob {@link CRONJOB} and the Secret {@link SECRET}; for CP4c the DeploymentConfig
+ * {@link DEPLOYMENT_CONFIG} (latest version 2) with RCs `api-1`/`api-2`, and the StatefulSet {@link STATEFUL_SET}.
  */
 function seed(): Entry[] {
   const currentHash = CURRENT_REPLICASET.slice(DEPLOYMENT.length + 1);
@@ -787,6 +952,47 @@ function seed(): Entry[] {
           username: Buffer.from(SECRET_VALUES.username).toString('base64'),
           password: Buffer.from(SECRET_VALUES.password).toString('base64'),
         },
+      },
+    },
+    {
+      prefix: '/apis/apps.openshift.io/v1',
+      plural: 'deploymentconfigs',
+      object: {
+        apiVersion: 'apps.openshift.io/v1',
+        kind: 'DeploymentConfig',
+        metadata: meta(DEPLOYMENT_CONFIG, DC_UID, { labels: { app: DEPLOYMENT_CONFIG } }),
+        spec: {
+          replicas: 1,
+          selector: { app: DEPLOYMENT_CONFIG },
+          strategy: { type: 'Rolling' },
+          triggers: [{ type: 'ConfigChange' }],
+          template: {
+            metadata: { labels: { app: DEPLOYMENT_CONFIG } },
+            spec: { containers: [{ name: CONTAINER, image }] },
+          },
+        },
+        status: { latestVersion: 2, observedGeneration: 2, replicas: 1, readyReplicas: 1, availableReplicas: 1 },
+      },
+    },
+    controller(1, 'Complete', 0, OLD_IMAGE),
+    controller(2, 'Running', 1, image),
+    {
+      prefix: '/apis/apps/v1',
+      plural: 'statefulsets',
+      object: {
+        apiVersion: 'apps/v1',
+        kind: 'StatefulSet',
+        metadata: meta(STATEFUL_SET, '00000000-0000-4000-8000-00000000db01', { labels: { app: STATEFUL_SET } }),
+        spec: {
+          replicas: 1,
+          serviceName: STATEFUL_SET,
+          selector: { matchLabels: { app: STATEFUL_SET } },
+          template: {
+            metadata: { labels: { app: STATEFUL_SET } },
+            spec: { containers: [{ name: 'postgres', image: 'registry.example.com/postgres:16' }] },
+          },
+        },
+        status: { replicas: 1, readyReplicas: 1, currentReplicas: 1, updatedReplicas: 1, availableReplicas: 1 },
       },
     },
   ];

@@ -1,7 +1,7 @@
 ---
 id: T-0118
 title: CP3.5 review follow-ups (small OCP look & feel polish)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: CP4
 depends_on: []
@@ -30,5 +30,13 @@ task so they are not lost. Each item is small; architect may split or fold items
 10. Code nits: rename `WorstExpiryIcon` (renders text now); move `Timestamp`/`DetailsSubsection` to `shared/ui` with a unit test. [T-0113, T-0114]
 
 ## Acceptance criteria
-- [ ] Items 1–9 visible in the mock UI at 1280 (light + dark); item 10 done or split into its own task.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Items 1–9 visible in the mock UI at 1280 (light + dark); item 10 done or split into its own task.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
+
+## Work log
+- 2026-11-24 qa-engineer (T-0223, POL-1): closed per item; every absorbing task is `done`.
+  #1 no `onSearch` on the switcher search, #2 "Recent" hidden → T-0119 items 7–8. #3 column widths, #4 pagination and
+  the empty state → T-0121 items 3–4 (no CP4c UX task re-files pagination). #5 `NS` badge → T-0122 item 6.
+  #6 API URL hidden below 2xl and the 2-line clamp, #7 Add credential, #8 Disabled icon, #9 one grant flow → T-0126.
+  #10 `WorstExpiryIcon` rename → T-0126 (no references left); `Timestamp`/`DetailsSubsection` → T-0122 item 9
+  (`web/src/shared/ui/details.test.tsx`).
