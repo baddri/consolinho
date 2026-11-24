@@ -23,6 +23,11 @@ public sealed class RedisFixture : IAsyncDisposable
     /// <returns>A task that completes when the server answers PING.</returns>
     public Task StartAsync(CancellationToken cancellationToken) => _container.StartAsync(cancellationToken);
 
+    /// <summary>Stops the container (Redis outage for CACHE-7 tests); the endpoint then refuses connections.</summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that completes when the container has stopped.</returns>
+    public Task StopAsync(CancellationToken cancellationToken) => _container.StopAsync(cancellationToken);
+
     /// <inheritdoc />
     public ValueTask DisposeAsync() => _container.DisposeAsync();
 }

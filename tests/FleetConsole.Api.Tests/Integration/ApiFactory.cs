@@ -158,6 +158,31 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     }
 
     /// <summary>
+    /// Builds a second host over the <b>same</b> database as this one (so the same Data Protection key ring, users,
+    /// grants and credentials), with the same overrides and test services: a second replica ("pod") for tests of
+    /// cross-instance behaviour such as the Redis backplane (CACHE-3). Unlike <see cref="CreateVariantAsync"/> no new
+    /// database is created.
+    /// </summary>
+    /// <remarks>The sibling has its own emulator, whose pool-user counter is independent: take usernames from the
+    /// original host only, so the two never hand out the same user. Pool users exist in every emulator, so a user taken
+    /// from the original can log in on the sibling.</remarks>
+    /// <param name="overrides">Extra configuration on top of this host's overrides (e.g. another <c>ConnectionStrings:redis</c>).</param>
+    /// <returns>The started sibling; the caller disposes it.</returns>
+    internal async Task<ApiFactory> CreateSiblingAsync(IReadOnlyDictionary<string, string?>? overrides = null)
+    {
+        var merged = new Dictionary<string, string?>(_overrides);
+        foreach (var (key, value) in overrides ?? new Dictionary<string, string?>())
+        {
+            merged[key] = value;
+        }
+
+        var sibling = new ApiFactory(_postgres, _redis, ownsPostgres: false, _database, merged, Clock, _configureServices);
+        await sibling.InitializeAsync();
+        _ = sibling.Server;
+        return sibling;
+    }
+
+    /// <summary>
     /// A browser-like client (cookies, no redirects, <c>X-Console-Request: 1</c>) over real sockets to a Kestrel variant.
     /// </summary>
     /// <param name="cookies">The cookie jar to use (e.g. shared with a <c>ClientWebSocket</c>); a new one when null.</param>

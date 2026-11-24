@@ -104,3 +104,29 @@ Defects filed: none (the one failure was a stale test, fixed in place).
 - Toast copy: "ReadOnly"/"ReadWrite" exposes enum names. The rest of the UI says "Read only"/"Read write" (switcher, tables), and OCP toasts use plain language. Not a blocker, but it should change: **T-0273** (FE, 4.5b).
 - T-0271 (QGC-1 completion flake, CP4c test) does not block. It is test-only, the feature passes in isolation and QA owns it. It must be fixed before the CP4.5b VERIFY so the e2e suite gives a clean signal.
 - Process note from VERIFY is accepted: DevOAuth fixture changes must re-run `check-be.sh`.
+
+## CP4.5b VERIFY (QA, T-0285, 2026-11-25, branch `cp/4.5-access-at-scale` @ 5d4895a + QA test changes)
+
+**Verdict: PASS (CP4.5b build scope).** No blocking defects. OPS-2/OPS-3 deferred to T-0286 (live, post-deploy).
+
+**Gates (QG-1)**: `check-be.sh` build ok, Domain 431, Application 840, Api 992 (incl. the 6 new QG-4 tests). `check-fe.sh` lint/typecheck/build ok, 124 files 1304/1304. `check-deploy.sh` ok. e2e (Aspire + Redis): 38/38 in 2 consecutive solo full runs (QGC-1/OAPI-3 green in both; `--repeat-each=5` on the T-0271 specs 5/5).
+
+| AC | Evidence | Verdict |
+|---|---|---|
+| CACHE-1 | `CachingBehaviorTests` (7, step 5 after validation, hit skips pipeline, failures never cached); `AccessCacheTests.Second_request_is_served_from_the_cache_without_access_sql`. Deviation `IQueryCache` port vs `HybridCache` recorded in spec §4b/ADR-0040 | pass |
+| CACHE-2 | `AccessSnapshotTests` (tags), `AccessCacheInvalidationTests` (every `IDomainEvent` handled or allow-listed; event→tag), `AccessCacheTests` (direct/group revoke, leave group, new group grant, rotation, disabled cluster → next request) | pass |
+| CACHE-3 | NEW `AccessCacheReplicaTests`: two hosts, one DB + one Redis, 60 s TTL; direct revoke, group revoke, user read-only set on A → refused on B within 2 s. Negative control (B without Redis) fails all three | pass |
+| CACHE-4 | `AccessCacheTtlTests` (lost invalidation heals at expiry); `ProductionConfigurationTests` rejects `Cache:Duration` outside 1 s–60 s | pass |
+| CACHE-5 | NEW `AccessCacheFailureTests.Expired_entry_with_the_database_unreachable_answers_503…`: fresh entry serves with DB down, after expiry 3 × 503 `Persistence.Unavailable`, nothing forwarded; plus `QueryCacheTests.ExpiredEntry_WithFailingLoad_Throws…`, `PersistenceUnavailableTests` | pass |
+| CACHE-6 | NEW `AccessCacheReplicaTests.Redis_never_holds_the_decrypted_SA_token`: SCAN all keys, GET/HGETALL every value after both replicas cached; no plaintext, JSON-escaped, percent-escaped or base64 (3 alignments) token, no OAuth access token; access key + user id + username seen | pass |
+| CACHE-7 | NEW `AccessCacheFailureTests.Redis_down_keeps_login_and_proxy_working…` (Redis container stopped: L1 hit, new login + miss, revoke refused at once, `redis` Degraded, `/health` 200 "Degraded", Warning logged); `QueryCacheTests.RedisDown_*` (no password leak) | pass |
+| CACHE-8 | `BACKEND.md` §Recipes › "Caching a query": key, tags, event→tag table (L225–245) | pass |
+| OPS-1 | AppHost `AddRedis("redis")` (e2e ran on it); kustomize base `redis.yaml` (`--save ""`, `--appendonly no`, emptyDir, `--requirepass` from Secret `consolinho-redis`), `networkpolicy-redis.yaml` (ingress 6379 only from `component: server`); `check-deploy.sh` green | pass |
+| OPS-2, OPS-3 | live replicas / k6 re-test | deferred → T-0286 |
+| QG-4 | CACHE-3/5/6 above, Testcontainers Redis; 18 cache tests green 3 consecutive runs | pass |
+
+**Risks (not blocking)**
+- R1: the backplane subscription is set up lazily on a pod's first cache use. An invalidation published in that window (ms) is missed and heals within `Cache:Duration` (30 s, CACHE-4). Tests handshake first; T-0286 should revoke only after both pods have served traffic.
+- T-0271 (QGC-1/OAPI-3 flake) fixed test-side: the Monaco Find widget sometimes resumed at the 2nd `replicas: 1` (under `status`, caret line 34 vs 15, diagnosed by instrumenting the caret). `findInEditor` now steps to match "1 of N".
+
+Defects filed: none.

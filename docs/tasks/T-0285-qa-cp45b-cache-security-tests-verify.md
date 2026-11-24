@@ -1,7 +1,7 @@
 ---
 id: T-0285
 title: CP4.5b QG-4 security tests (Testcontainers Redis, two app instances) + VERIFY
-status: todo
+status: done
 owner: qa-engineer
 checkpoint: 4.5b
 depends_on: [T-0282, T-0284]
@@ -44,13 +44,31 @@ Redis and two app instances sharing one database, then verify every CP4.5b AC an
   grants/credentials through `factory.Services.CreateSignedInScope()`).
 
 ## Acceptance criteria
-- [ ] CACHE-3, CACHE-5, CACHE-6, CACHE-7 tests green and non-flaky (3 consecutive local runs noted in Work log).
-- [ ] VERIFY: every CACHE-1..8, OPS-1, QG-1, QG-4 marked pass/fail with evidence in a "CP4.5b VERIFY" block in the spec
+- [x] CACHE-3, CACHE-5, CACHE-6, CACHE-7 tests green and non-flaky (3 consecutive local runs noted in Work log).
+- [x] VERIFY: every CACHE-1..8, OPS-1, QG-1, QG-4 marked pass/fail with evidence in a "CP4.5b VERIFY" block in the spec
       (OPS-2/OPS-3 are verified by T-0286). Failures → bug task files, not fixes.
-- [ ] `scripts/check-be.sh` and `scripts/check-fe.sh` green (QG-1)
+- [x] `scripts/check-be.sh` and `scripts/check-fe.sh` green (QG-1)
 
 ## Work log
+- 2026-11-25 qa: added `ApiFactory.CreateSiblingAsync` (same DB, optional overrides), `RedisFixture.StopAsync`, and
+  `Caching/AccessCacheReplicaTests` (CACHE-3 ×3: direct revoke, group revoke, set read-only; CACHE-6 Redis scan) plus
+  `Caching/AccessCacheFailureTests` (CACHE-5 expired entry + DB down → 503; CACHE-7 Redis stopped).
+- Negative control: B without Redis made all 3 CACHE-3 tests fail. Cache tests (18) green 3 consecutive runs.
+- Gates: check-be 431/840/992, check-fe 1304/1304, check-deploy ok. VERIFY in `docs/specs/CP4.5-acceptance.md`.
 
 ## Review
+- 2026-11-25 backend-architect, round 1: **APPROVE**. CACHE-3 ×3 poll ≤2 s with a 60 s TTL; the negative control and
+  the backplane handshake rule out the subscription race. CACHE-5 works because `AddDbContext` re-reads the connection
+  string per scope, and the fresh-entry check rules out a 503 from upstream. CACHE-6 scans strings and hashes, checks
+  that access entries were seen and also checks OAuth tokens. CACHE-7 uses its own Redis container per test. A sibling
+  never drops the shared DB (`ownsPostgres: false`, no drop on dispose). AccessCache filter: 14/14 green.
+- Optional: `AccessCacheFailureTests.cs:115` could check only log entries written after `StopAsync` (stronger CACHE-7
+  evidence). CACHE-5 uses a 3 s duration plus a fixed wait, not the 1 s the contract suggests. Expiry needs the wait,
+  and the margin makes the test less flaky, so this is acceptable.
 
 ## Handover notes
+- Replica fixture does a backplane handshake (tag removed on A until B reloads) before tests, because the subscription
+  is established lazily; without it the first CACHE-3 test could race the subscription. Production pods have the
+  same cold-start window (risk R1 in the VERIFY block).
+- Usernames for sibling hosts must come from the original host (the emulators' pool counters are independent).
+- OPS-2/OPS-3 are open for T-0286 (live).
