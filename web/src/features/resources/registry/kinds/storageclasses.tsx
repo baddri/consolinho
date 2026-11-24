@@ -1,16 +1,40 @@
-import { StorageClassModel, type K8sResource, type StorageClass } from '@/shared/k8s';
+import { StorageClassModel } from '@/shared/k8s';
+import {
+  StorageClassDetails,
+  StorageClassName,
+  StorageClassParameters,
+  StorageClassSummaryExtra,
+  type StorageClassResource,
+} from '../../storage/storageclasses/StorageClassDetails';
 import { ageColumn, nameColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 
-/** A listed StorageClass (`metadata` always present). */
-export type StorageClassResource = StorageClass & K8sResource;
+export type { StorageClassResource };
 
 /**
- * StorageClasses (OCP `storage-class.tsx`), cluster-scoped. Minimal descriptor from the CP5a foundation (T-0300): Name, Created; columns,
- * details and actions are filled in by T-0306.
+ * StorageClasses (SC-1, OCP `storage-class.tsx`), cluster-scoped: Name with the "– Default" marker, Provisioner,
+ * Reclaim policy, Created. Details add binding mode, expansion and the Parameters table. No create form (backlog).
  */
 export const storageClassDescriptor: ResourceDescriptor<StorageClassResource> = {
   model: StorageClassModel,
   nav: { section: 'storage', order: 30 },
-  columns: [nameColumn(StorageClassModel), ageColumn()],
+  summary: { Extra: StorageClassSummaryExtra },
+  DetailsSection: StorageClassDetails,
+  ExtraSections: StorageClassParameters,
+  columns: [
+    { ...nameColumn<StorageClassResource>(StorageClassModel), cell: (obj) => <StorageClassName obj={obj} /> },
+    {
+      id: 'provisioner',
+      title: 'Provisioner',
+      cell: (obj) => obj.provisioner,
+      sortValue: (obj) => obj.provisioner,
+    },
+    {
+      id: 'reclaimPolicy',
+      title: 'Reclaim policy',
+      cell: (obj) => obj.reclaimPolicy ?? 'Delete',
+      sortValue: (obj) => obj.reclaimPolicy ?? 'Delete',
+    },
+    ageColumn(),
+  ],
 };

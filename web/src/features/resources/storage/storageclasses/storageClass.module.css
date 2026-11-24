@@ -1,0 +1,5 @@
+/* OCP `.co-resource-item__help-text` (`_resource.scss`): the "– Default" marker after the name. */
+.helpText {
+  margin-left: 3px;
+  white-space: nowrap;
+}

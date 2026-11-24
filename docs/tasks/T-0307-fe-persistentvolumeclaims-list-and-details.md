@@ -5,7 +5,7 @@ status: todo
 owner: frontend-engineer
 checkpoint: 5a
 depends_on: [T-0306]
-paths: [web/src/features/resources/registry/kinds/persistentvolumeclaims.tsx, web/src/features/resources/storage/pvcs, web/src/shared/k8s/quantity.ts, web/src/shared/k8s/quantity.test.ts, web/src/shared/k8s/index.ts]
+paths: [web/src/features/resources/registry/kinds/persistentvolumeclaims.tsx, web/src/features/resources/storage/pvcs, web/src/shared/k8s/quantity.ts, web/src/shared/k8s/quantity.test.ts, web/src/shared/k8s/index.ts, web/src/features/resources/storage/persistentvolumes/persistentVolume.ts, web/src/features/resources/registry/kinds/persistentvolumes.tsx]
 review_rounds: 0
 ---
 
@@ -35,6 +35,10 @@ the claim — the information Marco needs before expanding a full volume (T-0308
   (grep `Conditions` in `workloads/`), shown for `FileSystemResizePending`.
 - Tests in `storage/pvcs/pvcs.test.tsx`: list columns, Status filter, `scratch` "No PersistentVolume", `db-data` Pods
   item lists `db-*`, `resizing` Conditions row.
+
+- **Dedupe (from T-0306 review):** `storage/persistentvolumes/persistentVolume.ts:quantityBytes` is a local quantity
+  parser for the PV Capacity sort. Switch `registry/kinds/persistentvolumes.tsx` to `parseQuantity` and delete
+  `quantityBytes` + its test case (note `quantityBytes` returns `null` for "sort last"; map `undefined` accordingly).
 
 ## Context pack
 - Exemplars: `registry/kinds/jobs.tsx` (status + filters wiring); `workloads/pods/PodStatus.tsx` L28 (`useActiveCluster`
