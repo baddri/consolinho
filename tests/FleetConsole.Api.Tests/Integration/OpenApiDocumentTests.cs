@@ -232,6 +232,33 @@ public sealed class OpenApiDocumentTests(ApiFactory factory)
         operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Grants");
     }
 
+    [Theory]
+    [InlineData("/api/admin/groups", "ListGroups")]
+    [InlineData("/api/admin/groups/{groupName}", "GetGroup")]
+    public async Task GroupOperations_HaveContractOperationIds(string path, string operationId)
+    {
+        var document = await GetDocumentAsync();
+
+        var operation = document.GetProperty("paths").GetProperty(path).GetProperty("get");
+        operation.GetProperty("operationId").GetString().ShouldBe(operationId);
+        operation.GetProperty("tags").EnumerateArray().Select(t => t.GetString()).ShouldContain("Groups");
+    }
+
+    [Fact]
+    public async Task GroupSchemas_UseContractNames_AndHostStatusIsAStringEnum()
+    {
+        var document = await GetDocumentAsync();
+        var schemas = document.GetProperty("components").GetProperty("schemas");
+
+        foreach (var name in new[] { "GroupList", "GroupRow", "GroupDetail", "GroupMember" })
+        {
+            schemas.TryGetProperty(name, out _).ShouldBeTrue(name);
+        }
+
+        schemas.GetProperty("HostGroupsStatus").GetProperty("enum").EnumerateArray().Select(v => v.GetString())
+            .ShouldBe(["ok", "forbidden", "unavailable"]);
+    }
+
     [Fact]
     public async Task GrantSchema_PublishesSubjectFields_AndPriorityOnUpdate()
     {

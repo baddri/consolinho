@@ -1,7 +1,7 @@
 ---
 id: T-0256
 title: Groups admin endpoints — list (host ∪ grants) and detail with members
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: [T-0252, T-0254]   # wave 3, parallel with T-0257
@@ -42,13 +42,36 @@ Shapes and rules: **`docs/specs/CP4.5-api-contract.md` §4** (`GroupList`, `Grou
   wrong `GroupsReaderToken` in a dedicated factory or stub override.
 
 ## Acceptance criteria
-- [ ] GPG-1: list = host groups ∪ grant-only groups (grant-only → `foundOnHost: false`), member counts, cluster counts, no `system:*`.
-- [ ] GPG-2: detail members with `isRegistered` for existing FleetConsole users; one SQL for members (assert query count or review).
-- [ ] GPG-4 / UIG-2 / Q7: host 403 → 200 `hostStatus: forbidden`, `memberCount`/`foundOnHost` null, grant-only groups still listed; unreachable → `unavailable`.
-- [ ] 404 rules as in the contract; non-admin 403; OpenAPI test updated; `scripts/check-be.sh` green.
+- [x] GPG-1: list = host groups ∪ grant-only groups (grant-only → `foundOnHost: false`), member counts, cluster counts, no `system:*`.
+- [x] GPG-2: detail members with `isRegistered` for existing FleetConsole users; one SQL for members (assert query count or review).
+- [x] GPG-4 / UIG-2 / Q7: host 403 → 200 `hostStatus: forbidden`, `memberCount`/`foundOnHost` null, grant-only groups still listed; unreachable → `unavailable`.
+- [x] 404 rules as in the contract; non-admin 403; OpenAPI test updated; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: `Application/Groups/{ListGroups,GetGroup}` + `GroupErrors`, `GroupGrantCounts` (one `GROUP BY` /
+  one `COUNT`); `GroupsAdminEndpoints` (own `/groups` MapGroup, grant routes stay full paths in `GrantsAdminEndpoints`).
+  Members: one `WHERE username IN (...)`. Unit tests (11) + integration (host ok / 403 then down / non-admin) + OpenAPI.
+  `scripts/check-be.sh` green (431/767/922). FE mock 404 detail echoes the name; API follows the contract ("Group was not found.").
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. Contract §4 shapes and 404 rules are met. One host read, one
+  `GROUP BY` (or one `COUNT`), and one `username IN (...)` member query, so there is no N+1. Access is admin-only (policy
+  plus `IAdminRequest`). Tokens are passed through, XML docs are complete, and `system:*` is filtered in the list and
+  refused by `GroupName` in the detail. Build is green; filtered tests (Group|OpenApiDocument) pass 222/222.
+  Engineer's choices:
+  (a) null `members`/`memberCount` off-host is accepted. Nothing is known about the members of a group that isn't on
+      the host.
+  (b) Invalid host usernames are listed as unregistered. Correct.
+  (c) Keep the API's "Group was not found." (contract, no echo). Aligning the FE mock is an optional follow-up for the
+      FE side; it is not a blocker.
+  (d) The OpenApiDocumentTests rows outside `paths` are accepted. That file is the shared contract test.
+  (e) 200 with `forbidden`/`unavailable` is correct per ADR-0039.
+  - optional: `GetGroupHandler.cs` MembersAsync is the third inline copy of the UserStatus derivation (`UserRow.cs:53`,
+    `GrantProjection.cs:82`). Extract it to a shared expression in a follow-up.
 
 ## Handover notes
+- `members` is null whenever the group isn't on the host (incl. host ok + grant-only), matching the FE mock; `memberCount`
+  likewise null for grant-only rows. `system:*` names → 404 (GroupName refuses them).
+- Host usernames that aren't valid `Username`s are listed as unregistered without querying.
+- FE mock difference: mock 404 `detail` is "Group {name} doesn't exist."; the API returns "Group was not found." (contract).
+- Query count asserted by review (unit tests show one read per step), not by an EF interceptor.
