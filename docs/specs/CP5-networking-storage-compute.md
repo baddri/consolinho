@@ -122,7 +122,7 @@ have no project bar.
 
 ### 5a.5 NetworkPolicies (NP)
 - **NP-1** List *(np)* `NetworkPolicyList.tsx`: Name, Namespace, Pod selector (link to Search with the selector, existing `PodSelectorLink`), Created.
-- **NP-2** Details: Details (Pod selector, Policy types) + "Ingress rules" and "Egress rules" sections, one row per peer: Target pods / From (pod selector, namespace selector, IP block with exceptions), Ports (`port/protocol`). Empty selector reads "All pods" / "All namespaces"; a policy without ingress rules but with `Ingress` in policyTypes reads "All incoming traffic is denied" *(np copy; verify exact wording at task time)*.
+- **NP-2** Details: Details (Pod selector, Policy types) + "Ingress rules" and "Egress rules" sections, one row per peer: Target pods / From (pod selector, namespace selector, IP block with exceptions), Ports (`protocol/port`, as np: `TCP/8080`). Empty selector reads "All pods" / "All namespaces"; a policy without ingress rules but with `Ingress` in policyTypes reads "All incoming traffic is denied" *(np copy; verify exact wording at task time)*.
 - **NP-3** No NetworkPolicy form, no MultiNetworkPolicy (out of scope).
 
 ### 5a.6 PersistentVolumeClaims (PVC)
