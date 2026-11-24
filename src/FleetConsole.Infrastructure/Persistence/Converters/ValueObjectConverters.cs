@@ -1,3 +1,4 @@
+using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Clusters;
 using FleetConsole.Domain.Common;
 using FleetConsole.Domain.Credentials;
@@ -49,6 +50,10 @@ internal sealed class AdminConfigurationSourceConverter()
 /// <summary>Stores a <see cref="ClusterName"/> as its text.</summary>
 internal sealed class ClusterNameConverter()
     : ValueConverter<ClusterName, string>(name => name.Value, value => ValueConverters.Valid(ClusterName.Create(value)));
+
+/// <summary>Stores a <see cref="GroupName"/> (grant subject, ADR-0034) as its text.</summary>
+internal sealed class GroupNameConverter()
+    : ValueConverter<GroupName, string>(name => name.Value, value => ValueConverters.Valid(GroupName.Create(value)));
 
 /// <summary>Stores a <see cref="CredentialName"/> as its text.</summary>
 internal sealed class CredentialNameConverter()

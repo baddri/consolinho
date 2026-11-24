@@ -1,12 +1,12 @@
 ---
 id: T-0250
 title: Grant subject User|Group with priority — domain, audit, EF mapping and migration
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: []          # wave 1, parallel with T-0251 and T-0254
 paths: [src/FleetConsole.Domain/Access, src/FleetConsole.Domain/Users, src/FleetConsole.Application/Audit/EventHandlers, src/FleetConsole.Application/Grants, src/FleetConsole.Application/Proxy/AuthorizeProxyRequest, src/FleetConsole.Application/Clusters/ListAccessibleClusters, src/FleetConsole.Infrastructure/Persistence, tests/FleetConsole.Domain.Tests, tests/FleetConsole.Application.Tests, tests/FleetConsole.Api.Tests]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -60,7 +60,7 @@ T-0255 revalidation sync · T-0256 Groups endpoints · T-0257 Effective access �
 **Audit (`Application/Audit/EventHandlers`)** — GRP-7. `GrantAuditHandler.RecordGrant`: target name
 `"{SubjectName} → {cluster}"` for users (unchanged), ``"group {SubjectName} → {cluster}"`` for groups; summary e.g.
 "Granted group sre-emea ReadOnly on prod-eu-1 via sa-view (priority 50)"; details add `subjectKind`, `groupName`,
-`priority`; `RelatedUsername` only for user grants. `UserAuditHandler`: `user.groups-changed`, target the user,
+`priority`; `RelatedUsername` only for user grants. `UserAuditHandler`: `user.groups_changed`, target the user,
 details `{ added, removed }`, actor `system (revalidation)` (copy how `UserRoleChanged` from configuration gets
 `system (config)`). Add both to the audit action table in the CP4.5 contract if one is kept by the coverage test.
 
@@ -85,16 +85,45 @@ details `{ added, removed }`, actor `system (revalidation)` (copy how `UserRoleC
 - Migration command: CLAUDE.md §Commands.
 
 ## Acceptance criteria
-- [ ] GRP-1: existing grant tests (Domain/Application/Api) pass unchanged except mechanical renames; migrated rows are `User`.
-- [ ] GRP-2/3/5/6 domain tests: `GroupName.Create` table (system: any case first, invalid chars, trim, 253); `CreateForGroup` error order; priority range.
-- [ ] GRP-4: `PriorityTaken` names the other group; `ChangeGroupGrant` excludes the grant itself from the slots.
-- [ ] GRP-7: audit entries for group create/change/revoke carry kind, group name, priority; target filter finds them by group name (handler unit test).
-- [ ] `ReplaceGroups` tests: unchanged set → false/no event; change → added/removed correct; `system:*` throws.
-- [ ] Migration up/down green on Testcontainers; check constraint and filtered unique indexes exist (Api DB test).
-- [ ] XML docs on every new public member; `scripts/check-be.sh` green.
+- [x] GRP-1: existing grant tests (Domain/Application/Api) pass unchanged except mechanical renames; migrated rows are `User`.
+- [x] GRP-2/3/5/6 domain tests: `GroupName.Create` table (system: any case first, invalid chars, trim, 253); `CreateForGroup` error order; priority range.
+- [x] GRP-4: `PriorityTaken` names the other group; `ChangeGroupGrant` excludes the grant itself from the slots.
+- [x] GRP-7: audit entries for group create/change/revoke carry kind, group name, priority; target filter finds them by group name (handler unit test).
+- [x] `ReplaceGroups` tests: unchanged set → false/no event; change → added/removed correct; `system:*` throws.
+- [x] Migration up/down green on Testcontainers; check constraint and filtered unique indexes exist (Api DB test).
+- [x] XML docs on every new public member; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: GroupName/GrantSubjectKind/GroupGrantSlot, Grant.CreateForGroup/ChangeGroupGrant, User.ReplaceGroups
+  + UserGroupsChanged, audit handlers, EF config + migration `GrantGroupSubjects`, tests. check-be.sh green (430/718/866).
+  Deviation: `subject_kind` stored as **text** ('User'/'Group', default 'User') per the enum-as-string convention, not int.
+  Outside paths (minimal): `Domain/Audit/AuditActor.cs` (+`Revalidation` actor), `Application/Audit/IAuditTrail.cs` (doc only).
+- 2026-11-24 backend-engineer (review r1): action renamed to `user.groups_changed`; the migration test now seeds a user grant
+  before Up (asserts 'User') and checks that Down removes only the group grant. Up drops the 'User' default after the backfill;
+  `ReplaceGroups` de-duplicates. The test exposed a Down bug (Guid.Empty default left on user_id), now removed. check-be.sh green (431/722/888).
 
 ## Review
+**Round 1 — backend-architect, 2026-11-24: CHANGES_REQUESTED.** check-be green (430/722/888). Domain invariants, error order, check constraint, filtered indexes, event payloads, GRP-7 audit and XML docs are good.
+1. `Application/Audit/EventHandlers/UserAuditHandler.cs:138` (+ L11, `Domain/Users/Events/UserGroupsChanged.cs:7`, `UserAuditHandlerTests.cs:153`) — action `user.groups-changed` breaks the snake_case action convention (`user.read_only_changed`); my ADR-0039 typo — rename to `user.groups_changed` (ADR-0039, T-0255 and the CP4.5 contract are already fixed).
+2. `tests/FleetConsole.Api.Tests/Persistence/GrantSubjectPersistenceTests.cs:113` — down/up runs on an empty DB, so neither the existing-row path nor Down's `DELETE` is exercised — at the previous migration insert a user grant (raw SQL), migrate up and assert `subject_kind = 'User'`; add a group grant, migrate down, assert it is gone and the user grant survives.
+- Optional: `20261124075802_GrantGroupSubjects.cs:40` — `DEFAULT 'User'` stays on the column but the model doesn't know it; consider `ALTER COLUMN subject_kind DROP DEFAULT` after the add.
+- Optional: `Domain/Users/User.cs:565` — `Groups = [.. groups]` keeps input duplicates; storing `newSet`-distinct values in input order would be tidier.
+- Deviations accepted (r1): text `subject_kind` (enum-as-name convention, `ConsoleDbContext` L34-35); `AuditActor.Revalidation` + `IAuditTrail` doc line; explicit `ix_grants_cluster_id`; Down deleting group grants (rollback can't keep them). Contract audit line added by architect.
+
+**Round 2 — backend-architect, 2026-11-24: APPROVE.** check-be green (431/722/888). (1) `user.groups_changed` everywhere, no `groups-changed` left in src/tests. (2) Migration test seeds a user grant before Up (asserts 'User') and Down drops only the group grant. Optionals done: Up drops the 'User' default (covered by a test); `ReplaceGroups` stores distinct groups in input order.
+- Down fix accepted: dropping EF's scaffolded `Guid.Empty` default on `user_id` is correct; the old schema had none, and a leftover default would fill `user_id` on group inserts after a re-Up and break `ck_grants_subject`.
+- `session_replication_role = replica` in the test is acceptable: it runs on a throwaway per-test database, one command per session, and the pool resets the session on return; it needs a superuser, which the Testcontainers role is.
 
 ## Handover notes
+- `subject_kind` is a text column (convention), not int as the contract says; check `ck_grants_subject` uses 'User'/'Group'.
+- `User.ReplaceGroups` stores the groups de-duplicated, keeping the first occurrence in order.
+- Filtered unique indexes `(group_name, cluster_id)` and `(cluster_id, priority)` WHERE subject_kind='Group'; an explicit
+  plain `ix_grants_cluster_id` is kept because EF would otherwise drop it (the partial index can't serve the FK).
+- Migration Up drops the 'User' default after backfilling (DB matches the model); Down deletes group grants, then makes user_id NOT NULL with no default.
+- `Grant.Change` throws on a group grant; use `ChangeGroupGrant` (excludes its own slot). Error order in CreateForGroup:
+  CredentialNotInCluster → PriorityOutOfRange → AlreadyExists → PriorityTaken.
+- `GroupName` refuses `system:` in any case; `User.ReplaceGroups` throws on Ordinal `system:` (matches OpenShiftGroups.IsVirtual).
+- Audit: user grants keep the CP1 detail shape; group grants add subjectKind/groupName/priority (changed: old/newPriority),
+  RelatedUsername null. New action `user.groups_changed` (actor "system (revalidation)").
+- Existing user-only queries (GrantProjection, AuthorizeProxyRequest, ListAccessibleClusters) inner-join Users, so group
+  grants are ignored until T-0251+/admin list work wires them in.

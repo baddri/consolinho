@@ -28,7 +28,7 @@ group picker. The same read answers membership: on OpenShift, `users/~ .groups` 
    `SyncUserGroupsCommand`. Membership = snapshot groups whose `users` contain the username (ordinal), minus
    `system:*` (`OpenShiftGroups.WithoutVirtualGroups`).
    - Snapshot OK → `User.ReplaceGroups(...)` when the set changed (raises `UserGroupsChanged`, audited
-     `user.groups-changed`, actor `system`); the check time is recorded either way.
+     `user.groups_changed`, actor `system`); the check time is recorded either way.
    - Snapshot not OK → **fail closed where stale data could widen access**: if any of the user's *recorded* groups is
      the subject of a grant, the command fails (`Auth.GroupsUnavailable`) and the validator rejects the session, as
      ADR-0009 does for any failure. If none is (stale membership can't grant anything), the session continues

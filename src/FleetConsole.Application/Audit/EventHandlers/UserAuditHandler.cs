@@ -8,11 +8,12 @@ namespace FleetConsole.Application.Audit.EventHandlers;
 /// <summary>
 /// Maps the <see cref="User"/> aggregate's events to audit entries (contract §10): <c>auth.login</c>,
 /// <c>user.provisioned</c>, <c>user.created</c>, <c>user.promoted</c>/<c>user.demoted</c>, <c>user.deactivated</c>,
-/// <c>user.reactivated</c> and <c>user.read_only_changed</c>. Runs before the write (ADR-0008).
+/// <c>user.reactivated</c>, <c>user.read_only_changed</c> and <c>user.groups_changed</c>. Runs before the write (ADR-0008).
 /// </summary>
 /// <remarks>
 /// <para><b>Actors:</b> provisioning and login are attributed to the user themselves (AUTH-5); role changes caused by
-/// configuration to <see cref="AuditActor.Configuration"/> (AUTH-8); everything else to the current user (the admin).</para>
+/// configuration to <see cref="AuditActor.Configuration"/> (AUTH-8); group changes found by session revalidation to
+/// <see cref="AuditActor.Revalidation"/> (ADR-0039); everything else to the current user (the admin).</para>
 /// <para><b>Promote/demote</b> is chosen from <see cref="UserRoleChanged.NewRole"/>, never from the roles differing:
 /// promoting a configuration admin raises <c>Admin → Admin</c> and is still a <c>user.promoted</c> (ADR-0017).</para>
 /// <para>Every <c>user.*</c> entry carries the target's username as <see cref="AuditRecord.RelatedUsername"/>; the
@@ -26,7 +27,8 @@ internal sealed class UserAuditHandler(IAuditTrail auditTrail) :
     IDomainEventHandler<UserRoleChanged>,
     IDomainEventHandler<UserDeactivated>,
     IDomainEventHandler<UserReactivated>,
-    IDomainEventHandler<UserReadOnlyChanged>
+    IDomainEventHandler<UserReadOnlyChanged>,
+    IDomainEventHandler<UserGroupsChanged>
 {
     /// <inheritdoc />
     public Task Handle(UserLoggedIn domainEvent, CancellationToken cancellationToken)
@@ -125,6 +127,20 @@ internal sealed class UserAuditHandler(IAuditTrail auditTrail) :
                 ? $"Made user {domainEvent.Username} read-only"
                 : $"Removed read-only from user {domainEvent.Username}",
             new { isReadOnly = domainEvent.IsReadOnly });
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task Handle(UserGroupsChanged domainEvent, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+        RecordUser(
+            "user.groups_changed",
+            domainEvent.UserId,
+            domainEvent.Username,
+            $"Updated {domainEvent.Username}'s groups: {domainEvent.Added.Count} added, {domainEvent.Removed.Count} removed",
+            new { added = domainEvent.Added, removed = domainEvent.Removed },
+            AuditActor.Revalidation);
         return Task.CompletedTask;
     }
 

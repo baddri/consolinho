@@ -31,4 +31,45 @@ public static class GrantErrors
     /// <returns>A <c>Grants.CredentialNotInCluster</c> error.</returns>
     public static Error CredentialNotInCluster() =>
         Error.Validation("Grants.CredentialNotInCluster", "This credential belongs to another cluster.");
+
+    /// <summary>
+    /// The group grant names a <c>system:*</c> group (GRP-3, ADR-0034 §3): virtual groups such as
+    /// <c>system:authenticated</c> contain everyone, so they are never grant subjects. Field error on <c>groupName</c>.
+    /// </summary>
+    /// <returns>A <c>Grants.SystemGroup</c> error.</returns>
+    public static Error SystemGroup() =>
+        Error.Validation("Grants.SystemGroup", "System groups can't be granted access.");
+
+    /// <summary>The group name is empty, too long or not a valid OpenShift object name (GRP-2). Field error on <c>groupName</c>.</summary>
+    /// <returns>A <c>Grants.InvalidGroupName</c> error.</returns>
+    public static Error InvalidGroupName() =>
+        Error.Validation("Grants.InvalidGroupName", "Enter a valid group name.");
+
+    /// <summary>
+    /// A group grant's priority is outside <see cref="Grant.MinPriority"/>..<see cref="Grant.MaxPriority"/> (GRP-2).
+    /// Field error on <c>priority</c>.
+    /// </summary>
+    /// <returns>A <c>Grants.PriorityOutOfRange</c> error.</returns>
+    public static Error PriorityOutOfRange() =>
+        Error.Validation("Grants.PriorityOutOfRange", $"Priority must be between {Grant.MinPriority} and {Grant.MaxPriority}.");
+
+    /// <summary>
+    /// The group already has a grant on the cluster (GRP-5: at most one per group and cluster). Shares the
+    /// <c>Grants.AlreadyExists</c> code with the user case, so clients handle both the same way. HTTP 409.
+    /// </summary>
+    /// <param name="groupName">The group's name.</param>
+    /// <param name="clusterName">The cluster's name.</param>
+    /// <returns>A <c>Grants.AlreadyExists</c> error.</returns>
+    public static Error GroupAlreadyExists(string groupName, string clusterName) =>
+        Error.Conflict("Grants.AlreadyExists", $"Group \"{groupName}\" already has access to \"{clusterName}\".");
+
+    /// <summary>
+    /// Another group grant on the cluster already uses the priority (GRP-4): equal priorities would make the winner
+    /// ambiguous (ADR-0034 §4), so they are refused at save. HTTP 409; the UI shows it on the priority field.
+    /// </summary>
+    /// <param name="priority">The requested priority.</param>
+    /// <param name="otherGroupName">The group whose grant already has that priority.</param>
+    /// <returns>A <c>Grants.PriorityTaken</c> error.</returns>
+    public static Error PriorityTaken(int priority, string otherGroupName) =>
+        Error.Conflict("Grants.PriorityTaken", $"Priority {priority} is already used by group `{otherGroupName}` on this cluster.");
 }

@@ -27,7 +27,7 @@ access could depend on stale groups end (ADR-0009 fail-closed, ADR-0039 §3).
 - Handler: load user (repository); `listing = await directory.GetAsync(ct)`;
   - `Ok` → `user.ReplaceGroups(OpenShiftGroups.WithoutVirtualGroups(listing.GroupsOf(user.Username.Value)))`;
     `recorder.RecordAsync(user.Id, listing.ReadAt!.Value, ct)`; success. (UnitOfWorkBehavior saves the aggregate and
-    the `user.groups-changed` audit entry from T-0250.)
+    the `user.groups_changed` audit entry from T-0250.)
   - not `Ok` → if `readModel.Grants.Any(g => g.SubjectKind == Group && user.Groups.Contains(g.GroupName))` →
     `AuthErrors.GroupsUnavailable` (`Auth.GroupsUnavailable`, Unavailable/Failure type); else success without changes.
 - `IUserGroupCheckRecorder.RecordAsync(UserId, DateTimeOffset checkedAt, CancellationToken)` (port in
@@ -54,7 +54,7 @@ access could depend on stale groups end (ADR-0009 fail-closed, ADR-0039 §3).
 
 ## Acceptance criteria
 - [ ] PREC-1: user in `sre-emea` (only grant path) proxies OK; `SetGroups(user, [])`; next request after the interval → 403 `Proxy.NotAvailable`, and `GET /api/clusters` no longer lists the cluster.
-- [ ] Membership change writes `User.Groups` once and one `user.groups-changed` audit entry; unchanged membership writes no user row (assert `version` unchanged) but updates `user_group_checks`.
+- [ ] Membership change writes `User.Groups` once and one `user.groups_changed` audit entry; unchanged membership writes no user row (assert `version` unchanged) but updates `user_group_checks`.
 - [ ] Host unreachable: user whose recorded groups carry a grant → session rejected (401 next request); user with only direct grants → session kept.
 - [ ] Read-only user's revalidation syncs (not blocked by ReadOnlyGuardBehavior); login records the check time.
 - [ ] `scripts/check-be.sh` green.

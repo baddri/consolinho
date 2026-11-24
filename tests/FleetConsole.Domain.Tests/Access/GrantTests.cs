@@ -38,7 +38,8 @@ public sealed class GrantTests
         grant.UpdatedAt.ShouldBeNull();
         grant.UpdatedBy.ShouldBeNull();
         grant.DomainEvents.ShouldBe([
-            new GrantCreated(grant.Id, _alice.Id, "alice", _prod.Id, "prod-eu-1", credential.Id, "fleet-view", AccessMode.ReadWrite),
+            new GrantCreated(grant.Id, _alice.Id, "alice", _prod.Id, "prod-eu-1", credential.Id, "fleet-view", AccessMode.ReadWrite,
+                GrantSubjectKind.User, null),
         ]);
     }
 
@@ -145,7 +146,7 @@ public sealed class GrantTests
         grant.UpdatedBy.ShouldBe("bob");
         grant.DomainEvents.ShouldBe([
             new GrantChanged(grant.Id, _alice.Id, "alice", _prod.Id, "prod-eu-1",
-                AccessMode.ReadOnly, AccessMode.ReadWrite, view.Id, "fleet-view", view.Id, "fleet-view"),
+                AccessMode.ReadOnly, AccessMode.ReadWrite, view.Id, "fleet-view", view.Id, "fleet-view", GrantSubjectKind.User, null, null),
         ]);
     }
 
@@ -160,7 +161,7 @@ public sealed class GrantTests
         grant.CredentialId.ShouldBe(edit.Id);
         grant.DomainEvents.ShouldBe([
             new GrantChanged(grant.Id, _alice.Id, "alice", _prod.Id, "prod-eu-1",
-                AccessMode.ReadOnly, AccessMode.ReadOnly, view.Id, "fleet-view", edit.Id, "fleet-edit"),
+                AccessMode.ReadOnly, AccessMode.ReadOnly, view.Id, "fleet-view", edit.Id, "fleet-edit", GrantSubjectKind.User, null, null),
         ]);
     }
 
@@ -210,7 +211,8 @@ public sealed class GrantTests
         grant.Revoke(Labels("fleet-view"));
 
         grant.DomainEvents.ShouldBe([
-            new GrantRevoked(grant.Id, _alice.Id, "alice", _prod.Id, "prod-eu-1", view.Id, "fleet-view", AccessMode.ReadOnly),
+            new GrantRevoked(grant.Id, _alice.Id, "alice", _prod.Id, "prod-eu-1", view.Id, "fleet-view", AccessMode.ReadOnly,
+                GrantSubjectKind.User, null),
         ]);
     }
 

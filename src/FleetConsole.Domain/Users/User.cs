@@ -76,7 +76,10 @@ public sealed class User : AggregateRoot<UserId>
     /// <summary>When the user last logged in successfully; <see langword="null"/> until the first login.</summary>
     public DateTimeOffset? LastLoginAt { get; private set; }
 
-    /// <summary>The OpenShift groups reported at the last login (informational; empty before the first login).</summary>
+    /// <summary>
+    /// The user's host OpenShift groups as of the last login or session revalidation (<see cref="ReplaceGroups"/>),
+    /// without virtual <c>system:*</c> groups; group grants match against them (ADR-0034 §2). Empty before the first login.
+    /// </summary>
     public IReadOnlyList<string> Groups { get; private set; } = [];
 
     /// <summary>
@@ -342,6 +345,42 @@ public sealed class User : AggregateRoot<UserId>
         IsDeactivated = false;
         RaiseDomainEvent(new UserReactivated(Id, Username.Value));
         return Result.Success();
+    }
+
+    /// <summary>
+    /// Replaces the recorded host groups with the ones session revalidation just read (ADR-0039), so group grants follow
+    /// membership changes within the revalidation interval. Compares as sets (ordinal, order and duplicates ignored);
+    /// when they differ, stores <paramref name="groups"/> de-duplicated (first occurrence kept, in order) and raises <see cref="UserGroupsChanged"/>.
+    /// </summary>
+    /// <param name="groups">The user's current groups, already without virtual groups
+    /// (<c>OpenShiftGroups.WithoutVirtualGroups</c> in the Application layer).</param>
+    /// <returns><see langword="true"/> when the groups changed; <see langword="false"/> (nothing stored or raised)
+    /// otherwise.</returns>
+    /// <exception cref="ArgumentException"><paramref name="groups"/> contains a <c>system:*</c> group; storing it could
+    /// let a <c>system:</c> group grant match everyone, so it is a caller bug.</exception>
+    public bool ReplaceGroups(IReadOnlyList<string> groups)
+    {
+        Guard.NotNull(groups);
+        // Ordinal, like OpenShiftGroups.IsVirtual: a stricter check would throw for groups the filter lets through.
+        if (groups.Any(group => group.StartsWith("system:", StringComparison.Ordinal)))
+        {
+            throw new ArgumentException("Virtual system: groups must be filtered out before they are recorded.", nameof(groups));
+        }
+
+        var distinct = groups.Distinct(StringComparer.Ordinal).ToList();
+        var oldSet = Groups.ToHashSet(StringComparer.Ordinal);
+        var newSet = distinct.ToHashSet(StringComparer.Ordinal);
+        if (oldSet.SetEquals(newSet))
+        {
+            return false;
+        }
+
+        var added = distinct.Where(group => !oldSet.Contains(group)).ToList();
+        // Distinct: groups recorded at login (RecordLogin) were stored as given and may repeat.
+        var removed = Groups.Where(group => !newSet.Contains(group)).Distinct(StringComparer.Ordinal).ToList();
+        Groups = distinct;
+        RaiseDomainEvent(new UserGroupsChanged(Id, Username.Value, added, removed));
+        return true;
     }
 
     /// <summary>

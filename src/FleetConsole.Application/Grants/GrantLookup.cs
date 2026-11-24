@@ -71,7 +71,7 @@ internal static class GrantLookup
     }
 
     /// <summary>
-    /// Reads the display names of a stored grant for its audit events (<see cref="GrantLabels"/>): the user's username,
+    /// Reads the display names of a stored grant for its audit events (<see cref="GrantLabels"/>): the subject's name (username or group),
     /// the cluster's name and the name of the credential the grant uses now. Foreign keys guarantee all three exist, so a
     /// missing one means the database is inconsistent, which is a bug.
     /// </summary>
@@ -89,12 +89,24 @@ internal static class GrantLookup
         ICredentialRepository credentials,
         CancellationToken cancellationToken)
     {
-        var user = await users.GetByIdAsync(grant.UserId, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException($"User {grant.UserId} of grant {grant.Id} is missing.");
+        // Group grants name their subject themselves; only user grants need the user's username.
+        string subjectName;
+        if (grant.UserId is { } userId)
+        {
+            var user = await users.GetByIdAsync(userId, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException($"User {userId} of grant {grant.Id} is missing.");
+            subjectName = user.Username.Value;
+        }
+        else
+        {
+            subjectName = grant.GroupName?.Value
+                ?? throw new InvalidOperationException($"Grant {grant.Id} has neither a user nor a group.");
+        }
+
         var cluster = await clusters.GetByIdAsync(grant.ClusterId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cluster {grant.ClusterId} of grant {grant.Id} is missing.");
         var credential = await credentials.GetByIdAsync(grant.CredentialId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Credential {grant.CredentialId} of grant {grant.Id} is missing.");
-        return new GrantLabels(user.Username.Value, cluster.Name.Value, credential.Name.Value);
+        return new GrantLabels(subjectName, cluster.Name.Value, credential.Name.Value);
     }
 }

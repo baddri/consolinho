@@ -76,7 +76,9 @@ Error codes (messages are the user-facing copy):
 admin deselect them and resubmit — no partial silent failure.
 
 Audit (GRP-7): `grant.created` / `grant.changed` / `grant.revoked` with target name ``group X → C``, details
-`{ subjectKind, groupName, priority, accessMode, credential }`; the audit `target` filter finds them by group name.
+`{ subjectKind, groupName, priority, accessMode, credential }`; the audit `target` filter finds them by group name
+(`grant.changed` details carry `oldPriority`/`newPriority`). Revalidation (ADR-0039) records `user.groups_changed`
+(category Users, target the user, actor `system (revalidation)`, details `{ added, removed }`).
 
 ## 4. Groups (new, GPG-1/2/4, UIG-2)
 
