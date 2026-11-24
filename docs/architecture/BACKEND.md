@@ -292,6 +292,13 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - Logs: JSON console outside Development; the request-line log category is capped at Warning in code.
 - Manifests and the configuration contract (env keys, Secret/ConfigMap names): ADR-0030, `deploy/kustomize/`;
   operations: `docs/ops/RUNBOOK.md`.
+- Host group reads (ADR-0039 §5): the app SA `consolinho` has exactly one right, ClusterRole `consolinho-group-reader`
+  (`get`/`list groups.user.openshift.io`, `base/rbac-group-reader.yaml`; cluster-scoped, so installing needs
+  cluster-admin once). Its token is a projected volume in the server container at `/var/run/secrets/fleetconsole/host`.
+  Keys: `Auth:HostGroups:TokenPath` (default `/var/run/secrets/fleetconsole/host/token`, re-read per refresh; missing
+  file = groups `unavailable`, not a startup error), `Auth:HostGroups:MaxSnapshotAge` (default 15 s, max 5 min),
+  `Auth:HostGroups:Token` (inline, Development only). Off-host deployments mount a host SA token Secret at the same
+  path (`overlays/production/secrets.example.yaml`).
 - **Always ≥ 3 replicas** behind an HPA (ADR-0030 amendment 2026-11-24). Nothing that affects correctness may live in
   one pod's memory: state goes to Postgres, caches need a cross-replica invalidation path (ADR-0035 backplane),
   one-time initialisation (migrations, the first Data Protection key) runs under a Postgres advisory lock, and a pod

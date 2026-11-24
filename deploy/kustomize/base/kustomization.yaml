@@ -1,4 +1,5 @@
-# Base of the consolinho deployment (ADR-0030). Environment-neutral: no namespace, no Secrets, no image tag, no
+# Base of the consolinho deployment (ADR-0030). Environment-neutral: no namespace (overlays set it; it also lands on
+# the ClusterRoleBinding subject in rbac-group-reader.yaml), no Secrets, no image tag, no
 # Route host. Overlays add the namespace, image, per-deployment config literals and the Route-host `replacements`
 # stanza (which must live in the outermost kustomization of every render, see the overlays).
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -14,6 +15,7 @@ labels:
 
 resources:
   - serviceaccount.yaml
+  - rbac-group-reader.yaml
   - deployment.yaml
   - hpa.yaml
   - pdb.yaml

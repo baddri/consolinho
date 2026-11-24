@@ -1,0 +1,30 @@
+# The only host-cluster permission of the consolinho ServiceAccount (ADR-0039 §5, ADR-0034 §5): read the host's
+# OpenShift groups (group picker, Groups pages, session revalidation). Nothing else: no users, no identities, no
+# namespaced rights. Cluster-scoped, so applying it needs cluster-admin (or equivalent) once per cluster; the dev
+# script's user already needs that for the OAuthClient. The ClusterRoleBinding subject gets the deploy namespace from
+# the overlay's `namespace:` (kustomize sets it on ServiceAccount subjects that name an SA of the same build).
+# The names are cluster-wide: a second deployment on the same cluster must rename both objects in its overlay.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: consolinho-group-reader
+  labels:
+    app.kubernetes.io/component: server
+rules:
+  - apiGroups: ["user.openshift.io"]
+    resources: ["groups"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: consolinho-group-reader
+  labels:
+    app.kubernetes.io/component: server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: consolinho-group-reader
+subjects:
+  - kind: ServiceAccount
+    name: consolinho

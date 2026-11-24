@@ -75,6 +75,10 @@ it holds, so these rules are strict.
   OpenTelemetry's default `url.query` redaction stays on (ADR-0028 §4).
   The OAuth handler's own loggers are capped at Warning in code (`WarningOnlyLoggerFactory`, ADR-0018), so the remote
   `error_description` is never logged.
+- FleetConsole's **own host SA token** (ADR-0039 §5) is used for one call only: listing host groups
+  (`get`/`list groups.user.openshift.io`, ClusterRole `consolinho-group-reader`, nothing else). In-cluster it is a
+  projected token (1 h, rotated by the kubelet) mounted into the server container only, never automounted; the app
+  re-reads the file on every refresh and never stores or logs it. `Auth:HostGroups:Token` (inline) is Development only.
 - Decrypted tokens live only for the duration of a request (and, if caching is added, in a short-TTL in-memory cache only).
 
 ## Proxy hardening
