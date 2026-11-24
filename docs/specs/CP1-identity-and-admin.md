@@ -281,12 +281,14 @@ are RFC 9457 ProblemDetails with a human-readable `detail` the UI shows verbatim
   their own granted clusters (GRANT-6). Sorted by environment (production first) then name — see Q6.
 - **SW-2 Switcher.** The masthead switcher *(superseded by CP3.5, T-0111: sidebar switcher)* lists those clusters (replacing the placeholder list) with the environment
   label and a "Read only" label for ReadOnly grants (and for globally read-only users). Still navigation only.
-  Loading → skeleton/spinner in the toggle; error → toggle shows "Clusters unavailable" with retry.
+  Loading → skeleton/spinner in the toggle; error → toggle shows "Clusters unavailable" with retry *(superseded by
+  CP5c FLT-1, T-0340: the toggle reads "Select a cluster" and opens; the menu holds the "Clusters unavailable — retry" row)*.
 - **SW-3 Landing.** `/` redirects to the last used cluster (localStorage) if it is still in the list, otherwise the
   first one.
 - **SW-4 No grants.** A user with zero clusters landing on `/` sees an EmptyState: title "No clusters assigned yet",
   body "You are logged in as `bob`, but no clusters have been assigned to you. Ask a FleetConsole administrator to grant
-  you access." The switcher shows "No clusters" (disabled). Admins additionally see "Go to Administration" and "Grant
+  you access." The switcher shows "No clusters" (disabled) *(superseded by CP5c FLT-1, T-0340: the
+  toggle reads "Select a cluster" and opens to "Fleet management" plus a "No clusters" row)*. Admins additionally see "Go to Administration" and "Grant
   yourself access" hint.
 - **SW-5 Not granted / unknown.** Navigating to `/c/<name>/...` for a cluster not in the user's list shows "Cluster
   `<name>` is not available — it does not exist or you don't have access" with a link back to `/`. The message does not

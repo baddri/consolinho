@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { routes } from '@/app/router';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
+import { setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 
 /** Reads the placeholder page's route-parameter description list (`<dl>`) as a plain object. */
@@ -72,8 +73,23 @@ describe('routes', () => {
     expect(router.state.location.search).toBe(search);
   });
 
-  it.each(['/fleet', '/fleet/admin'])('redirects %s to the users list', async (path) => {
-    const { router } = renderApp(path);
+  it('redirects /fleet to the fleet overview (Q10)', async () => {
+    const { router } = renderApp('/fleet');
+
+    expect(await screen.findByRole('heading', { name: 'Fleet overview', level: 1 })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/fleet/overview');
+  });
+
+  it('opens the fleet overview to a non-admin (FLT-1)', async () => {
+    setMockUser('alice');
+    const { router } = renderApp('/fleet/overview');
+
+    expect(await screen.findByRole('heading', { name: 'Fleet overview', level: 1 })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/fleet/overview');
+  });
+
+  it('redirects /fleet/admin to the users list', async () => {
+    const { router } = renderApp('/fleet/admin');
 
     expect(await screen.findByRole('heading', { name: 'Users', level: 1 })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/fleet/admin/users');
@@ -81,7 +97,7 @@ describe('routes', () => {
 
   // Index redirects keep query and hash (legacy `/admin` cases: LegacyAdminRedirect.test.tsx).
   it.each([
-    ['/fleet?x=1#h', '/fleet/admin/users', '?x=1', '#h'],
+    ['/fleet?x=1#h', '/fleet/overview', '?x=1', '#h'],
     ['/fleet/admin?x=1#h', '/fleet/admin/users', '?x=1', '#h'],
   ])('redirects %s to %s keeping search and hash', async (path, pathname, search, hash) => {
     const { router } = renderApp(path);

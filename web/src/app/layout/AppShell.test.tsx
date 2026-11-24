@@ -109,7 +109,7 @@ describe('AppShell', () => {
 
   // ADR-0033 §5: the fleet perspective shows only its own sections, in the same Nav frame under the switcher.
   it.each(['admin', 'ines'])(
-    'shows only Fleet administration on fleet pages to %s (FLEET-3)',
+    'shows Fleet then Fleet administration on fleet pages to %s (FLT-1, FLEET-3)',
     async (username) => {
       setMockUser(username);
       const { user } = renderApp('/fleet/admin/users');
@@ -118,17 +118,36 @@ describe('AppShell', () => {
       const toggle = await within(nav).findByRole('button', { name: 'Fleet management, switch cluster' });
       const buttons = within(nav).getAllByRole('button');
       expect(buttons[0]).toBe(toggle);
-      expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet administration']);
+      expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet', 'Fleet administration']);
+      await expandSection(user, nav, 'Fleet');
       await expandSection(user, nav, 'Fleet administration');
       expect(
         within(nav)
           .getAllByRole('link')
           .map((link) => link.textContent),
-      ).toEqual(['Users', 'Groups', 'Clusters', 'Credentials', 'Audit log']);
+      ).toEqual(['Overview', 'Users', 'Groups', 'Clusters', 'Credentials', 'Audit log']);
     },
   );
 
-  it('shows no sections on fleet pages to a non-admin (FLEET-8)', async () => {
+  it('shows only Fleet > Overview, marked current, on the fleet overview to a non-admin (FLT-1)', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/fleet/overview');
+
+    expect(await screen.findByRole('heading', { name: 'Fleet overview', level: 1 })).toBeInTheDocument();
+    const nav = await openSidebar(user);
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Fleet management', 'Fleet']);
+    expect(within(nav).getByRole('button', { name: 'Fleet' }).closest('li')).toHaveClass('pf-m-current');
+    await expandSection(user, nav, 'Fleet');
+    const overview = within(nav).getByRole('link', { name: 'Overview' });
+    expect(overview).toHaveAttribute('href', '/fleet/overview');
+    expect(overview).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('shows no Fleet administration on fleet pages to a non-admin (FLEET-8)', async () => {
     setMockUser('alice');
     const { user } = renderApp('/fleet/admin/users');
 
@@ -139,8 +158,8 @@ describe('AppShell', () => {
     expect(
       within(nav)
         .getAllByRole('button')
-        .map((button) => button.getAttribute('aria-label')),
-    ).toEqual(['Fleet management, switch cluster']);
+        .map((button) => button.textContent),
+    ).toEqual(['Fleet management', 'Fleet']);
   });
 
   it('switches cluster while keeping the current page', async () => {

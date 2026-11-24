@@ -51,15 +51,14 @@ function ClusterSections({ cluster, pathname }: { cluster: string; pathname: str
 }
 
 /**
- * The fleet perspective's sections ({@link buildFleetNav}); admins only — a non-admin on `/fleet/...` gets the
- * forbidden page and an empty sidebar (FLEET-8).
+ * The fleet perspective's sections ({@link buildFleetNav}): "Fleet" for everyone (FLT-1), "Fleet administration" for
+ * admins only — a non-admin on `/fleet/admin/...` gets the forbidden page and only the "Fleet" section.
  */
 function FleetSections({ pathname }: { pathname: string }) {
   const isAdmin = useCurrentUser().data?.role === 'admin';
-  if (!isAdmin) return null;
   return (
     <NavList>
-      {buildFleetNav().map((section) => (
+      {buildFleetNav(isAdmin).map((section) => (
         <SidebarSection key={section.id} section={section} pathname={pathname} />
       ))}
     </NavList>
@@ -72,7 +71,8 @@ function FleetSections({ pathname }: { pathname: string }) {
  * page, also while the user has no clusters. The content below depends on the URL's perspective (ADR-0033 §5, like
  * OCP's `PerspectiveNav`):
  *
- * - `fleet` (`/fleet/...`): only the Fleet sections, for admins (FLEET-3); no Home, Favorites or cluster sections.
+ * - `fleet` (`/fleet/...`): only the Fleet sections (Fleet administration for admins, FLEET-3); no Home, Favorites
+ *   or cluster sections.
  * - `cluster` (everything else): Home, Favorites (starred pages), then the cluster sections (`useClusterNav`), never
  *   Fleet administration (FLEET-4). Cluster links target `usePreferredCluster()` (the active cluster, else the last
  *   used or first granted one on non-cluster pages such as Preferences). Hidden while the user has no clusters and on
