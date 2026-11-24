@@ -27,14 +27,14 @@ export const replicationControllerDescriptor: ResourceDescriptor<ReplicationCont
   nav: { section: 'workloads', order: 110 },
   status: replicationControllerStatus,
   summary: {
-    podSelector: (rc) => rc.spec?.selector,
+    podSelector: (rc) => ({ matchLabels: rc.spec?.selector }),
     nodeSelector: (rc) => rc.spec?.template?.spec?.nodeSelector,
     tolerations: (rc) => rc.spec?.template?.spec?.tolerations,
     Extra: ReplicationControllerRevisionRow,
   },
   DetailsSection: ReplicationControllerDetails,
   ExtraSections: ReplicationControllerSections,
-  podsSelector: (rc) => rc.spec?.selector,
+  podsSelector: (rc) => ({ matchLabels: rc.spec?.selector }),
   useKindActions: useReplicationControllerActions,
   columns: [
     nameColumn(ReplicationControllerModel),

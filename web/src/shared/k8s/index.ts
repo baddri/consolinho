@@ -18,6 +18,7 @@ export {
   type PatchTarget,
 } from './client';
 export { k8sErrorFromResponse } from './errors';
+export { labelSelectorString, type LabelSelector, type LabelSelectorRequirement } from './labelSelector';
 export { k8sQueryKeys, type AccessReview, type AccessVerb } from './queryKeys';
 export { useK8sList, useK8sGet, type K8sLiveResult } from './hooks';
 export { useK8sDiscovery } from './discovery';

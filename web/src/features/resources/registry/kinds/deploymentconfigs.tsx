@@ -35,7 +35,7 @@ export const deploymentConfigDescriptor: ResourceDescriptor<DeploymentConfigReso
   status: deploymentConfigStatus,
   hideHeadingStatus: true,
   summary: {
-    podSelector: (dc) => dc.spec?.selector,
+    podSelector: (dc) => ({ matchLabels: dc.spec?.selector }),
     nodeSelector: (dc) => dc.spec?.template?.spec?.nodeSelector,
     tolerations: (dc) => dc.spec?.template?.spec?.tolerations,
     Extra: DeploymentConfigStatusRow,
@@ -43,7 +43,7 @@ export const deploymentConfigDescriptor: ResourceDescriptor<DeploymentConfigReso
   DetailsTop: DeploymentConfigDetailsTop,
   DetailsSection: DeploymentConfigDetails,
   ExtraSections: DeploymentConfigSections,
-  podsSelector: (dc) => dc.spec?.selector,
+  podsSelector: (dc) => ({ matchLabels: dc.spec?.selector }),
   extraTabs: ['replicationcontrollers'],
   useKindActions: useDeploymentConfigActions,
   HeadingAlert: DeploymentConfigDeprecationAlert,
@@ -62,8 +62,10 @@ export const deploymentConfigDescriptor: ResourceDescriptor<DeploymentConfigReso
     {
       id: 'selector',
       title: 'Pod selector',
-      cell: (dc) => <PodSelectorLink namespace={dc.metadata.namespace} matchLabels={dc.spec?.selector} />,
-      sortValue: (dc) => labelSelectorString(dc.spec?.selector),
+      cell: (dc) => (
+        <PodSelectorLink namespace={dc.metadata.namespace} selector={{ matchLabels: dc.spec?.selector }} />
+      ),
+      sortValue: (dc) => labelSelectorString({ matchLabels: dc.spec?.selector }),
     },
   ],
 };

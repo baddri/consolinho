@@ -40,7 +40,7 @@ export function DaemonSetDetailsTop({ obj }: { obj: DaemonSetResource }) {
     spec: { replicas: daemonSetDesired(obj) },
     status: { readyReplicas: daemonSetCurrent(obj) },
   };
-  return <PodRing cluster={cluster} workload={workload} selector={obj.spec?.selector.matchLabels} />;
+  return <PodRing cluster={cluster} workload={workload} selector={obj.spec?.selector} />;
 }
 
 /** Right column, OCP `DaemonSetDetailsList`: Current count, Desired count. */

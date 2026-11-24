@@ -32,14 +32,14 @@ export const daemonSetDescriptor: ResourceDescriptor<DaemonSetResource> = {
   status: daemonSetStatus,
   hideHeadingStatus: true,
   summary: {
-    podSelector: (daemonSet) => daemonSet.spec?.selector.matchLabels,
+    podSelector: (daemonSet) => daemonSet.spec?.selector,
     nodeSelector: (daemonSet) => daemonSet.spec?.template.spec?.nodeSelector,
     tolerations: (daemonSet) => daemonSet.spec?.template.spec?.tolerations,
   },
   DetailsTop: DaemonSetDetailsTop,
   DetailsSection: DaemonSetDetailsList,
   ExtraSections: DaemonSetSections,
-  podsSelector: (daemonSet) => daemonSet.spec?.selector.matchLabels,
+  podsSelector: (daemonSet) => daemonSet.spec?.selector,
   // OCP `DaemonSetPods`: `showNodes`.
   podsShowNodes: true,
   useKindActions: useDaemonSetActions,
@@ -59,12 +59,9 @@ export const daemonSetDescriptor: ResourceDescriptor<DaemonSetResource> = {
       id: 'selector',
       title: 'Pod selector',
       cell: (daemonSet) => (
-        <PodSelectorLink
-          namespace={daemonSet.metadata.namespace}
-          matchLabels={daemonSet.spec?.selector.matchLabels}
-        />
+        <PodSelectorLink namespace={daemonSet.metadata.namespace} selector={daemonSet.spec?.selector} />
       ),
-      sortValue: (daemonSet) => labelSelectorString(daemonSet.spec?.selector.matchLabels),
+      sortValue: (daemonSet) => labelSelectorString(daemonSet.spec?.selector),
     },
   ],
 };

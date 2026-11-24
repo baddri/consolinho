@@ -137,7 +137,7 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   hideHeadingStatus: true,
   hasEditForm: true,
   summary: {
-    podSelector: (deployment) => deployment.spec?.selector.matchLabels,
+    podSelector: (deployment) => deployment.spec?.selector,
     nodeSelector: (deployment) => deployment.spec?.template.spec?.nodeSelector,
     tolerations: (deployment) => deployment.spec?.template.spec?.tolerations,
     Extra: DeploymentStatusRow,
@@ -145,7 +145,7 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   DetailsTop: DeploymentDetailsTop,
   DetailsSection: DeploymentDetails,
   ExtraSections: DeploymentSections,
-  podsSelector: (deployment) => deployment.spec?.selector.matchLabels,
+  podsSelector: (deployment) => deployment.spec?.selector,
   // OCP Deployment tabs: Details, YAML, ReplicaSets, Pods, Events.
   extraTabs: ['replicasets'],
   useKindActions: useDeploymentActions,
@@ -171,10 +171,10 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
       cell: (deployment) => (
         <PodSelectorLink
           namespace={deployment.metadata.namespace}
-          matchLabels={deployment.spec?.selector.matchLabels}
+          selector={deployment.spec?.selector}
         />
       ),
-      sortValue: (deployment) => labelSelectorString(deployment.spec?.selector.matchLabels),
+      sortValue: (deployment) => labelSelectorString(deployment.spec?.selector),
     },
   ],
 };

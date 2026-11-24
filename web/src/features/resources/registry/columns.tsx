@@ -1,7 +1,14 @@
 import { RhUiSearchIcon } from '@patternfly/react-icons';
 import { Link } from 'react-router';
 import { useActiveCluster } from '@/features/cluster-context';
-import { NamespaceModel, PodModel, type K8sModel, type K8sResource } from '@/shared/k8s';
+import {
+  NamespaceModel,
+  PodModel,
+  labelSelectorString,
+  type K8sModel,
+  type K8sResource,
+  type LabelSelector,
+} from '@/shared/k8s';
 import { kindLabelColor, ResourceLabels, Timestamp } from '@/shared/ui';
 import { BadgedName, ResourceLink } from '../components/ResourceLink';
 import { ALL_NAMESPACES, resourcePath } from '../paths';
@@ -77,34 +84,31 @@ export function ageColumn<T extends K8sResource>(): ColumnDef<T> {
   };
 }
 
-/** `matchLabels` as a label-selector string (`app=web,tier=front`); empty string without labels. */
-export function labelSelectorString(matchLabels: Record<string, string> | undefined): string {
-  return Object.entries(matchLabels ?? {})
-    .map(([key, value]) => `${key}=${value}`)
-    .join(',');
-}
+// The stringifier lives in `shared/k8s` (it also builds `labelSelector=` queries); re-exported for the registry's callers.
+export { labelSelectorString };
 
 /** Props for {@link PodSelectorLink}. */
 export interface PodSelectorLinkProps {
   /** Namespace of the selecting object (Deployment, Service); the pods are in the same one. */
   namespace: string | undefined;
-  matchLabels: Record<string, string> | undefined;
+  /** The pod selector, `matchExpressions` included; plain label maps (Service, DC) are passed as `{ matchLabels }`. */
+  selector: LabelSelector | undefined;
 }
 
 /**
  * A pod selector as a link to the Pods list filtered by it (`?label=app%3Dweb`, ADR-0023 §2), with OCP `Selector`'s
  * search icon and ", "-joined terms; "No selector" in subtle text without one, plain text outside a cluster or namespace.
  */
-export function PodSelectorLink({ namespace, matchLabels }: PodSelectorLinkProps) {
+export function PodSelectorLink({ namespace, selector }: PodSelectorLinkProps) {
   const cluster = useActiveCluster();
-  const selector = labelSelectorString(matchLabels);
-  if (selector === '') return <div className="pf-v6-u-text-color-subtle">No selector</div>;
-  if (cluster === undefined || namespace === undefined) return <>{selector}</>;
-  const search = new URLSearchParams({ label: selector }).toString();
+  const text = labelSelectorString(selector);
+  if (text === '') return <div className="pf-v6-u-text-color-subtle">No selector</div>;
+  if (cluster === undefined || namespace === undefined) return <>{text}</>;
+  const search = new URLSearchParams({ label: text }).toString();
   return (
     <Link to={resourcePath(cluster, PodModel, { namespace, search })}>
       <RhUiSearchIcon className="pf-v6-u-mr-xs" />
-      {selector.replace(/,/g, ', ')}
+      {text.replace(/,/g, ', ')}
     </Link>
   );
 }

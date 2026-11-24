@@ -44,7 +44,7 @@ function Annotations({ annotations }: { annotations: Record<string, string> }) {
  * `Selector kind="Node"` (`public/components/utils/selector.tsx`).
  */
 function NodeSelector({ selector }: { selector: Record<string, string> | undefined }) {
-  const text = labelSelectorString(selector);
+  const text = labelSelectorString({ matchLabels: selector });
   if (text === '') return <div className="pf-v6-u-text-color-subtle">No selector</div>;
   return <>{text.replace(/,/g, ', ')}</>;
 }
@@ -89,7 +89,7 @@ export function MetadataSection({ cluster, descriptor, obj }: MetadataSectionPro
       </DetailsItem>
       {summary?.podSelector && (
         <DetailsItem label="Pod selector" path="spec.selector">
-          <PodSelectorLink namespace={namespace} matchLabels={summary.podSelector(obj)} />
+          <PodSelectorLink namespace={namespace} selector={summary.podSelector(obj)} />
         </DetailsItem>
       )}
       {summary?.nodeSelector && (

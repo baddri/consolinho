@@ -1,4 +1,4 @@
-import type { K8sModel, K8sResource } from '@/shared/k8s';
+import type { K8sModel, K8sResource, LabelSelector } from '@/shared/k8s';
 import { useResourceAccess } from '../../actions/useResourceAccess';
 import { PodRing } from '../../components/PodRing';
 import { useRelatedHPA } from './useRelatedHPA';
@@ -6,7 +6,7 @@ import { useScaleWorkload } from './useScaleWorkload';
 
 /** A scalable workload, as far as the ring reads it. */
 export type ScalableWorkload = K8sResource & {
-  spec?: { replicas?: number; selector?: { matchLabels?: Record<string, string> } };
+  spec?: { replicas?: number; selector?: LabelSelector };
   status?: { readyReplicas?: number };
 };
 
@@ -15,7 +15,10 @@ export interface WorkloadPodRingProps {
   cluster: string;
   model: K8sModel;
   obj: ScalableWorkload;
-  /** The pod selector; defaults to `spec.selector.matchLabels` (DeploymentConfigs and RCs pass `spec.selector`). */
+  /**
+   * A plain label-map pod selector (DeploymentConfigs and RCs pass `spec.selector`); without it the ring uses the full
+   * `spec.selector`, `matchExpressions` included.
+   */
   selector?: Record<string, string>;
 }
 
@@ -35,7 +38,7 @@ export function WorkloadPodRing({ cluster, model, obj, selector }: WorkloadPodRi
     <PodRing
       cluster={cluster}
       workload={obj}
-      selector={selector ?? obj.spec?.selector?.matchLabels}
+      selector={selector ? { matchLabels: selector } : obj.spec?.selector}
       hpa={hpa}
       scale={{
         desired: obj.spec?.replicas ?? 1,

@@ -1,6 +1,6 @@
 import type { ThProps } from '@patternfly/react-table';
 import type { ReactNode } from 'react';
-import type { K8sModel, K8sResource } from '@/shared/k8s';
+import type { K8sModel, K8sResource, LabelSelector } from '@/shared/k8s';
 import type { FilterOption } from '@/shared/table';
 import type { DataViewColumn, DisabledActionProps } from '@/shared/ui';
 
@@ -50,7 +50,8 @@ export interface RowFilter<T> {
  * A row shows when its getter is declared, even for an empty value. Method syntax keeps them bivariant.
  */
 export interface SummaryFields<T> {
-  podSelector?(obj: T): Record<string, string> | undefined;
+  /** The pod selector; plain-map kinds (DeploymentConfig, ReplicationController) wrap it as `{ matchLabels }`. */
+  podSelector?(obj: T): LabelSelector | undefined;
   nodeSelector?(obj: T): Record<string, string> | undefined;
   tolerations?(obj: T): readonly unknown[] | undefined;
   /** `DetailsItem`s between Annotations and "Created at", as OCP `ResourceSummary`'s children. */
@@ -120,9 +121,10 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   ExtraSections?(props: { obj: T }): ReactNode;
   /**
    * Label selector of the object's pods: declaring it adds a Pods tab (OCP workloads' `/pods` tab) listing the pods
-   * that match, and is where the "N of M pods" status links.
+   * that match, and is where the "N of M pods" status links. The full selector, `matchExpressions` included (OCP
+   * `selectorToString`); plain-map kinds wrap theirs as `{ matchLabels }`.
    */
-  podsSelector?(obj: T): Record<string, string> | undefined;
+  podsSelector?(obj: T): LabelSelector | undefined;
   /**
    * The Pods tab shows Node instead of Owner (OCP `showNodes`): set where the owner is the page itself and the node is
    * what triage needs (DaemonSet, Job).

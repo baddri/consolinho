@@ -33,12 +33,12 @@ export const jobDescriptor: ResourceDescriptor<JobResource> = {
   status: jobStatus,
   detailsTitle: 'Job status',
   summary: {
-    podSelector: (job) => job.spec?.selector?.matchLabels,
+    podSelector: (job) => job.spec?.selector,
     Extra: JobSummaryExtra,
   },
   DetailsSection: JobDetails,
   ExtraSections: JobSections,
-  podsSelector: (job) => job.spec?.selector?.matchLabels,
+  podsSelector: (job) => job.spec?.selector,
   // OCP `JobPods`: `showNodes`.
   podsShowNodes: true,
   useKindActions: useJobActions,

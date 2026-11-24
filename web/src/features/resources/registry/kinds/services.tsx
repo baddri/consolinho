@@ -96,7 +96,7 @@ function ServiceDetails({ obj }: { obj: ServiceResource }) {
         {clusterIPs(obj)}
       </DetailsItem>
       <DetailsItem label="Pod selector" path="spec.selector">
-        <PodSelectorLink namespace={obj.metadata.namespace} matchLabels={obj.spec?.selector} />
+        <PodSelectorLink namespace={obj.metadata.namespace} selector={{ matchLabels: obj.spec?.selector }} />
       </DetailsItem>
       <DetailsItem label="Session affinity" path="spec.sessionAffinity">
         {obj.spec?.sessionAffinity ?? 'None'}
@@ -132,9 +132,9 @@ export const serviceDescriptor: ResourceDescriptor<ServiceResource> = {
       title: 'Pod selector',
       visibility: ['hidden', 'visibleOnXl'],
       cell: (service) => (
-        <PodSelectorLink namespace={service.metadata.namespace} matchLabels={service.spec?.selector} />
+        <PodSelectorLink namespace={service.metadata.namespace} selector={{ matchLabels: service.spec?.selector }} />
       ),
-      sortValue: (service) => labelSelectorString(service.spec?.selector),
+      sortValue: (service) => labelSelectorString({ matchLabels: service.spec?.selector }),
     },
     {
       id: 'location',

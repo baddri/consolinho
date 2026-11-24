@@ -31,13 +31,13 @@ export const statefulSetDescriptor: ResourceDescriptor<StatefulSetResource> = {
   status: statefulSetStatus,
   hideHeadingStatus: true,
   summary: {
-    podSelector: (statefulSet) => statefulSet.spec?.selector.matchLabels,
+    podSelector: (statefulSet) => statefulSet.spec?.selector,
     nodeSelector: (statefulSet) => statefulSet.spec?.template.spec?.nodeSelector,
     tolerations: (statefulSet) => statefulSet.spec?.template.spec?.tolerations,
   },
   DetailsTop: StatefulSetDetailsTop,
   ExtraSections: StatefulSetSections,
-  podsSelector: (statefulSet) => statefulSet.spec?.selector.matchLabels,
+  podsSelector: (statefulSet) => statefulSet.spec?.selector,
   useKindActions: useStatefulSetActions,
   columns: [
     nameColumn(StatefulSetModel),
@@ -60,12 +60,9 @@ export const statefulSetDescriptor: ResourceDescriptor<StatefulSetResource> = {
       id: 'selector',
       title: 'Pod selector',
       cell: (statefulSet) => (
-        <PodSelectorLink
-          namespace={statefulSet.metadata.namespace}
-          matchLabels={statefulSet.spec?.selector.matchLabels}
-        />
+        <PodSelectorLink namespace={statefulSet.metadata.namespace} selector={statefulSet.spec?.selector} />
       ),
-      sortValue: (statefulSet) => labelSelectorString(statefulSet.spec?.selector.matchLabels),
+      sortValue: (statefulSet) => labelSelectorString(statefulSet.spec?.selector),
     },
   ],
 };

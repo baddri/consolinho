@@ -77,14 +77,14 @@ export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
   status,
   hideHeadingStatus: true,
   summary: {
-    podSelector: (replicaSet) => replicaSet.spec?.selector.matchLabels,
+    podSelector: (replicaSet) => replicaSet.spec?.selector,
     nodeSelector: (replicaSet) => replicaSet.spec?.template?.spec?.nodeSelector,
     tolerations: (replicaSet) => replicaSet.spec?.template?.spec?.tolerations,
     Extra: RevisionRow,
   },
   DetailsSection: ReplicaSetDetails,
   ExtraSections: ReplicaSetSections,
-  podsSelector: (replicaSet) => replicaSet.spec?.selector.matchLabels,
+  podsSelector: (replicaSet) => replicaSet.spec?.selector,
   useKindActions: useReplicaSetActions,
   columns: [
     nameColumn(ReplicaSetModel),

@@ -1,6 +1,10 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
+import { http } from 'msw';
+import type { Deployment, K8sResource, Pod } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
+import { mockK8s } from '@/test/handlers';
 import { renderApp } from '@/test/render';
+import { server } from '@/test/server';
 import { resourceRoutes } from '../routes';
 
 beforeAll(() => preloadLazyRoutes(resourceRoutes));
@@ -46,4 +50,96 @@ describe('workload Pods tab Node column (OCP showNodes)', () => {
     expect(hasColumn('Owner')).toBe(true);
     expect(hasColumn('Node')).toBe(false);
   });
+});
+
+/** `matchLabels` + `In` + `Exists`, as OCP `selectorToString` writes it. */
+const EXPRESSION_SELECTOR = 'app=picky,env in (prod,stage),canary';
+
+/** Deployment `picky` selecting by `matchExpressions`, one matching pod and two that only match `matchLabels`. */
+function upsertExpressionDeployment() {
+  const deployment: Deployment & K8sResource = {
+    apiVersion: 'apps/v1',
+    kind: 'Deployment',
+    metadata: { name: 'picky', namespace: 'shop', uid: 'uid-picky' },
+    spec: {
+      replicas: 1,
+      selector: {
+        matchLabels: { app: 'picky' },
+        matchExpressions: [
+          { key: 'env', operator: 'In', values: ['prod', 'stage'] },
+          { key: 'canary', operator: 'Exists' },
+        ],
+      },
+      template: { spec: { containers: [{ name: 'main', image: 'i' }] } },
+    },
+    status: { replicas: 1, readyReplicas: 1 },
+  };
+  mockK8s.upsert('dev-1', deployment);
+  const pods: [string, Record<string, string>][] = [
+    ['picky-match', { app: 'picky', env: 'prod', canary: 'true' }],
+    ['picky-dev', { app: 'picky', env: 'dev', canary: 'true' }],
+    ['picky-stable', { app: 'picky', env: 'prod' }],
+  ];
+  for (const [name, labels] of pods) {
+    const pod: Pod & K8sResource = {
+      apiVersion: 'v1',
+      kind: 'Pod',
+      metadata: { name, namespace: 'shop', uid: `uid-${name}`, labels },
+      spec: { containers: [{ name: 'main', image: 'i' }] },
+      status: { phase: 'Running' },
+    };
+    mockK8s.upsert('dev-1', pod);
+  }
+}
+
+/** Records the `labelSelector` of every pods list request. */
+function recordPodSelectors(): string[] {
+  const selectors: string[] = [];
+  server.use(
+    http.get('*/api/clusters/:cluster/k8s/*', ({ request }) => {
+      const url = new URL(request.url);
+      if (url.pathname.endsWith('/pods')) selectors.push(url.searchParams.get('labelSelector') ?? '');
+      return undefined;
+    }),
+  );
+  return selectors;
+}
+
+describe('matchExpressions pod selectors (OCP selectorToString)', () => {
+  it(
+    'the Pods tab sends the full selector and lists only matching pods',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      upsertExpressionDeployment();
+      const selectors = recordPodSelectors();
+
+      await openPodsTab('deployments/picky', /picky-match/);
+
+      expect(selectors).toContain(EXPRESSION_SELECTOR);
+      expect(screen.queryByRole('row', { name: /picky-dev/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('row', { name: /picky-stable/ })).not.toBeInTheDocument();
+    },
+  );
+
+  it(
+    'the ring queries with it and the Pod selector link carries it',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      upsertExpressionDeployment();
+      const selectors = recordPodSelectors();
+
+      renderApp('/c/dev-1/k8s/ns/shop/deployments/picky');
+
+      const link = await screen.findByRole(
+        'link',
+        { name: 'app=picky, env in (prod, stage), canary' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      expect(link).toHaveAttribute(
+        'href',
+        `/c/dev-1/k8s/ns/shop/pods?${new URLSearchParams({ label: EXPRESSION_SELECTOR })}`,
+      );
+      await waitFor(() => expect(selectors).toContain(EXPRESSION_SELECTOR));
+    },
+  );
 });

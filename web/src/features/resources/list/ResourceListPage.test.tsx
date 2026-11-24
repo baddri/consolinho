@@ -277,6 +277,23 @@ describe('resource list filters and sorting (UI-3)', () => {
     expect(screen.getByText('tier!=db')).toBeInTheDocument();
   });
 
+  it('keeps a set term with commas as one chip; removing another chip leaves a valid selector', async () => {
+    const selectors = recordLabelSelectors();
+    const label = 'app=web,env in (prod,stage),tier!=db';
+    const { user, router } = renderApp(`/c/dev-1/k8s/ns/shop/pods?${new URLSearchParams({ label })}`);
+    await findTable('Pods');
+
+    expect(await screen.findByText('env in (prod,stage)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /close app=web/i }));
+
+    await waitFor(() =>
+      expect(new URLSearchParams(router.state.location.search).get('label')).toBe(
+        'env in (prod,stage),tier!=db',
+      ),
+    );
+    await waitFor(() => expect(selectors).toContain('env in (prod,stage),tier!=db'));
+  });
+
   it('suggests the listed labels and applies a picked one', async () => {
     const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/pods');
     await within(await findTable('Pods')).findByText(CRASHING_POD);
