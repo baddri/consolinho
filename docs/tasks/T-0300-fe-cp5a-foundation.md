@@ -1,7 +1,7 @@
 ---
 id: T-0300
 title: CP5a foundation — models, Storage nav section, minimal descriptors, ListActions slot, mock fixtures
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5a
 depends_on: []
@@ -90,14 +90,45 @@ PVC resize). Lane tasks then fill in their own `kinds/<plural>.tsx` and feature 
   (section order), L1317–1400 (Storage items); `public/models/index.ts` (RouteModel, IngressModel, …).
 
 ## Acceptance criteria
-- [ ] NAV-1: dev-1 sidebar sections Home, Workloads, Networking (Services, Routes, Ingresses, NetworkPolicies), Storage (PersistentVolumes, PersistentVolumeClaims, StorageClasses), Administration; on `prod-k8s-1` Routes is absent (`useClusterNav` tests).
-- [ ] Each new kind's list renders its mock objects (`/k8s/ns/shop/<plural>`, `/k8s/cluster/<plural>` for PV/SC) and a details page opens (one parameterised test).
-- [ ] Mock: POST projectrequests creates Project + Namespace (201) and 403s for RO; PVC request patch updates `status.capacity` (mock tests).
-- [ ] `ListActions` renders in the list heading (test with a fake descriptor).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] NAV-1: dev-1 sidebar sections Home, Workloads, Networking (Services, Routes, Ingresses, NetworkPolicies), Storage (PersistentVolumes, PersistentVolumeClaims, StorageClasses), Administration; on `prod-k8s-1` Routes is absent (`useClusterNav` tests).
+- [x] Each new kind's list renders its mock objects (`/k8s/ns/shop/<plural>`, `/k8s/cluster/<plural>` for PV/SC) and a details page opens (one parameterised test).
+- [x] Mock: POST projectrequests creates Project + Namespace (201) and 403s for RO; PVC request patch updates `status.capacity` (mock tests).
+- [x] `ListActions` renders in the list heading (test with a fake descriptor).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: started; 7 models + Route/ProjectRequest types, Storage nav section, 6 minimal
+  descriptors, `ListActions` slot, `networkingStorageFixtures.ts` (+ db pods mount `db-data`), ProjectRequest create
+  and PVC resize settle in `apiServer.ts`, FRONTEND.md lines. Tests: nav NAV-1/2 + per-kind list/details + ListActions
+  (`useClusterNav.test.tsx`), mock tests (`mocks/k8s.test.ts`). Ready for review.
 
 ## Review
+- 2026-11-25 frontend-architect, round 1: **APPROVE**. `scripts/check-fe.sh` green (1316 tests). Models/abbrs, types,
+  NAV-1 order, minimal descriptors, `ListActions` slot, mocks (ProjectRequest 201/409/403, PVC grow-only settle,
+  fake certs) match the contract. `AppShell.test.tsx` edit outside paths accepted (direct consequence of NAV-1).
+- Nit (optional) `mocks/k8s/networkingStorageFixtures.ts` — `resizing` PVC's `volumeName` names an unseeded PV; T-0304
+  (PVC details, PV link) should either seed `pvc-resizing-0f9e` or accept a 404 link — decide there.
+- Nit (optional) `nav/useClusterNav.test.tsx:145` — test mutates the real storageclasses descriptor (restored via
+  `onTestFinished`); fine for now, switch to the projects descriptor's real `ListActions` test once T-0309 lands.
+- 2026-11-25 ux-designer (visual, nav scope only): **APPROVE**. Measured with a Playwright text dump of the mock nav at
+  1280 (dev-1 OCP, prod-k8s-1 vanilla); OCP ref console not running, so parity is from source.
+  - Sections Home, Workloads, Networking, Storage, Administration: Storage right after Networking, as OCP
+    `packages/console-app/console-extensions.json:948-967` (networking → storage → builds; builds/compute come later in CP5b).
+  - Networking order Services, Routes, Ingresses, NetworkPolicies matches networking-console-plugin `plugin-manifest.ts`
+    extension order (no insertAfter); the labels match each `src/views/*/manifest.ts` name. Routes are hidden on vanilla prod-k8s-1 (NAV-2).
+  - Storage order PersistentVolumes, PersistentVolumeClaims, StorageClasses with OCP labels (`console-extensions.json:1318-1348`,
+    insertAfter chain). Cluster-scoped kinds link to `/k8s/cluster/...`. The active item gets `aria-current` (StorageClasses*, Routes*).
+  - List headings use the kind plural ("StorageClasses", "PersistentVolumeClaims"). Column content is left to T-0310.
 
 ## Handover notes
+- Lane tasks fill `registry/kinds/<plural>.tsx` only; TSDoc in each names the owning task (T-0302…T-0307).
+- `ProjectRequestModel` is in `K8S_MODELS` (abbr `''`, as OCP); `apiServer.ts` routes its POST to `projectRequest()`
+  (Namespace + Project, requester = credential's SA subject, 409 on a taken namespace, 403 via `rbac.ts` for view).
+- PVC resize: `settlePvcResize()` (networkingStorageFixtures.ts) runs on every successful JSON Patch; grows only, Bound only.
+- `resizing` PVC points at `pvc-resizing-0f9e`, a PV that doesn't exist (only the 4 spec'd PVs are seeded).
+- Route fixtures are seeded last (OpenShift only) so other uids don't depend on distribution; `route.openshift.io`
+  joined `OPENSHIFT_GROUPS`. Vanilla discovery now lists `networking.k8s.io` and `storage.k8s.io` (test updated).
+- `ListActions` test mutates the real storageclasses descriptor and restores it (`useClusterNav.test.tsx`).
+- Also touched `app/layout/AppShell.test.tsx` (section list gains Storage). A one-off `window is not defined`
+  unhandled error from `pods.test.tsx` appeared in one full run, not in the rerun (teardown flake).
+- Style probe not run: only nav items + Name/Namespace/Created lists change; the CP5a probe is T-0310.

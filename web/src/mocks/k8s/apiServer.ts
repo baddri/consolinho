@@ -2,18 +2,25 @@ import { HttpResponse } from 'msw';
 import {
   apiVersionOf,
   K8S_MODELS,
+  NamespaceModel,
+  PROJECT_ANNOTATIONS,
+  ProjectModel,
+  ProjectRequestModel,
   SelfSubjectAccessReviewModel,
   type APIGroupList,
   type APIVersions,
   type K8sList,
   type K8sModel,
   type K8sResource,
+  type Namespace,
+  type Project,
   type SelfSubjectAccessReview,
   type Status,
 } from '@/shared/k8s';
 import type { MockCredential } from '../fixtures';
 import { servesProjects } from './fixtures';
-import { forbiddenMessage, isAllowed, profileOf, rbacResource } from './rbac';
+import { settlePvcResize } from './networkingStorageFixtures';
+import { forbiddenMessage, isAllowed, profileOf, rbacResource, subjectOf } from './rbac';
 import { openApiResponse } from './openapi';
 import { parseFieldSelector, parseLabelSelector, type ObjectPredicate } from './selectors';
 import { notFound, statusResponse, unknownResource } from './status';
@@ -56,7 +63,11 @@ interface ResourceTarget {
 const AUTHORIZATION_GROUP = 'authorization.k8s.io';
 
 /** API groups only OpenShift serves; vanilla clusters (`servesProjects` false) lack them in discovery and URLs. */
-const OPENSHIFT_GROUPS: ReadonlySet<string> = new Set(['project.openshift.io', 'apps.openshift.io']);
+const OPENSHIFT_GROUPS: ReadonlySet<string> = new Set([
+  'project.openshift.io',
+  'apps.openshift.io',
+  'route.openshift.io',
+]);
 
 function servedModels(cluster: string): K8sModel[] {
   return K8S_MODELS.filter((model) => !OPENSHIFT_GROUPS.has(model.group) || servesProjects(cluster));
@@ -376,7 +387,52 @@ async function patch(api: ApiServerRequest, target: ResourceTarget, name: string
   }
   if (errors.length > 0) return invalid(model, name, errors);
   if (patched.metadata.resourceVersion !== stored.metadata.resourceVersion) return conflict(model, name);
-  return HttpResponse.json(upsertObject(api.cluster, patched));
+  return HttpResponse.json(upsertObject(api.cluster, settlePvcResize(patched)));
+}
+
+/**
+ * `POST projectrequests` (OpenShift self-provisioning, T-0309): creates the Namespace and its Project — display name,
+ * description and the requesting user as annotations — and answers the Project (201). The name is taken → 409.
+ */
+async function projectRequest(api: ApiServerRequest): Promise<Response> {
+  const body = (await readObject(api.request)) as
+    | { metadata?: { name?: unknown }; displayName?: unknown; description?: unknown }
+    | undefined;
+  const name = typeof body?.metadata?.name === 'string' ? body.metadata.name : '';
+  if (!name) {
+    return invalid(ProjectRequestModel, name, [['metadata.name', 'Required value: name is required']]);
+  }
+  if (getObject(api.cluster, NamespaceModel, undefined, name)) {
+    return statusResponse(409, 'AlreadyExists', `project.project.openshift.io "${name}" already exists`, {
+      name,
+      group: ProjectModel.group,
+      kind: ProjectModel.plural,
+    });
+  }
+  const annotations: Record<string, string> = { [PROJECT_ANNOTATIONS.requester]: subjectOf(api.credential) };
+  if (typeof body?.displayName === 'string' && body.displayName) {
+    annotations[PROJECT_ANNOTATIONS.displayName] = body.displayName;
+  }
+  if (typeof body?.description === 'string' && body.description) {
+    annotations[PROJECT_ANNOTATIONS.description] = body.description;
+  }
+  const namespace: Namespace = {
+    apiVersion: 'v1',
+    kind: 'Namespace',
+    metadata: { name, labels: { 'kubernetes.io/metadata.name': name }, annotations },
+    spec: { finalizers: ['kubernetes'] },
+    status: { phase: 'Active' },
+  };
+  const stored = upsertObject(api.cluster, namespace as K8sResource);
+  // A project is a view of its namespace: same name, uid and annotations.
+  const project: Project = {
+    apiVersion: 'project.openshift.io/v1',
+    kind: 'Project',
+    metadata: { ...stored.metadata, resourceVersion: undefined },
+    spec: { finalizers: ['kubernetes'] },
+    status: { phase: 'Active' },
+  };
+  return HttpResponse.json(upsertObject(api.cluster, project), { status: 201 });
 }
 
 function remove(api: ApiServerRequest, target: ResourceTarget, name: string): Response {
@@ -536,7 +592,7 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
       });
     }
     case 'create':
-      return create(api, target);
+      return model === ProjectRequestModel ? projectRequest(api) : create(api, target);
     case 'update':
       return update(api, target, name ?? '');
     case 'patch':

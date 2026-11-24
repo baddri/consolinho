@@ -6,15 +6,21 @@ import { deploymentConfigDescriptor } from './kinds/deploymentconfigs';
 import { deploymentDescriptor } from './kinds/deployments';
 import { eventDescriptor } from './kinds/events';
 import { horizontalPodAutoscalerDescriptor } from './kinds/horizontalpodautoscalers';
+import { ingressDescriptor } from './kinds/ingresses';
 import { jobDescriptor } from './kinds/jobs';
 import { namespaceDescriptor } from './kinds/namespaces';
+import { networkPolicyDescriptor } from './kinds/networkpolicies';
+import { persistentVolumeClaimDescriptor } from './kinds/persistentvolumeclaims';
+import { persistentVolumeDescriptor } from './kinds/persistentvolumes';
 import { podDescriptor } from './kinds/pods';
 import { projectDescriptor } from './kinds/projects';
 import { replicaSetDescriptor } from './kinds/replicasets';
 import { replicationControllerDescriptor } from './kinds/replicationcontrollers';
+import { routeDescriptor } from './kinds/routes';
 import { secretDescriptor } from './kinds/secrets';
 import { serviceDescriptor } from './kinds/services';
 import { statefulSetDescriptor } from './kinds/statefulsets';
+import { storageClassDescriptor } from './kinds/storageclasses';
 import type { ResourceDescriptor } from './types';
 
 /**
@@ -41,7 +47,14 @@ export function resourceDescriptors(): readonly ResourceDescriptor[] {
     replicaSetDescriptor,
     replicationControllerDescriptor,
     horizontalPodAutoscalerDescriptor,
+    // Networking and Storage in OCP nav order (NAV-1).
     serviceDescriptor,
+    routeDescriptor,
+    ingressDescriptor,
+    networkPolicyDescriptor,
+    persistentVolumeDescriptor,
+    persistentVolumeClaimDescriptor,
+    storageClassDescriptor,
     namespaceDescriptor,
   ];
   return registry;

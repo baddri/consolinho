@@ -7,6 +7,8 @@ export type {
   ConfigMap,
   Event,
   Namespace,
+  PersistentVolume,
+  PersistentVolumeClaim,
   Pod,
   ReplicationController,
   Secret,
@@ -15,6 +17,8 @@ export type {
 export type { DaemonSet, Deployment, ReplicaSet, StatefulSet } from 'kubernetes-types/apps/v1';
 export type { CronJob, Job } from 'kubernetes-types/batch/v1';
 export type { HorizontalPodAutoscaler } from 'kubernetes-types/autoscaling/v2';
+export type { Ingress, NetworkPolicy } from 'kubernetes-types/networking/v1';
+export type { StorageClass } from 'kubernetes-types/storage/v1';
 export type {
   SelfSubjectAccessReview,
   SelfSubjectAccessReviewSpec,
@@ -137,4 +141,70 @@ export interface DeploymentConfig extends K8sResource {
     conditions?: DeploymentConfigCondition[];
     details?: { message?: string };
   };
+}
+
+/** A backend of a Route: a Service (the only kind OpenShift routes to) and its share of traffic. */
+export interface RouteTargetReference {
+  kind: string;
+  name: string;
+  /** Relative weight 0–256 among `to` and `alternateBackends`. */
+  weight?: number;
+}
+
+/** TLS settings of a Route; certificates and keys are PEM text. */
+export interface RouteTLSConfig {
+  termination: 'edge' | 'passthrough' | 'reencrypt';
+  insecureEdgeTerminationPolicy?: 'Allow' | 'Disable' | 'Redirect' | 'None';
+  certificate?: string;
+  key?: string;
+  caCertificate?: string;
+  destinationCACertificate?: string;
+}
+
+/** A condition of a router's admission of a Route (`Admitted`). */
+export interface RouteIngressCondition {
+  type: string;
+  status: 'True' | 'False' | 'Unknown';
+  reason?: string;
+  message?: string;
+  lastTransitionTime?: string;
+}
+
+/** One router's view of a Route; no entries = not yet admitted by any router. */
+export interface RouteIngress {
+  host: string;
+  routerName: string;
+  routerCanonicalHostname?: string;
+  wildcardPolicy?: string;
+  conditions?: RouteIngressCondition[];
+}
+
+/**
+ * OpenShift `route.openshift.io/v1` Route (the fields the console reads), after OCP `RouteKind`
+ * (`public/module/k8s/types.ts`). Not in `kubernetes-types`, so written by hand.
+ */
+export interface Route extends K8sResource {
+  spec: {
+    host?: string;
+    path?: string;
+    subdomain?: string;
+    to: RouteTargetReference;
+    alternateBackends?: RouteTargetReference[];
+    port?: { targetPort: number | string };
+    tls?: RouteTLSConfig;
+    wildcardPolicy?: 'None' | 'Subdomain';
+  };
+  status?: { ingress?: RouteIngress[] };
+}
+
+/**
+ * OpenShift `project.openshift.io/v1` ProjectRequest: POSTed to create a project as a self-provisioner; the server
+ * answers the created {@link Project}. Display name and description become its annotations.
+ */
+export interface ProjectRequest extends K8sResource {
+  apiVersion: 'project.openshift.io/v1';
+  kind: 'ProjectRequest';
+  metadata: ObjectMeta & { name: string };
+  displayName?: string;
+  description?: string;
 }

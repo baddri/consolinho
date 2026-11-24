@@ -19,11 +19,12 @@ export interface NavSection {
   items: NavLinkItem[];
 }
 
-/** Section order and titles of the cluster navigation (spec UI-2). */
+/** Section order and titles of the cluster navigation (spec UI-2, NAV-1). CP5b adds Operators after Home, Compute after Storage. */
 const SECTIONS: readonly { id: NavSectionId; title: string }[] = [
   { id: 'home', title: 'Home' },
   { id: 'workloads', title: 'Workloads' },
   { id: 'networking', title: 'Networking' },
+  { id: 'storage', title: 'Storage' },
   { id: 'administration', title: 'Administration' },
 ];
 

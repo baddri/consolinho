@@ -47,7 +47,9 @@ web/src/
                           #   scale/ (count modal, ring, restart — any scalable kind), statefulsets/, daemonsets/,
                           #   deploymentconfigs/, jobs/, cronjobs/, hpa/, config/ (ConfigMap/Secret data) (CP4b)
       search/             # Home → Search (CP4b SRCH): kinds × label/name, one-shot lists
-    networking/  storage/  compute/  home/ (overview, search, events)
+      networking/         # kind extras (ADR-0037 §1): routes/, ingresses/, networkpolicies/, services/ (CP5a)
+      storage/            # kind extras: pvcs/, pvs/, storageclasses/ (CP5a)
+      projects/           # Create Project (CP5a)
     admin/                # routes.tsx (lazy route objects), RequireAdmin, useAdminAccess, queryKeys.ts
       users/ clusters/ credentials/ connection-test/ grants/ groups/ effective-access/ audit/   # one folder per area: api.ts (hooks), pages, dialogs
   test/                   # render helpers, MSW server (handlers come from mocks/)
@@ -131,6 +133,7 @@ column `DetailsSection` (shared `DetailsItem`s only, no tables or headings) — 
 `details/sections/DetailsSubsection` (h2 + region: Containers, Conditions, Ports, Data). Tabs are fixed (Details · YAML · Events)
 and actions generic (Edit YAML, Delete, gated by `useResourceAccess`). The `detailTabs`/`actions` fields above arrive
 with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (registry + discovery).
+CP5a: `ListActions` (list heading buttons); the Pods tab shows only when `podsSelector(obj)` returns a selector (T-0301).
 
 ## Data fetching rules
 

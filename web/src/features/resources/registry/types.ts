@@ -13,7 +13,7 @@ import type { DataViewColumn, DisabledActionProps } from '@/shared/ui';
  */
 
 /** Sidebar section a kind is listed in (spec UI-2). */
-export type NavSectionId = 'home' | 'workloads' | 'networking' | 'administration';
+export type NavSectionId = 'home' | 'workloads' | 'networking' | 'storage' | 'administration';
 
 /**
  * Status of an object: a Kubernetes status word (`Running`, `Active`) or a phrase (`1 of 3 pods`).
@@ -166,4 +166,9 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * DeploymentConfig's deprecation notice. Same component shape as {@link DetailsSection}.
    */
   HeadingAlert?(props: { cluster: string }): ReactNode;
+  /**
+   * Buttons in the list page heading (OCP `ListPage` `createButtonText` / `createProps`), e.g. Projects' Create
+   * Project (T-0309). Same component shape as {@link HeadingAlert}; each button gates itself on access.
+   */
+  ListActions?(props: { cluster: string }): ReactNode;
 }

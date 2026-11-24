@@ -204,6 +204,88 @@ export const SecretModel: K8sModel = {
   abbr: 'S',
 };
 
+/** OpenShift-only (`route.openshift.io`): hidden where discovery lacks the group (vanilla Kubernetes). */
+export const RouteModel: K8sModel = {
+  group: 'route.openshift.io',
+  version: 'v1',
+  kind: 'Route',
+  plural: 'routes',
+  namespaced: true,
+  label: 'Route',
+  labelPlural: 'Routes',
+  abbr: 'RT',
+};
+
+export const IngressModel: K8sModel = {
+  group: 'networking.k8s.io',
+  version: 'v1',
+  kind: 'Ingress',
+  plural: 'ingresses',
+  namespaced: true,
+  label: 'Ingress',
+  labelPlural: 'Ingresses',
+  abbr: 'I',
+};
+
+export const NetworkPolicyModel: K8sModel = {
+  group: 'networking.k8s.io',
+  version: 'v1',
+  kind: 'NetworkPolicy',
+  plural: 'networkpolicies',
+  namespaced: true,
+  label: 'NetworkPolicy',
+  labelPlural: 'NetworkPolicies',
+  abbr: 'NP',
+};
+
+export const PersistentVolumeClaimModel: K8sModel = {
+  group: '',
+  version: 'v1',
+  kind: 'PersistentVolumeClaim',
+  plural: 'persistentvolumeclaims',
+  namespaced: true,
+  label: 'PersistentVolumeClaim',
+  labelPlural: 'PersistentVolumeClaims',
+  abbr: 'PVC',
+};
+
+export const PersistentVolumeModel: K8sModel = {
+  group: '',
+  version: 'v1',
+  kind: 'PersistentVolume',
+  plural: 'persistentvolumes',
+  namespaced: false,
+  label: 'PersistentVolume',
+  labelPlural: 'PersistentVolumes',
+  abbr: 'PV',
+};
+
+export const StorageClassModel: K8sModel = {
+  group: 'storage.k8s.io',
+  version: 'v1',
+  kind: 'StorageClass',
+  plural: 'storageclasses',
+  namespaced: false,
+  label: 'StorageClass',
+  labelPlural: 'StorageClasses',
+  abbr: 'SC',
+};
+
+/**
+ * Only ever POSTed (Create Project, T-0309): the API server creates the Namespace + Project and answers the Project.
+ * No descriptor, no nav; known here so the audit label map and access checks can name it.
+ */
+export const ProjectRequestModel: K8sModel = {
+  group: 'project.openshift.io',
+  version: 'v1',
+  kind: 'ProjectRequest',
+  plural: 'projectrequests',
+  namespaced: false,
+  label: 'ProjectRequest',
+  labelPlural: 'ProjectRequests',
+  abbr: '',
+};
+
 /** Core `v1` events (what `oc get events` and the OpenShift console show), not `events.k8s.io`. */
 export const EventModel: K8sModel = {
   group: '',
@@ -247,6 +329,13 @@ export const K8S_MODELS: readonly K8sModel[] = [
   CronJobModel,
   HorizontalPodAutoscalerModel,
   SecretModel,
+  RouteModel,
+  IngressModel,
+  NetworkPolicyModel,
+  PersistentVolumeClaimModel,
+  PersistentVolumeModel,
+  StorageClassModel,
+  ProjectRequestModel,
 ];
 
 /** The `apiVersion` of objects of `model`: `v1` for the core group, `<group>/<version>` otherwise. */
