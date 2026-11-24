@@ -243,6 +243,18 @@ allow-list change expected (structural `ProxyPath`).
 - **QG5C-3** Parity row (fleet invention, style check against UX.md §5 list rules) + ux-designer visual review incl. dark theme and the K8s navy masthead on the fleet page (must stay neutral — fleet pages keep the OpenShift masthead).
 - **QG5C-4** Performance smoke: 40 mock clusters (5 slow at 4 s, 2 unreachable) → first rows < 1 s, complete < 6 s, ≤ the configured concurrency upstream at any time (QA measures, k6 or test double).
 
+### 5c.4 Backend design (backend-architect, 2026-11-25)
+- Decision: ADR-0041 (one NDJSON stream `GET /api/fleet/status`, probes with the user's winning grant token through the
+  proxy pool + policy chain, Table reads, cache per (cluster, credential) 30 s, per-request concurrency 10, per-cluster
+  timeout 5 s, pod-wide limiter → 503 `Fleet.Busy`). Contract: `docs/specs/CP5-api-contract.md`. Health rules (FLT-4)
+  live once in the frontend, shared with OVW-3; the backend returns facts.
+- CP5a/CP5b need no new endpoints (pure proxy); their mutation safety is proven by T-0324.
+- Tasks: T-0320 probe core (port, options, cached probe, DTOs, metric) · T-0321 query/stream (bounded, isolated) ·
+  T-0322 Infrastructure reader (Tables, 4 MiB cap, classifier) · T-0323 endpoint + limiter + OpenAPI/gen:api + docs ·
+  T-0324 CP5 proxy mutation-verb rows · T-0325 QA (QG5C-1, QG5C-4).
+- Waves (max 2 BE agents): W1 T-0320 ‖ T-0324 → W2 T-0321 ‖ T-0322 → W3 T-0323 → W4 T-0325. CP5a FE runs in parallel
+  throughout; the FE fleet page can start from the contract with MSW and switches to generated types after T-0323.
+
 ---
 
 ## 5. UX notes
