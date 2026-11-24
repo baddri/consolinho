@@ -1,7 +1,7 @@
 ---
 id: T-0267
 title: CP4.5a UX parity pass — Subject section, Access tab columns, Groups, Effective access (QG-5)
-status: todo
+status: done
 owner: ux-designer
 checkpoint: 4.5a
 depends_on: [T-0262, T-0264, T-0265]   # can run on `npm run dev:mock` before the BE lands; parallel with T-0266
@@ -23,12 +23,21 @@ Record that the CP4.5a screens look and behave like their OCP counterparts (QG-5
 - Mock personas: `?mockUser=admin` (full), a read-only admin persona for UIG-6; `setMockHostGroups` states are test-only, so check the UIG-2 alert in the component test output instead.
 
 ## Acceptance criteria
-- [ ] One `ocp-parity.md` row per screen above with verdict `match` or `gap → T-xxxx`.
-- [ ] Copy checked verbatim against spec §4.3–§4.5 and §5.
-- [ ] Gaps filed as FE tasks with `checkpoint: 4.5a`.
+- [x] One `ocp-parity.md` row per screen above with verdict `match` or `gap → T-xxxx`.
+- [x] Copy checked verbatim against spec §4.3–§4.5 and §5.
+- [x] Gaps filed as FE tasks with `checkpoint: 4.5a`.
 
 ## Work log
+- 2026-11-24 ux-designer: mock :5199 (admin, ines), 1280 light, probe ours-only + clipped shots; OCP from source (ref console not started, memory limit). 6 parity rows added.
+  Copy verbatim vs §4.3-4.5/§5 OK (UIG-2/3/5, GPG-4 hint, EFF-1/2/5, revoke confirm); UIG-2 alert verified in `GrantFormModal.test.tsx` (passes).
+  Gaps → T-0269 (1 blocking: Access tab headers truncate at 1280; group details section border; wizard review lacks priority; grant form 56px gap),
+  T-0270 (em dash → `-`, settled in UX.md §11; ResourceDetailsPage tab panel name). Wizard probed vs PF/OCP source values (T-0264 note closed).
 
 ## Review
 
 ## Handover notes
+- Both follow-ups below are filed as T-0270. PO question (not filed): bulk/single grant toasts say "ReadOnly"/"ReadWrite"
+  (`grantText.ts:ACCESS_MODE_TOAST`, spec GRANT-4 wording) — an enum value in copy (UX.md §11); suggest "read-only access".
+
+- Follow-up (T-0263 UX review): admin details pages use `—` as the empty placeholder while lists and OCP use `-` (`console-shared/src/constants/ui.ts` DASH). Settle it once in UX.md and apply it across admin.
+- Follow-up (T-0265 review): `ResourceDetailsPage` Details tab panel is unnamed, because PF `PageGroup` drops `aria-label` unless `hasOverflowScroll` is set. Use a `div role="tabpanel"` with an aria-label, as T-0265 does.
