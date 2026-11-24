@@ -29,6 +29,8 @@ export interface FilterSelectGroup {
 
 /** Props for {@link FilterSelect}. */
 export interface FilterSelectProps {
+  /** The toggle's id, for a `FormGroup` label. */
+  id?: string;
   /** The toggle's content: the selection, or a "Select a …" title. */
   toggleContent: ReactNode;
   selected: string;
@@ -47,6 +49,7 @@ export interface FilterSelectProps {
  * it can reach the filter.
  */
 export function FilterSelect({
+  id,
   toggleContent,
   selected,
   groups,
@@ -84,6 +87,7 @@ export function FilterSelect({
       toggle={(toggleRef: Ref<MenuToggleElement>) => (
         <MenuToggle
           ref={toggleRef}
+          id={id}
           isFullWidth
           isExpanded={isOpen}
           isDisabled={isDisabled}

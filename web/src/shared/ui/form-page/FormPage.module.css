@@ -8,8 +8,11 @@ form.flexForm {
 }
 
 /* OCP form-utils/FormBody.tsx: the body is a PF form grid. Section titles as OCP's dev-console `FormSection`
-   (`<Title headingLevel="h2">`, size xl = heading--md, no negative bottom margin). */
+   (`<Title headingLevel="h2">`, size xl = heading--md, no negative bottom margin). OCP's sections are nested
+   `pf-v6-c-form`s with no margin (import/section/FormSection.tsx), so PF's 32px section top margin is cleared and
+   sections sit one 24px grid gap apart. */
 .paneForm {
+  --pf-v6-c-form__section--MarginBlockStart: 0;
   --pf-v6-c-form__section-title--FontSize: var(--pf-t--global--font--size--heading--md);
   --pf-v6-c-form__section-title--MarginBlockEnd: 0;
 

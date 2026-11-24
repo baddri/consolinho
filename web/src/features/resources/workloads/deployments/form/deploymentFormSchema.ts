@@ -67,6 +67,10 @@ export const deploymentFormSchema = z
     containers: z.array(
       z.object({ name: z.string(), image: z.string().trim().min(1, REQUIRED), env: z.array(envRow) }),
     ),
+    /**
+     * The first of `spec.template.spec.imagePullSecrets` (Images › Show advanced image options › Pull Secret), or blank.
+     */
+    imagePullSecret: z.string(),
     /** `spec.paused` (Advanced options › Pause rollouts). */
     paused: z.boolean(),
     /** `spec.replicas` (Advanced options › Scaling). */

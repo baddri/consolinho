@@ -6,7 +6,8 @@ import type { DeploymentFormValues, EnvRow, EnvVar } from './deploymentFormSchem
 export type DeploymentObject = Deployment & K8sResource;
 
 type DeploymentSpec = NonNullable<Deployment['spec']>;
-type Containers = NonNullable<DeploymentSpec['template']['spec']>['containers'];
+type PodSpec = NonNullable<DeploymentSpec['template']['spec']>;
+type Containers = PodSpec['containers'];
 type Container = Containers[number];
 
 /** `spec.replicas` when unset, as the API server defaults it. */
@@ -87,6 +88,7 @@ export function toFormValues(deployment: DeploymentObject): DeploymentFormValues
       image: image ?? '',
       env: toEnvRows(env),
     })),
+    imagePullSecret: spec?.template.spec?.imagePullSecrets?.[0]?.name ?? '',
     paused: spec?.paused ?? false,
     replicas: spec?.replicas ?? DEFAULT_REPLICAS,
   };
@@ -145,6 +147,19 @@ function applyContainers(containers: Containers, values: DeploymentFormValues['c
 }
 
 /**
+ * `imagePullSecrets` with the picked secret appended unless already listed (OCP `convertEditFormToDeployment`): the
+ * form never removes a pull secret, so picking another one adds it after the existing ones.
+ */
+function applyPullSecret(
+  pullSecrets: PodSpec['imagePullSecrets'],
+  name: string,
+): PodSpec['imagePullSecrets'] {
+  const current = pullSecrets ?? [];
+  if (name === '' || current.some((secret) => secret.name === name)) return pullSecrets;
+  return [...current, { name }];
+}
+
+/**
  * `deployment` with the form `values` written in (OCP `convertEditFormToDeployment`). The form only overwrites the
  * fields it owns, so everything else — unknown fields included — passes through unchanged. A field whose value equals
  * what the form showed for it is left as it was (absent stays absent), so unchanged values round-trip to the identical
@@ -168,9 +183,15 @@ export function applyFormValues(
   }
   const podSpec = spec.template.spec;
   if (podSpec !== undefined) {
+    const podChanges: Partial<PodSpec> = {};
     const containers = applyContainers(podSpec.containers, values.containers);
     if (containers.some((container, index) => container !== podSpec.containers[index])) {
-      changes.template = { ...spec.template, spec: { ...podSpec, containers } };
+      podChanges.containers = containers;
+    }
+    const imagePullSecrets = applyPullSecret(podSpec.imagePullSecrets, values.imagePullSecret);
+    if (imagePullSecrets !== podSpec.imagePullSecrets) podChanges.imagePullSecrets = imagePullSecrets;
+    if (Object.keys(podChanges).length > 0) {
+      changes.template = { ...spec.template, spec: { ...podSpec, ...podChanges } };
     }
   }
   if (values.paused !== current.paused) changes.paused = values.paused;

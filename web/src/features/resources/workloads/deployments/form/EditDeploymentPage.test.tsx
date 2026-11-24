@@ -191,6 +191,24 @@ describe('deploymentFormValues', () => {
     expect(cleared.spec?.template.spec?.containers[0]?.envFrom).toEqual(ENV_FROM);
   });
 
+  it('Pull Secret: blank or an already listed secret changes nothing; another one is appended (OCP)', () => {
+    const d = stored();
+    expect(toFormValues(d).imagePullSecret).toBe('');
+    const picked = applyFormValues(d, { ...toFormValues(d), imagePullSecret: 'registry-pull' });
+    expect(picked.spec?.template.spec).toEqual({
+      ...d.spec?.template.spec,
+      imagePullSecrets: [{ name: 'registry-pull' }],
+    });
+    expect(picked.spec?.template.spec?.containers).toBe(d.spec?.template.spec?.containers);
+    expect(toFormValues(picked).imagePullSecret).toBe('registry-pull');
+    expect(applyFormValues(picked, toFormValues(picked))).toBe(picked);
+    const other = applyFormValues(picked, { ...toFormValues(picked), imagePullSecret: 'other-pull' });
+    expect(other.spec?.template.spec?.imagePullSecrets).toEqual([
+      { name: 'registry-pull' },
+      { name: 'other-pull' },
+    ]);
+  });
+
   it("writes one container's image by name; the others stay the same objects", () => {
     const d = withSidecar(stored());
     const [web, sidecar] = d.spec?.template.spec?.containers ?? [];
@@ -545,6 +563,42 @@ describe('EditDeploymentPage', () => {
       await waitFor(() => expect(router.state.location.pathname).toBe(DETAILS));
       expect(puts).toHaveLength(1);
       expect(puts[0]?.spec?.template.spec?.containers).toEqual([expected, ...others]);
+    },
+  );
+  it(
+    'FORM-IMG: advanced image options are collapsed; a picked pull secret is saved into imagePullSecrets',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const before = stored();
+      const puts = recordPuts();
+      const { user, router } = renderApp(FORM);
+      const toggle = await screen.findByRole(
+        'button',
+        { name: 'Show advanced image options' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      const helper = 'Secret for authentication when pulling image from a secured registry.';
+      expect(screen.getByText(helper)).not.toBeVisible();
+      await user.click(toggle);
+      expect(screen.getByRole('button', { name: 'Hide advanced image options' })).toBeInTheDocument();
+      expect(
+        screen.getByText('Secret for authentication when pulling image from a secured registry.'),
+      ).toBeVisible();
+      // Only image pull secret types are offered: the Opaque db-credentials is not.
+      const pullSecret = await screen.findByRole('button', { name: 'Pull Secret' });
+      await waitFor(() => expect(pullSecret).toHaveTextContent('Select Secret name'));
+      await user.click(pullSecret);
+      expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['registry-pull']);
+      await user.click(screen.getByRole('option', { name: 'registry-pull' }));
+      expect(pullSecret).toHaveTextContent('registry-pull');
+
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(router.state.location.pathname).toBe(DETAILS));
+      expect(puts).toHaveLength(1);
+      expect(puts[0]?.spec?.template.spec).toEqual({
+        ...before.spec?.template.spec,
+        imagePullSecrets: [{ name: 'registry-pull' }],
+      });
     },
   );
 });

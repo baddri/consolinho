@@ -1,6 +1,10 @@
 /* OCP form-utils/FormBody.tsx `flexLayout`: a `pf-v6-c-form` page section laid out as a column filling the page, so
-   the YAML view reaches the sticky footer. The gap is the form's grid gap, which OCP's flex column keeps. */
+   the YAML view reaches the sticky footer. The gap is the form's grid gap, which OCP's flex column keeps. OCP's
+   sections (dev-console import/section/FormSection.tsx) are nested `pf-v6-c-form`s with no margin, so PF's 32px
+   `pf-v6-c-form__section` top margin is cleared: sections sit one 24px gap apart. */
 .body {
+  --pf-v6-c-form__section--MarginBlockStart: 0;
+
   display: flex;
   flex-direction: column;
   gap: var(--pf-v6-c-form--GridGap);

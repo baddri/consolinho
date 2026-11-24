@@ -14,7 +14,7 @@ import styles from './EditDeployment.module.css';
 export interface DeploymentFormEditorProps extends DeploymentSectionProps {
   /** The Deployment's name, shown read-only (OCP `NameSection` disables it when editing). */
   name: string;
-  /** The cluster and namespace whose ConfigMaps/Secrets the environment section offers. */
+  /** The cluster and namespace whose ConfigMaps/Secrets the images and environment sections offer. */
   cluster: string;
   namespace: string | undefined;
   /** Lets the environment section clear a ref's key without validating it. */
@@ -26,7 +26,13 @@ export interface DeploymentFormEditorProps extends DeploymentSectionProps {
  * hint, the read-only Name, then the sections in OCP's order: Deployment strategy, Images, Environment Variables,
  * Advanced options. Images and Environment Variables edit the same container, picked in either section.
  */
-export function DeploymentFormEditor({ control, name, cluster, namespace, setValue }: DeploymentFormEditorProps) {
+export function DeploymentFormEditor({
+  control,
+  name,
+  cluster,
+  namespace,
+  setValue,
+}: DeploymentFormEditorProps) {
   const [showYamlHint, setShowYamlHint] = useState(true);
   const [containerIndex, setContainerIndex] = useState(0);
   const containers = useWatch({ control, name: 'containers' });
@@ -53,8 +59,14 @@ export function DeploymentFormEditor({ control, name, cluster, namespace, setVal
         </FormGroup>
       </FormSection>
       <DeploymentStrategySection control={control} />
-      <ImagesSection control={control} container={container} />
-      <EnvironmentSection control={control} cluster={cluster} namespace={namespace} container={container} setValue={setValue} />
+      <ImagesSection control={control} container={container} cluster={cluster} namespace={namespace} />
+      <EnvironmentSection
+        control={control}
+        cluster={cluster}
+        namespace={namespace}
+        container={container}
+        setValue={setValue}
+      />
       <AdvancedSection control={control} />
     </>
   );

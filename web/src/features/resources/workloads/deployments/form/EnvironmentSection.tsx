@@ -90,13 +90,25 @@ export interface EnvironmentSectionProps extends DeploymentSectionProps {
  * Values can be literal or a key of one of the namespace's ConfigMaps or Secrets (only key names are listed);
  * `fieldRef`/`resourceFieldRef` entries show read-only and are kept, and `envFrom` is never touched.
  */
-export function EnvironmentSection({ control, cluster, namespace, container, setValue }: EnvironmentSectionProps) {
+export function EnvironmentSection({
+  control,
+  cluster,
+  namespace,
+  container,
+  setValue,
+}: EnvironmentSectionProps) {
   const sources = useEnvSources(cluster, namespace);
   if (container.names.length === 0) return null;
   return (
     <DeploymentFormSection title="Environment Variables">
       <ContainerField id="environment-container" {...container} />
-      <EnvEditor key={container.index} control={control} containerIndex={container.index} sources={sources} setValue={setValue} />
+      <EnvEditor
+        key={container.index}
+        control={control}
+        containerIndex={container.index}
+        sources={sources}
+        setValue={setValue}
+      />
     </DeploymentFormSection>
   );
 }
