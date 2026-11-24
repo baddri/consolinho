@@ -37,12 +37,16 @@ export function namespaceLikeColumns<T extends NamespaceLike>(): ColumnDef<T>[] 
   ];
 }
 
-/** Namespaces (UI-3, Administration): Name, Display name, Status, Created; delete asks for the name. */
+/**
+ * Namespaces (UI-3, Administration): Name, Display name, Status, Created; delete asks for the name. No Events tab, as
+ * OCP's namespace details (PRJ-1).
+ */
 export const namespaceDescriptor: ResourceDescriptor<NamespaceLike> = {
   model: NamespaceModel,
   nav: { section: 'administration', order: 10 },
   status: phaseStatus,
   DetailsSection: NamespaceDetails,
   deleteRequiresName: true,
+  hasEventsTab: false,
   columns: [nameColumn(NamespaceModel), ...namespaceLikeColumns(), ageColumn()],
 };

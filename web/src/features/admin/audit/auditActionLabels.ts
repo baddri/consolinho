@@ -97,6 +97,11 @@ const PROXY_LABEL_RULES: readonly ProxyLabelRule[] = [
     label: () => 'Roll back DeploymentConfig',
   },
   { matches: (a) => a.subresource === 'status', label: (kind) => `Update ${kind} status` },
+  // Creating a ProjectRequest creates a Project (OCP's "Create Project", PRJ-2).
+  {
+    matches: (a) => isVerb('create')(a) && a.group === 'project.openshift.io' && a.resource === 'projectrequests',
+    label: () => 'Create Project',
+  },
   { matches: isVerb('create'), label: (kind) => `Create ${kind}` },
   { matches: isVerb('update'), label: (kind) => `Update ${kind}` },
   { matches: isVerb('patch'), label: (kind) => `Patch ${kind}` },
