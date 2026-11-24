@@ -51,4 +51,16 @@ public sealed record GroupName
     /// <summary>Returns the raw name, so it can be used directly in messages and logs.</summary>
     /// <returns><see cref="Value"/>.</returns>
     public override string ToString() => Value;
+
+    /// <summary>
+    /// Returns the raw name. Exists for queries: EF Core translates this cast on the converted <c>group_name</c>
+    /// column to SQL (so <c>user.Groups.Contains((string)grant.GroupName)</c> becomes <c>= ANY(groups)</c>), and the
+    /// same expression still runs in memory — unlike <see cref="Value"/>, which EF can't translate.
+    /// </summary>
+    /// <param name="name">The group name.</param>
+    public static explicit operator string(GroupName name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        return name.Value;
+    }
 }

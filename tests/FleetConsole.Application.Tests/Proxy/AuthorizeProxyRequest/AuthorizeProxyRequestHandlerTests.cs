@@ -1,6 +1,7 @@
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Application.Abstractions.Persistence;
+using FleetConsole.Application.Access;
 using FleetConsole.Application.Proxy;
 using FleetConsole.Application.Proxy.AuthorizeProxyRequest;
 using FleetConsole.Application.Proxy.Policies;
@@ -15,6 +16,8 @@ using FleetConsole.Domain.Common;
 using FleetConsole.Domain.Credentials;
 using FleetConsole.Domain.Users;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
 using static FleetConsole.Application.Tests.Proxy.ProxyTestRequests;
@@ -212,6 +215,100 @@ public sealed class AuthorizeProxyRequestHandlerTests
         result.Error.ShouldBe(ProxyErrors.UserReadOnly);
     }
 
+    // --- Group grants (CP4.5 PREC-2..7) through ClusterAccessReader + AccessResolver ---
+
+    [Fact]
+    public async Task Group_member_gets_the_group_grant_and_its_token()
+    {
+        _alice.ReplaceGroups(["sre-emea"]);
+        var credential = AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 10);
+
+        var result = await Handle("prod-east", Request("DELETE", Pod));
+
+        result.IsSuccess.ShouldBeTrue();
+        _protector.Received(1).Unprotect(credential.Token);
+    }
+
+    [Fact]
+    public async Task Group_grant_of_another_group_is_not_available()
+    {
+        _alice.ReplaceGroups(["sre-apac"]);
+        AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 10);
+
+        await ShouldBeNotAvailable();
+    }
+
+    [Fact]
+    public async Task Deactivated_group_member_is_not_available()
+    {
+        var deactivated = AuthTestUsers.Deactivated("alice");
+        deactivated.ReplaceGroups(["sre-emea"]);
+        _model.UserRows.Clear();
+        _model.UserRows.Add(deactivated);
+        AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 10);
+
+        await ShouldBeNotAvailable(deactivated.Id);
+    }
+
+    [Fact]
+    public async Task Direct_read_only_grant_beats_a_read_write_group_grant()
+    {
+        _alice.ReplaceGroups(["sre-emea"]);
+        var direct = AddGrant(_alice, _cluster, AccessMode.ReadOnly);
+        AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 1000);
+
+        (await Handle("prod-east", Request("PUT", Pod))).Error!.Message.ShouldBe("Your access to prod-east is read-only.");
+        (await Handle("prod-east", Request("GET", Pod))).IsSuccess.ShouldBeTrue();
+        _protector.Received(1).Unprotect(direct.Token);
+    }
+
+    [Fact]
+    public async Task Highest_priority_group_grant_supplies_mode_and_credential_and_only_its_token_is_decrypted()
+    {
+        _alice.ReplaceGroups(["sre-emea", "platform"]);
+        var low = AddGroupGrant("sre-emea", AccessMode.ReadOnly, priority: 10);
+        var high = AddGroupGrant("platform", AccessMode.ReadWrite, priority: 20);
+
+        var result = await Handle("prod-east", Request("DELETE", Pod));
+
+        result.IsSuccess.ShouldBeTrue();
+        _protector.Received(1).Unprotect(high.Token);
+        _protector.DidNotReceive().Unprotect(low.Token);
+    }
+
+    [Fact]
+    public async Task Read_only_user_flag_narrows_a_read_write_group_grant()
+    {
+        var user = AuthTestUsers.PreCreated("carol", isReadOnly: true);
+        user.ReplaceGroups(["sre-emea"]);
+        _model.UserRows.Add(user);
+        AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 10);
+
+        var result = await Handle("prod-east", Request("DELETE", Pod), userId: user.Id);
+
+        result.Error.ShouldBe(ProxyErrors.UserReadOnly);
+    }
+
+    [Fact]
+    public async Task Tied_group_grants_resolve_to_read_only_and_log_a_warning_with_ids_only()
+    {
+        // The database refuses two group grants with one priority on a cluster; the reader must still cope (PREC-5).
+        _alice.ReplaceGroups(["sre-emea", "platform"]);
+        AddGroupGrant("sre-emea", AccessMode.ReadWrite, priority: 10);
+        var readOnly = AddGroupGrant("platform", AccessMode.ReadOnly, priority: 10);
+        var logger = new TieLogger();
+        var reader = new ClusterAccessReader(_model, logger);
+
+        var access = await reader.LoadAsync(_alice.Id, _cluster.Name, sessionIsReadOnly: false, Ct);
+
+        access.ShouldHaveSingleItem().WinnerToken.ShouldBeSameAs(readOnly.Token);
+        access[0].Resolution.EffectiveMode.ShouldBe(AccessMode.ReadOnly);
+        var warning = logger.Messages.ShouldHaveSingleItem();
+        warning.ShouldContain(_cluster.Id.Value.ToString());
+        warning.ShouldNotContain("sre-emea");
+        warning.ShouldNotContain("alice");
+    }
+
     private async Task ShouldBeNotAvailable(UserId? userId = null)
     {
         var result = await Handle("prod-east", userId: userId);
@@ -231,7 +328,7 @@ public sealed class AuthorizeProxyRequestHandlerTests
     {
         var currentUser = new SignedInAs(userId ?? _alice.Id, "alice", UserRole.User, sessionReadOnly);
         var chain = policies ?? [new MutationGuardPolicy(), new RequestBodyLimitPolicy(Options.Create(new ProxyOptions()))];
-        var handler = new AuthorizeProxyRequestHandler(_model, currentUser, _protector, chain);
+        var handler = new AuthorizeProxyRequestHandler(new ClusterAccessReader(_model, NullLogger<ClusterAccessReader>.Instance), currentUser, _protector, chain);
         return handler.Handle(new AuthorizeProxyRequestQuery(clusterName, request ?? Request("GET", Pods)), Ct);
     }
 
@@ -251,6 +348,47 @@ public sealed class AuthorizeProxyRequestHandlerTests
         _model.CredentialRows.Add(credential);
         _model.GrantRows.Add(grant);
         return credential;
+    }
+
+    private int _groupCredentials;
+
+    /// <summary>Adds a grant to <paramref name="group"/> on prod-east with its own credential (distinct token bytes).</summary>
+    private Credential AddGroupGrant(string group, AccessMode mode, int priority)
+    {
+        var number = ++_groupCredentials;
+        var credential = Credential.Add(
+            _cluster,
+            CredentialName.Create($"sa-group-{number}").Value,
+            null,
+            new EncryptedToken([(byte)(100 + number)]),
+            TokenFingerprint.Create("0123abcd").Value,
+            TokenMetadata.Opaque,
+            InspectNamespaces.Empty,
+            "admin",
+            FixedClock.Now);
+        var grant = Grant.CreateForGroup(GroupName.Create(group).Value, _cluster, credential, mode, priority, [], "admin", FixedClock.Now).Value;
+        _model.CredentialRows.Add(credential);
+        _model.GrantRows.Add(grant);
+        return credential;
+    }
+
+    /// <summary>Records warnings written by <see cref="ClusterAccessReader"/>.</summary>
+    private sealed class TieLogger : ILogger<ClusterAccessReader>
+    {
+        public List<string> Messages { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning)
+            {
+                Messages.Add(formatter(state, exception));
+            }
+        }
     }
 
     /// <summary>A policy that records that it ran (and with what) and returns a fixed decision.</summary>

@@ -1,7 +1,7 @@
 ---
 id: T-0253
 title: Proxy authorization and accessible clusters resolve through AccessResolver (one SQL statement each)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 4.5a
 depends_on: [T-0250, T-0251]   # wave 2, parallel with T-0252, T-0255, T-0258
@@ -56,14 +56,41 @@ internal sealed record ResolvedClusterAccess(
   pattern); user groups come from the DevOAuth user config (`TestOAuthServer` L83-87).
 
 ## Acceptance criteria
-- [ ] PREC-2: auto-provisioned member of a granted group sees the cluster in `GET /api/clusters` and can proxy GET.
-- [ ] PREC-3/4/5/6 through the proxy: direct RO beats group RW (mutation → 403 via MutationGuard); higher priority's credential is used; RO flag narrows.
-- [ ] PREC-7: disabled user/cluster, missing credential behave as today for group-derived access (same `Proxy.NotAvailable`).
-- [ ] ADR-0019: one SQL statement per authorization (test via EF command interceptor/counter, as existing tests do if any; else `ToQueryString`).
-- [ ] Existing proxy and switcher tests unchanged and green; `scripts/check-be.sh` green.
+- [x] PREC-2: auto-provisioned member of a granted group sees the cluster in `GET /api/clusters` and can proxy GET.
+- [x] PREC-3/4/5/6 through the proxy: direct RO beats group RW (mutation → 403 via MutationGuard); higher priority's credential is used; RO flag narrows.
+- [x] PREC-7: disabled user/cluster, missing credential behave as today for group-derived access (same `Proxy.NotAvailable`).
+- [x] ADR-0019: one SQL statement per authorization (test via EF command interceptor/counter, as existing tests do if any; else `ToQueryString`).
+- [x] Existing proxy and switcher tests unchanged and green; `scripts/check-be.sh` green.
 
 ## Work log
+- 2026-11-24 backend-engineer: `ClusterAccessReader` + `ResolvedClusterAccess` (one statement, `g.group_name::text = ANY (u.groups)`,
+  grouped + `AccessResolver`, tie warning EventId 2600); both handlers rewired; DI in `AddApplication`. Outside paths:
+  `Domain/Access/GroupName.cs` got an explicit `string` operator — EF can't translate `.Value` on a converted column and the
+  `(string)` cast must also run in memory for the handler unit tests. Group grants in integration tests are seeded below HTTP
+  (T-0252 owns the endpoints); `scripts/check-be.sh` green.
 
 ## Review
+- 2026-11-24 backend-architect, round 1: **APPROVE**. Single statement with `= ANY (u.groups)` asserted by interceptor
+  test; BitmapOr-able via `grants.user_id`/`group_name` indexes. Only the winner's token is decrypted, after policies
+  (unit test asserts it). RO flag narrows via resolver + `StoredUserIsReadOnly || session`; `system:*` dropped by
+  `AccessResolver` (defence in depth, Domain table tests); all PREC-7 denials collapse to `Proxy.NotAvailable`.
+  `ClusterAccessReader` exposes only Domain types, no EF leakage. `GroupName` explicit `(string)` operator: accepted —
+  framework-free, null-guarded, documented; a reasonable value-object conversion, not an EF dependency in Domain.
+  check-be: build ok; 1 failure `ProxyStreamLifetimeTests.Followed_Log_…` (timeout under suite load, passes in isolation,
+  unrelated to this diff).
+  Optional: `AuthorizeProxyRequestHandler.cs:2` — `using …Application.Access` sits between `Abstractions` usings (sort).
+  Optional: handler-level test with a stored `system:authenticated` group grant + membership → NotAvailable (QG-3 at the seam).
+  Follow-up (T-0255): `UserConfiguration` comment "groups never queried by element" is now stale.
 
 ## Handover notes
+- Reader: `src/FleetConsole.Application/Access/ClusterAccessReader.cs` (`LoadAsync(userId, cluster?, sessionIsReadOnly)`);
+  T-0257 (Effective access) and CP4.5b's `ResolveClusterAccessQuery` should wrap it, not copy the query.
+- Query = users ⨯ grants (direct OR group in `u.groups`) ⋈ enabled clusters ⋈ credentials; one row per candidate,
+  only the winner's encrypted token kept; decryption stays in `AuthorizeProxyRequestHandler` (winner only).
+- Policies get the winner's own `AccessMode` + stored||session RO flag, so MutationGuard still tells grant RO from user RO.
+- `GroupName` explicit `(string)` operator exists for query translation (see its doc); don't replace with `.Value` in queries.
+- Login groups come from `users/~`, which the DevOAuth emulator serves from *config* only (not `DevGroupMembership`);
+  `ProxyGroupGrantTests` therefore uses a pool admin (configured `fleetconsole-admins`) for the real-login PREC-2 path
+  and stores membership after login for the rest. SQL-count test uses a `DbCommandInterceptor` via `ConfigureDbContext`.
+- Stale comment (outside paths, T-0255 owns the file): `UserConfiguration` says groups are "never queried by element" — now
+  they are (`= ANY`); fix with T-0255. No GIN index needed: the array is read from the single user row.

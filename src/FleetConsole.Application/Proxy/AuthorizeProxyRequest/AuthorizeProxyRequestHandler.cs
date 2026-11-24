@@ -1,4 +1,5 @@
 using FleetConsole.Application.Abstractions;
+using FleetConsole.Application.Access;
 using FleetConsole.Application.Abstractions.Kubernetes;
 using FleetConsole.Application.Abstractions.Messaging;
 using FleetConsole.Domain.Clusters;
@@ -7,23 +8,26 @@ using FleetConsole.Domain.Common;
 namespace FleetConsole.Application.Proxy.AuthorizeProxyRequest;
 
 /// <summary>
-/// Answers <see cref="AuthorizeProxyRequestQuery"/>: loads the user's access to the cluster in one SQL statement, then
-/// runs the <see cref="IProxyPolicy"/> chain in registration order and returns the first failure, or the
-/// <see cref="ProxyTarget"/> with the decrypted token.
+/// Answers <see cref="AuthorizeProxyRequestQuery"/>: resolves the user's access to the cluster with
+/// <see cref="ClusterAccessReader"/> (one SQL statement, direct and group grants, ADR-0019/ADR-0034), then runs the
+/// <see cref="IProxyPolicy"/> chain in registration order and returns the first failure, or the
+/// <see cref="ProxyTarget"/> with the winning grant's decrypted token.
 /// </summary>
 /// <remarks>
-/// <para><b>Not available.</b> A malformed name, an unknown or disabled cluster, no grant, a deactivated user and a
-/// missing credential all end in the same <c>Proxy.NotAvailable</c> (PRX-2): the inner joins simply return no row,
-/// so the cases can't be told apart from outside — nor, deliberately, inside.</para>
+/// <para><b>Not available.</b> A malformed name, an unknown or disabled cluster, no direct or group grant, a deactivated
+/// user and a missing credential all end in the same <c>Proxy.NotAvailable</c> (PRX-2, PREC-7): the reader simply
+/// returns nothing, so the cases can't be told apart from outside — nor, deliberately, inside.</para>
+/// <para><b>Winner.</b> The policies see the winning grant's own mode (direct beats group, then priority, PREC-3/4) and
+/// the user's read-only flag separately, so the mutation guard can still say which of the two refused.</para>
 /// <para><b>Read-only.</b> The stored user's flag or the session's, whichever is stricter (as
 /// <c>ListAccessibleClustersHandler</c> does), so a read-only change applies before the session is revalidated.</para>
 /// </remarks>
-/// <param name="readModel">The read model.</param>
+/// <param name="reader">Loads and resolves the user's grants on the cluster.</param>
 /// <param name="currentUser">The signed-in user.</param>
 /// <param name="tokenProtector">Decrypts the stored ServiceAccount token.</param>
 /// <param name="policies">The policy chain, in registration order.</param>
 internal sealed class AuthorizeProxyRequestHandler(
-    IReadModel readModel,
+    ClusterAccessReader reader,
     ICurrentUser currentUser,
     ITokenProtector tokenProtector,
     IEnumerable<IProxyPolicy> policies) : IRequestHandler<AuthorizeProxyRequestQuery, Result<ProxyTarget>>
@@ -47,37 +51,20 @@ internal sealed class AuthorizeProxyRequestHandler(
         }
 
         var clusterName = name.Value;
-        var query =
-            from g in readModel.Grants
-            where g.UserId == userId
-            join u in readModel.Users on g.UserId equals u.Id
-            where !u.IsDeactivated
-            join c in readModel.Clusters on g.ClusterId equals c.Id
-            where c.IsEnabled && c.Name == clusterName
-            join cr in readModel.Credentials on g.CredentialId equals cr.Id
-            select new
-            {
-                ClusterId = c.Id,
-                c.Endpoint,
-                c.Environment,
-                g.AccessMode,
-                UserIsReadOnly = u.IsReadOnly,
-                u.Username,
-                cr.Token,
-            };
-        var row = await readModel.FirstOrDefaultAsync(query, cancellationToken).ConfigureAwait(false);
-        if (row is null)
+        var accesses = await reader.LoadAsync(userId, clusterName, currentUser.IsReadOnly, cancellationToken).ConfigureAwait(false);
+        if (accesses is not [var access])
         {
+            // The name is unique, so there is at most one entry; none means not available (PRX-2).
             return ProxyErrors.NotAvailable(clusterName.Value);
         }
 
         var context = new ProxyRequestContext(
             userId,
-            row.Username.Value,
+            access.Username,
             clusterName.Value,
-            row.Environment,
-            row.AccessMode,
-            row.UserIsReadOnly || currentUser.IsReadOnly,
+            access.Environment,
+            access.Resolution.Winner.AccessMode,
+            access.StoredUserIsReadOnly || currentUser.IsReadOnly,
             request.Request);
 
         // Order is the registration order (AddApplication); the first refusal wins.
@@ -90,7 +77,8 @@ internal sealed class AuthorizeProxyRequestHandler(
             }
         }
 
-        var connection = new ClusterConnection(row.Endpoint.Url, row.Endpoint.CaBundle?.Pem, row.Endpoint.SkipTlsVerify);
-        return new ProxyTarget(row.ClusterId, clusterName.Value, connection, tokenProtector.Unprotect(row.Token));
+        // Only now, past every policy, is the winner's token (and only the winner's) decrypted.
+        var connection = new ClusterConnection(access.Endpoint.Url, access.Endpoint.CaBundle?.Pem, access.Endpoint.SkipTlsVerify);
+        return new ProxyTarget(access.ClusterId, clusterName.Value, connection, tokenProtector.Unprotect(access.WinnerToken));
     }
 }
