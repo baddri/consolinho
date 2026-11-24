@@ -137,7 +137,7 @@ public sealed class AuditAtomicityTests(ApiFactory factory)
         var users = Enumerable.Range(0, 3).Select(_ => User.Provision(NewUsername("cfg"), Now)).ToList();
         foreach (var user in users)
         {
-            user.RecordLogin(null, ["fleetconsole-admins"], "group fleetconsole-admins", provisioned: true, Now).IsSuccess.ShouldBeTrue();
+            user.RecordLogin(null, ["fleetconsole-admins"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: true, Now).IsSuccess.ShouldBeTrue();
         }
 
         await using (var scope = factory.Services.CreateAsyncScope())

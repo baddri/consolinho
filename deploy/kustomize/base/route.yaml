@@ -11,6 +11,11 @@ metadata:
     haproxy.router.openshift.io/timeout: 330s
     # No includeSubDomains/preload: must never affect other apps on the shared apps domain.
     haproxy.router.openshift.io/hsts_header: max-age=31536000
+    # No sticky-session cookie: the API is stateless across replicas (sessions/OAuth state are cookies protected with
+    # the shared Postgres key ring), so every request may go to any pod. Long-lived watch/log/exec streams are one
+    # connection each and stay on the pod they opened on; the router balances new connections round-robin (T-0234).
+    haproxy.router.openshift.io/disable_cookies: "true"
+    haproxy.router.openshift.io/balance: roundrobin
 spec:
   to:
     kind: Service

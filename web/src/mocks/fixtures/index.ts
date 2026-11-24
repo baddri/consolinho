@@ -15,4 +15,4 @@ export { fingerprintOf, mockGuid } from './ids';
 export { systemInfoFixture } from './system';
 export { ONE_DAY_MS } from './time';
 export type * from './types';
-export { ADMIN_GROUP_SOURCE, userFixtures } from './users';
+export { ADMIN_GROUP_SOURCE, adminSourceAuditText, userFixtures } from './users';

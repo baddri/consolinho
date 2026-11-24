@@ -1,0 +1,37 @@
+/* OCP public/style/_layout.scss `.co-p-has-sidebar__sidebar` + `--bordered`: a third of the row from $screen-md-min,
+   scrolling on its own, divided from the editor by a left border (top border when stacked). */
+.sidebar {
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .sidebar {
+    flex: 1 0 auto;
+    overflow-y: auto;
+    max-width: 34%;
+    border-inline-start: var(--pf-t--global--border--width--divider--default) solid
+      var(--pf-t--global--border--color--default);
+  }
+}
+
+@media (max-width: 767px) {
+  .sidebar {
+    border-block-start: var(--pf-t--global--border--width--divider--default) solid
+      var(--pf-t--global--border--color--default);
+  }
+}
+
+/* `.co-p-has-sidebar__sidebar-body`: the content doesn't widen the column (it wraps to the column's width). */
+.sidebarBody {
+  position: absolute;
+  width: 100%;
+  /* OCP `PaneBody` (public/style/_common.scss): no PF row gap between the title row and the tabs. */
+  gap: 0;
+}
+
+/* OCP public/style/_common.scss `.co-pre-wrap` + `.co-break-word`: descriptions keep their line breaks. */
+.preWrap {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}

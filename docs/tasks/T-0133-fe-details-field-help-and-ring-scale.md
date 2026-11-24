@@ -1,7 +1,7 @@
 ---
 id: T-0133
 title: Details field help popovers and deployment pod-ring scale buttons (parity-matrix gap rows)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 4
 depends_on: []
@@ -28,6 +28,7 @@ sidebar). The human must waive both rows for CP3.6 or accept this task in CP4.
 
 ## Work log
 - 2026-11-22 qa-engineer: filed from CP3.6 verify (`docs/specs/CP3.6-verify.md`).
+- 2026-11-24 frontend-engineer: closed — superseded by T-0213 (help) / T-0184+T-0188 (ring scale).
 
 ## Review
 

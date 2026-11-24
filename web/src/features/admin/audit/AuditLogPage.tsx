@@ -147,14 +147,16 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
           />
         ))}
       </Table>
+      {/* Not a PF `Stack`: its `height: 100%` made this footer as tall as the page body, leaving a long blank scroll
+          below "End of audit log" (T-0205). A column `Flex` has no height and the same 16px gap. */}
       {entries.length > 0 && (
-        <Stack hasGutter className="pf-v6-u-mt-md">
+        <Flex direction={{ default: 'column' }} spaceItems={{ default: 'spaceItemsMd' }} className="pf-v6-u-mt-md">
           {isFetchNextPageError && (
-            <StackItem>
+            <FlexItem>
               <ErrorState error={error} title="Could not load more entries" onRetry={() => void fetchNextPage()} />
-            </StackItem>
+            </FlexItem>
           )}
-          <StackItem>
+          <FlexItem>
             <Flex alignItems={{ default: 'alignItemsCenter' }}>
               <FlexItem>
                 <Content component="small">
@@ -176,8 +178,8 @@ function AuditResults({ values, isFiltered, onClearFilters }: AuditResultsProps)
                 )}
               </FlexItem>
             </Flex>
-          </StackItem>
-        </Stack>
+          </FlexItem>
+        </Flex>
       )}
     </>
   );

@@ -30,7 +30,7 @@ describe('mock users API (contract §7.2)', () => {
       role: 'admin',
       isAdminViaConfiguration: true,
       isAdminByAssignment: false,
-      adminConfigurationSource: 'group fleetconsole-admins',
+      adminConfigurationSource: { kind: 'group', group: 'fleetconsole-admins' },
       grantCount: 3,
     });
     expect(users.find((u) => u.username === 'alice')).toMatchObject({ role: 'user', grantCount: 4 });

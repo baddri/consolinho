@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { Bullseye, Button, Split, SplitItem } from '@patternfly/react-core';
 import { RhUiCaretDownIcon, RhUiCaretUpIcon } from '@patternfly/react-icons';
 import { useDebouncedCallback } from 'use-debounce';
-import { useK8sList, PodModel, type HorizontalPodAutoscaler, type Pod } from '@/shared/k8s';
-import { labelSelectorString } from '../registry/columns';
+import {
+  useK8sList,
+  labelSelectorString,
+  PodModel,
+  type HorizontalPodAutoscaler,
+  type LabelSelector,
+  type Pod,
+} from '@/shared/k8s';
 import {
   hpaPodRingLabel,
   podRingLabel,
@@ -172,8 +178,8 @@ export interface PodRingProps {
   cluster: string;
   /** The Deployment / ReplicaSet; its `readyReplicas` and `replicas` give the label. */
   workload: ReplicatedWorkload & { metadata?: { namespace?: string } };
-  /** Its pod selector (`spec.selector.matchLabels`). */
-  selector: Record<string, string> | undefined;
+  /** Its pod selector (`spec.selector`, `matchExpressions` included); no pods query without one. */
+  selector: LabelSelector | undefined;
   /**
    * Adds OCP's scale arrows (Deployments, DEP-5). Clicks change the shown count at once ("Scaling to n") and send one
    * scale request 1 s after the last click. Without it the ring is read-only.

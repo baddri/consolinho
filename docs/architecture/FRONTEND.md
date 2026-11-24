@@ -141,6 +141,9 @@ with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (reg
 - Exception (CP4b, SRCH-5): Search result sections are **one-shot lists** (`k8sListAll`, no watch, `staleTime` 30 s,
   key `['k8s', cluster, 'search', modelKey, ns, labelSelector]`), at most 6 requests in flight through one shared
   `p-limit(6)` limiter — N live watches would hold N long-lived connections (HTTP/1.1 allows 6 per origin).
+- Cluster OpenAPI (CP4c, ADR-0038): `shared/k8s/openapi.ts` only. Index `['k8s', cluster, 'openapi']`, one document per
+  group-version `['k8s', cluster, 'openapi', gvPath]`, `staleTime: Infinity`; failures degrade to "no schema" silently.
+  Derived schemas are memoised per document, never cached under their own keys.
 - Mutations invalidate/update the relevant query keys; show PatternFly alerts for success/failure.
 - A 403 from the MutationGuard policy shows its `detail` ("Your access to cluster X is read-only").
 - All non-GET `/api` requests send `X-Console-Request: 1` (CSRF defence, see SECURITY.md).

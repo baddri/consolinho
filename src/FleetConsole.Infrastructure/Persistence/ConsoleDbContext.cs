@@ -179,6 +179,7 @@ public sealed class ConsoleDbContext : DbContext, IUnitOfWork, IDataProtectionKe
 
         // Single-value value objects → one column each; lengths from the Domain's constants.
         configurationBuilder.Properties<Username>().HaveConversion<UsernameConverter>().HaveMaxLength(Username.MaxLength);
+        configurationBuilder.Properties<AdminConfigurationSource>().HaveConversion<AdminConfigurationSourceConverter>();
         configurationBuilder.Properties<ClusterName>().HaveConversion<ClusterNameConverter>().HaveMaxLength(ClusterName.MaxLength);
         configurationBuilder.Properties<CredentialName>().HaveConversion<CredentialNameConverter>().HaveMaxLength(CredentialName.MaxLength);
         configurationBuilder.Properties<TokenFingerprint>().HaveConversion<TokenFingerprintConverter>().HaveMaxLength(TokenFingerprint.Length);

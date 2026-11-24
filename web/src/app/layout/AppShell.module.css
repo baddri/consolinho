@@ -1,0 +1,13 @@
+/*
+ * Fixed top, scrolling body (UX.md §2, OCP `app-contents.tsx`): the shell's two main sections.
+ * OCP `.pf-v6-c-page__main-section--no-gap` (`public/style/_overrides.scss`): set `gap` itself, not PF's variable,
+ * so it doesn't cascade to the pages' own sections.
+ */
+.noGap {
+  gap: 0;
+}
+
+/* OCP `#content-scrollable { overflow: auto }` (`public/style/_layout.scss`): the only scroller in the main area. */
+.scrollable {
+  overflow: auto;
+}

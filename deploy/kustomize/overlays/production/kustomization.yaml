@@ -1,7 +1,8 @@
 # Production overlay (ADR-0030, K8S-7). Copy this directory, replace every REPLACE_ME / example.com placeholder,
 # then create the Secrets consolinho-db, consolinho-oauth, consolinho-dp-cert, the ConfigMap consolinho-ca-bundle
 # (see secrets.example.yaml) and the OAuthClient `consolinho` as described in the runbook. Nothing here is derived
-# from `oc`. Postgres is external (DB-4); there are no build objects.
+# from `oc`. Postgres is external (DB-4); there are no build objects. Scaling (HPA 3-6) and the PDB come from
+# base (ADR-0030 Amendment 2026-11-24); don't patch spec.replicas here.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -20,22 +21,12 @@ labels:
 
 resources:
   - ../../base
-  - pdb.yaml
 
 # Image by tag or digest (use `digest: sha256:...` instead of newTag to pin a digest).
 images:
   - name: consolinho
     newName: registry.example.com/consolinho/consolinho
     newTag: REPLACE_ME
-
-patches:
-  - target:
-      kind: Deployment
-      name: consolinho
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
 
 configMapGenerator:
   - name: consolinho-config

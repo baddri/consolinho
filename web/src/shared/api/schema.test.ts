@@ -3,7 +3,10 @@ import { server } from '@/test/server';
 import { apiClient } from './client';
 import type * as Gen from './schema.gen';
 import type { paths, schemas } from './schema';
-import type { AuditEntry, ConnectionTestSummary, Credential, ProblemDetails, UserListItem } from './types';
+import type {
+  AdminConfigurationSource,
+  AuditEntry,
+  ConnectionTestSummary, Credential, ProblemDetails, UserListItem } from './types';
 
 const CREDENTIAL_ID = '3f6c1e1a-5b7d-4f43-9a51-2c0d8f1e7a90';
 const GRANT_ID = '9b2d4c7e-1a3f-4e5b-8c6d-0f1e2a3b4c5d';
@@ -16,7 +19,12 @@ describe('generated API types (ADR-0016, QG-4)', () => {
 
   it('carries the contract amendments and the shapes the UI relies on', () => {
     expectTypeOf<UserListItem['version']>().toEqualTypeOf<number>();
-    expectTypeOf<UserListItem['adminConfigurationSource']>().toEqualTypeOf<string | null>();
+    // POL-4: a structured, nullable source the UI switches on (no text parsing).
+    expectTypeOf<UserListItem['adminConfigurationSource']>().toEqualTypeOf<AdminConfigurationSource | null>();
+    expectTypeOf<AdminConfigurationSource>().toEqualTypeOf<{
+      kind: 'userList' | 'group';
+      group: string | null;
+    }>();
     expectTypeOf<UserListItem['isAdminByAssignment']>().toEqualTypeOf<boolean>();
     expectTypeOf<schemas['ClusterListItem']['version']>().toEqualTypeOf<number>();
     expectTypeOf<Credential['expiryWarningDays']>().toEqualTypeOf<number>();

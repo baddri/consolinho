@@ -73,7 +73,7 @@ describe('pod details (UI-4)', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { name: CRASHING_POD, level: 1 },
+          { name: `Pod ${CRASHING_POD}`, level: 1 },
           { timeout: COLD_START_TIMEOUT_MS },
         ),
       ).toBeInTheDocument();
@@ -99,7 +99,7 @@ describe('pod details (UI-4)', () => {
       expect(screen.getByText('worker-1')).toBeInTheDocument();
       expect(screen.getByText('10.128.3.7')).toBeInTheDocument();
       // Header status badge from the descriptor (OCP `ResourceStatus`: a read PF badge).
-      const heading = screen.getByRole('heading', { name: CRASHING_POD, level: 1 });
+      const heading = screen.getByRole('heading', { name: `Pod ${CRASHING_POD}`, level: 1 });
       expect(
         heading.closest('.pf-v6-c-page__main-section')?.querySelector('.pf-v6-c-badge.pf-m-read'),
       ).toHaveTextContent('CrashLoopBackOff');
@@ -112,7 +112,8 @@ describe('pod details (UI-4)', () => {
       ).toEqual([
         'Name',
         'Namespace',
-        'Labels',
+        // The admin may patch the pod, so the Labels term carries OCP's inline "Edit".
+        'LabelsEdit',
         'Node selector',
         'Tolerations',
         'Annotations',

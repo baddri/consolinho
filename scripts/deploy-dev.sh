@@ -312,9 +312,14 @@ ok "Deployment $APP rolled out"
 
 # --- summary (DEV-7, SMK-1) ------------------------------------------------------------------------------------
 ROUTE_HOST="$(oc get route "$APP" -n "$NS" -o 'jsonpath={.spec.host}' 2>/dev/null || true)"
+# The HPA (ADR-0030 Amendment 2026-11-24) owns the replica count; current/desired may lag the rollout briefly.
+HPA_REPLICAS="$(oc get hpa "$APP" -n "$NS" \
+  -o 'jsonpath={.status.currentReplicas}/{.status.desiredReplicas} current/desired (min {.spec.minReplicas}, max {.spec.maxReplicas})' \
+  2>/dev/null || true)"
 cat <<EOF
 
 Console:         https://${ROUTE_HOST:-$HOST}
+Replicas (HPA):  ${HPA_REPLICAS:-unknown}
 Bootstrap admin: $ADMIN
 
 Smoke test (SMK-1) — register this cluster as a managed cluster:

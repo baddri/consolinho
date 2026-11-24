@@ -162,7 +162,7 @@ public sealed class UserTests
         user.ClearDomainEvents();
         var lastLogin = user.LastLoginAt;
 
-        var result = user.RecordLogin("New", ["new"], "user list", provisioned: false, Now.AddHours(1));
+        var result = user.RecordLogin("New", ["new"], AdminConfigurationSource.UserList, provisioned: false, Now.AddHours(1));
 
         result.IsFailure.ShouldBeTrue();
         result.Error.Code.ShouldBe("Users.Deactivated");
@@ -177,11 +177,11 @@ public sealed class UserTests
     {
         var user = RegularUser();
 
-        user.RecordLogin(null, ["fleetconsole-admins"], "group fleetconsole-admins", provisioned: false, Now);
+        user.RecordLogin(null, ["fleetconsole-admins"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: false, Now);
 
         user.Role.ShouldBe(UserRole.Admin);
         user.IsAdminByAssignment.ShouldBeFalse();
-        user.AdminConfigurationSource.ShouldBe("group fleetconsole-admins");
+        user.AdminConfigurationSource.ShouldBe(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         user.DomainEvents.Count.ShouldBe(2);
         user.DomainEvents.First().ShouldBeOfType<UserLoggedIn>();
         user.DomainEvents.Last().ShouldBe(new UserRoleChanged(
@@ -191,7 +191,7 @@ public sealed class UserTests
     [Fact]
     public void RecordLogin_ConfigurationSourceRemoved_DemotesConfigOnlyAdmin_ReportingFormerSource()
     {
-        var user = ConfigAdmin("group fleetconsole-admins");
+        var user = ConfigAdmin(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
 
         user.RecordLogin(null, [], null, provisioned: false, Now.AddDays(1));
 
@@ -206,7 +206,7 @@ public sealed class UserTests
     {
         // ADR-0009: an admin who was also promoted explicitly keeps the role when leaving the configured admin group.
         var user = AdminByAssignment();
-        user.RecordLogin(null, ["fleetconsole-admins"], "group fleetconsole-admins", provisioned: false, Now);
+        user.RecordLogin(null, ["fleetconsole-admins"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: false, Now);
         user.ClearDomainEvents();
 
         user.RecordLogin(null, [], null, provisioned: false, Now.AddDays(1));
@@ -220,11 +220,11 @@ public sealed class UserTests
     [Fact]
     public void RecordLogin_ConfigurationSourceChangesButRoleDoesNot_RaisesNoRoleEvent()
     {
-        var user = ConfigAdmin("group a");
+        var user = ConfigAdmin(AdminConfigurationSource.ForGroup("a"));
 
-        user.RecordLogin(null, [], "user list", provisioned: false, Now.AddDays(1));
+        user.RecordLogin(null, [], AdminConfigurationSource.UserList, provisioned: false, Now.AddDays(1));
 
-        user.AdminConfigurationSource.ShouldBe("user list");
+        user.AdminConfigurationSource.ShouldBe(AdminConfigurationSource.UserList);
         user.DomainEvents.ShouldHaveSingleItem().ShouldBeOfType<UserLoggedIn>();
     }
 
@@ -296,11 +296,11 @@ public sealed class UserTests
     [Fact]
     public void ChangeRole_DemoteConfigurationAdmin_IsRefused()
     {
-        var user = ConfigAdmin("group fleetconsole-admins");
+        var user = ConfigAdmin(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
 
         var result = user.ChangeRole(UserRole.User, OtherAdmin, activeWritableAdminCount: 5);
 
-        result.Error.ShouldBe(UserErrors.AdminViaConfiguration("group fleetconsole-admins"));
+        result.Error.ShouldBe(UserErrors.AdminViaConfiguration(AdminConfigurationSource.ForGroup("fleetconsole-admins")));
         user.Role.ShouldBe(UserRole.Admin);
         user.DomainEvents.ShouldBeEmpty();
     }
@@ -309,10 +309,10 @@ public sealed class UserTests
     public void ChangeRole_DemoteManualAndConfigAdmin_IsRefusedWhileConfigSourceSet()
     {
         var user = AdminByAssignment();
-        user.RecordLogin(null, [], "user list", provisioned: false, Now);
+        user.RecordLogin(null, [], AdminConfigurationSource.UserList, provisioned: false, Now);
         user.ClearDomainEvents();
 
-        user.ChangeRole(UserRole.User, OtherAdmin, 5).Error.ShouldBe(UserErrors.AdminViaConfiguration("user list"));
+        user.ChangeRole(UserRole.User, OtherAdmin, 5).Error.ShouldBe(UserErrors.AdminViaConfiguration(AdminConfigurationSource.UserList));
         user.IsAdminByAssignment.ShouldBeTrue();
     }
 
@@ -334,7 +334,7 @@ public sealed class UserTests
     public void ChangeRole_PromoteConfigurationOnlyAdmin_RecordsAssignment_WithSameRoleEvent()
     {
         // ADR-0017: promote records the assignment even though the effective role is already Admin.
-        var user = ConfigAdmin("group fleetconsole-admins");
+        var user = ConfigAdmin(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
 
         user.ChangeRole(UserRole.Admin, OtherAdmin, activeWritableAdminCount: 1).IsSuccess.ShouldBeTrue();
 
@@ -347,7 +347,7 @@ public sealed class UserTests
     [Fact]
     public void ChangeRole_PromotedConfigurationAdmin_StaysAdminAfterLeavingConfigGroup()
     {
-        var user = ConfigAdmin("group fleetconsole-admins");
+        var user = ConfigAdmin(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         user.ChangeRole(UserRole.Admin, OtherAdmin, activeWritableAdminCount: 1);
         user.ClearDomainEvents();
 
@@ -359,13 +359,13 @@ public sealed class UserTests
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("user list")]
-    public void ChangeRole_PromoteAdminByAssignmentAgain_SucceedsWithoutEvent(string? configurationSource)
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ChangeRole_PromoteAdminByAssignmentAgain_SucceedsWithoutEvent(bool viaUserList)
     {
         // Covers a manual admin and a manual+configuration admin.
         var user = AdminByAssignment();
-        user.RecordLogin(null, [], configurationSource, provisioned: false, Now);
+        user.RecordLogin(null, [], viaUserList ? AdminConfigurationSource.UserList : null, provisioned: false, Now);
         user.ClearDomainEvents();
 
         user.ChangeRole(UserRole.Admin, OtherAdmin, activeWritableAdminCount: 1).IsSuccess.ShouldBeTrue();
@@ -490,7 +490,7 @@ public sealed class UserTests
     [Fact]
     public void Deactivate_ConfigurationAdmin_CountsForLastAdmin()
     {
-        var user = ConfigAdmin("user list");
+        var user = ConfigAdmin(AdminConfigurationSource.UserList);
 
         user.Deactivate(OtherAdmin, activeWritableAdminCount: 1).Error.ShouldBe(UserErrors.LastAdmin("alice"));
         user.Deactivate(OtherAdmin, activeWritableAdminCount: 2).IsSuccess.ShouldBeTrue();
@@ -554,7 +554,7 @@ public sealed class UserTests
     {
         RegularUser().IsActiveWritableAdmin.ShouldBeFalse();
         AdminByAssignment().IsActiveWritableAdmin.ShouldBeTrue();
-        ConfigAdmin("user list").IsActiveWritableAdmin.ShouldBeTrue();
+        ConfigAdmin(AdminConfigurationSource.UserList).IsActiveWritableAdmin.ShouldBeTrue();
         User.PreCreate(Name("x"), UserRole.Admin, isReadOnly: true, "bob", Now).IsActiveWritableAdmin.ShouldBeFalse();
 
         var deactivated = AdminByAssignment();
@@ -588,7 +588,7 @@ public sealed class UserTests
         return user;
     }
 
-    private static User ConfigAdmin(string source)
+    private static User ConfigAdmin(AdminConfigurationSource source)
     {
         var user = RegularUser();
         user.RecordLogin(null, [], source, provisioned: false, Now);

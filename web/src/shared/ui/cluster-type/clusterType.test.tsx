@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { CubesIcon, OpenshiftIcon } from '@patternfly/react-icons';
 import { ClusterTypeIcon, ClusterTypeLabel, clusterTypeText } from '@/shared/ui';
 
 describe('cluster type pieces (UX.md §2a)', () => {
@@ -31,5 +32,15 @@ describe('cluster type pieces (UX.md §2a)', () => {
     expect(ocpIcon).toHaveAttribute('aria-hidden', 'true');
     expect(k8sIcon).toHaveAttribute('aria-hidden', 'true');
     expect(ocpIcon?.innerHTML).not.toBe(k8sIcon?.innerHTML);
+  });
+
+  it('uses PatternFly OpenshiftIcon for OpenShift and CubesIcon for Kubernetes (T-0203)', () => {
+    const { container: openShift } = render(<ClusterTypeIcon distribution="openShift" />);
+    const { container: kubernetes } = render(<ClusterTypeIcon distribution="kubernetes" />);
+    const { container: expectedOcp } = render(<OpenshiftIcon aria-hidden />);
+    const { container: expectedK8s } = render(<CubesIcon aria-hidden />);
+
+    expect(openShift.innerHTML).toBe(expectedOcp.innerHTML);
+    expect(kubernetes.innerHTML).toBe(expectedK8s.innerHTML);
   });
 });

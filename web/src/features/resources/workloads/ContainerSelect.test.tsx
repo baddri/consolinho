@@ -66,9 +66,9 @@ describe('ContainerSelect', () => {
       within(containers)
         .getAllByRole('option')
         .map((option) => option.textContent),
-    ).toEqual(['Cweb', 'Cproxy']);
+    ).toEqual(['Container Cweb', 'Container Cproxy']);
     const init = screen.getByRole('listbox', { name: 'Init containers' });
-    expect(within(init).getByRole('option')).toHaveTextContent(/^Cmigrate$/);
+    expect(within(init).getByRole('option')).toHaveTextContent(/^Container Cmigrate$/);
   });
 
   it('disables the options isOptionDisabled names', async () => {

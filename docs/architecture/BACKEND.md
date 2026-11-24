@@ -250,6 +250,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
   List-valued value objects (e.g. `InspectNamespaces`) are a Postgres array column: a `ValueConverter` to `string[]`
   that re-validates through the VO's `Create`, **plus** an explicit `ValueComparer` (`Converters/ValueObjectConverters.cs`) —
   without it EF picks an array comparer that cannot snapshot the VO.
+  Small structured VOs may instead keep a single text column through a converter that owns the text format, e.g.
+  `AdminConfigurationSource` ↔ `"user list"` / `"group <name>"` (POL-4); unknown stored text throws (corrupt data).
 - Migrations live in `Infrastructure/Persistence/Migrations` (treated as generated code by a nested `.editorconfig`);
   applied on startup in Development by `DevelopmentDatabaseMigrator`; in production by the image's `migrate` mode run
   as an init container (ADR-0027). Both use the same migrator; migrations are forward-only.
@@ -281,8 +283,8 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - One image (ADR-0026) serves the API and the built SPA from `wwwroot` (ADR-0028): anonymous SPA fallback for
   extension-less `GET`/`HEAD` paths outside `/api`; `index.html` `no-cache`, `/assets/*` `immutable`.
 - Modes: no argument = web host; `migrate` = apply migrations and exit (ADR-0027, needs only the connection string).
-- Probes in every environment: `/alive` (liveness, no dependencies), `/health` (readiness, includes Postgres). Status
-  word only.
+- Probes in every environment: `/alive` (liveness, no dependencies), `/health` (readiness, includes Postgres and
+  `keyring` — Unhealthy until the Data Protection key ring was loaded under its advisory lock). Status word only.
 - Behind the edge Route the app sees HTTP and trusts no forwarded headers; every absolute URL comes from
   `Console:PublicOrigin`, cookies are `Secure` by policy outside Development.
 - Production configuration is validated on start (`ValidateOnStart`, messages name keys, never values); `Program`
@@ -290,6 +292,11 @@ endpoint integration test (`LoginAsAsync` + `TestData`), then `npm run gen:api`.
 - Logs: JSON console outside Development; the request-line log category is capped at Warning in code.
 - Manifests and the configuration contract (env keys, Secret/ConfigMap names): ADR-0030, `deploy/kustomize/`;
   operations: `docs/ops/RUNBOOK.md`.
+- **Always ≥ 3 replicas** behind an HPA (ADR-0030 amendment 2026-11-24). Nothing that affects correctness may live in
+  one pod's memory: state goes to Postgres, caches need a cross-replica invalidation path (ADR-0035 backplane),
+  one-time initialisation (migrations, the first Data Protection key) runs under a Postgres advisory lock, and a pod
+  only turns ready once it can serve every request. Per-pod caches of *derived, value-compared* data (the cluster
+  invoker pool) are fine.
 
 ## Testing
 

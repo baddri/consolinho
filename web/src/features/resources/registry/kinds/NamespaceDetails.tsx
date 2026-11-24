@@ -18,7 +18,7 @@ export function NamespaceDetails({ obj }: NamespaceDetailsProps) {
   const requester = annotations[PROJECT_ANNOTATIONS.requester];
   return (
     <>
-      <DetailsItem label="Status">{obj.status?.phase ?? 'Unknown'}</DetailsItem>
+      <DetailsItem label="Status" path="status.phase">{obj.status?.phase ?? 'Unknown'}</DetailsItem>
       <DetailsItem label="Display name">{annotations[PROJECT_ANNOTATIONS.displayName] ?? '—'}</DetailsItem>
       <DetailsItem label="Description">{annotations[PROJECT_ANNOTATIONS.description] ?? '—'}</DetailsItem>
       {requester !== undefined && <DetailsItem label="Requester">{requester}</DetailsItem>}

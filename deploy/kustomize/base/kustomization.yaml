@@ -15,6 +15,8 @@ labels:
 resources:
   - serviceaccount.yaml
   - deployment.yaml
+  - hpa.yaml
+  - pdb.yaml
   - service.yaml
   - route.yaml
   - networkpolicy-ingress.yaml

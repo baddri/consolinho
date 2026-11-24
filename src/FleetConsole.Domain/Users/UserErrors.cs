@@ -41,12 +41,13 @@ public static class UserErrors
     /// Demoting a user who is admin through configuration (USR-6); only changing the configuration removes that role.
     /// HTTP 409.
     /// </summary>
-    /// <param name="source">The configuration source as stored on the user, e.g. <c>"group fleetconsole-admins"</c>.</param>
+    /// <param name="source">The user's configuration source; its text form (e.g. <c>"group fleetconsole-admins"</c>)
+    /// appears in the message.</param>
     /// <returns>A <c>Users.AdminViaConfiguration</c> error.</returns>
-    public static Error AdminViaConfiguration(string source) =>
+    public static Error AdminViaConfiguration(AdminConfigurationSource source) =>
         Error.Conflict(
             "Users.AdminViaConfiguration",
-            $"Admin granted by configuration ({source}). Change the configuration to remove.");
+            $"Admin granted by configuration ({Guard.NotNull(source)}). Change the configuration to remove.");
 
     /// <summary>
     /// A deactivated user tried to log in (AUTH-7). Used by the login flow only, which turns it into a "login denied"

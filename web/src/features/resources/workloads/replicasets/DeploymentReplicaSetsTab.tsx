@@ -50,7 +50,7 @@ export function DeploymentReplicaSetsTab() {
     cluster,
     scope: 'ns',
     namespace: deployment.metadata.namespace,
-    fixedSelector: deployment.spec?.selector.matchLabels ?? {},
+    fixedSelector: deployment.spec?.selector ?? {},
     rowFilter: ownedByDeployment,
   });
   return dataView;

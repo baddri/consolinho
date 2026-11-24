@@ -27,13 +27,15 @@ export function cronJobStatus(cronJob: CronJob): ResourceStatus | undefined {
 export function CronJobSummaryExtra({ obj }: { obj: CronJobResource }) {
   return (
     <>
-      <DetailsItem label="Schedule">{obj.spec?.schedule ?? '-'}</DetailsItem>
-      <DetailsItem label="Suspend">{booleanText(obj.spec?.suspend)}</DetailsItem>
-      <DetailsItem label="Concurrency policy">{obj.spec?.concurrencyPolicy ?? '-'}</DetailsItem>
-      <DetailsItem label="Starting deadline seconds">
+      <DetailsItem label="Schedule" path="spec.schedule">{obj.spec?.schedule ?? '-'}</DetailsItem>
+      <DetailsItem label="Suspend" path="spec.suspend">{booleanText(obj.spec?.suspend)}</DetailsItem>
+      <DetailsItem label="Concurrency policy" path="spec.concurrencyPolicy">
+        {obj.spec?.concurrencyPolicy ?? '-'}
+      </DetailsItem>
+      <DetailsItem label="Starting deadline seconds" path="spec.startingDeadlineSeconds">
         {deadlineText(obj.spec?.startingDeadlineSeconds)}
       </DetailsItem>
-      <DetailsItem label="Last schedule time">
+      <DetailsItem label="Last schedule time" path="status.lastScheduleTime">
         <Timestamp value={obj.status?.lastScheduleTime} />
       </DetailsItem>
     </>

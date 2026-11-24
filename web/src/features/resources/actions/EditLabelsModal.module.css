@@ -9,3 +9,29 @@
   min-height: 120px;
   align-content: flex-start;
 }
+
+/* OCP `.co-tags-input input` (_label.scss L47-52): a bare input with no box of its own (transparent, no outline) and
+   the browser-default 1px 2px padding instead of PF's control padding, so no second box shows inside the outer one. */
+.tagsInput :global(.pf-v6-c-text-input-group__text-input) {
+  --pf-v6-c-text-input-group__text-input--PaddingBlockStart: 1px;
+  --pf-v6-c-text-input-group__text-input--PaddingBlockEnd: 1px;
+  --pf-v6-c-text-input-group__text-input--PaddingInlineStart: 2px;
+  outline: none;
+}
+
+/* Inline-end padding only while valid: in the error state PF reserves room there for its status icon. */
+.tagsInput:not(:global(.pf-m-error)) :global(.pf-v6-c-text-input-group__text-input) {
+  --pf-v6-c-text-input-group__text-input--PaddingInlineEnd: 2px;
+}
+
+/* OCP `.co-tags-input input.invalid-tag` (_label.scss L54-56): an invalid entry is typed in danger colour. */
+.tagsInput:global(.pf-m-error) {
+  --pf-v6-c-text-input-group__text-input--Color: var(--pf-t--global--text--color--status--danger--default);
+}
+
+/* Deviation from OCP (which shows no focus cue here): with the inner outline gone, the outer box takes PF's hover
+   border while focused so keyboard users still see where focus is. The m-hover variable resolves to the danger hover
+   colour in the error state, so an invalid entry keeps its red border. */
+.tagsInput:focus-within {
+  --pf-v6-c-text-input-group--BorderColor: var(--pf-v6-c-text-input-group--m-hover--BorderColor);
+}

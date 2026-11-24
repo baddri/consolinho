@@ -178,6 +178,94 @@ describe('ReplicationControllers (T-0192)', () => {
   });
 });
 
+/** frontend-2 with its rollout in `phase`, stored in dev-1 so the details page and the PATCH handler see it. */
+function frontendRcInPhase(phase: string): ReplicationControllerResource {
+  const rc = stored(ReplicationControllerModel, 'frontend-2') as ReplicationControllerResource;
+  const updated = {
+    ...rc,
+    metadata: {
+      ...rc.metadata,
+      annotations: { ...rc.metadata.annotations, 'openshift.io/deployment.phase': phase },
+    },
+  };
+  mockK8s.upsert('dev-1', updated);
+  return updated;
+}
+
+describe('Cancel rollout (T-0219)', () => {
+  it(
+    'a Running rollout offers Cancel rollout after Edit Pod count; confirming sends the two-annotation patch',
+    async () => {
+      frontendRcInPhase('Running');
+      const patches = recordPatches();
+      const { user } = renderApp(`${NS}/replicationcontrollers/frontend-2`);
+
+      const item = await openEnabledItem(user, 'Cancel rollout');
+      const titles = screen.getAllByRole('menuitem').map((menuItem) => menuItem.textContent);
+      expect(titles.indexOf('Cancel rollout')).toBe(titles.indexOf('Edit Pod count') + 1);
+      await user.click(item);
+
+      const dialog = await screen.findByRole('dialog', { name: /Cancel rollout/ });
+      expect(dialog).toHaveTextContent('ReplicationController frontend-2 in shop on Development 1');
+      expect(dialog).toHaveTextContent('Are you sure you want to cancel this rollout?');
+      expect(within(dialog).getByRole('button', { name: "No, don't cancel" })).toBeInTheDocument();
+      await user.click(within(dialog).getByRole('button', { name: 'Yes, cancel' }));
+
+      expect(await screen.findByText('Rollout of frontend-2 cancelled on Development 1')).toBeInTheDocument();
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(patches).toEqual([
+        {
+          path: expect.stringMatching(/\/namespaces\/shop\/replicationcontrollers\/frontend-2$/) as unknown,
+          body: [
+            { op: 'add', path: '/metadata/annotations/openshift.io~1deployment.cancelled', value: 'true' },
+            {
+              op: 'add',
+              path: '/metadata/annotations/openshift.io~1deployment.status-reason',
+              value: 'cancelled by the user',
+            },
+          ],
+        },
+      ]);
+      expect(stored(ReplicationControllerModel, 'frontend-2').metadata.annotations).toMatchObject({
+        'openshift.io/deployment.cancelled': 'true',
+        'openshift.io/deployment.status-reason': 'cancelled by the user',
+      });
+    },
+    COLD_START_TEST_TIMEOUT_MS,
+  );
+
+  it('a Complete rollout has no Cancel rollout item', async () => {
+    const { user } = renderWithProviders(
+      <ResourceActionsMenu
+        cluster="dev-1"
+        descriptor={replicationControllerDescriptor}
+        obj={stored(ReplicationControllerModel, 'frontend-2')}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    expect(await screen.findByRole('menuitem', { name: 'Edit Pod count' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Cancel rollout' })).not.toBeInTheDocument();
+  });
+
+  it('ACT-4: a read-only grant disables Cancel rollout with the reason', async () => {
+    setMockUser('alice');
+    const { user } = renderWithProviders(
+      <ResourceActionsMenu
+        cluster="prod-eu-1"
+        descriptor={replicationControllerDescriptor}
+        obj={frontendRcInPhase('Pending')}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Actions' }));
+    const item = screen.getByRole('menuitem', { name: 'Cancel rollout' });
+    await waitFor(() => expect(item).toHaveAttribute('aria-disabled', 'true'));
+    await user.hover(item);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Your access to prod-eu-1 is read-only.');
+  });
+});
+
 describe('standalone ReplicaSets (T-0192)', () => {
   it(
     'WL-5: Edit Pod count on legacy-rs PATCHes replicasets/legacy-rs/scale',

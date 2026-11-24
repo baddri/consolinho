@@ -95,7 +95,9 @@ export function useResourceActions({
       itemKey: 'edit',
       title: `Edit ${model.kind}`,
       onClick: () => {
-        if (!updateAccess.isAriaDisabled) void navigate(resourcePath(cluster, model, { namespace, name, tab: 'yaml' }));
+        // FORM-4: kinds with an edit form open it (OCP Edit Deployment), the rest their YAML tab.
+        const target = descriptor.hasEditForm ? { page: 'form' as const } : { tab: 'yaml' as const };
+        if (!updateAccess.isAriaDisabled) void navigate(resourcePath(cluster, model, { namespace, name, ...target }));
       },
       ...updateAccess,
     },

@@ -51,7 +51,8 @@ function fallbackText(error: ApiError, cluster: string, noun: string): string {
 }
 
 /**
- * OCP-style project selector (namespace bar, plain-text toggle) for namespaced list and details pages (NS-1..4).
+ * OCP-style project selector (namespace bar; a default `MenuToggle` that `ProjectBar.module.css` flattens like OCP
+ * `NamespaceMenuToggle`) for namespaced list and details pages (NS-1..4).
  * Controlled and navigation-free: the caller passes the selected project and maps `onSelect` to a URL. Same
  * structure as {@link ClusterSwitcher}: PF `MenuContainer` + `Menu` (role `listbox`) with a search box focused on open
  * (Enter picks the first match), an "All projects" item, the live list from {@link useProjectOptions} (fetched while
@@ -190,7 +191,6 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
       toggle={
         <MenuToggle
           ref={toggleRef}
-          variant="plainText"
           onClick={() => changeOpen(!isOpen)}
           isExpanded={isOpen}
         >

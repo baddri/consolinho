@@ -14,20 +14,20 @@ import { useController, useForm, type Control } from 'react-hook-form';
 import { z } from 'zod';
 import { DeploymentModel, k8sPatch, type Deployment, type K8sResource } from '@/shared/k8s';
 import { fieldA11y, FieldHelperText } from '@/shared/forms';
+import {
+  DEFAULT_BOUND,
+  INT_OR_PERCENT_MESSAGE,
+  isValidBound,
+  toDeploymentStrategy,
+  type DeploymentStrategy,
+  type DeploymentStrategyType,
+} from './deploymentStrategy';
 import { ResourceMutationModal } from '../../actions/ResourceMutationModal';
 import { useResourceMutation, type MutationTarget } from '../../actions/useResourceMutation';
 
-/** OCP's default (and placeholder) for both rolling-update bounds. */
-const DEFAULT_BOUND = '25%';
 const RADIO_NAME = 'update-strategy-type';
 const ROLLING_ID = 'update-strategy-rolling-update';
 const RECREATE_ID = 'update-strategy-recreate';
-/** A whole number of pods or a whole percentage; blank means OCP's 25% default. */
-const INT_OR_PERCENT = /^\d+%?$/;
-const INT_OR_PERCENT_MESSAGE = 'Enter a whole number of pods or a percentage, e.g. 25%.';
-
-type StrategyType = 'RollingUpdate' | 'Recreate';
-
 const boundSchema = z.string().trim();
 const strategySchema = z
   .object({ type: z.enum(['RollingUpdate', 'Recreate']), maxUnavailable: boundSchema, maxSurge: boundSchema })
@@ -36,29 +36,13 @@ const strategySchema = z
     if (values.type !== 'RollingUpdate') return;
     for (const field of ['maxUnavailable', 'maxSurge'] as const) {
       const text = values[field];
-      if (text !== '' && !INT_OR_PERCENT.test(text)) {
+      if (!isValidBound(text)) {
         ctx.addIssue({ code: 'custom', path: [field], message: INT_OR_PERCENT_MESSAGE });
       }
     }
   });
 
 type StrategyFormValues = z.infer<typeof strategySchema>;
-type DeploymentStrategy = NonNullable<NonNullable<Deployment['spec']>['strategy']>;
-type IntOrString = NonNullable<NonNullable<DeploymentStrategy['rollingUpdate']>['maxSurge']>;
-
-/** A validated bound as the API wants it: `25%` stays a string, `1` becomes a number; blank is OCP's 25%. */
-function toIntOrPercent(text: string): IntOrString {
-  const value = text === '' ? DEFAULT_BOUND : text;
-  return value.endsWith('%') ? value : Number(value);
-}
-
-/** The `spec.strategy` Save writes: Recreate carries no `rollingUpdate` (the API rejects it there). */
-export function toDeploymentStrategy({ type, maxUnavailable, maxSurge }: StrategyFormValues): DeploymentStrategy {
-  return type === 'Recreate'
-    ? { type }
-    : { type, rollingUpdate: { maxUnavailable: toIntOrPercent(maxUnavailable), maxSurge: toIntOrPercent(maxSurge) } };
-}
-
 /** The form's starting values from `spec.strategy`; missing bounds start at OCP's 25%. */
 function initialValues(deployment: Deployment): StrategyFormValues {
   const strategy = deployment.spec?.strategy;
@@ -153,7 +137,11 @@ export interface ConfigureUpdateStrategyModalProps {
  * `spec.strategy`. Invalid bounds are field errors that disable Save (OCP itself does not validate). The checked radio
  * has focus on open, as OCP's `autoFocus`. Closes on success; a failure stays inline.
  */
-export function ConfigureUpdateStrategyModal({ cluster, deployment, onClose }: ConfigureUpdateStrategyModalProps) {
+export function ConfigureUpdateStrategyModal({
+  cluster,
+  deployment,
+  onClose,
+}: ConfigureUpdateStrategyModalProps) {
   const defaultValues = initialValues(deployment);
   const { control, handleSubmit, formState, trigger } = useForm<StrategyFormValues>({
     resolver: zodResolver(strategySchema),
@@ -167,7 +155,7 @@ export function ConfigureUpdateStrategyModal({ cluster, deployment, onClose }: C
   const replicas = deployment.spec?.replicas ?? 1;
   const isRecreate = typeField.value === 'Recreate';
 
-  const setType = (type: StrategyType) => {
+  const setType = (type: DeploymentStrategyType) => {
     typeField.onChange(type);
     // The bounds' errors depend on the type: re-check them so Recreate clears and RollingUpdate restores them.
     void trigger(['maxUnavailable', 'maxSurge']);

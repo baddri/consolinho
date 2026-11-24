@@ -47,11 +47,11 @@ public sealed class User : AggregateRoot<UserId>
     public bool IsAdminByAssignment { get; private set; }
 
     /// <summary>
-    /// Why configuration makes this user an admin, as computed at the last login: <c>"user list"</c>
-    /// (<c>Auth:BootstrapAdminUsers</c>), <c>"group &lt;name&gt;"</c> (first matching <c>Auth:AdminGroups</c> entry),
-    /// or <see langword="null"/>. Shown in the UI as "Admin via configuration" (USR-6).
+    /// Why configuration makes this user an admin, as computed at the last login: the bootstrap user list
+    /// (<c>Auth:BootstrapAdminUsers</c>), a group (first matching <c>Auth:AdminGroups</c> entry), or
+    /// <see langword="null"/>. Shown in the UI as "Admin via configuration" (USR-6).
     /// </summary>
-    public string? AdminConfigurationSource { get; private set; }
+    public AdminConfigurationSource? AdminConfigurationSource { get; private set; }
 
     /// <summary>The effective role: Admin when assigned by an admin <em>or</em> granted by configuration. Not persisted.</summary>
     public UserRole Role => IsAdminByAssignment || AdminConfigurationSource is not null ? UserRole.Admin : UserRole.User;
@@ -162,7 +162,7 @@ public sealed class User : AggregateRoot<UserId>
     public Result RecordLogin(
         string? displayName,
         IReadOnlyList<string> groups,
-        string? adminConfigurationSource,
+        AdminConfigurationSource? adminConfigurationSource,
         bool provisioned,
         DateTimeOffset now)
     {
@@ -179,7 +179,7 @@ public sealed class User : AggregateRoot<UserId>
 
         DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName;
         Groups = [.. groups];
-        AdminConfigurationSource = string.IsNullOrWhiteSpace(adminConfigurationSource) ? null : adminConfigurationSource;
+        AdminConfigurationSource = adminConfigurationSource;
         LastLoginAt = now;
 
         RaiseDomainEvent(new UserLoggedIn(Id, Username.Value, Groups, provisioned));
@@ -189,7 +189,7 @@ public sealed class User : AggregateRoot<UserId>
             // the new one when it promoted the user, the former one when its removal demoted them.
             RaiseDomainEvent(new UserRoleChanged(
                 Id, Username.Value, oldRole, Role, RoleChangeSource.Configuration,
-                AdminConfigurationSource ?? oldConfigurationSource));
+                (AdminConfigurationSource ?? oldConfigurationSource)?.ToString()));
         }
 
         return Result.Success();
@@ -260,7 +260,7 @@ public sealed class User : AggregateRoot<UserId>
         IsAdminByAssignment = role == UserRole.Admin;
         // The configuration source is non-null only when promoting a configuration admin: demote is refused while it is set.
         RaiseDomainEvent(new UserRoleChanged(
-            Id, Username.Value, oldRole, Role, RoleChangeSource.Manual, AdminConfigurationSource));
+            Id, Username.Value, oldRole, Role, RoleChangeSource.Manual, AdminConfigurationSource?.ToString()));
         return Result.Success();
     }
 

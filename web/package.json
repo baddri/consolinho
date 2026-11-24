@@ -36,6 +36,7 @@
     "@xterm/xterm": "6.0.0",
     "kubernetes-types": "1.30.0",
     "monaco-editor": "0.55.1",
+    "monaco-yaml": "5.5.1",
     "openapi-fetch": "0.17.0",
     "p-limit": "7.3.3",
     "react": "19.3.1",

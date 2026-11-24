@@ -14,6 +14,7 @@ import {
 import type { MockCredential } from '../fixtures';
 import { servesProjects } from './fixtures';
 import { forbiddenMessage, isAllowed, profileOf, rbacResource } from './rbac';
+import { openApiResponse } from './openapi';
 import { parseFieldSelector, parseLabelSelector, type ObjectPredicate } from './selectors';
 import { notFound, statusResponse, unknownResource } from './status';
 import {
@@ -30,7 +31,7 @@ import { MAX_WATCH_SECONDS, watchResponse } from './watch';
 /**
  * The mock Kubernetes API server behind the mock proxy (T-0070): discovery, list (paging, selectors), get, watch,
  * create, update (PUT with optimistic concurrency), JSON Patch (T-0174), delete, subresources (`subresources.ts`) and
- * SelfSubjectAccessReview, with RBAC from the grant's credential. Error bodies are Kubernetes `Status` objects, as the proxy passes them through (contract §4).
+ * SelfSubjectAccessReview and OpenAPI v3 (`openapi.ts`), with RBAC from the grant's credential. Error bodies are Kubernetes `Status` objects, as the proxy passes them through (contract §4).
  */
 
 /** A request that passed the proxy's checks. */
@@ -438,6 +439,9 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
     if (segments[0] === 'version') return versionInfo();
     if (segments[0] === 'api') return coreVersions();
     if (segments[0] === 'apis') return groupList(api.cluster);
+  }
+  if (segments[0] === 'openapi' && segments[1] === 'v3' && method === 'GET') {
+    return openApiResponse(api.credential, api.path, segments.slice(2));
   }
 
   let group: string;

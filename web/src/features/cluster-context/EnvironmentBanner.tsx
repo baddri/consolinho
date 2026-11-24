@@ -12,8 +12,8 @@ const BANDS: Partial<Record<AccessibleCluster['environment'], { color: 'red' | '
 /**
  * Coloured band under the masthead that keeps production (red) and staging (orange) clusters impossible to miss
  * (SW-10), e.g. "Production cluster prod-eu-1". Renders nothing outside `/c/:cluster`, for development clusters and
- * for clusters not in the user's list (the gate shows "not available" there). Passed to PF `Page` as `banner`, so it
- * is the first thing in the main card; styled like OCP's notifier banners (`kube-admin-notifier.tsx`: `Banner color`,
+ * for clusters not in the user's list (the gate shows "not available" there). The app shell renders it first in the
+ * main card's fixed top section, so it never scrolls away (OCP `GlobalNotifications` in `app-contents.tsx`); styled like OCP's notifier banners (`kube-admin-notifier.tsx`: `Banner color`,
  * centred paragraph).
  */
 export function EnvironmentBanner() {

@@ -32,6 +32,10 @@ spec:
               containerPort: 5432
               protocol: TCP
           env:
+            # RUNBOOK "Connections" rule: HPA maxReplicas (6) x Npgsql default pool (100) + 5 = 605 <= max_connections.
+            # The image default (100) would not fit; idle slots cost little memory.
+            - name: POSTGRESQL_MAX_CONNECTIONS
+              value: "650"
             - name: POSTGRESQL_USER
               valueFrom:
                 secretKeyRef:

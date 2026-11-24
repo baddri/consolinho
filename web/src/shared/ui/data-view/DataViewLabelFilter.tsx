@@ -19,10 +19,13 @@ export interface DataViewLabelFilterProps {
   showToolbarItem?: boolean;
 }
 
-/** The comma-separated terms of a selector, without empty ones. */
+/**
+ * The comma-separated terms of a selector, without empty ones. As OCP `selector.ts:split`, a comma inside parentheses
+ * belongs to a set term (`env in (prod,stage)` is one term).
+ */
 function terms(value: string): string[] {
   return value
-    .split(',')
+    .split(/,(?![^(]*\))/)
     .map((term) => term.trim())
     .filter(Boolean);
 }

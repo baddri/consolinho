@@ -65,9 +65,10 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
         COLD_START_TIMEOUT_MS,
       );
-      // One line (SW-2, SW-5): display name, then type and environment tags; "Read only" only in the accessible name.
+      // One line (SW-2, SW-5): OpenShift icon, display name, then the environment tag (no `OCP` tag, T-0203);
+      // "Read only" only in the accessible name.
       expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Production EU 1');
-      expect(within(toggle).getByText('OCP')).toBeInTheDocument();
+      expect(within(toggle).queryByText('OCP')).not.toBeInTheDocument();
       expect(within(toggle).getByText('prod')).toBeInTheDocument();
       expect(within(toggle).queryByText('Read only')).not.toBeInTheDocument();
 
@@ -80,9 +81,9 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
       expect(within(prod).getByText('prod')).toBeInTheDocument();
       expect(within(prod).getByText('Read only')).toBeInTheDocument();
       expect(within(prod).getByText('Production EU 1')).toBeInTheDocument();
-      expect(within(prod).getByText('OCP')).toBeInTheDocument();
-      // Labels in UX.md §2a order: type, environment, Read only (SW-5).
-      expect(prod).toHaveTextContent(/OCP\s*prod\s*Read only/);
+      expect(within(prod).queryByText('OCP')).not.toBeInTheDocument();
+      // Labels in UX.md §2a order: [K8s], environment, Read only (SW-5); OpenShift has no type tag (T-0203).
+      expect(prod).toHaveTextContent(/Production EU 1\s*prod\s*Read only/);
       // FND-1: the production Kubernetes cluster alice reads read-only.
       expect(prodK8s).toHaveTextContent(/K8s\s*prod\s*Read only/);
       expect(within(staging).getByText('staging')).toBeInTheDocument();

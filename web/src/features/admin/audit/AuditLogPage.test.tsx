@@ -6,7 +6,7 @@ import { renderApp } from '@/test/render';
 import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { adminRoute } from '../routes';
-import { auditActionLabel } from './auditActionLabels';
+import { auditEntryLabel } from './auditActionLabels';
 import { formatDetails } from './AuditEntryRow';
 import { checkFilterOption, chooseFilter } from '../dataViewTestUtils';
 
@@ -61,7 +61,7 @@ describe('AuditLogPage', () => {
     if (!firstRow) throw new Error('row not found');
     const cells = within(firstRow);
     // The row shows the human label; the raw id is only in the expanded details (T-0114).
-    expect(cells.getByText(auditActionLabel(first.action))).toBeInTheDocument();
+    expect(cells.getByText(auditEntryLabel(first))).toBeInTheDocument();
     expect(cells.queryByText(first.action)).not.toBeInTheDocument();
     expect(firstRow).toHaveTextContent(`${first.targetType} ${first.targetName}`);
     expect(firstRow.querySelector('time')).toHaveAttribute('dateTime', first.occurredAt);
@@ -101,6 +101,8 @@ describe('AuditLogPage', () => {
     expect(await screen.findByText(`Showing ${AUDIT_FIXTURE_COUNT} entries`)).toBeInTheDocument();
 
     expect(screen.getByText('End of audit log')).toBeInTheDocument();
+    // T-0205: the footer is not inside a full-height PF Stack (it left a long blank scroll below the table).
+    expect(screen.getByText('End of audit log').closest('.pf-v6-l-stack')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
     expect(entryCount(table)).toBe(AUDIT_FIXTURE_COUNT);
     const times = [...table.querySelectorAll('time')].map((t) => t.getAttribute('dateTime'));
@@ -237,16 +239,22 @@ describe('AuditLogPage', () => {
 
     const rows = within(table)
       .getAllByRole('row')
-      .filter((row) => row.textContent.includes('proxy.'));
+      .filter((row) => within(row).queryByRole('link', { name: 'dev-1' }) !== null);
     expect(rows.length).toBeGreaterThan(0);
-    expect(rows.every((row) => within(row).queryByRole('link', { name: 'dev-1' }) !== null)).toBe(true);
-    const update = rows.find((row) => row.textContent.includes('proxy.update'));
-    if (!update) throw new Error('no proxy.update row');
+    // POL-3: the title is the readable label; the raw id is in its tooltip and the expanded row.
+    const update = rows.find((row) => within(row).queryByText('Update ConfigMap') !== null);
+    if (!update) throw new Error('no "Update ConfigMap" row');
+    expect(within(update).queryByText('proxy.update')).not.toBeInTheDocument();
     expect(within(update).getByText('shop/configmaps/web')).toBeInTheDocument();
     expect(within(update).getByText('200')).toBeInTheDocument();
-    const denied = rows.find((row) => row.textContent.includes('proxy.delete'));
-    if (!denied) throw new Error('no proxy.delete row');
+    await user.hover(within(update).getByText('Update ConfigMap'));
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('proxy.update');
+    await user.click(within(update).getByRole('button', { name: 'Details' }));
+    expect(within(table).getAllByText('proxy.update', { selector: 'code' }).length).toBeGreaterThan(0);
+    const denied = rows.find((row) => within(row).queryByText('Delete Pod') !== null);
+    if (!denied) throw new Error('no "Delete Pod" row');
     expect(within(denied).getByText('Denied — read-only grant')).toBeInTheDocument();
+    expect(rows.some((row) => within(row).queryByText('Scale Deployment') !== null)).toBe(true);
 
     await chooseFilter(user, 'Category', 'Target');
     await user.click(screen.getByRole('button', { name: 'Filter by category' }));

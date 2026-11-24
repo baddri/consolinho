@@ -1,5 +1,5 @@
 import { useResourceDataView } from '../list/ResourceDataView';
-import { podDescriptor } from '../registry/kinds/pods';
+import { podDescriptor, podNodesDescriptor } from '../registry/kinds/pods';
 import { useResourceDetails } from './detailsContext';
 
 /**
@@ -12,11 +12,11 @@ export function ResourcePodsTab() {
   return descriptor.PodsTab ? <descriptor.PodsTab cluster={cluster} obj={obj} /> : <SelectorPodsTab />;
 }
 
-/** The Pods list matching the descriptor's `podsSelector`. */
+/** The Pods list matching the descriptor's `podsSelector`; Node replaces Owner with `podsShowNodes` (OCP `showNodes`). */
 function SelectorPodsTab() {
   const { cluster, descriptor, obj } = useResourceDetails();
   const { dataView } = useResourceDataView({
-    descriptor: podDescriptor,
+    descriptor: descriptor.podsShowNodes ? podNodesDescriptor : podDescriptor,
     cluster,
     scope: 'ns',
     namespace: obj.metadata.namespace,

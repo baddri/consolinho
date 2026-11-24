@@ -26,7 +26,8 @@ test('H3: switcher shows the cluster with dev and Read only labels', async ({ pa
   // While searching only the "All clusters" list is shown, so the option is unique.
   const item = page.getByRole('listbox', { name: 'All clusters' }).getByRole('option', { name: cluster() });
   await expect(item).toBeVisible();
-  await expect(item.getByText(/^(OCP|K8s)$/)).toBeVisible();
+  // T-0203: an OpenShift cluster is recognised by its icon and has no `OCP` tag (only Kubernetes gets `K8s`).
+  await expect(item.getByText('OCP', { exact: true })).toHaveCount(0);
   await expect(item.getByText('dev', { exact: true })).toBeVisible();
   await expect(item.getByText('Read only', { exact: true })).toBeVisible();
 });

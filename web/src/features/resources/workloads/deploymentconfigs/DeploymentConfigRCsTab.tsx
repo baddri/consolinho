@@ -55,7 +55,7 @@ export function DeploymentConfigRCsTab() {
     cluster,
     scope: 'ns',
     namespace: dc.metadata.namespace,
-    fixedSelector: { [DC_NAME_LABEL]: dc.metadata.name ?? '' },
+    fixedSelector: { matchLabels: { [DC_NAME_LABEL]: dc.metadata.name ?? '' } },
     rowFilter: ownedByDC,
   });
   return dataView;

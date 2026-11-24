@@ -1,7 +1,17 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { DetailsSubsection, ResourceLabels, Timestamp, timestampText, utcTimestampText } from '.';
+import {
+  DetailsColumn,
+  DetailsItem,
+  DetailsSubsection,
+  FieldHelpContext,
+  ResourceLabels,
+  Timestamp,
+  timestampText,
+  utcTimestampText,
+  type FieldHelp,
+} from '.';
 
 const NOW = new Date('2026-11-17T21:54:00Z');
 const at = (offsetMs: number) => new Date(NOW.getTime() + offsetMs);
@@ -113,5 +123,63 @@ describe('ResourceLabels', () => {
   it('says "No labels" without any', () => {
     render(<ResourceLabels labels={{}} />);
     expect(screen.getByText('No labels')).toHaveClass('pf-v6-u-text-color-subtle');
+  });
+});
+
+describe('DetailsItem field help (HELP-1)', () => {
+  const help: FieldHelp = {
+    kindLabel: 'Deployment',
+    describe: (path) => (path === 'spec.replicas' ? 'Number of desired pods.' : undefined),
+  };
+
+  function renderItem(value: FieldHelp | null, path?: string) {
+    return render(
+      <FieldHelpContext value={value}>
+        <DetailsColumn>
+          <DetailsItem label="Replicas" path={path}>
+            3
+          </DetailsItem>
+        </DetailsColumn>
+      </FieldHelpContext>,
+    );
+  }
+
+  it('renders a described path as a popover term with the description and the path breadcrumb', async () => {
+    renderItem(help, 'spec.replicas');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Replicas' }));
+
+    const popover = await screen.findByRole('dialog');
+    expect(within(popover).getByRole('region', { name: 'Replicas' })).toHaveTextContent(
+      'Number of desired pods.',
+    );
+    const crumbs = within(within(popover).getByRole('navigation')).getAllByRole('listitem');
+    expect(crumbs.map((item) => item.textContent)).toEqual(['Deployment', 'spec', 'replicas']);
+  });
+
+  it("links the description's URLs to a new tab and keeps its line breaks (OCP LinkifyExternal, co-pre-line)", async () => {
+    const url = 'https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids';
+    renderItem({ ...help, describe: () => `Unique id.\n\nMore info: ${url}.` }, 'spec.replicas');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Replicas' }));
+
+    const region = within(await screen.findByRole('dialog')).getByRole('region', { name: 'Replicas' });
+    const link = within(region).getByRole('link', { name: url });
+    expect(link).toHaveAttribute('href', url);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    // The text before the link keeps its newlines; the trailing full stop is not part of the URL.
+    expect(region.textContent).toBe(`Unique id.\n\nMore info: ${url}.`);
+  });
+
+  it.each([
+    ['no provider', null, 'spec.replicas'],
+    ['no path', help, undefined],
+    ['no description', help, 'spec.paused'],
+  ])('keeps a plain term with %s', (_case, value, path) => {
+    renderItem(value, path);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.getByText('Replicas').tagName).toBe('SPAN');
+    expect(screen.getByText('Replicas').closest('dt')).not.toBeNull();
   });
 });

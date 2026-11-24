@@ -90,21 +90,23 @@ function DeploymentDetails({ obj }: { obj: DeploymentResource }) {
   const replicas = desired(obj);
   return (
     <>
-      <DetailsItem label="Update strategy">{type}</DetailsItem>
+      <DetailsItem label="Update strategy" path="spec.strategy.type">{type}</DetailsItem>
       {type === 'RollingUpdate' && (
         <>
-          <DetailsItem label="Max unavailable">
+          <DetailsItem label="Max unavailable" path="spec.strategy.rollingUpdate.maxUnavailable">
             {`${String(strategy?.rollingUpdate?.maxUnavailable ?? 1)} of ${String(replicas)} ${pods(replicas)}`}
           </DetailsItem>
-          <DetailsItem label="Max surge">
+          <DetailsItem label="Max surge" path="spec.strategy.rollingUpdate.maxSurge">
             {`${String(strategy?.rollingUpdate?.maxSurge ?? 1)} greater than ${String(replicas)} ${pods(replicas)}`}
           </DetailsItem>
         </>
       )}
-      <DetailsItem label="Progress deadline seconds">
+      <DetailsItem label="Progress deadline seconds" path="spec.progressDeadlineSeconds">
         {secondsText(obj.spec?.progressDeadlineSeconds)}
       </DetailsItem>
-      <DetailsItem label="Min ready seconds">{secondsText(obj.spec?.minReadySeconds)}</DetailsItem>
+      <DetailsItem label="Min ready seconds" path="spec.minReadySeconds">
+        {secondsText(obj.spec?.minReadySeconds)}
+      </DetailsItem>
     </>
   );
 }
@@ -133,8 +135,9 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   nav: { section: 'workloads', order: 20 },
   status: deploymentStatus,
   hideHeadingStatus: true,
+  hasEditForm: true,
   summary: {
-    podSelector: (deployment) => deployment.spec?.selector.matchLabels,
+    podSelector: (deployment) => deployment.spec?.selector,
     nodeSelector: (deployment) => deployment.spec?.template.spec?.nodeSelector,
     tolerations: (deployment) => deployment.spec?.template.spec?.tolerations,
     Extra: DeploymentStatusRow,
@@ -142,7 +145,7 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
   DetailsTop: DeploymentDetailsTop,
   DetailsSection: DeploymentDetails,
   ExtraSections: DeploymentSections,
-  podsSelector: (deployment) => deployment.spec?.selector.matchLabels,
+  podsSelector: (deployment) => deployment.spec?.selector,
   // OCP Deployment tabs: Details, YAML, ReplicaSets, Pods, Events.
   extraTabs: ['replicasets'],
   useKindActions: useDeploymentActions,
@@ -168,10 +171,10 @@ export const deploymentDescriptor: ResourceDescriptor<DeploymentResource> = {
       cell: (deployment) => (
         <PodSelectorLink
           namespace={deployment.metadata.namespace}
-          matchLabels={deployment.spec?.selector.matchLabels}
+          selector={deployment.spec?.selector}
         />
       ),
-      sortValue: (deployment) => labelSelectorString(deployment.spec?.selector.matchLabels),
+      sortValue: (deployment) => labelSelectorString(deployment.spec?.selector),
     },
   ],
 };

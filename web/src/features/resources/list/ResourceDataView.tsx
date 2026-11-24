@@ -1,6 +1,12 @@
 import { DataViewCheckboxFilter } from '@patternfly/react-data-view';
 import { useCallback, useDeferredValue, useMemo, type ReactNode } from 'react';
-import { useK8sList, type K8sResource, type LiveStatus } from '@/shared/k8s';
+import {
+  labelSelectorString,
+  useK8sList,
+  type K8sResource,
+  type LabelSelector,
+  type LiveStatus,
+} from '@/shared/k8s';
 import {
   ConsoleDataView,
   DataViewLabelFilter,
@@ -9,7 +15,6 @@ import {
 } from '@/shared/ui';
 import { ResourceRowActions } from '../actions/ResourceRowActions';
 import { ResourceErrorState } from '../components/ResourceErrorState';
-import { labelSelectorString } from '../registry/columns';
 import { ALL_NAMESPACES } from '../paths';
 import type { ResourceDescriptor } from '../registry/types';
 import type { ListScope } from '../resourceRoute';
@@ -34,10 +39,10 @@ export interface ResourceDataViewOptions {
   /** A namespace, {@link ALL_NAMESPACES}, or `undefined` (cluster-scoped). */
   namespace: string | undefined;
   /**
-   * Labels every listed object must have, ANDed with the user's `?label=` filter and not shown in it (a workload's
-   * Pods tab lists only its pods).
+   * Label selector every listed object must match (`matchExpressions` included), ANDed with the user's `?label=` filter
+   * and not shown in it (a workload's Pods tab lists only its pods).
    */
-  fixedSelector?: Record<string, string>;
+  fixedSelector?: LabelSelector;
   /**
    * Client-side condition every listed object must meet, for what a label selector can't express (a Deployment's
    * ReplicaSets tab keeps only those it owns). Keep it referentially stable: it re-filters the list when it changes.

@@ -29,7 +29,8 @@ export async function checkFilterOption(
 
 /**
  * Text of `element` without its kind badges, i.e. the name a user reads after the "U"/"C"/"CC" badge: `KindBadge` is
- * `aria-hidden` with the kind as its title, so its text is dropped. `''` for a missing element.
+ * `aria-hidden` with the kind as its title, preceded by the screen-reader text "<Kind> ", so both are dropped. `''` for
+ * a missing element.
  */
 export function withoutBadges(element: Element | undefined): string {
   if (!element) return '';
@@ -37,5 +38,5 @@ export function withoutBadges(element: Element | undefined): string {
   const badges = within(element as HTMLElement)
     .queryAllByTitle(/^(User|Cluster|Credential)$/)
     .filter((badge) => badge.getAttribute('aria-hidden') === 'true');
-  return badges.reduce((rest, badge) => rest.replace(badge.textContent, ''), text);
+  return badges.reduce((rest, badge) => rest.replace(`${badge.title} ${badge.textContent}`, ''), text);
 }

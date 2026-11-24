@@ -65,9 +65,13 @@ export function JobCompletionsLink({ obj }: { obj: JobResource }) {
 export function JobSpecItems({ spec }: { spec: JobSpecFields | undefined }) {
   return (
     <>
-      <DetailsItem label="Desired completions">{countText(spec?.completions)}</DetailsItem>
-      <DetailsItem label="Parallelism">{countText(spec?.parallelism)}</DetailsItem>
-      <DetailsItem label="Active deadline seconds">{deadlineText(spec?.activeDeadlineSeconds)}</DetailsItem>
+      <DetailsItem label="Desired completions" path="spec.completions">
+        {countText(spec?.completions)}
+      </DetailsItem>
+      <DetailsItem label="Parallelism" path="spec.parallelism">{countText(spec?.parallelism)}</DetailsItem>
+      <DetailsItem label="Active deadline seconds" path="spec.activeDeadlineSeconds">
+        {deadlineText(spec?.activeDeadlineSeconds)}
+      </DetailsItem>
     </>
   );
 }
@@ -88,15 +92,17 @@ export function JobDetails({ obj }: { obj: JobResource }) {
       <DetailsItem label="Status">
         <Status status={jobStatus(obj).title} />
       </DetailsItem>
-      <DetailsItem label="Start time">
+      <DetailsItem label="Start time" path="status.startTime">
         <Timestamp value={status?.startTime} />
       </DetailsItem>
-      <DetailsItem label="Completion time">
+      <DetailsItem label="Completion time" path="status.completionTime">
         <Timestamp value={status?.completionTime} />
       </DetailsItem>
-      <DetailsItem label="Succeeded pods">{countText(status?.succeeded, '0')}</DetailsItem>
-      <DetailsItem label="Active pods">{countText(status?.active, '0')}</DetailsItem>
-      <DetailsItem label="Failed pods">{countText(status?.failed, '0')}</DetailsItem>
+      <DetailsItem label="Succeeded pods" path="status.succeeded">
+        {countText(status?.succeeded, '0')}
+      </DetailsItem>
+      <DetailsItem label="Active pods" path="status.active">{countText(status?.active, '0')}</DetailsItem>
+      <DetailsItem label="Failed pods" path="status.failed">{countText(status?.failed, '0')}</DetailsItem>
     </>
   );
 }

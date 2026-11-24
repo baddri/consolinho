@@ -29,8 +29,10 @@ One namespace (`consolinho`) holds:
 
 The **dev** overlay (`deploy/kustomize/overlays/dev`) adds a single Postgres StatefulSet `postgres` (dev only), the
 ServiceAccount `consolinho-smoke` with a namespaced `view` RoleBinding, and (through `deploy/kustomize/build`) the
-BuildConfig/ImageStream `consolinho`. The **production** overlay (`deploy/kustomize/overlays/production`) sets
-2 replicas and a PodDisruptionBudget (`minAvailable: 1`) and expects an external Postgres.
+BuildConfig/ImageStream `consolinho`. The **production** overlay (`deploy/kustomize/overlays/production`) expects an
+external Postgres. Both overlays get from base a HorizontalPodAutoscaler `consolinho` (3–6 replicas, CPU 75 % of the
+request; the Deployment sets no `replicas`) and a PodDisruptionBudget (`maxUnavailable: 1`); see ADR-0030 Amendment
+2026-11-24.
 
 ## 2. Prerequisites
 
@@ -41,6 +43,7 @@ BuildConfig/ImageStream `consolinho`. The **production** overlay (`deploy/kustom
 - The cluster's router namespace carries the label `policy-group.network.openshift.io/ingress` (the default on
   OpenShift); the ingress NetworkPolicy relies on it.
 - Production only: an external PostgreSQL (16 recommended) and a registry the cluster can pull from.
+- Cluster resource metrics for the HPA (built into OpenShift; `oc adm top pods -n consolinho` shows them).
 
 ## 3. First dev deploy
 
@@ -167,6 +170,10 @@ container creates and alters tables). `migrate` would create a missing database 
 `CREATEDB`; in production let the DBA provision it. Reachability: the egress NetworkPolicy allows TCP **5432** only — if your
 database listens on another port, add that port to `consolinho-egress` with a patch in your overlay.
 
+**Connections:** each pod has its own Npgsql pool (default `Maximum Pool Size` 100). Keep
+`maxReplicas (6) x Maximum Pool Size + 5 ≤ max_connections` on the server, or lower `Maximum Pool Size` in the
+connection string (actual use is far lower: connections are held only per query).
+
 Use TLS with certificate verification in the Npgsql connection string:
 
 ```
@@ -264,11 +271,20 @@ client from ever obtaining a broader token.
 
 ### 4.7 Apply and verify
 
+**Upgrading to the HPA** (one time, only for a deployment created before the HPA existed, i.e. with `replicas` in
+its last-applied configuration): drop the field from the last-applied annotation *before* applying, otherwise the
+apply resets the Deployment to 1 replica until the HPA acts (~15–30 s):
+
+```bash
+oc apply view-last-applied deployment/consolinho -n consolinho -o json | jq 'del(.spec.replicas)' | oc apply set-last-applied -f -
+```
+
 ```bash
 oc kustomize deploy/kustomize/overlays/acme-prod | less     # review the render (no Secrets in it)
 oc apply -k deploy/kustomize/overlays/acme-prod
 oc rollout status deployment/consolinho -n consolinho --timeout=300s
 oc get route consolinho -n consolinho -o jsonpath='{.spec.host}{"\n"}'   # must equal the PublicOrigin host
+oc get hpa consolinho -n consolinho                                      # 3 replicas, TARGETS shows a cpu %
 oc logs deploy/consolinho -n consolinho -c migrate                       # applied migrations
 ```
 
@@ -333,9 +349,10 @@ and never runs down-migrations.
   and the cluster out of sync).
 - Roll back the image only if the old version works on the new schema (the release notes say so, or the upgrade added
   no migrations: the `migrate` log lists the applied names).
-- Otherwise: `oc scale deployment/consolinho -n consolinho --replicas=0`, restore the backup taken in step 1
-  ([§7](#7-backup-and-restore); **everything written since that backup is lost**), apply the overlay with the old
-  image (this restores the replica count).
+- Otherwise: `oc scale deployment/consolinho -n consolinho --replicas=0` (the HPA does not act on a target scaled to
+  0), restore the backup taken in step 1 ([§7](#7-backup-and-restore); **everything written since that backup is
+  lost**), apply the overlay with the old image, then `oc scale deployment/consolinho -n consolinho --replicas=3`
+  (the manifests set no replica count; the HPA takes over from there).
 
 ## 7. Backup and restore
 
@@ -365,7 +382,7 @@ oc extract secret/consolinho-dp-cert -n consolinho --to=dp-backup
 Before `pg_restore --clean`, take a fresh `pg_dump` of the current state (as above) so you can go back.
 
 ```bash
-oc scale deployment/consolinho -n consolinho --replicas=0
+oc scale deployment/consolinho -n consolinho --replicas=0     # pauses: the HPA ignores a target scaled to 0
 # production
 pg_restore --clean --if-exists --no-owner -d "host=db.example.com dbname=consolinho user=consolinho sslmode=verify-full" consolinho-2026-01-01.dump
 # dev
@@ -373,7 +390,7 @@ oc exec -i -n consolinho statefulset/postgres -- pg_restore --clean --if-exists 
 # DP certificate, if the Secret was lost (same key names)
 oc create secret generic consolinho-dp-cert -n consolinho \
   --from-file=certificate.pfx=dp-backup/certificate.pfx --from-file=password=dp-backup/password
-oc scale deployment/consolinho -n consolinho --replicas=2     # dev: 1, or re-apply the overlay
+oc scale deployment/consolinho -n consolinho --replicas=3     # the HPA's minimum; it resumes scaling from here
 ```
 
 The key ring is bound to the application's fixed Data Protection application name, not to the namespace or cluster,

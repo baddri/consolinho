@@ -38,6 +38,10 @@ export const k8sQueryKeys = {
     ['k8s', cluster, 'get', modelKey(model), model.namespaced && namespace ? namespace : '', name] as const,
   /** The served `group/version`s (DATA-2). */
   discovery: (cluster: string) => ['k8s', cluster, 'discovery'] as const,
+  /** The OpenAPI v3 index (ADR-0038 §2); a prefix of every {@link openapiDocument} key of the cluster. */
+  openapiIndex: (cluster: string) => ['k8s', cluster, 'openapi'] as const,
+  /** One parsed OpenAPI v3 group-version document, `gvPath` = `api/v1` or `apis/<group>/<version>`. */
+  openapiDocument: (cluster: string, gvPath: string) => ['k8s', cluster, 'openapi', gvPath] as const,
   /** One access check (UI-9). */
   access: (cluster: string, review: AccessReview) =>
     [

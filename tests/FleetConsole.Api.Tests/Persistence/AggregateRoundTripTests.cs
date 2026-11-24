@@ -29,7 +29,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
     public async Task User_RoundTrips_WithGroupsAndAdminSources()
     {
         var user = NewUser(UserRole.Admin, isReadOnly: true);
-        user.RecordLogin("Alice Example", ["sre", "fleetconsole-admins", "system:authenticated"], "group fleetconsole-admins", provisioned: false, Now.AddMinutes(5))
+        user.RecordLogin("Alice Example", ["sre", "fleetconsole-admins", "system:authenticated"], AdminConfigurationSource.ForGroup("fleetconsole-admins"), provisioned: false, Now.AddMinutes(5))
             .IsSuccess.ShouldBeTrue();
         await SaveAsync(sp => sp.GetRequiredService<IUserRepository>().Add(user));
 
@@ -40,7 +40,7 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         loaded.Username.ShouldBe(user.Username);
         loaded.DisplayName.ShouldBe("Alice Example");
         loaded.IsAdminByAssignment.ShouldBeTrue();
-        loaded.AdminConfigurationSource.ShouldBe("group fleetconsole-admins");
+        loaded.AdminConfigurationSource.ShouldBe(AdminConfigurationSource.ForGroup("fleetconsole-admins"));
         loaded.Role.ShouldBe(UserRole.Admin);
         loaded.IsReadOnly.ShouldBeTrue();
         loaded.IsDeactivated.ShouldBeFalse();
@@ -52,6 +52,51 @@ public sealed class AggregateRoundTripTests(ApiFactory factory)
         loaded.CreatedBy.ShouldBe(Admin);
         loaded.Version.ShouldNotBe(0u);
         loaded.Version.ShouldBe(user.Version, "the save reads the new xmin back into the tracked aggregate");
+    }
+
+    [Fact]
+    public async Task AdminConfigurationSource_IsStoredAsItsTextForm_AndReadBack()
+    {
+        // POL-4: same text column as before the value object existed, so no migration and old rows read unchanged.
+        var listAdmin = NewUser();
+        listAdmin.RecordLogin(null, [], AdminConfigurationSource.UserList, provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        var groupAdmin = NewUser();
+        groupAdmin.RecordLogin(null, [], AdminConfigurationSource.ForGroup("ops admins"), provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        var none = NewUser();
+        none.RecordLogin(null, [], null, provisioned: false, Now).IsSuccess.ShouldBeTrue();
+        await SaveAsync(sp =>
+        {
+            var users = sp.GetRequiredService<IUserRepository>();
+            users.Add(listAdmin);
+            users.Add(groupAdmin);
+            users.Add(none);
+        });
+
+        (await ScalarAsync<string>("select admin_configuration_source from users where id = @id", listAdmin.Id.Value)).ShouldBe("user list");
+        (await ScalarAsync<string>("select admin_configuration_source from users where id = @id", groupAdmin.Id.Value)).ShouldBe("group ops admins");
+        (await ScalarAsync<object>("select admin_configuration_source from users where id = @id", none.Id.Value)).ShouldBe(DBNull.Value);
+
+        (await LoadAsync(sp => sp.GetRequiredService<IUserRepository>().GetByIdAsync(listAdmin.Id, Ct)))!
+            .AdminConfigurationSource.ShouldBe(AdminConfigurationSource.UserList);
+        (await LoadAsync(sp => sp.GetRequiredService<IUserRepository>().GetByIdAsync(groupAdmin.Id, Ct)))!
+            .AdminConfigurationSource.ShouldBe(AdminConfigurationSource.ForGroup("ops admins"));
+        (await LoadAsync(sp => sp.GetRequiredService<IUserRepository>().GetByIdAsync(none.Id, Ct)))!
+            .AdminConfigurationSource.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("admins")]
+    [InlineData("group ")]
+    [InlineData("User List")]
+    public async Task AdminConfigurationSource_UnknownStoredText_Throws(string stored)
+    {
+        var user = NewUser();
+        await SaveAsync(sp => sp.GetRequiredService<IUserRepository>().Add(user));
+        await ScalarAsync<int>("update users set admin_configuration_source = '" + stored + "' where id = @id returning 1", user.Id.Value);
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(
+            () => LoadAsync(sp => sp.GetRequiredService<IUserRepository>().GetByIdAsync(user.Id, Ct)));
+        ex.ToString().ShouldContain("AdminConfigurationSource");
     }
 
     [Fact]

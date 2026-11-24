@@ -11,7 +11,7 @@ namespace FleetConsole.Application.Users.ListUsers;
 /// <param name="Role">The effective role: admin when assigned by an administrator or granted by configuration.</param>
 /// <param name="IsAdminViaConfiguration">Whether configuration (user list or admin group) made the user an administrator at their last login. Such a user can't be demoted.</param>
 /// <param name="IsAdminByAssignment">Whether an administrator promoted the user (or pre-created them as admin). Offer Promote when this is false.</param>
-/// <param name="AdminConfigurationSource">Why configuration makes the user an administrator, e.g. "group fleetconsole-admins" or "user list"; null when it doesn't.</param>
+/// <param name="AdminConfigurationSource">Why configuration makes the user an administrator (the bootstrap user list or an admin group); null when it doesn't.</param>
 /// <param name="Status">pending (never logged in), active, or deactivated.</param>
 /// <param name="IsReadOnly">Whether the user is globally read-only.</param>
 /// <param name="GrantCount">Number of clusters the user has been granted access to.</param>
@@ -24,7 +24,7 @@ public sealed record UserListItemDto(
     UserRole Role,
     bool IsAdminViaConfiguration,
     bool IsAdminByAssignment,
-    string? AdminConfigurationSource,
+    AdminConfigurationSourceDto? AdminConfigurationSource,
     UserStatus Status,
     bool IsReadOnly,
     int GrantCount,

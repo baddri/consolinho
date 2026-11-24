@@ -44,8 +44,8 @@ function RevisionRow({ obj }: { obj: ReplicaSetResource }) {
 function ReplicaSetDetails({ obj }: { obj: ReplicaSetResource }) {
   return (
     <>
-      <DetailsItem label="Current count">{current(obj)}</DetailsItem>
-      <DetailsItem label="Desired count">{obj.spec?.replicas ?? 0}</DetailsItem>
+      <DetailsItem label="Current count" path="status.replicas">{current(obj)}</DetailsItem>
+      <DetailsItem label="Desired count" path="spec.replicas">{obj.spec?.replicas ?? 0}</DetailsItem>
     </>
   );
 }
@@ -77,14 +77,14 @@ export const replicaSetDescriptor: ResourceDescriptor<ReplicaSetResource> = {
   status,
   hideHeadingStatus: true,
   summary: {
-    podSelector: (replicaSet) => replicaSet.spec?.selector.matchLabels,
+    podSelector: (replicaSet) => replicaSet.spec?.selector,
     nodeSelector: (replicaSet) => replicaSet.spec?.template?.spec?.nodeSelector,
     tolerations: (replicaSet) => replicaSet.spec?.template?.spec?.tolerations,
     Extra: RevisionRow,
   },
   DetailsSection: ReplicaSetDetails,
   ExtraSections: ReplicaSetSections,
-  podsSelector: (replicaSet) => replicaSet.spec?.selector.matchLabels,
+  podsSelector: (replicaSet) => replicaSet.spec?.selector,
   useKindActions: useReplicaSetActions,
   columns: [
     nameColumn(ReplicaSetModel),

@@ -1,10 +1,11 @@
 import { PodModel, type K8sResource, type Pod } from '@/shared/k8s';
 import { OwnerReferences } from '../../components/ObjectReferenceLink';
+import { BadgedName } from '../../components/ResourceLink';
 import { PodDetails, PodSections } from '../../details/sections/PodDetails';
 import { PodStatus } from '../../workloads/pods/PodStatus';
 import { podStatus } from '../../workloads/pods/podStatus';
 import { ageColumn, nameColumn, namespaceColumn } from '../columns';
-import type { ResourceDescriptor, ResourceStatus } from '../types';
+import type { ColumnDef, ResourceDescriptor, ResourceStatus } from '../types';
 
 /** A listed pod (list items are stamped with `apiVersion`/`kind`, so `metadata` is always there). */
 export type PodResource = Pod & K8sResource;
@@ -44,21 +45,37 @@ function PodDetailsSection({ obj }: { obj: PodResource }) {
   return <PodDetails obj={obj} status={<PodStatus pod={obj} />} />;
 }
 
+/** Owner: the pod's controller (≥ lg; ≥ 2xl in all projects). */
+const ownerColumn: ColumnDef<PodResource> = {
+  id: 'owner',
+  title: 'Owner',
+  visibility: ['hidden', 'visibleOnLg'],
+  // With the Namespace column, Owner would push the table into horizontal scroll at 1280.
+  allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
+  cell: (pod) => <OwnerReferences obj={pod} />,
+  sortValue: (pod) => pod.metadata.ownerReferences?.[0]?.name ?? null,
+};
+
 /**
- * Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg; ≥ 2xl in all projects), Created (≥ 2xl, as
- * OCP); status filter.
+ * Node, in the Owner column's place and breakpoints. OCP links it to the Node page; we have none yet, so it is the
+ * badged name, as on the Pod details page.
  */
-export const podDescriptor: ResourceDescriptor<PodResource> = {
-  model: PodModel,
-  nav: { section: 'workloads', order: 10 },
-  status,
-  // OCP `PodResourceSummary`: node selector and tolerations after the labels.
-  summary: { nodeSelector: (pod) => pod.spec?.nodeSelector, tolerations: (pod) => pod.spec?.tolerations },
-  DetailsSection: PodDetailsSection,
-  ExtraSections: PodSections,
-  // OCP Pod tabs: Details, YAML, Logs, Events, Terminal.
-  extraTabs: ['logs', 'terminal'],
-  columns: [
+const nodeColumn: ColumnDef<PodResource> = {
+  id: 'node',
+  title: 'Node',
+  visibility: ownerColumn.visibility,
+  allNamespacesVisibility: ownerColumn.allNamespacesVisibility,
+  cell: (pod) =>
+    pod.spec?.nodeName && <BadgedName badge={{ kind: 'Node', abbr: 'N' }}>{pod.spec.nodeName}</BadgedName>,
+  sortValue: (pod) => pod.spec?.nodeName ?? null,
+};
+
+/**
+ * The Pods list columns (OCP `usePodsColumns(showNodes)`): Name, Namespace, Status, Ready, Restarts, Owner — or Node
+ * with `showNodes`, where the owner is the page itself (DaemonSet, Job Pods tabs) — and Created.
+ */
+export function podColumns({ showNodes }: { showNodes: boolean }): ColumnDef<PodResource>[] {
+  return [
     nameColumn(PodModel),
     namespaceColumn(PodModel),
     {
@@ -80,18 +97,27 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
       sortValue: (pod) => readyCount(pod).ready,
     },
     { id: 'restarts', title: 'Restarts', cell: restarts, sortValue: restarts },
-    {
-      id: 'owner',
-      title: 'Owner',
-      visibility: ['hidden', 'visibleOnLg'],
-      // With the Namespace column, Owner would push the table into horizontal scroll at 1280.
-      allNamespacesVisibility: ['hidden', 'visibleOn2Xl'],
-      cell: (pod) => <OwnerReferences obj={pod} />,
-      sortValue: (pod) => pod.metadata.ownerReferences?.[0]?.name ?? null,
-    },
+    showNodes ? nodeColumn : ownerColumn,
     // OCP `pod-list.tsx`: Created is the first column to go, so all headers fit untruncated next to the sidebar at 1280.
     { ...ageColumn<PodResource>(), visibility: ['hidden', 'visibleOn2Xl'] },
-  ],
+  ];
+}
+
+/**
+ * Pods (UI-3): Name, Namespace, Status, Ready, Restarts, Owner (≥ lg; ≥ 2xl in all projects), Created (≥ 2xl, as
+ * OCP); status filter.
+ */
+export const podDescriptor: ResourceDescriptor<PodResource> = {
+  model: PodModel,
+  nav: { section: 'workloads', order: 10 },
+  status,
+  // OCP `PodResourceSummary`: node selector and tolerations after the labels.
+  summary: { nodeSelector: (pod) => pod.spec?.nodeSelector, tolerations: (pod) => pod.spec?.tolerations },
+  DetailsSection: PodDetailsSection,
+  ExtraSections: PodSections,
+  // OCP Pod tabs: Details, YAML, Logs, Events, Terminal.
+  extraTabs: ['logs', 'terminal'],
+  columns: podColumns({ showNodes: false }),
   filters: [
     {
       id: 'status',
@@ -100,4 +126,13 @@ export const podDescriptor: ResourceDescriptor<PodResource> = {
       matches: (pod, values) => values.includes(filterStatus(pod)),
     },
   ],
+};
+
+/**
+ * The pod descriptor with Node instead of Owner (OCP `showNodes`), for the Pods tab of kinds with `podsShowNodes`.
+ * A module constant, so the list's per-descriptor memos stay stable.
+ */
+export const podNodesDescriptor: ResourceDescriptor<PodResource> = {
+  ...podDescriptor,
+  columns: podColumns({ showNodes: true }),
 };

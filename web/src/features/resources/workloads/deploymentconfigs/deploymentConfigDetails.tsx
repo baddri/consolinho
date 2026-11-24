@@ -92,32 +92,40 @@ export function DeploymentConfigDetails({ obj }: { obj: DeploymentConfig }) {
   const triggers = (obj.spec?.triggers ?? []).map((trigger) => trigger.type).join(', ');
   return (
     <>
-      <DetailsItem label="Latest version">{obj.status?.latestVersion ?? '-'}</DetailsItem>
-      {message && <DetailsItem label="Message">{message}</DetailsItem>}
-      <DetailsItem label="Update strategy">{strategy?.type ?? '-'}</DetailsItem>
+      <DetailsItem label="Latest version" path="status.latestVersion">
+        {obj.status?.latestVersion ?? '-'}
+      </DetailsItem>
+      {message && <DetailsItem label="Message" path="status.details.message">{message}</DetailsItem>}
+      <DetailsItem label="Update strategy" path="spec.strategy.type">{strategy?.type ?? '-'}</DetailsItem>
       {strategy?.type === 'Rolling' && (
         <>
           {rolling?.timeoutSeconds !== undefined && (
-            <DetailsItem label="Timeout">{seconds(rolling.timeoutSeconds)}</DetailsItem>
+            <DetailsItem label="Timeout" path="spec.strategy.rollingParams.timeoutSeconds">
+              {seconds(rolling.timeoutSeconds)}
+            </DetailsItem>
           )}
           {rolling?.updatePeriodSeconds !== undefined && (
-            <DetailsItem label="Update period">{seconds(rolling.updatePeriodSeconds)}</DetailsItem>
+            <DetailsItem label="Update period" path="spec.strategy.rollingParams.updatePeriodSeconds">
+              {seconds(rolling.updatePeriodSeconds)}
+            </DetailsItem>
           )}
           {rolling?.intervalSeconds !== undefined && (
-            <DetailsItem label="Interval">{seconds(rolling.intervalSeconds)}</DetailsItem>
+            <DetailsItem label="Interval" path="spec.strategy.rollingParams.intervalSeconds">
+              {seconds(rolling.intervalSeconds)}
+            </DetailsItem>
           )}
-          <DetailsItem label="Max unavailable">
+          <DetailsItem label="Max unavailable" path="spec.strategy.rollingParams.maxUnavailable">
             {`${String(rolling?.maxUnavailable ?? 1)} of ${String(replicas)} ${pods(replicas)}`}
           </DetailsItem>
-          <DetailsItem label="Max surge">
+          <DetailsItem label="Max surge" path="spec.strategy.rollingParams.maxSurge">
             {`${String(rolling?.maxSurge ?? 1)} greater than ${String(replicas)} ${pods(replicas)}`}
           </DetailsItem>
         </>
       )}
-      <DetailsItem label="Min ready seconds">
+      <DetailsItem label="Min ready seconds" path="spec.minReadySeconds">
         {obj.spec?.minReadySeconds ? seconds(obj.spec.minReadySeconds) : 'Not configured'}
       </DetailsItem>
-      {triggers && <DetailsItem label="Triggers">{triggers}</DetailsItem>}
+      {triggers && <DetailsItem label="Triggers" path="spec.triggers">{triggers}</DetailsItem>}
     </>
   );
 }

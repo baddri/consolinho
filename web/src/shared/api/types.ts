@@ -17,6 +17,10 @@ export type SystemInfo = schemas['SystemInfo'];
 export type UserRole = schemas['UserRole'];
 /** `pending` = never logged in and not deactivated. */
 export type UserStatus = schemas['UserStatus'];
+/** What kind of configuration makes a user an administrator: the bootstrap user list or an admin group (POL-4). */
+export type AdminConfigurationSourceKind = schemas['AdminConfigurationSourceKind'];
+/** Why configuration makes a user an administrator; `group` is set iff `kind` is `group` (POL-4). */
+export type AdminConfigurationSource = schemas['AdminConfigurationSource'];
 /** Fixed environment set; sort order production, staging, development. */
 export type ClusterEnvironment = schemas['ClusterEnvironment'];
 /** How the Api verifies a cluster's TLS certificate (derived from CA bundle / skip flag). */

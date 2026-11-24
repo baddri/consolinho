@@ -1,0 +1,68 @@
+---
+id: T-0203
+title: Cluster switcher — OpenshiftIcon for OpenShift clusters, drop the "OCP" tag
+status: done
+owner: frontend-engineer
+checkpoint: 4c
+depends_on: []
+paths: [web/src/features/cluster-context/ClusterSwitcher.tsx, web/src/features/cluster-context/ClusterSwitcher.module.css, web/src/features/cluster-context/clusterContext.test.tsx, web/src/features/cluster-context/switcherRows.ts, web/src/shared/ui/cluster-type/]
+review_rounds: 1
+---
+
+## Goal
+Human report 2026-11-24 #1: each cluster in the switcher menu shows a generic server icon, the name, then `OCP` and
+`prod`. Human directive: OpenShift clusters get PatternFly's `OpenshiftIcon` (ships in `@patternfly/react-icons`, not
+a copied asset) and no `OCP` tag; the environment label stays. Kubernetes keeps the generic `CubesIcon` + `K8s` tag
+until CP5.5 (PF has no Kubernetes logo icon). The logo exception is already recorded in `UX.md` §2a (switcher only).
+
+## Scope
+- In: switcher menu items and the switcher toggle (both use `ClusterTypeIcon` / `ClusterLabels`).
+- Out: admin clusters table Type column (`clusterColumns.tsx:39` keeps `OCP`/`K8s`), masthead, any other logo use;
+  the no-cluster fallback toggle icon (`ClusterIcon`, `ClusterSwitcher.tsx` ~L432) and Fleet `GlobeIcon` stay.
+
+## Contract / design notes
+- `ClusterTypeIcon`: `distribution === 'kubernetes' ? <CubesIcon aria-hidden /> : <OpenshiftIcon aria-hidden />`.
+  Add `// TODO(CP5.5): Kubernetes logo icon` at the Kubernetes branch. Update its TSDoc (no longer "never logos").
+- `ClusterLabels` (menu and toggle): render `ClusterTypeLabel` only when `distribution === 'kubernetes'`. Order stays
+  `[K8s] [environment] [Read only]` (menu) / `[K8s] [environment]` (toggle). For an OpenShift cluster with no
+  environment label nothing is rendered after the name (no empty `FlexItem`, so no stray 8px gap).
+- Accessible names unchanged (`toggleLabel` may keep the type cue; screen readers lose nothing). Search by type
+  (`ocp`, `kubernetes`) unchanged (`switcherRows.ts`).
+- Icon size/colour: PF default (`1em`, `currentColor`) inside `MenuItem` `icon` / `MenuToggle` `icon` — no custom CSS.
+  On the Kubernetes navy theme the icon still takes `--fc-k8s--icon` via the toggle icon variable (UX.md §2a).
+
+## Context pack
+- Docs: `docs/architecture/UX.md` §2a bullets "Icons" and "Type tag" (already updated for this task).
+- Touch points: `web/src/shared/ui/cluster-type/ClusterType.tsx:ClusterTypeIcon` (L38-45), `:ClusterTypeLabel`
+  (L30-36, unchanged); `web/src/features/cluster-context/ClusterSwitcher.tsx:ClusterLabels` (L56-76),
+  `:ClusterItem` icon (L164), toggle `icon` (L424-434); tests `clusterContext.test.tsx`,
+  `shared/ui/cluster-type/clusterType.test.tsx` assert the `OCP` tag today.
+- Icon: `import { OpenshiftIcon } from '@patternfly/react-icons'` (`dist/esm/icons/index.d.ts:960`).
+- OCP reference: `frontend/packages/console-app/src/components/nav/NavHeader.tsx` (perspective switcher: icon + title,
+  no extra tag for the default perspective).
+
+## Acceptance criteria
+- [x] Menu item and toggle of an OpenShift cluster: `OpenshiftIcon`, name, environment label only (no `OCP`).
+- [x] Kubernetes cluster: `CubesIcon` + `K8s` + environment, unchanged; TODO(CP5.5) comment present.
+- [x] Admin clusters table Type column still shows `OCP`/`K8s`.
+- [x] Probe/clip (dark, 1280): menu row of `prod-eu-1` and `prod-k8s-1`; icon `aria-hidden`, 8px gap icon→name as before.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
+
+## Work log
+- 2026-11-24 frontend-engineer: `ClusterTypeIcon` → `OpenshiftIcon` / `CubesIcon` (+TODO(CP5.5)); `ClusterLabels`
+  renders the type tag for Kubernetes only. Tests updated (no `OCP` in toggle/menu; icon identity test). Probe dark
+  1280 toggle: icon 14x14, toggle gap 8px. Menu rows not probeable (probe never clicks); covered by unit tests.
+
+## Review
+- 2026-11-24 frontend-architect, round 1: **APPROVE**. All ACs met: `ClusterTypeIcon` uses PF `OpenshiftIcon`/`CubesIcon`
+  (aria-hidden, TODO(CP5.5) present), `ClusterLabels` renders the type tag for Kubernetes only with no empty `FlexItem`;
+  admin Type column and `switcherRows.ts` search untouched; tests cover toggle, menu order and icon identity. Gate: lint/typecheck/build ok; 1 unrelated timeout (`ClusterCredentialsTab.test.tsx:181`, 5s under load) passes in isolation.
+- Nit (optional): `clusterType.test.tsx` "icons differ" assertion is now subsumed by the new icon-identity test.
+- 2026-11-24 ux-designer round 1: **APPROVE**
+- Playwright dark 1280 (menu opened in mock UI): `prod-eu-1` row = OpenshiftIcon 14px `aria-hidden`, 8px icon→text gap, labels `[prod] [Read only]`, no `OCP` — matches OCP NavHeader perspective rows (icon + title, `console-app/src/components/nav/NavHeader.tsx`).
+- `prod-k8s-1` row unchanged: CubesIcon, `[K8s] [prod] [Read only]`; TODO(CP5.5) present in `ClusterType.tsx`.
+
+## Handover notes
+- Only `ClusterTypeIcon`/`ClusterLabels` changed; `ClusterTypeLabel`/`clusterTypeText` untouched, so the admin
+  Type column and the toggle accessible name (`… (prod-eu-1, OCP, prod) …`) still carry `OCP`.
+- Environment is a required field, so an OpenShift row always has at least the env label after the name.

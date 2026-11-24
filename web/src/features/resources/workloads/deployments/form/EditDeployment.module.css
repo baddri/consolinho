@@ -1,0 +1,125 @@
+/* OCP form-utils/FormBody.tsx `flexLayout`: a `pf-v6-c-form` page section laid out as a column filling the page, so
+   the YAML view reaches the sticky footer. The gap is the form's grid gap, which OCP's flex column keeps. OCP's
+   sections (dev-console import/section/FormSection.tsx) are nested `pf-v6-c-form`s with no margin, so PF's 32px
+   `pf-v6-c-form__section` top margin is cleared: sections sit one 24px gap apart. */
+.body {
+  --pf-v6-c-form__section--MarginBlockStart: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-v6-c-form--GridGap);
+}
+
+/* OCP formik-fields/SyncedEditorField.scss `.ocs-synced-editor-field__editor-toggle` (`noMargin`): a full-bleed row
+   between dividers; $pf-v6-global-gutter-x is the page section's inline padding. */
+.editorToggle {
+  --fc-gutter-x: calc(
+    var(--pf-v6-c-page__main-section--PaddingInlineStart) -
+      var(--pf-v6-c-page__main-container--BorderInlineStartWidth)
+  );
+
+  border-block: var(--pf-t--global--border--width--divider--default) solid
+    var(--pf-t--global--border--color--default);
+  margin-inline: calc(var(--fc-gutter-x) * -1);
+  padding: var(--pf-t--global--spacer--sm) var(--fc-gutter-x);
+}
+
+/* OCP formik-fields/RadioGroupField.scss `.ocs-radio-group-field--inline`: label and radios on one row. */
+.inlineRadioGroup:global(.pf-v6-c-form__group) {
+  display: flex;
+  flex-direction: row;
+}
+
+.inlineRadioGroup :global(.pf-v6-c-radio__label) {
+  margin-block-end: 0;
+}
+
+/* OCP synced-editor/styles.scss `.co-synced-editor__yaml-warning` ($pf-v6-global-gutter-y below). */
+.yamlWarning {
+  margin-block-end: var(--pf-t--global--spacer--md);
+}
+
+/* The YAML view fills the rest of the body, like OCP's `CodeEditorField` in a flex form body. */
+.yamlView {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* OCP dev-console import/section/FormSection.tsx: a `pf-v6-c-form` grid; section titles are `<Title h2>` (size xl =
+   heading--md, heading font, no negative bottom margin). */
+.section {
+  --pf-v6-c-form__section-title--FontSize: var(--pf-t--global--font--size--heading--md);
+  --pf-v6-c-form__section-title--MarginBlockEnd: 0;
+
+  display: grid;
+  gap: var(--pf-v6-c-form--GridGap);
+}
+
+.section :global(.pf-v6-c-form__section-title) {
+  font-family: var(--pf-t--global--font--family--heading);
+  line-height: var(--pf-t--global--font--line-height--heading);
+}
+
+/* OCP public/style/_forms.scss `.co-m-pane__form`: sections that aren't `fullWidth` are capped. */
+@media (min-width: 769px) {
+  .paneForm {
+    max-width: 650px;
+  }
+}
+
+@media (min-width: 992px) {
+  .paneForm {
+    min-width: 650px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .paneForm {
+    max-width: 50%;
+  }
+}
+
+/* OCP progressive-list/ProgressiveListItem.scss `.ocs-progressive-list-section` */
+.progressiveItem {
+  margin-block-end: var(--pf-t--global--spacer--md);
+}
+
+/* OCP _overrides.scss `.pf-v6-c-button--align-right` (beats PF's `.pf-v6-c-form__actions > *`). */
+.alignRight:global(.pf-v6-c-button) {
+  margin-inline-start: auto;
+}
+
+/* Fleet addition (SW-10): "Saving to <cluster> <env>" next to the buttons, centred on them. */
+.target {
+  align-self: center;
+}
+
+/* OCP public/style/_common.scss `.co-fullscreen`, as on the YAML tab. */
+.fullscreen {
+  background: var(--pf-t--global--background--image--default)
+    var(--pf-t--global--background--color--secondary--default);
+}
+
+/* OCP ContainerField: "Container: [C] name" in bold. */
+.containerName {
+  font-weight: var(--pf-t--global--font--weight--body--bold);
+}
+
+/* OCP .pairs-list__value-pair-field: a ref's selects (or read-only inputs) stack in the value column. */
+.valueFrom {
+  display: flex;
+  flex-direction: column;
+}
+
+/* OCP .value-from--key: the key select sits 5px below the resource select. */
+.valueFromKey {
+  padding-top: 5px;
+}
+
+/* OCP .pairs-list__value-ro-field. */
+.readOnlyValue {
+  flex-grow: 1;
+  padding-top: 5px;
+}
