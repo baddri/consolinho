@@ -1,0 +1,15 @@
+# Stable DNS name `postgres` used by the connection string in Secret consolinho-db.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/component: database
+spec:
+  selector:
+    app.kubernetes.io/component: database
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: postgresql
+      protocol: TCP

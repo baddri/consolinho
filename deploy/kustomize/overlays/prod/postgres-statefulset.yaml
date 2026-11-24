@@ -1,0 +1,89 @@
+# In-cluster production Postgres: single instance on a PVC + nightly pg_dump CronJob. Not HA. Credentials come from the Secret
+# consolinho-postgres created by hand (see steps) (never committed). Data lives on a PVC and survives restarts.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels:
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  serviceName: postgres
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: database
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        # Red Hat image, pulled with the cluster's global pull secret.
+        - name: postgresql
+          image: registry.redhat.io/rhel9/postgresql-16:1   # pin a digest once mirrored: @sha256:...
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgresql
+              containerPort: 5432
+              protocol: TCP
+          env:
+            # RUNBOOK "Connections" rule: HPA maxReplicas (6) x Npgsql default pool (100) + 5 = 605 <= max_connections.
+            # The image default (100) would not fit; idle slots cost little memory.
+            - name: POSTGRESQL_MAX_CONNECTIONS
+              value: "650"
+            - name: POSTGRESQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-postgres
+                  key: database-user
+            - name: POSTGRESQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-postgres
+                  key: database-password
+            - name: POSTGRESQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: consolinho-postgres
+                  key: database-name
+          readinessProbe:
+            exec:
+              command: ["/usr/libexec/check-container"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["/usr/libexec/check-container", "--live"]
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 2Gi
+          # restricted-v2 compatible, but WITHOUT readOnlyRootFilesystem: the image writes its generated config under
+          # $HOME at startup (documented exception, ADR-0030).
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/pgsql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        # Default StorageClass.
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi
