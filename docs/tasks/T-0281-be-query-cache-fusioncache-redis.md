@@ -1,12 +1,12 @@
 ---
 id: T-0281
 title: Query cache core — IQueryCache on FusionCache (L1 + Redis L2 + backplane), CachingBehavior, Redis wiring + health
-status: in_review
+status: done
 owner: backend-engineer
 checkpoint: 4.5b
 depends_on: []
 paths: [Directory.Packages.props, src/FleetConsole.Application/Abstractions/Caching/, src/FleetConsole.Application/Behaviors/CachingBehavior.cs, src/FleetConsole.Application/DependencyInjection.cs, src/FleetConsole.Application/FleetConsole.Application.csproj, src/FleetConsole.Infrastructure/Caching/, src/FleetConsole.Infrastructure/DependencyInjection.cs, src/FleetConsole.Infrastructure/FleetConsole.Infrastructure.csproj, src/FleetConsole.AppHost/, src/FleetConsole.Api/appsettings*.json, tests/FleetConsole.Application.Tests/Behaviors/, tests/FleetConsole.Api.Tests/Caching/, tests/FleetConsole.Api.Tests/Integration/RedisFixture.cs, tests/FleetConsole.Api.Tests/Integration/Hosting/, tests/FleetConsole.Api.Tests/FleetConsole.Api.Tests.csproj]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -100,6 +100,22 @@ internal static IServiceCollection AddCacheableQuery<TQuery, TValue>(this IServi
   the key to its Production hosts).
 
 ## Review
+- 2026-11-24 backend-architect, round 1 (e572ba3 on top of cb0ac7b): **APPROVE**.
+  - Judged OK: StackExchange.Redis direct (one multiplexer, `abortConnect=false`, avoids the Unhealthy check + OTel 1.18;
+    recorded in Directory.Packages.props). Lazy L2/backplane in `WithPostSetup` is robust: fail-fast is independent of it
+    (`RedisConnectionOptions` `ValidateOnStart` reads `IConfiguration` at resolve time, Production test covers the key).
+    Fail-safe off + explicit entry defaults; prefix-only isolation fine (own Redis per deployment, T-0284). Password: never
+    logged, asserted. Caching inserted after `ValidationBehavior` → Authorization/ReadOnlyGuard/Validation always run
+    before a hit (step-5 + hit-skips-pipeline tests). Out-of-path ApiFactory/DataProtectionSetupTests edits are necessary
+    and minimal.
+  - Fixed by reviewer: `CachingSetup.cs` health check registered with `failureStatus: HealthStatus.Degraded` (an exception
+    outside the RedisException/TimeoutException filter, e.g. malformed connection string, would otherwise be Unhealthy →
+    503, breaking CACHE-7); `Infrastructure/DependencyInjection.cs:RedisHealthCheckName` doc said "registered only when
+    set" (it is always registered); `BACKEND.md` §Pipeline step 5 no longer "(future)".
+  - Optional: `CachingSetup.cs` — FusionCache logs every factory exception at `FactoryErrorsLogLevel` (default Warning),
+    so each failure `Result` (`UncachedFailure`) writes a Warning with stack trace; consider `FactoryErrorsLogLevel =
+    Debug` (real loader exceptions still propagate and are logged by the pipeline) when T-0282 adds the first query.
+  - Optional (T-0282): BACKEND.md §Recipes "Adding a cache later" still describes `HybridCache`/open `CachingBehavior<,>`.
 
 ## Handover notes
 - Port: `IQueryCache` + `ICacheableQuery<T>` + `CacheTags` (Application/Abstractions/Caching). Make a query cacheable by

@@ -42,8 +42,8 @@ public static class DependencyInjection
     public const string KeyRingHealthCheckName = "keyring";
 
     /// <summary>
-    /// Name of the Redis readiness check (registered only when <c>ConnectionStrings:redis</c> is set). It reports
-    /// Degraded, never Unhealthy, when Redis is unreachable, so <c>/health</c> stays 200 (ADR-0040 §7, CACHE-7).
+    /// Name of the Redis readiness check (always registered; Healthy when no <c>ConnectionStrings:redis</c> is set). It
+    /// reports Degraded, never Unhealthy, when Redis is unreachable, so <c>/health</c> stays 200 (ADR-0040 §7, CACHE-7).
     /// </summary>
     public const string RedisHealthCheckName = "redis";
 

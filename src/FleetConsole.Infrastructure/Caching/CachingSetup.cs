@@ -1,6 +1,7 @@
 using FleetConsole.Application.Abstractions.Caching;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -82,7 +83,10 @@ internal static class CachingSetup
         // One multiplexer for L2, backplane and health check; the container disposes it on shutdown. The check is always
         // registered and reports Healthy when no Redis is configured (Development only, see the validation above).
         builder.Services.AddSingleton<RedisConnection>();
-        builder.Services.AddHealthChecks().AddCheck<RedisHealthCheck>(DependencyInjection.RedisHealthCheckName);
+        // failureStatus Degraded: an exception the check doesn't catch itself (e.g. a malformed connection string) must not
+        // turn into Unhealthy either (CACHE-7).
+        builder.Services.AddHealthChecks()
+            .AddCheck<RedisHealthCheck>(DependencyInjection.RedisHealthCheckName, failureStatus: HealthStatus.Degraded);
 
         builder.Services.AddSingleton<IQueryCache, FusionQueryCache>();
         return builder;

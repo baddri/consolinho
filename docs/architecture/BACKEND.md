@@ -90,7 +90,9 @@ in registration order. Handlers and validators are registered by assembly scanni
    It runs **before** validation (contract §7 check order: CSRF → 401 → `Auth.Forbidden` → `Auth.ReadOnly` → field
    validation), so a read-only admin gets `Auth.ReadOnly`, never field errors.
 4. `ValidationBehavior` — runs FluentValidation validators → `Error.Validation` with field errors.
-5. *(future)* `CachingBehavior` — queries implementing `ICacheableQuery`.
+5. `CachingBehavior` — queries implementing `ICacheableQuery<TValue>` (ADR-0040 §3). Registered closed per query by
+   `AddCacheableQuery<TQuery, TValue>()`, which inserts it right after `ValidationBehavior`, so authorization, the
+   read-only guard and validation always run before a cache hit can answer; failure results are never cached.
 6. `UnitOfWorkBehavior` — commands only (constrained on `IBaseCommand`, so the container never builds it for
    queries): calls `IUnitOfWork.SaveChangesAsync` after the handler returns a successful `Result`. The `IUnitOfWork`
    implementation (`ConsoleDbContext`) owns domain events: it collects them from tracked `IHasDomainEvents` aggregates,
