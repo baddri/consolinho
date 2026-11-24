@@ -1,7 +1,7 @@
 ---
 id: T-0286
 title: Deploy CP4.5b to consolinho, show cross-pod revoke live (OPS-2), re-run the k6 load test (OPS-3)
-status: todo
+status: blocked
 owner: orchestrator
 checkpoint: 4.5b
 depends_on: [T-0285]
@@ -34,12 +34,17 @@ T-0242 baseline (p95 71 ms, Postgres CPU peak 177m); change requests/HPA only if
 - Touch points: `deploy/loadtest/console-mix.js`, `deploy/loadtest/job.yaml`, `scripts/deploy-dev.sh`.
 
 ## Acceptance criteria
-- [ ] Deployed; all server pods and Redis Ready; `/health` Healthy (OPS-1 live).
+- [x] Deployed; all server pods and Redis Ready; `/health` Healthy (OPS-1 live).
 - [ ] OPS-2 cross-pod revoke shown and recorded.
 - [ ] OPS-3 table with baseline vs CP4.5b recorded; request/HPA change only with a stated reason.
 - [ ] Spec CP4.5b VERIFY block updated for OPS-2/OPS-3.
 
 ## Work log
+- 2026-11-25 (qa): `deploy-dev.sh --yes` @ b2d79ed ok (created Secret consolinho-redis). Redis image pulled in 16.6 s;
+  `rhel9/redis-7:1` = manifest list `sha256:17f5b4c1…dea7` (amd64 `sha256:b61ae22d…7720`), pinned in dev/prod/production
+  overlays; `check-deploy.sh` ok. 3/3 server pods + redis Ready, `/health` Healthy on the Route and on each pod (OPS-1).
+- 2026-11-25 (qa): BLOCKED on OPS-2/OPS-3: they need a console session; the cluster has no IdP besides kube:admin
+  (password unknown to agents; oauth-server ignores bearer at /oauth/authorize -> /login). Need a human Cookie header.
 
 ## Review
 

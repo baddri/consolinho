@@ -292,7 +292,8 @@ Redis reads it as `--requirepass`; the server builds `ConnectionStrings__redis` 
 (`consolinho-redis:6379,password=$(REDIS_PASSWORD),abortConnect=false`). Nothing else is configured.
 
 **Image / disconnected clusters:** the image is the single kustomize `images:` entry `name: redis` in the overlay
-(default `registry.redhat.io/rhel9/redis-7:1`, pulled with the cluster's global pull secret like the Postgres image).
+(default `registry.redhat.io/rhel9/redis-7`, tag `1` pinned by manifest-list digest in every overlay, pulled with the
+cluster's global pull secret like the Postgres image).
 On a disconnected cluster, mirror it together with the consolinho and Postgres images and point that entry's
 `newName` at the mirror (pin `digest: sha256:…` instead of `newTag`). The container starts `redis-server` directly
 (the rhel9 entrypoint would write to the read-only root filesystem), so any Redis ≥ 7 image with `redis-server`,

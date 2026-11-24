@@ -37,7 +37,8 @@ images:
   # mirror (like the Postgres image in postgres-statefulset.yaml). Pin a digest once mirrored: digest: sha256:...
   - name: redis
     newName: registry.redhat.io/rhel9/redis-7
-    newTag: "1"
+    # tag 1, manifest list resolved 2026-11-25 (T-0286); bump deliberately, not by re-pull
+    digest: sha256:17f5b4c157211f09b951771936b2a4483b74635915e2e06bd1c4222be667dea7
 
 configMapGenerator:
   - name: consolinho-config
