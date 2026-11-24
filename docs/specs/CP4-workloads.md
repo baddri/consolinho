@@ -291,6 +291,23 @@ with guard · Download); QA records evidence. **POL-5** is met (shared `Timestam
 `test/sidebar.ts`); QA records evidence. **POL-1**: T-0118 items map to T-0119/T-0121/T-0122/T-0126; QA closes it per item.
 W4 (ring scale) is already `match` (T-0184/T-0188); T-0133 is closed by T-0213. CONNECT/200 removal stays with T-0091 (BE).
 
+### 4c.9 Acceptance (product owner, 2026-11-24) — **ACCEPTED**
+Evidence: all CP4c tasks `done`; `check-fe.sh` green (1223 tests + build); e2e 37/37 incl. QGC-1/OAPI-3 in a real browser
+(dev and the built `dist` under prod CSP, T-0239); BE gate green (T-0231); human login + pod-delete failover on consolinho (T-0233).
+- **4c.1 OAPI — ACCEPTED.** OAPI-1/2/4 tested in T-0210 (per-cluster keys, 403/404 → one debug log, 2 MB parse < 100 ms).
+  OAPI-3: hover/completion/validation live after T-0239; sidebar W1 `match` (T-0212, T-0222). **Decision:** "unknown field
+  warns" is accepted as "wrong type on a known field is flagged". Cluster schemas carry no `additionalProperties: false`
+  and OCP (`yaml-editor-utils.ts:configureMonacoYaml`, same schemas) doesn't warn on unknown fields either. Adding our own
+  strictness would diverge from OCP.
+- **4c.2 HELP — ACCEPTED.** T-0213 + T-0237 (links, line breaks); row 38 `match`. Live re-measure is pending (OCP was down) → T-0240.
+- **4c.3 FORM — ACCEPTED.** FORM-1..4 by T-0214/15/16/38 + e2e form→YAML→Save, RO form. ImageStream source/triggers are
+  omitted by decision (§4c.6), which is enough for fleet scope.
+- **4c.4 POL — ACCEPTED.** POL-1..5 have evidence in the T-0223 work log. For POL-4 the hand-edited `schema.gen.ts` still needs a confirming `gen:api` run → T-0241 (not blocking; the tests cover the structured field).
+- **4c.5 QGC — ACCEPTED.** Before tagging, the orchestrator fixes two doc items: tick the T-0223 QGC-1 box, and remove
+  the stale "gap … T-0239" note from `ocp-parity.md` row 40 (fixed by T-0239).
+- Later (ROADMAP backlog): hover "Source:" line vs OCP, shared linkify helper, shared `useResourceYamlSchema`,
+  metadata-only Secret lists, DatabaseMigrator lock helper, keyring health check logged as Error on cold start.
+
 ## 5. UX notes
 
 - **Tabs and URLs** follow OCP (`/logs`, `/terminal`, `/replicasets`, `/jobs`, `/form`). Tab order is OCP's minus tabs we don't ship (Metrics, Environment).

@@ -12,7 +12,7 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 3.5 | OCP look & feel | done (tag cp-3.5) |
 | 3.6 | OCP parity (mirror the console) | done (tag cp-3.6) |
 | 3.7 | Fleet foundations | done (tag cp-3.7) |
-| 4 | Workloads day-2 operations | in_progress (tags cp-4a, cp-4b; CP4c next) |
+| 4 | Workloads day-2 operations | in_progress (tags cp-4a, cp-4b, cp-4c; CP4.5 next) |
 | 4.5 | Access at scale (groups + cache) | planned |
 | 5 | Networking, storage, compute & cluster overview | planned |
 | 5.5 | Kubernetes clusters | planned |
@@ -94,7 +94,7 @@ Human directive (2026-11-23). Shell and data changes that every CP4/CP5 page bui
 ## CP4 — Workloads day-2 operations
 Spec `docs/specs/CP4-workloads.md` (2026-11-23): split **CP4a** Pods + Deployments → **CP4b** other kinds, Jobs/CronJobs,
 HPA, ConfigMaps/Secrets, Search → **CP4c** cluster OpenAPI, field help, Edit forms, polish. Tag + merge per sub-checkpoint.
-**CP4a DONE (tag cp-4a). CP4b DONE (tag cp-4b, accepted 2026-11-23, spec §4b.8; CP4c follow-ups listed there).**
+**CP4a DONE (tag cp-4a). CP4b DONE (tag cp-4b, accepted 2026-11-23, spec §4b.8; CP4c follow-ups listed there).** **CP4c DONE (tag cp-4c, accepted 2026-11-24, spec §4c.9).**
 PO Q1–Q8 recommendations accepted by the orchestrator (Secret reveal without modal = OCP parity; exec 60-min cap).
 Pods (logs with follow/container select/download, exec terminal via WebSocket, delete, events), Deployments/DC
 (scale, rollout restart, pause/resume, revision history), StatefulSets, DaemonSets, ReplicaSets, Jobs, CronJobs
@@ -175,3 +175,10 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP3.5 ACCEPT) Absolute `Timestamp` (globe icon, relative tooltip) in list "Created" columns too, as in OCP.
 - (CP3.6 ACCEPT) Switcher toggle: never clip the cluster name ("prod…") for its labels; drop "Read only" before the name (prod-eu-1 vs prod-us-1).
 - (CP3.6 ACCEPT) Events card timestamp crowds the object name at 375px.
+- (CP4c ACCEPT) YAML hover "Source: …/apps/v1/Deployment" line: compare with OCP (same monaco-yaml); hide it if OCP does.
+- (CP4c ACCEPT) Shared linkify helper for schema descriptions (field-help popover, YAML sidebar, hover).
+- (CP4c ACCEPT) Shared `useResourceYamlSchema(cluster, model)` hook (uri duplicated in DeploymentForm / ResourceYamlTab).
+- (CP4c ACCEPT) Metadata-only Secret lists (form pickers, Secrets list) so Secret values stay out of the query cache.
+- (CP4c ACCEPT) DatabaseMigrator: shared hardened advisory-lock helper (same half-open-connection risk as T-0231).
+- (CP4c ACCEPT) Keyring health check logs at Error once per cold start ("Key ring not loaded yet") → Warning/Degraded to cut alert noise.
+- (CP4c ACCEPT) Edit Deployment form: ImageStream tag source + auto-deploy triggers once ImageStream pages exist.

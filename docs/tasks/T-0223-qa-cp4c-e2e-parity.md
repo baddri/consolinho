@@ -28,7 +28,7 @@ Verify CP4c against §4c.1–4c.5 and the §4b.8 follow-ups, and produce the evi
 - Spec: `docs/specs/CP4-workloads.md` §4c.1–4c.6 (grep the AC ids).
 
 ## Acceptance criteria
-- [ ] QGC-1 e2e green (form→YAML→Save green ×2; YAML hover/completion/validation blocked by T-0239) (also on `--repeat-each=2`); carried CP4b e2e green, with no `fixme`.
+- [x] QGC-1 e2e green (form→YAML→Save green ×2; YAML hover/completion/validation green after T-0239) (also on `--repeat-each=2`); carried CP4b e2e green, with no `fixme`.
 - [x] QGC-2: `ocp-parity.md` has no `gap` from W1/W3/W4.
 - [x] T-0118 and T-0133 are closed with per-item reasons; POL-1–POL-5 evidence is listed in the Work log.
 - [x] Build, lint and tests green (CLAUDE.md rule 4)
