@@ -104,7 +104,7 @@ Pods (logs with follow/container select/download, exec terminal via WebSocket, d
 menu item must not truncate the display name to one letter when 3 labels show. F2: ux-designer checks the production band
 under the navy masthead (light + dark). FE: drop `NamespaceRulesResult` alias + `testResultBody` cast after gen:api (T-0154).
 
-## CP5 — Networking, storage, compute & cluster overview
+## CP5 — Networking, storage, compute & cluster overview — DONE (tags cp-5a, cp-5b, cp-5c; deployed to consolinho)
 Services, Routes (with link-out), Ingresses, NetworkPolicies; PVCs, PVs, StorageClasses; Nodes (cordon/drain view,
 conditions, allocatable), MachineSets (read), Projects; cluster overview dashboard (ClusterVersion, ClusterOperators
 health, node status, recent warning events); Operators (CSV/Subscription read-only); fleet view: status of all clusters
