@@ -145,6 +145,13 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * bivariant like the other callbacks.
    */
   DetailsSection?(props: { obj: T }): ReactNode;
+  /**
+   * Replaces the whole two-column grid under "<Kind> details" (common metadata column and {@link DetailsSection})
+   * for kinds whose OCP overview interleaves metadata with kind fields in its own order, e.g. OCP
+   * `NodeDetailsOverview`. The component renders its own `DetailsGrid` and, if it shows Labels/Annotations, their
+   * edit affordances. Same component shape as {@link DetailsSection}; `DetailsTop` and `ExtraSections` still render.
+   */
+  DetailsOverview?(props: { obj: T }): ReactNode;
   /** Heading over the {@link DetailsSection} column, e.g. OCP's "Job status"; none when unset. */
   detailsTitle?: string;
   /**

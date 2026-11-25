@@ -19,7 +19,10 @@ import { k8sTime, runningPodStatus } from './fixtures';
  * the Machine API objects in `openshift-machine-api`: two worker MachineSets with their Machines plus the control-plane
  * Machines, each linked to its Node. Vanilla clusters get Nodes and pods only.
  *
- * Scenario (mirrors the MSW fleet table, T-0341): on `dev-2` worker-3 is NotReady (kubelet stopped reporting).
+ * Scenario (mirrors the MSW fleet table, T-0341): on `dev-2` worker-3 is NotReady (Ready False: the kubelet reports
+ * that the network plugin isn't ready, so the node controller taints it `not-ready`); on `dev-1` worker-2 is cordoned
+ * (`spec.unschedulable` plus the `unschedulable` taint), so "Scheduling disabled" and the Unschedulable row show on a
+ * cluster the mock admin is granted.
  */
 
 const MINUTE_MS = 60_000;
@@ -30,6 +33,7 @@ const BARE_POD_NAMESPACE = 'kube-system';
 const KUBELET_VERSION = 'v1.30.4';
 const REGION = 'us-east-1';
 const NOT_READY: ReadonlySet<string> = new Set(['dev-2/worker-3']);
+const CORDONED: ReadonlySet<string> = new Set(['dev-1/worker-2']);
 
 function minutesBefore(minutes: number): string {
   return k8sTime(FIXTURE_NOW - minutes * MINUTE_MS);
@@ -87,14 +91,14 @@ function nodePlans(cluster: string): NodePlan[] {
 
 function nodeConditions(ready: boolean): NodeCondition[] {
   const since = minutesBefore(30 * DAY_MINUTES);
-  const heartbeat = minutesBefore(ready ? 1 : 45);
+  const heartbeat = minutesBefore(1);
   const pressure = (type: string, reason: string, message: string): NodeCondition => ({
     type,
-    status: ready ? 'False' : 'Unknown',
-    reason: ready ? reason : 'NodeStatusUnknown',
-    message: ready ? message : 'Kubelet stopped posting node status.',
+    status: 'False',
+    reason,
+    message,
     lastHeartbeatTime: heartbeat,
-    lastTransitionTime: ready ? since : minutesBefore(40),
+    lastTransitionTime: since,
   });
   return [
     pressure('MemoryPressure', 'KubeletHasSufficientMemory', 'kubelet has sufficient memory available'),
@@ -102,9 +106,12 @@ function nodeConditions(ready: boolean): NodeCondition[] {
     pressure('PIDPressure', 'KubeletHasSufficientPID', 'kubelet has sufficient PID available'),
     {
       type: 'Ready',
-      status: ready ? 'True' : 'Unknown',
-      reason: ready ? 'KubeletReady' : 'NodeStatusUnknown',
-      message: ready ? 'kubelet is posting ready status' : 'Kubelet stopped posting node status.',
+      status: ready ? 'True' : 'False',
+      reason: ready ? 'KubeletReady' : 'KubeletNotReady',
+      message: ready
+        ? 'kubelet is posting ready status'
+        : 'container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:Network ' +
+          'plugin returns error: no CNI configuration file in /etc/kubernetes/cni/net.d/. Has your network provider started?',
       lastHeartbeatTime: heartbeat,
       lastTransitionTime: ready ? since : minutesBefore(40),
     },
@@ -113,6 +120,7 @@ function nodeConditions(ready: boolean): NodeCondition[] {
 
 function nodeObject(cluster: string, plan: NodePlan, uid: string, openShift: boolean): Node {
   const ready = !NOT_READY.has(`${cluster}/${plan.name}`);
+  const cordoned = CORDONED.has(`${cluster}/${plan.name}`);
   const roleLabels: Record<string, string> =
     plan.role === 'master'
       ? {
@@ -131,7 +139,10 @@ function nodeObject(cluster: string, plan: NodePlan, uid: string, openShift: boo
       : []),
     ...(ready
       ? []
-      : [{ key: 'node.kubernetes.io/unreachable', effect: 'NoSchedule', timeAdded: minutesBefore(40) }]),
+      : [{ key: 'node.kubernetes.io/not-ready', effect: 'NoSchedule', timeAdded: minutesBefore(40) }]),
+    ...(cordoned
+      ? [{ key: 'node.kubernetes.io/unschedulable', effect: 'NoSchedule', timeAdded: minutesBefore(15) }]
+      : []),
   ];
   const cpu = plan.role === 'master' ? '4' : '8';
   const memoryKi = plan.role === 'master' ? '16101264Ki' : '32499980Ki';
@@ -158,6 +169,7 @@ function nodeObject(cluster: string, plan: NodePlan, uid: string, openShift: boo
     },
     spec: {
       providerID: `aws:///${plan.zone}/i-0${uid.slice(-12)}`,
+      ...(cordoned ? { unschedulable: true } : {}),
       ...(taints.length > 0 ? { taints } : {}),
     },
     status: {
