@@ -1,7 +1,7 @@
 ---
 id: T-0310
 title: CP5a UX — ui-probe and OCP side-by-side of Networking/Storage pages and the two new modals
-status: in_review
+status: done
 owner: ux-designer
 checkpoint: 5a
 depends_on: [T-0301, T-0302, T-0303, T-0304, T-0305, T-0306, T-0307, T-0308, T-0309]

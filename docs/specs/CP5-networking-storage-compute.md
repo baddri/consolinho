@@ -142,7 +142,7 @@ have no project bar.
 - **SAFE5-1** Every CP5 mutating modal (Expand PVC, Create Project, Mark as unschedulable, Delete `<Kind>`) shows the cluster display name and environment label (CP4 SAFE-1 pattern, `ResourceMutationModal`). No additional production-only confirmation (CP4 Q2). Delete of a Node / PV / StorageClass / Project keeps the existing name-typing rule only where OCP asks for it (Project, Namespace).
 - **SAFE5-2** RO users see every CP5 action disabled with the UI-9 reason (never hidden); the Mutation guard blocks them server-side — Api tests for PATCH on `nodes` and `persistentvolumeclaims` and POST `projectrequests` for RO → 403 ProblemDetails, nothing forwarded.
 - **SAFE5-3** Upstream `Authorization` for CP5 mutations is the grant token (Api test per verb, CP4 SAFE-2 harness).
-- **SAFE5-4** Route TLS keys/certificates and Secret data referenced by Ingress TLS are never rendered on details pages, in toasts or in logs.
+- **SAFE5-4** Route TLS keys/certificates and Secret data referenced by Ingress TLS are never rendered on details pages, in toasts or in logs. The YAML tab shows the raw object incl. `spec.tls.key`, as OCP does and editing needs (decided at accept, §5a.12).
 - **SAFE5-5** Audit labels for the new mutations ("Expanded PersistentVolumeClaim", "Created Project", "Marked Node unschedulable" / "schedulable") via the shared label map.
 
 ### 5a.10 Quality gates (QG5A)
@@ -170,6 +170,25 @@ map's imperative tense ("Create Project") rather than SAFE5-5's past tense.
 Backend asks: Api tests for SAFE5-2/3 (RO PATCH `persistentvolumeclaims` / POST `projectrequests` → 403, grant token
 upstream); an audit hint (e.g. JSON-Patch path) if "Patch PersistentVolumeClaim" should read "Expand PVC"; no proxy
 allow-list change expected (structural `ProxyPath`).
+
+### 5a.12 Acceptance (product owner, 2026-11-25) — **ACCEPTED**
+Evidence: T-0300..T-0309, T-0311 `done`; T-0310 (UX probe) still `in_review` with no open findings, so the orchestrator closes it.
+e2e `networkingStorage.e2e.ts` 7/7 (14/14 with `--repeat-each=2`); 13 CP5a rows in `ocp-parity.md`, all `match` or an accepted gap;
+check-be green (2359 tests, incl. `ProxyMutationVerbTests` for SAFE5-2/3, T-0324); check-fe lint/typecheck/build green.
+- **NAV, SVC, RT, ING, NP, PVC, PV/SC, PRJ — ACCEPTED.** Criteria are covered by the task tests and the e2e (RT-2 link-out
+  with a new-tab URL, PVC-3 expand + toast naming the claim and cluster, PRJ-2 create, NAV-1 order, NAV-2 on vanilla k8s).
+- **SAFE5 — ACCEPTED, with SAFE5-4 clarified.** *Decision:* the Route **YAML tab** shows `spec.tls.key`/`certificate`.
+  OCP does the same, and the YAML tab is the raw object, which editing needs. SAFE5-4 means **details pages, toasts and logs**:
+  the details page shows only "Set"/"Not set" for Certificate and Key, never the PEM. Hiding the key in YAML would break Edit Route.
+- **QG5A — ACCEPTED.** Accepted parity gaps, now recorded: Route Backend health column (backlog), Route Metrics tab and
+  PVC Used + donut (Prometheus, Q6, already in backlog), Project Overview (Prometheus), Workloads and RoleBindings tabs (backlog),
+  Service Pods empty state for selector-less Services (kept: clearer than OCP's all-pods list), the Expand PVC StorageClass
+  `allowVolumeExpansion` reason (kept: a fleet improvement), and Create Project's "Learn more" link (kept out: vendor docs URL).
+- QA's 2 check-fe file failures (`registry.test.ts`, `clusterSettings.test.tsx`) pass alone and come from uncommitted CP5b work (T-0335).
+  The full gate must be green before the merge.
+- **Merge blockers outside CP5a (they don't change this verdict):** T-0362 (switcher e2e H4/H5 against the new `/fleet` overview)
+  and T-0363 (CP4c YAML completion e2e regression) must be fixed, and the full e2e suite green, before the CP5 branch merges.
+- Later (ROADMAP backlog): Route Backend health column (Service + Endpoints lookup, no extra per-row requests).
 
 ---
 

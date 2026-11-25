@@ -191,3 +191,4 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP5 spec) Operator actions: approve InstallPlan, change channel, uninstall; OperatorHub read.
 - (CP5 spec) Create forms: Route, Ingress, NetworkPolicy, StorageClass; "Set as default" StorageClass; VolumeSnapshots.
 - (CP5 spec) Project details Workloads and RoleBindings tabs.
+- (CP5a ACCEPT) Route list "Backend health" column (OCP networking-plugin): derive from Service + Endpoints, no per-row requests.
