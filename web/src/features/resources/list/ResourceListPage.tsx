@@ -98,7 +98,8 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
     <>
       {model.namespaced && <ProjectBar descriptor={descriptor} cluster={cluster} namespace={namespace} />}
       <PageHeading
-        title={model.labelPlural}
+        title={descriptor.listTitle ?? model.labelPlural}
+        subtitle={descriptor.listHelpText}
         status={liveStatus === 'paused' ? <LiveIndicator status={liveStatus} /> : undefined}
         alert={descriptor.HeadingAlert && <descriptor.HeadingAlert cluster={cluster} />}
         actions={descriptor.ListActions && <descriptor.ListActions cluster={cluster} />}

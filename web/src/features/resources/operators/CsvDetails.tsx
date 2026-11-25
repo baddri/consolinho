@@ -150,7 +150,7 @@ function ProvidedApiCards({ obj }: { obj: CsvResource }) {
 export function CsvOverview({ obj }: { obj: CsvResource }) {
   const { status, spec } = obj;
   return (
-    <Grid hasGutter className="pf-v6-u-mb-lg">
+    <Grid hasGutter>
       <GridItem sm={9}>
         {status?.phase === 'Failed' && (
           <Alert isInline variant="danger" title="Operator failed" className="pf-v6-u-mb-md">

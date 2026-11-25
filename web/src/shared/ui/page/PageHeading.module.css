@@ -14,3 +14,28 @@
   font-family: var(--pf-t--global--font--family--heading);
   line-height: var(--pf-t--global--font--line-height--heading);
 }
+
+/* component-groups `PageHeader` `iconMinWidth`: the lead icon column is at least 48px wide. */
+.leadIcon {
+  min-width: 48px;
+}
+
+/* OCP `_catalog.scss` L227-240, the lead-icon (operator logo) heading: the name column
+   (`.co-page-heading .co-clusterserviceversion-logo__name`) has a spacer--sm margin above and below… */
+.logoName {
+  margin-block: var(--pf-t--global--spacer--sm);
+}
+
+/* …the name (`.co-clusterserviceversion-logo__name__clusterserviceversion`) is 15px with 5px below it… */
+.logoTitle {
+  --pf-v6-c-title--m-h1--FontSize: 15px;
+
+  margin-block-end: 5px;
+}
+
+/* …and the caption sits inside OCP's h1, so it inherits the heading font, weight and line height. */
+.logoCaption {
+  font-family: var(--pf-t--global--font--family--heading);
+  font-weight: var(--pf-t--global--font--weight--heading--default);
+  line-height: var(--pf-t--global--font--line-height--heading);
+}

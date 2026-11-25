@@ -32,7 +32,8 @@ function useFieldHelp(cluster: string, model: K8sModel): FieldHelp | null {
 }
 
 /**
- * Details tab (UI-4, OCP `DeploymentDetails`/`PodDetails`, `UX.md` §6): a "<Kind> details" section with the
+ * Details tab (UI-4, OCP `DeploymentDetails`/`PodDetails`, `UX.md` §6): the descriptor's unheaded `DetailsLead`
+ * section if any (OCP CSV overview), then a "<Kind> details" section with the
  * descriptor's `DetailsTop` (pod ring) over two columns — the common {@link MetadataSection} left, the descriptor's
  * `DetailsSection` fields right (under its optional `detailsTitle`, OCP "Job status"), or the descriptor's own
  * `DetailsOverview` in their place (OCP `NodeDetailsOverview`) — then the descriptor's `ExtraSections` (Containers, Volumes, Conditions, …), each its
@@ -45,6 +46,11 @@ export function ResourceDetailsTab() {
   const fieldHelp = useFieldHelp(cluster, descriptor.model);
   return (
     <FieldHelpContext value={fieldHelp}>
+      {descriptor.DetailsLead && (
+        <DetailsSubsection>
+          <descriptor.DetailsLead obj={obj} />
+        </DetailsSubsection>
+      )}
       <DetailsSubsection title={`${label} details`}>
         {/* Rendered as components (not called) so a section may use hooks. */}
         {descriptor.DetailsTop && <descriptor.DetailsTop obj={obj} />}

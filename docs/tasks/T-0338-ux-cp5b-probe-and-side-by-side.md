@@ -1,7 +1,7 @@
 ---
 id: T-0338
 title: CP5b UX audit — probe and side-by-side vs OCP for Compute, Cluster Settings, Overview, Installed Operators
-status: todo
+status: done
 owner: ux-designer
 checkpoint: 5b
 depends_on: [T-0332, T-0333, T-0334, T-0335, T-0336, T-0337]
@@ -25,11 +25,16 @@ text can't settle) and record parity rows; file bug tasks for mismatches.
 - OCP reference: the paths in T-0332…T-0337 Context packs.
 
 ## Acceptance criteria
-- [ ] One ocp-parity row per QG5B-3 item: `match`, or `gap` with the spec decision (Q2/Q6/Q7/Q9), or a bug task id.
-- [ ] Fleet additions (Capacity and allocatable, drain hints, Kubernetes overview rows) checked for OCP style.
-- [ ] UX.md updated only if a new rule emerged (e.g. dashboard card rules).
+- [x] One ocp-parity row per QG5B-3 item: `match`, or `gap` with the spec decision (Q2/Q6/Q7/Q9), or a bug task id.
+- [x] Fleet additions (Capacity and allocatable, drain hints, Kubernetes overview rows) checked for OCP style.
+- [x] UX.md updated only if a new rule emerged (e.g. dashboard card rules).
 
 ## Work log
+- 2026-11-25 ux-designer: computed-style probe (ours mock prod-eu-1 as alice vs ref :9000, 1280 light; dark for status icons) of
+  Nodes, MachineSets, Machines (list + details), Cluster Settings + ClusterOperators, Overview, Installed Operators list/details/Subscription.
+  8 ocp-parity rows added. Must-fix → T-0368 (CSV header type scale, Subscription tab inset) and T-0369 (Node Images section).
+  Fleet additions OK: Capacity and allocatable = compact table like Node conditions; drain view (T-0333) and Overview
+  fleet rows (T-0336) approved in their reviews. No new UX.md rule (dashboard rules are OCP's, recorded in the parity rows).
 
 ## Review
 

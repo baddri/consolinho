@@ -93,3 +93,5 @@
 - Optional nit (T-0061): `ProxyErrors` `*Code` constants instead of string literals in `KubernetesProxyEndpoint.cs:217-219`, `ProxyProblems.cs:91-96`.
 - **CSP (CP3/CP6):** logos are inlined as `data:` URIs → SPA CSP must allow `img-src 'self' data:` (T-0055 review).
 - **CP2 follow-ups:** pooled handlers need a fresh `TlsValidationRecord` per connection; fake apiserver needs prefix routes + streaming bodies (T-0010).
+
+- 2026-11-25: CP5c closed: gate check-fe 1568/1568 + e2e 50/50 in clean worktree, merged to main 2b3fd5b (incl. reviewed CP5b tasks so far), tagged cp-5c, deployed to consolinho (3/3). T-0337 (049fad2), T-0344 (dcdbd49), T-0364 (0b6b6ae) committed. In flight: T-0366 review (arch+UX). Next: T-0338 UX audit → T-0339 QA → close cp-5b. Backlog: T-0367 OLM related links. Lesson: never `npm ci` in a worktree whose node_modules is a symlink — it wipes the main tree's.

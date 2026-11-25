@@ -26,16 +26,14 @@ export function CsvIcon({ csv }: { csv: CsvResource }) {
  * name cell. OCP's name is an `h1`; a styled span here, as a table cell holds no headings.
  */
 export function CsvLogo({ csv }: { csv: CsvResource }) {
-  const { displayName, version, provider } = csv.spec ?? {};
+  const providerLine = csvProviderLine(csv);
   return (
     <span className={styles.logo}>
       <CsvIcon csv={csv} />
       <span className={styles.name}>
-        <span className={styles.displayName}>{displayName ?? csv.metadata.name}</span>
-        {provider?.name && (
-          <span className="pf-v6-u-font-size-xs pf-v6-u-text-color-subtle">
-            {`${version ?? ''} provided by ${provider.name}`}
-          </span>
+        <span className={styles.displayName}>{csv.spec?.displayName ?? csv.metadata.name}</span>
+        {providerLine && (
+          <span className="pf-v6-u-font-size-xs pf-v6-u-text-color-subtle">{providerLine}</span>
         )}
       </span>
     </span>
@@ -44,3 +42,12 @@ export function CsvLogo({ csv }: { csv: CsvResource }) {
 
 /** {@link CsvLogo} class names the name cell's link needs (OCP `co-clusterserviceversion-link`). */
 export const csvLinkClassName = styles.link;
+
+/**
+ * "<version> provided by <provider>" (OCP `ClusterServiceVersionLogo` / `ClusterServiceVersionHeaderTitle`), the line
+ * under the operator's name; `undefined` without a provider name.
+ */
+export function csvProviderLine(csv: CsvResource): string | undefined {
+  const { version, provider } = csv.spec ?? {};
+  return provider?.name ? `${version ?? ''} provided by ${provider.name}` : undefined;
+}

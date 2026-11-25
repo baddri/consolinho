@@ -6,8 +6,11 @@ import { SectionHeading } from './SectionHeading';
 
 /** Props for {@link DetailsSubsection}. */
 export interface DetailsSubsectionProps {
-  /** Section heading (h2), e.g. "Pod details", "Containers". */
-  title: string;
+  /**
+   * Section heading (h2), e.g. "Pod details", "Containers". Omit it for an unheaded lead section (OCP's first
+   * `PaneBody` of the CSV Details tab), which still gets the divider to the section after it.
+   */
+  title?: string;
   /** Controls at the right end of the heading ({@link SectionHeading} `actions`). */
   actions?: ReactNode;
   children: ReactNode;
@@ -21,8 +24,12 @@ export interface DetailsSubsectionProps {
 export function DetailsSubsection({ title, actions, children }: DetailsSubsectionProps) {
   const headingId = useId();
   return (
-    <PageSection hasBodyWrapper={false} aria-labelledby={headingId} className={styles.section}>
-      <SectionHeading text={title} id={headingId} actions={actions} />
+    <PageSection
+      hasBodyWrapper={false}
+      aria-labelledby={title === undefined ? undefined : headingId}
+      className={styles.section}
+    >
+      {title !== undefined && <SectionHeading text={title} id={headingId} actions={actions} />}
       {children}
     </PageSection>
   );

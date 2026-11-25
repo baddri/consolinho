@@ -22,6 +22,7 @@ import {
   DetailsGrid,
   DetailsItem,
   DetailsSubsection,
+  PageBody,
   ResourceLabels,
   StatusIconText,
   Timestamp,
@@ -33,33 +34,9 @@ import { ResourceErrorState } from '../components/ResourceErrorState';
 import { resourcePath } from '../paths';
 import { operatorNamespace, upgradeRequiresApproval, type CsvResource, type SubscriptionResource } from './csv';
 import styles from './CsvSubscriptionTab.module.css';
+import { SubscriptionStatus } from './SubscriptionStatus';
 
 const NONE = 'None';
-
-/** The Subscription's state as OCP `SubscriptionStatus` words it, with the matching status icon. */
-function SubscriptionState({
-  subscription,
-  requiresApproval,
-}: {
-  subscription: SubscriptionResource;
-  requiresApproval: boolean;
-}) {
-  const state = subscription.status?.state;
-  switch (state) {
-    case 'UpgradeAvailable':
-      return <StatusIconText status="warning" text="Upgrade available" />;
-    case 'UpgradePending':
-      return requiresApproval ? (
-        <StatusIconText status="info" text="Upgrade available" />
-      ) : (
-        <StatusIconText status="pending" text="Upgrading" />
-      );
-    case 'AtLatestKnown':
-      return <StatusIconText status="success" text="Up to date" />;
-    default:
-      return <span className={state ? undefined : 'pf-v6-u-text-color-subtle'}>{state ?? 'Unknown failure'}</span>;
-  }
-}
 
 /** "Cannot update" with why (OCP `SourceMissingStatus` / `SourceUnhealthyStatus`). */
 function CannotUpdate({ reason }: { reason: string }) {
@@ -100,7 +77,7 @@ function SubscriptionUpdates({ cluster, subscription, installPlan }: UpdatesProp
   const requiresApproval = upgradeRequiresApproval(subscription, installPlan);
   const installedCsv = status?.installedCSV;
   return (
-    <DescriptionList className={`${styles.updates} pf-v6-u-mb-lg`}>
+    <DescriptionList className={styles.updates}>
       <Card>
         <DescriptionListTerm>Update channel</DescriptionListTerm>
         <DescriptionListDescription>{spec?.channel ?? 'No channel'}</DescriptionListDescription>
@@ -117,7 +94,7 @@ function SubscriptionUpdates({ cluster, subscription, installPlan }: UpdatesProp
               {!health ? (
                 <CannotUpdate reason="CatalogSource not found" />
               ) : health.healthy ? (
-                <SubscriptionState subscription={subscription} requiresApproval={requiresApproval} />
+                <SubscriptionStatus subscription={subscription} requiresApproval={requiresApproval} />
               ) : (
                 <CannotUpdate reason="CatalogSource unhealthy" />
               )}
@@ -239,31 +216,38 @@ export function CsvSubscriptionTab({ cluster, obj }: { cluster: string; obj: Csv
     namespace,
   });
   const { data, error, isPending } = list;
+  // The tab panel is unpadded (the details render their own sections), so the other states get a `PageBody`.
   if (error) {
     return (
-      <ResourceErrorState
-        error={error}
-        cluster={cluster}
-        model={SubscriptionModel}
-        namespace={namespace}
-        onRetry={() => list.refetch()}
-      />
+      <PageBody>
+        <ResourceErrorState
+          error={error}
+          cluster={cluster}
+          model={SubscriptionModel}
+          namespace={namespace}
+          onRetry={() => list.refetch()}
+        />
+      </PageBody>
     );
   }
   if (isPending) {
     return (
-      <Bullseye>
-        <Spinner size="lg" aria-label="Loading Subscription" />
-      </Bullseye>
+      <PageBody>
+        <Bullseye>
+          <Spinner size="lg" aria-label="Loading Subscription" />
+        </Bullseye>
+      </PageBody>
     );
   }
   const subscription = data?.find((candidate) => candidate.status?.installedCSV === obj.metadata.name);
   if (!subscription) {
     return (
-      <ConsoleEmptyState title="No Operator Subscription">
-        This Operator will not receive updates because it has no Subscription. To get updates, create a Subscription
-        for this Operator from the software catalog.
-      </ConsoleEmptyState>
+      <PageBody>
+        <ConsoleEmptyState title="No Operator Subscription">
+          This Operator will not receive updates because it has no Subscription. To get updates, create a
+          Subscription for this Operator from the software catalog.
+        </ConsoleEmptyState>
+      </PageBody>
     );
   }
   return <SubscriptionDetails cluster={cluster} subscription={subscription} />;
