@@ -15,6 +15,11 @@ export interface PageTabsProps {
   tabs: PageTab[];
   activeKey: string;
   'aria-label': string;
+  /**
+   * Called with a tab's key when the user shows intent to open it (pointer enters or focus lands on the tab), so the
+   * page can start loading that tab's code early.
+   */
+  onTabIntent?: (key: string) => void;
 }
 
 /**
@@ -26,7 +31,7 @@ export interface PageTabsProps {
  * the tabs run in default mode inside our own `<nav>`. PF still prevents the anchor default; `onSelect` pushes the
  * route (like OCP's `Link`s) and ignores the already active tab. `href` stays for middle-click / open in new tab.
  */
-export function PageTabs({ tabs, activeKey, 'aria-label': ariaLabel }: PageTabsProps) {
+export function PageTabs({ tabs, activeKey, 'aria-label': ariaLabel, onTabIntent }: PageTabsProps) {
   const navigate = useNavigate();
   return (
     <nav aria-label={ariaLabel}>
@@ -46,6 +51,8 @@ export function PageTabs({ tabs, activeKey, 'aria-label': ariaLabel }: PageTabsP
             href={to}
             title={<TabTitleText>{title}</TabTitleText>}
             aria-current={key === activeKey ? 'page' : undefined}
+            onMouseEnter={onTabIntent && (() => onTabIntent(key))}
+            onFocus={onTabIntent && (() => onTabIntent(key))}
           />
         ))}
       </Tabs>
