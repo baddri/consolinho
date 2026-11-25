@@ -1,12 +1,12 @@
 ---
 id: T-0386
 title: Kind e2e (E2E_KIND=1) — sidebar, no OpenShift wording, namespace fallback, logs/exec on a kind pod (QG55B-3)
-status: todo
+status: done
 owner: qa-engineer
 checkpoint: 5.5
 depends_on: [T-0377, T-0379, T-0383, T-0384, T-0385]
 paths: [web/e2e/kubernetes.e2e.ts, web/e2e/support/kind.ts]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -42,13 +42,37 @@ stay light (spec QG55B-3, DSC-1, DSC-5, NSF-1/3, CT-2).
   `cd web && E2E_KIND=1 npx playwright test e2e/kubernetes.e2e.ts`; finish with `scripts/kind-dev.sh down` (RAM).
 
 ## Acceptance criteria
-- [ ] QG55B-3: without `E2E_KIND=1` the file is skipped with the reason; existing e2e unchanged.
-- [ ] With kind up: cases 1-5 pass; result recorded in the Work log.
-- [ ] Any product failure filed as a bug task, not patched here.
-- [ ] Lint/typecheck green (CLAUDE.md rule 4)
+- [x] QG55B-3: without `E2E_KIND=1` the file is skipped with the reason; existing e2e unchanged.
+- [x] With kind up: cases 1-5 pass; result recorded in the Work log.
+- [x] Any product failure filed as a bug task, not patched here.
+- [x] Lint/typecheck green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-26 qa-engineer: `web/e2e/kubernetes.e2e.ts` + `support/kind.ts`; cluster `e2e-smoke-kind-<ts>` (global-setup
+  prefix), CA bundle, `fleet-viewer` → e2e-admin RO, `team-a-editor` (inspect `team-a`) → e2e-member RW; afterAll deletes.
+- E2E_KIND=1 on kind v1.37: 4/4 pass (CT-2, DSC-1+5, NSF-1/3+5, logs+exec `echo ok`+5). DSC-5 checked on overview,
+  namespaces, pods list (+selector open), pod logs, terminal. Default `npm run e2e`: kind spec skipped with reason.
+- Token hygiene: Playwright traces request bodies of every request context, so credential POSTs go via Node `fetch`
+  (cookies from storageState); verified with `--trace on`: no JWT in any trace. lint/typecheck green.
+- Default `npm run e2e`: 57 passed, 4 skipped (kind spec), 3 failed (browse QG-4 x2, csp HOST-3): landing stuck +
+  discovery refetch loop on the fake API's 404 `/api`, `/apis`; unrelated to this task's files → bug T-0389.
 
 ## Review
+- 2026-11-26 frontend-architect, round 1: **APPROVE**. Token hygiene sound (tokens only in memory; credential POSTs
+  via Node `fetch`, so traces skip them; on `execFileSync` failure only stderr is rethrown; errors give only the status). File-level
+  `test.skip` skips the hooks as well. Teardown: `deleteCluster` ignores 404s, `finally` closes the context, and global-setup sweeps `e2e-smoke-*`. Suite runs
+  serially (`workers: 1`), so the reserved-user grants don't collide. Selectors follow `fleet.e2e.ts`/`workloads.e2e.ts`.
+  Optional nits:
+  - web/e2e/kubernetes.e2e.ts:136 — `button[aria-expanded]` CSS plus a misleading trailing comment ("the cluster switcher's
+    toggle" describes what is *excluded*) — reword the comment to say that.
+  - web/e2e/kubernetes.e2e.ts:104-105 — the second `OpenShift version` assertion is redundant with the one before it.
+  - web/e2e/kubernetes.e2e.ts:174 — `textContent() ?? ''` would build a bad path silently; `expect(pod).toMatch(/^web-/)`.
+  - web/e2e/kubernetes.e2e.ts:48 — if login fails in `beforeAll`, `afterAll`'s `deleteCluster` may throw on the
+    login redirect and mask the cause. Harmless because global-setup sweeps leftovers.
 
 ## Handover notes
+Run: `scripts/kind-dev.sh up`, `aspire start --launch-profile http && aspire wait web`,
+`cd web && E2E_KIND=1 npx playwright test e2e/kubernetes.e2e.ts` (~30 s), then `scripts/kind-dev.sh down`.
+Gotchas: credentials table is role `grid` (row kebab "Kebab toggle"); "Cluster facts" is a `<dl>` (use getByLabel);
+failure error-context snapshots may show the beforeAll page, check the trace. Favorites section is excluded
+from the DSC-1 sidebar comparison (user section, OCP parity). Tokens requested with KIND_TOKEN_DURATION=1h.
