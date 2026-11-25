@@ -25,7 +25,7 @@ export interface EditCountAction {
  * kebabs (`reviewByName` false) skip the HPA lookup and always show the access-gated item, so rows open no HPA watch.
  */
 export function useEditCountAction(
-  { cluster, obj, reviewByName }: KindActionArgs<CountedWorkload>,
+  { cluster, obj, reviewByName, checkAccess }: KindActionArgs<CountedWorkload>,
   model: K8sModel,
   { field = 'replicas' }: EditCountActionOptions = {},
 ): EditCountAction {
@@ -42,6 +42,7 @@ export function useEditCountAction(
       name: obj.metadata.name ?? '',
     },
     reviewByName,
+    checkAccess,
   );
   // Jobs have no scale subresource and OCP does not hide Edit parallelism for HPAs (they cannot target Jobs).
   const hidden = field === 'replicas' && hpa !== undefined;

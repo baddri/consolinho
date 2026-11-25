@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using FleetConsole.Api.Tests.Integration.Admin.Clusters;
 using FleetConsole.Domain.Access;
@@ -9,7 +10,8 @@ namespace FleetConsole.Api.Tests.Integration.Clusters;
 
 /// <summary>
 /// <c>GET /api/clusters</c> — the cluster switcher (contract §6, SW-1, GRANT-6): only enabled clusters the user has a
-/// grant on, effective access mode, environment-then-name order, and no connection or credential data.
+/// grant on, effective access mode, environment-then-name order, and no connection or credential data beyond the
+/// effective credential's inspect-namespace names (NSA-1/3).
 /// </summary>
 [Collection(ApiCollectionDefinition.Name)]
 public sealed class ClustersEndpointsTests(ApiFactory factory)
@@ -50,7 +52,40 @@ public sealed class ClustersEndpointsTests(ApiFactory factory)
         var cluster = (await ListAsync(client)).ShouldHaveSingleItem();
 
         cluster.EnumerateObject().Select(p => p.Name)
-            .ShouldBe(["name", "displayName", "environment", "distribution", "accessMode", "webConsoleUrl"], ignoreOrder: true);
+            .ShouldBe(["name", "displayName", "environment", "distribution", "accessMode", "webConsoleUrl", "fallbackNamespaces"], ignoreOrder: true);
+    }
+
+    [Fact]
+    public async Task Returns_The_Effective_Credentials_Inspect_Namespaces_In_Saved_Order()
+    {
+        var user = await factory.Data.UserAsync();
+        var suffix = TestData.Unique();
+        var withNamespaces = await GrantedClusterAsync(
+            user.Username, $"a-ns-{suffix}", ClusterEnvironment.Staging, inspectNamespaces: ["team-b", "team-a"]);
+        var without = await GrantedClusterAsync(user.Username, $"b-none-{suffix}", ClusterEnvironment.Staging);
+        using var client = await factory.LoginAsAsync(user.Username);
+
+        var clusters = await ListAsync(client);
+
+        clusters.Select(c => (c.GetProperty("name").GetString(), string.Join(',', c.GetProperty("fallbackNamespaces").EnumerateArray().Select(e => e.GetString()))))
+            .ShouldBe([(withNamespaces, "team-b,team-a"), (without, "")]);
+        clusters[1].GetProperty("fallbackNamespaces").ValueKind.ShouldBe(JsonValueKind.Array);
+    }
+
+    [Fact]
+    public async Task OpenApi_Publishes_FallbackNamespaces_As_A_Required_Documented_String_Array()
+    {
+        using var client = factory.CreateApiClient();
+        using var response = await client.GetAsync(new Uri("/openapi/v1.json", UriKind.Relative), Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var schema = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct))
+            .GetProperty("components").GetProperty("schemas").GetProperty("AccessibleCluster");
+
+        schema.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ShouldContain("fallbackNamespaces");
+        var property = schema.GetProperty("properties").GetProperty("fallbackNamespaces");
+        property.GetProperty("type").GetString().ShouldBe("array");
+        property.GetProperty("items").GetProperty("type").GetString().ShouldBe("string");
+        property.GetProperty("description").GetString().ShouldNotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -129,10 +164,11 @@ public sealed class ClustersEndpointsTests(ApiFactory factory)
         ClusterEnvironment environment,
         AccessMode mode = AccessMode.ReadOnly,
         bool isEnabled = true,
-        ClusterDistribution distribution = ClusterDistribution.OpenShift)
+        ClusterDistribution distribution = ClusterDistribution.OpenShift,
+        IReadOnlyList<string>? inspectNamespaces = null)
     {
         var cluster = await factory.Data.ClusterAsync(name, isEnabled, environment, distribution);
-        var credential = await factory.Data.CredentialAsync(cluster.Name);
+        var credential = await factory.Data.CredentialAsync(cluster.Name, inspectNamespaces: inspectNamespaces);
         await factory.Data.GrantAsync(username, cluster.Name, credential.Id, mode);
         return cluster.Name;
     }

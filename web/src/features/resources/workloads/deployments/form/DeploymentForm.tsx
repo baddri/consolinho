@@ -9,6 +9,7 @@ import { DeploymentModel, useOpenApiSchema } from '@/shared/k8s';
 import { EnvironmentLabel, FlexForm, FormFooter } from '@/shared/ui';
 import { useResourceAccess } from '../../../actions/useResourceAccess';
 import { resourcePath } from '../../../paths';
+import { usePreloadYamlEditor } from '../../../yaml/preloadYamlEditor';
 import { UnsavedChangesGuard } from '../../../yaml/UnsavedChangesGuard';
 import { YamlEditor } from '../../../yaml/YamlEditor';
 import { DeploymentFormEditor } from './DeploymentFormEditor';
@@ -43,6 +44,8 @@ export function DeploymentForm({ cluster, live }: DeploymentFormProps) {
   const isEditable = !access.isChecking && access.disabledReason === undefined;
   const isReadOnly = access.disabledReason !== undefined;
   const editor = useDeploymentEditor(cluster, live, isEditable);
+  // The YAML view is one switch away: warm its worker scripts at idle (Monaco itself is already in this chunk graph).
+  usePreloadYamlEditor(editor.view === 'form');
   const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
   const navigate = useNavigate();
   const { ref: fullscreenRef, ...fullscreen } = useFullscreen();

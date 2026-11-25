@@ -106,6 +106,8 @@ internal sealed partial class ClusterAccessReader(IDispatcher dispatcher, ILogge
             resolution,
             new EncryptedToken(winner.EncryptedToken),
             winner.CredentialName,
+            // From the winning row only: a losing candidate's credential must never leak its namespaces (NSA-1).
+            winner.InspectNamespaces,
             rows.ToDictionary(r => new GrantId(r.GrantId), r => r.CredentialName));
     }
 

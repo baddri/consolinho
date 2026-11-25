@@ -107,3 +107,19 @@ namespace's SA. With bound group grants this also signs users out at revalidatio
 Server logs: EventId 3321 names the reason. **Fix:** re-run `scripts/deploy-dev.sh` (or `oc apply -k` your overlay)
 as cluster-admin. Off-host: check the `consolinho-host-sa-token` Secret's token is valid and bound on the host. Locally
 (Aspire) the DevOAuth emulator serves groups for `DevOAuth:GroupsReaderToken`.
+
+## `scripts/kind-dev.sh up` fails with cgroup errors (rootless podman, T-0377)
+
+**Symptom:** `kind create cluster` prints `Cgroup controller detection is not implemented for Podman. If you see
+cgroup-related errors, you might need to set systemd property "Delegate=yes"` and then fails at *Starting control-plane*
+(`failed to init node with kubeadm`; the kubelet log in the node mentions missing cgroup controllers such as `cpu` or
+`cpuset`). Check what your user session gets: `cat /sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers`
+(needs at least `cpu io memory pids`; cgroup v2 is required). **Fix** (one-time, needs root):
+
+```bash
+sudo mkdir -p /etc/systemd/system/user@.service.d
+printf '[Service]\nDelegate=cpu cpuset io memory pids\n' | sudo tee /etc/systemd/system/user@.service.d/delegate.conf
+sudo systemctl daemon-reload
+```
+
+then log out and back in (or reboot), `scripts/kind-dev.sh down` and `up` again. Details: <https://kind.sigs.k8s.io/docs/user/rootless/>.

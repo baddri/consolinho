@@ -16,6 +16,7 @@ const cluster = (name: string, environment: AccessibleCluster['environment'] = '
   distribution: 'openShift',
   accessMode: 'readWrite',
   webConsoleUrl: null,
+  fallbackNamespaces: [],
 });
 
 const a = cluster('dev-a');
@@ -47,8 +48,19 @@ describe('buildSwitcherSections', () => {
 
   it('gives a cluster listed in Recent and All clusters a distinct key per section', () => {
     const keys = focusOrder(buildSwitcherSections(input())).map((row) => row.key);
-    expect(keys).toEqual(['fleet:management', 'recent:prod-b', 'recent:dev-a', 'all:dev-a', 'all:prod-b', 'all:stage-c']);
+    expect(keys).toEqual(['fleet:management', 'recent:prod-b', 'all:dev-a', 'all:prod-b', 'all:stage-c']);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('lists only the last used cluster other than the shown one in Recent (T-0371)', () => {
+    const recentRows = (overrides: Partial<SwitcherSectionsInput>) =>
+      buildSwitcherSections(input(overrides))
+        .find((section) => section.id === 'recent')
+        ?.rows.map((row) => row.key);
+    expect(recentRows({ recent: [a, c, b] })).toEqual(['recent:stage-c']);
+    expect(recentRows({ recent: [a] })).toBeUndefined();
+    expect(recentRows({ recent: [c, a], shownName: undefined })).toEqual(['recent:stage-c']);
+    expect(recentRows({ clusters: [a], recent: [a], shownName: undefined })).toBeUndefined();
   });
 
   it('filters All clusters and hides Recent while searching; Fleet stays', () => {

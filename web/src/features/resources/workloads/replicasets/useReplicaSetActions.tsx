@@ -16,7 +16,7 @@ import { owningDeploymentName } from './revision';
  * ReplicaSet without an owning Deployment sends no `deployments` access review at all.
  */
 export function useReplicaSetActions(args: KindActionArgs<ReplicaSet & K8sResource>): KindActions {
-  const { cluster, obj, reviewByName } = args;
+  const { cluster, obj, reviewByName, checkAccess } = args;
   const deploymentName = owningDeploymentName(obj);
   const rollbackAccess = useResourceAccess(
     cluster,
@@ -27,7 +27,7 @@ export function useReplicaSetActions(args: KindActionArgs<ReplicaSet & K8sResour
       // List rows share one namespace-level review (ADR-0022 §9), as `useActionAccess` does.
       name: reviewByName ? deploymentName : undefined,
     },
-    { enabled: deploymentName !== undefined },
+    { enabled: checkAccess && deploymentName !== undefined },
   );
   const editCount = useEditCountAction(args, ReplicaSetModel);
   const [isRollbackOpen, setRollbackOpen] = useState(false);

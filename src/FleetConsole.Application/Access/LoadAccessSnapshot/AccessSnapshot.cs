@@ -48,6 +48,8 @@ internal sealed record AccessSnapshot(
 /// <param name="CredentialId">The grant's credential id.</param>
 /// <param name="CredentialName">The credential's name.</param>
 /// <param name="EncryptedToken">The credential's token ciphertext (Data Protection), never the plaintext.</param>
+/// <param name="InspectNamespaces">The credential's saved inspect namespaces, in saved order (names only); exposed as the
+/// namespace-selector fallback of the winning grant (CP5.5 NSA-1).</param>
 internal sealed record AccessSnapshotRow(
     Guid ClusterId,
     string ClusterName,
@@ -65,4 +67,5 @@ internal sealed record AccessSnapshotRow(
     string AccessMode,
     Guid CredentialId,
     string CredentialName,
-    byte[] EncryptedToken);
+    byte[] EncryptedToken,
+    IReadOnlyList<string> InspectNamespaces);

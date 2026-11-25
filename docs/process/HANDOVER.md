@@ -2,8 +2,8 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-25 (CP5 closed) · **Current checkpoint:** none in flight — CP5 DONE, next is CP5.5 (not started) ·
-**Branch:** `cp/5-networking-storage-compute` (fully merged into `main` at ca32c72)
+**Last updated:** 2026-11-26 (CP5.5 VERIFY) · **Current checkpoint:** CP5.5 BUILD (5.5a) ·
+**Branch:** `cp/5.5-kubernetes-clusters`
 
 ## Where we are
 - CP0–CP5 DONE. Tags: cp-0 … cp-3.7, cp-4a/b/c, **cp-5a, cp-5b, cp-5c**. Nothing pushed (pushing needs the human).
@@ -14,14 +14,18 @@
 - CP5 decisions taken as "recommended" (human said so, 2026-11-25), all for OCP parity: "No Operator Subscription"
   wording, "No owner" as popover, no Nodes item on the Status card, help-text 2nd sentence and "Cannot update /
   CatalogSource not found" omitted. Rows in `docs/architecture/ocp-parity.md`.
-- No task is `in_progress` or `in_review`.
+- CP5.5 done so far: T-0370 (streamed list pages), T-0371 (switcher), T-0373 (YAML preload), T-0374 (solid links),
+  T-0375 (fallbackNamespaces). Combined check-fe 1584/1584.
 
 ## Next actions (resume here)
-1. **Wait for the human to start CP5.5** (ROADMAP §CP5.5 "Kubernetes clusters"). Then: branch `cp/5.5-…` from `main`,
-   SPEC with `ocp-product-owner`, then the SDLC loop (`docs/process/SDLC.md`).
-2. Backlog to fold into a future CP: T-0367 (OLM related-resource links), T-0349 (grant helper), T-0350 (shared
-   list-filters hook); OCP "default project" warning (not filed).
-3. CP6 follow-ups: T-0107, T-0108, T-0130 (events cache), T-0134 (Favorites modal focus), T-0128 (unfavourite button).
+1. CP5.5 spec `docs/specs/CP5.5-kubernetes-clusters.md` (5.5a backend+kind+CT, 5.5b K8s UI). In flight:
+   5.5b build lanes done; T-0379 done (kind smoke all green). T-0386 done aa51090 (kind e2e 4/4, E2E_KIND=1). T-0389 done 1135049 (discovery refetch loop; check-fe 1676). Next: VERIFY (qa-engineer: check-be, check-fe, default e2e, all spec ACs), then ACCEPT, CLOSE. Follow-up T-0390 (discovery recovery, backlog).
+   Done: T-0376 aa5b50b, T-0372 6aa623f+97647a2, T-0377 879c48d (kind API port 16443), T-0378 274c6b1, T-0385 367df0b, T-0384 9a66c11, T-0381 c954355, T-0382 b5a79bf+b4ea1ed, T-0383 a80475c, T-0387 ux APPROVE 4c1fc3c, T-0388 c990cb5 (check-fe 1675). PO to confirm NSC-2 = disabled-with-reason (ux recommends; spec says hidden).
+   Follow-up T-0380 Login lockup (backlog).
+   At ACCEPT tell PO (accepted deviations): T-0375 fallbackNamespaces on fleet status lines; NSC-2 disabled-with-reason
+   (spec: hidden); NSF-3 landing = Pods list; NSF-1 first open may send one 403 list in parallel with the SSAR.
+2. kind v0.33.0 installed to ~/.local/bin (human approved 2026-11-25).
+3. Backlog: T-0367, T-0349, T-0350; CP6 follow-ups T-0107, T-0108, T-0130, T-0134, T-0128.
 
 ## How the human can test (current state)
 - Live: the `consolinho` Route in ns `consolinho` (current `oc` login).
@@ -30,7 +34,11 @@
 - e2e: with Aspire running, `cd web && npm run e2e`.
 
 ## Needs human
-- Start CP5.5 (or reprioritise). Push `main` + tags to a remote? (not done.)
+- 2026-11-25 T-0377 testing: kind briefly set a kind context as current in `~/.kube/config`; restored to
+  `default/api-acm-bri-poc-sandbox…:6443/kube:admin` (best guess from shell history), kind entries removed, no real-cluster
+  calls. Confirm with `oc config current-context`. Backup copy (may hold credentials) in the session scratchpad:
+  `kubeconfig.after-kind.bak` — delete it. Script now uses an isolated kubeconfig.
+- Push `main` + tags to a remote? (not done.)
 - About 35 stale agent worktrees under `.claude/worktrees/` (some with uncommitted leftovers) — OK to prune?
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` — safe to remove.
 - Still open from CP2: H1–H6 manual checks on real clusters (`docs/specs/CP2-acceptance.md`).

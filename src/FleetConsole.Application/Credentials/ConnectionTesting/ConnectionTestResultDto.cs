@@ -58,7 +58,7 @@ public sealed record OpenShiftVersionDto(string Version, bool UpdateProgressing)
 
 /// <summary>What the token may do cluster-wide (TEST-3).</summary>
 /// <param name="Headline">The overall capability level.</param>
-/// <param name="Checks">Every evaluated check in a stable order; render the list as received.</param>
+/// <param name="Checks">Every evaluated check in a stable order; checks whose API group the cluster does not serve are omitted (CT-1). Render the list as received.</param>
 public sealed record CapabilitySummaryDto(CapabilityLevel Headline, IReadOnlyList<CapabilityCheckResultDto> Checks);
 
 /// <summary>The answer to one capability check (an access review across all namespaces).</summary>

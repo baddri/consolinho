@@ -215,11 +215,15 @@ describe('resource list states (QG-3, UI-10)', () => {
     expect(router.state.location.pathname).toBe(`/c/prod-us-1/k8s/ns/shop/${plural}`);
   });
 
-  it('says a kind is not supported yet for an unknown plural', async () => {
+  it('says a kind is not supported yet for an unknown plural', { timeout: COLD_START_TEST_TIMEOUT_MS }, async () => {
     renderApp('/c/dev-1/k8s/all-namespaces/widgets');
 
     expect(
-      await screen.findByRole('heading', { name: 'Kind not supported yet', level: 1 }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Kind not supported yet', level: 1 },
+        { timeout: COLD_START_TIMEOUT_MS },
+      ),
     ).toBeInTheDocument();
   });
 
@@ -241,6 +245,20 @@ describe('resource list states (QG-3, UI-10)', () => {
     expect(
       await screen.findByRole('heading', { name: "Pods aren't available on dev-1", level: 1 }),
     ).toBeInTheDocument();
+  });
+});
+
+describe('OpenShift-only URLs on a Kubernetes cluster (DSC-3)', () => {
+  it.each([
+    ['/c/prod-k8s-1/k8s/ns/shop/routes', "Routes aren't available on prod-k8s-1"],
+    ['/c/prod-k8s-1/k8s/cluster/projects', "Projects aren't available on prod-k8s-1"],
+  ])('%s shows the not-served state', { timeout: COLD_START_TEST_TIMEOUT_MS }, async (path, heading) => {
+    renderApp(path);
+
+    expect(
+      await screen.findByRole('heading', { name: heading, level: 1 }, { timeout: COLD_START_TIMEOUT_MS }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('grid')).not.toBeInTheDocument();
   });
 });
 

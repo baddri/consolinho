@@ -67,10 +67,7 @@ describe('Search page (SRCH-1)', () => {
         .map((link) => link.textContent)
         .filter((label) => ['Projects', 'Search', 'Events'].includes(label));
       expect(home).toEqual(['Projects', 'Search', 'Events']);
-      expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute(
-        'href',
-        '/c/dev-1/search',
-      );
+      expect(within(nav).getByRole('link', { name: 'Search' })).toHaveAttribute('href', '/c/dev-1/search');
     },
   );
 
@@ -184,7 +181,10 @@ describe('Search results (SRCH-2/3/5)', () => {
 
       const deployments = await screen.findByRole('grid', { name: 'Deployments' });
       await waitFor(() => expect(rowNames(deployments)).toEqual(['web']));
-      expect(screen.getByRole('combobox', { name: 'Resources' })).toHaveAttribute('placeholder', 'Resources (1)');
+      expect(screen.getByRole('combobox', { name: 'Resources' })).toHaveAttribute(
+        'placeholder',
+        'Resources (1)',
+      );
       expect(screen.getByRole('list', { name: 'Label' })).toHaveTextContent('app=web');
 
       const target = clusterSwitchPath(router.state.location, 'prod-k8s-1');
@@ -243,6 +243,31 @@ describe('Search results (SRCH-2/3/5)', () => {
       await waitFor(() => expect(screen.getAllByRole('grid')).toHaveLength(8));
       await waitFor(() => expect(inFlight).toBe(0));
       expect(maxInFlight).toBe(6);
+    },
+  );
+});
+
+describe('Search kinds on a Kubernetes cluster (DSC-4)', () => {
+  it(
+    'offers only kinds the cluster serves, no OpenShift-only kinds',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const { user } = renderApp('/c/prod-k8s-1/search/ns/shop');
+      await user.click(await screen.findByRole('combobox', { name: 'Resources' }));
+
+      // StorageClass is outside the discovery baseline: once offered, discovery has answered.
+      expect(await screen.findByRole('checkbox', { name: /StorageClass$/ })).toBeInTheDocument();
+      for (const kind of [
+        'Route',
+        'Project',
+        'DeploymentConfig',
+        'ClusterOperator',
+        'ClusterServiceVersion',
+        'Machine',
+        'MachineSet',
+      ]) {
+        expect(screen.queryByRole('checkbox', { name: new RegExp(`${kind}$`) })).not.toBeInTheDocument();
+      }
     },
   );
 });

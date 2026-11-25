@@ -20,6 +20,7 @@ import { descriptorForPlural } from '../registry/registry';
 import type { ResourceDescriptor } from '../registry/types';
 import { useResourceRoute } from '../resourceRoute';
 import { useResourceDetails, type ResourceDetailsContext } from './detailsContext';
+import { preloadYamlEditor, usePreloadYamlEditor } from '../yaml/preloadYamlEditor';
 import { ResourceHeader } from './ResourceHeader';
 import { RESOURCE_TABS, useResourceTab, type ResourceTab } from './useResourceTab';
 
@@ -242,9 +243,19 @@ function ResourceTabs({
     title: TAB_TITLES[key],
     to: resourcePath(cluster, model, { namespace, name, tab: key === 'details' ? undefined : key }),
   }));
+  // YAML is one click away: warm Monaco at idle, and at once on hover/focus of its tab (T-0373).
+  const hasYamlTab = tabs.some((t) => t.key === 'yaml');
+  usePreloadYamlEditor(hasYamlTab && tab !== 'yaml');
   return (
     <>
-      <PageTabs tabs={tabs} activeKey={tab} aria-label={`${model.label} tabs`} />
+      <PageTabs
+        tabs={tabs}
+        activeKey={tab}
+        aria-label={`${model.label} tabs`}
+        onTabIntent={(key) => {
+          if (key === 'yaml') void preloadYamlEditor();
+        }}
+      />
       {tab === 'details' || tab === 'subscription' ? (
         // Details and Subscription (OCP `SubscriptionDetails`: two `PaneBody`s) render their own bordered sections
         // (`DetailsSubsection`, OCP `PaneBody`s). A plain element: PageGroup drops `aria-label` unless it scrolls.

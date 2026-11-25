@@ -27,7 +27,7 @@ public sealed class AccessSnapshotTests
     [Fact]
     public void Key_is_versioned_per_user()
     {
-        new LoadAccessSnapshotQuery(Alice).CacheKey.ShouldBe("access:v1:user:0f0e0d0c-0000-0000-0000-000000000001");
+        new LoadAccessSnapshotQuery(Alice).CacheKey.ShouldBe("access:v2:user:0f0e0d0c-0000-0000-0000-000000000001");
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class AccessSnapshotTests
     [Fact]
     public void Snapshot_survives_a_System_Text_Json_round_trip()
     {
-        var snapshot = Snapshot(groups: ["sre-emea"], Row(), Row(groupName: "sre-emea", priority: 10, caBundlePem: "-----BEGIN CERTIFICATE-----"));
+        var snapshot = Snapshot(groups: ["sre-emea"], Row(), Row(groupName: "sre-emea", priority: 10, caBundlePem: "-----BEGIN CERTIFICATE-----", inspectNamespaces: ["team-a", "team-b"]));
 
         var json = JsonSerializer.Serialize(snapshot);
         var back = JsonSerializer.Deserialize<AccessSnapshot>(json)!;
@@ -74,7 +74,9 @@ public sealed class AccessSnapshotTests
         for (var i = 0; i < back.Rows.Count; i++)
         {
             back.Rows[i].EncryptedToken.ShouldBe(snapshot.Rows[i].EncryptedToken);
-            (back.Rows[i] with { EncryptedToken = snapshot.Rows[i].EncryptedToken }).ShouldBe(snapshot.Rows[i]);
+            back.Rows[i].InspectNamespaces.ShouldBe(snapshot.Rows[i].InspectNamespaces);
+            (back.Rows[i] with { EncryptedToken = snapshot.Rows[i].EncryptedToken, InspectNamespaces = snapshot.Rows[i].InspectNamespaces })
+                .ShouldBe(snapshot.Rows[i]);
         }
     }
 
@@ -144,6 +146,36 @@ public sealed class AccessSnapshotTests
         access.WinnerToken.ShouldBe(new EncryptedToken(row.EncryptedToken));
         access.WinnerCredentialName.ShouldBe(row.CredentialName);
         access.CandidateCredentialNames.ShouldBe(new Dictionary<GrantId, string> { [new GrantId(row.GrantId)] = row.CredentialName });
+        access.WinnerInspectNamespaces.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Reader_takes_the_inspect_namespaces_of_the_winning_grants_credential_only()
+    {
+        // The group grant (listed first) loses to the direct grant (PREC-2), so its credential's namespaces must not leak.
+        var groupRow = Row(groupName: "sre-emea", priority: 10, credentialName: "sa-group", inspectNamespaces: ["group-ns"]);
+        var directRow = Row(credentialName: "sa-direct", inspectNamespaces: ["team-b", "team-a"]);
+        var reader = new ClusterAccessReader(
+            new FixedSnapshotDispatcher(Snapshot(groups: ["sre-emea"], groupRow, directRow)), NullLogger<ClusterAccessReader>.Instance);
+
+        var access = (await reader.LoadAsync(Alice, null, false, Ct)).ShouldHaveSingleItem();
+
+        access.WinnerCredentialName.ShouldBe("sa-direct");
+        access.WinnerInspectNamespaces.ShouldBe(["team-b", "team-a"]);
+    }
+
+    [Fact]
+    public async Task Handler_projects_the_credentials_inspect_namespaces_in_saved_order()
+    {
+        var model = new AccessReadModel();
+        var user = model.AddUser("alice");
+        model.AddGrant(user, model.AddCluster("prod-east"), AccessMode.ReadWrite, ["team-b", "team-a"]);
+        model.AddGrant(user, model.AddCluster("prod-west"), AccessMode.ReadWrite);
+
+        var snapshot = (await new LoadAccessSnapshotHandler(model).Handle(new LoadAccessSnapshotQuery(user.Id), Ct)).Value;
+
+        snapshot.Rows.Single(r => r.ClusterName == "prod-east").InspectNamespaces.ShouldBe(["team-b", "team-a"]);
+        snapshot.Rows.Single(r => r.ClusterName == "prod-west").InspectNamespaces.ShouldBeEmpty();
     }
 
     private static AccessSnapshot Snapshot(IReadOnlyList<string> groups, params AccessSnapshotRow[] rows) =>
@@ -158,7 +190,9 @@ public sealed class AccessSnapshotTests
         int? priority = null,
         string accessMode = nameof(AccessMode.ReadOnly),
         string? caBundlePem = null,
-        bool skipTlsVerify = false) =>
+        bool skipTlsVerify = false,
+        string credentialName = "sa-viewer",
+        IReadOnlyList<string>? inspectNamespaces = null) =>
         new(
             clusterId ?? ClusterGuid,
             "prod-east",
@@ -175,8 +209,9 @@ public sealed class AccessSnapshotTests
             priority,
             accessMode,
             credentialId ?? Guid.NewGuid(),
-            "sa-viewer",
-            [1, 2, 3]);
+            credentialName,
+            [1, 2, 3],
+            inspectNamespaces ?? []);
 
     /// <summary>Returns one snapshot for every query and records the queries (a cache that always hits).</summary>
     private sealed class FixedSnapshotDispatcher(AccessSnapshot snapshot) : IDispatcher

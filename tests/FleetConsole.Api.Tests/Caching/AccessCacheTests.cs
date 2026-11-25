@@ -32,6 +32,8 @@ public sealed class AccessCacheTests(AccessCacheTests.Host fixture) : IClassFixt
 {
     private const string Pods = "/api/v1/namespaces/shop/pods";
 
+    private static readonly string[] TeamA = ["team-a"];
+
     private readonly ApiFactory _host = fixture.Api;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
@@ -150,6 +152,34 @@ public sealed class AccessCacheTests(AccessCacheTests.Host fixture) : IClassFixt
     }
 
     [Fact]
+    public async Task Retested_credentials_inspect_namespaces_are_listed_on_the_next_request()
+    {
+        // NSA-2: a connection test saves new inspect namespaces; the cached snapshot must not keep serving the old list.
+        await using var server = await StartServerAsync();
+        var username = _host.NewUsername();
+        await _host.Data.UserAsync(username);
+        var cluster = await _host.Data.ClusterAsync(apiUrl: server.BaseAddress.ToString(), caBundlePem: server.CaBundlePem);
+        using var admin = await _host.AdminClientAsync();
+        var credentialId = (await CredentialApi.AddOkAsync(admin, cluster.Name, CredentialApi.Opaque())).GetProperty("id").GetGuid();
+        using (var grant = await GrantsApi.CreateAsync(admin, username, cluster.Name, credentialId))
+        {
+            grant.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        using var client = await _host.LoginAsAsync(username);
+        (await FallbackNamespacesAsync(client)).ShouldBeEmpty();
+
+        // The outcome does not matter: every test run saves the namespaces it inspected (NST-5).
+        using (var test = await admin.PostAsJsonAsync(
+            CredentialApi.ClusterCredentials(cluster.Name, $"/{credentialId}/test"), new { inspectNamespaces = TeamA }, Ct))
+        {
+            test.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        (await FallbackNamespacesAsync(client)).ShouldBe(["team-a"]);
+    }
+
+    [Fact]
     public async Task Disabled_cluster_is_refused_on_the_next_request()
     {
         await using var server = await StartServerAsync();
@@ -168,6 +198,15 @@ public sealed class AccessCacheTests(AccessCacheTests.Host fixture) : IClassFixt
     }
 
     private static string GroupOf(string username) => "grp-" + username;
+
+    // The fallbackNamespaces of the caller's single accessible cluster, from GET /api/clusters.
+    private static async Task<List<string?>> FallbackNamespacesAsync(HttpClient client)
+    {
+        using var response = await client.GetAsync(new Uri("/api/clusters", UriKind.Relative), Ct);
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var cluster = (await response.Content.ReadFromJsonAsync<JsonElement>(Ct)).EnumerateArray().ShouldHaveSingleItem();
+        return [.. cluster.GetProperty("fallbackNamespaces").EnumerateArray().Select(e => e.GetString())];
+    }
 
     // A user in a fresh group with a ReadOnly group grant on a cluster at server; returns the grant id.
     private async Task<(string Username, string Cluster, Guid GrantId)> GroupMemberAsync(FakeKubeApiServer server)

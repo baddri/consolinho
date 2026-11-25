@@ -56,20 +56,24 @@ export interface ConnectionTestResultViewProps {
  * duration, the steps in order ({@link TestStepList}), the facts (Kubernetes version, identity, OpenShift version),
  * the capability headline and grid ({@link CapabilityGrid}), the server's hints as inline alerts with their severity,
  * and one collapsed section per inspected namespace ({@link NamespaceRulesSections}, NST-4).
- * Missing parts (a failed test has no capabilities) are simply left out.
+ * Missing parts (a failed test has no capabilities) are simply left out. When the test **detected** a Kubernetes
+ * cluster (CT-2) the OpenShift version step and fact are omitted, not shown as "N/A"; an unreadable discovery (`null`)
+ * or a detected OpenShift (incl. a cluster declared as Kubernetes, which carries the DIST-7 warning) renders them.
  */
 export function ConnectionTestResultView({ result }: ConnectionTestResultViewProps) {
   const { capabilities, namespaceRules } = result;
+  const isKubernetes = result.detectedDistribution === 'kubernetes';
+  const steps = isKubernetes ? result.steps.filter(({ step }) => step !== 'openShiftVersion') : result.steps;
   return (
     <Stack hasGutter>
       <StackItem>
         <Alert variant={result.succeeded ? 'success' : 'danger'} isInline title={overallTitle(result)} />
       </StackItem>
       <StackItem>
-        <TestStepList steps={result.steps} />
+        <TestStepList steps={steps} />
       </StackItem>
       <StackItem>
-        <TestFacts result={result} />
+        <TestFacts result={result} showOpenShiftVersion={!isKubernetes} />
       </StackItem>
       {result.hints.map((hint) => (
         <StackItem key={`${hint.severity}:${hint.message}`}>
@@ -134,8 +138,11 @@ function NamespaceRulesSections({ entries }: { entries: readonly NamespaceRules[
   );
 }
 
-/** The facts a test learned about the cluster and the token's identity; unknown values show "Unknown". */
-function TestFacts({ result }: ConnectionTestResultViewProps) {
+/**
+ * The facts a test learned about the cluster and the token's identity; unknown values show "Unknown". The OpenShift
+ * version row is left out when `showOpenShiftVersion` is `false` (detected Kubernetes, CT-2).
+ */
+function TestFacts({ result, showOpenShiftVersion }: ConnectionTestResultViewProps & { showOpenShiftVersion: boolean }) {
   const { kubernetesVersion, identity, openShiftVersion } = result;
   return (
     <DescriptionList isHorizontal isCompact aria-label="Cluster facts">
@@ -151,20 +158,22 @@ function TestFacts({ result }: ConnectionTestResultViewProps) {
             : `${identity.username}${identity.source === 'tokenSubject' ? ' (from token)' : ''}`}
         </DescriptionListDescription>
       </DescriptionListGroup>
-      <DescriptionListGroup>
-        <DescriptionListTerm>OpenShift version</DescriptionListTerm>
-        <DescriptionListDescription>
-          {openShiftVersion === null ? 'Unknown' : openShiftVersion.version}
-          {openShiftVersion?.updateProgressing === true && (
-            <>
-              {' '}
-              <Label isCompact status="info">
-                Update in progress
-              </Label>
-            </>
-          )}
-        </DescriptionListDescription>
-      </DescriptionListGroup>
+      {showOpenShiftVersion && (
+        <DescriptionListGroup>
+          <DescriptionListTerm>OpenShift version</DescriptionListTerm>
+          <DescriptionListDescription>
+            {openShiftVersion === null ? 'Unknown' : openShiftVersion.version}
+            {openShiftVersion?.updateProgressing === true && (
+              <>
+                {' '}
+                <Label isCompact status="info">
+                  Update in progress
+                </Label>
+              </>
+            )}
+          </DescriptionListDescription>
+        </DescriptionListGroup>
+      )}
     </DescriptionList>
   );
 }

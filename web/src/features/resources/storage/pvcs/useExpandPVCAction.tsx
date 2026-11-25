@@ -28,6 +28,7 @@ export function usePVCActions({
   cluster,
   obj,
   reviewByName,
+  checkAccess,
 }: KindActionArgs<PersistentVolumeClaim & K8sResource>): KindActions {
   const [open, setOpen] = useState(false);
   const namespace = obj.metadata.namespace;
@@ -37,6 +38,7 @@ export function usePVCActions({
     cluster,
     { model: PersistentVolumeClaimModel, verb: 'patch', namespace, name },
     reviewByName,
+    checkAccess,
   );
   const storageClass = useK8sGet<StorageClass>(cluster, StorageClassModel, undefined, scName, {
     enabled: reviewByName && scName !== '',

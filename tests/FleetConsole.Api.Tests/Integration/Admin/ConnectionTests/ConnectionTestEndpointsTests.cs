@@ -180,6 +180,10 @@ public sealed class ConnectionTestEndpointsTests(ApiFactory factory)
         openShiftVersion.GetProperty("message").GetString().ShouldBe("Not an OpenShift cluster");
         result.GetProperty("openShiftVersion").ValueKind.ShouldBe(JsonValueKind.Null);
         server.Requests.ShouldNotContain(r => r.Path == FakeKubeApiServer.ClusterVersionPath);
+        // CT-1: the OpenShift-only capability check is omitted on a cluster that doesn't serve its group.
+        var checkIds = result.GetProperty("capabilities").GetProperty("checks").EnumerateArray().Select(c => c.GetProperty("id").GetString());
+        checkIds.ShouldNotContain("list-clusteroperators");
+        checkIds.ShouldContain("list-pods");
     }
 
     [Fact]

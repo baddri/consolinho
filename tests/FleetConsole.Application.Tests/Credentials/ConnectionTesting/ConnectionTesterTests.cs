@@ -185,6 +185,8 @@ public sealed class ConnectionTesterTests
         result.OpenShiftVersion.ShouldNotBeNull();
         _probes.ClusterVersionCalls.ShouldBe(1);
         ConnectionTester.SummaryOf(result).Succeeded.ShouldBeTrue();
+        // Detection, not declaration, decides which checks apply.
+        result.Capabilities.ShouldNotBeNull().Checks.Select(c => c.Id).ShouldContain("list-clusteroperators");
     }
 
     [Fact]
@@ -222,6 +224,11 @@ public sealed class ConnectionTesterTests
         result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
         _probes.ClusterVersionCalls.ShouldBe(0);
         ConnectionTester.SummaryOf(result).Succeeded.ShouldBeTrue();
+        // CT-1: the OpenShift-only check is omitted, and no review is sent for it.
+        result.Capabilities.ShouldNotBeNull().Checks.Select(c => c.Id).ShouldBe(
+            CapabilityCheckSet.Checks.Select(c => c.Id).Where(id => id != "list-clusteroperators"));
+        _probes.ReviewedAttributes.ShouldNotContain(Check("list-clusteroperators"));
+        _probes.ReviewedAttributes.Count.ShouldBe(CapabilityCheckSet.Checks.Count);
     }
 
     [Theory]
@@ -239,6 +246,8 @@ public sealed class ConnectionTesterTests
         result.DetectedDistribution.ShouldBeNull();
         result.Steps[5].Status.ShouldBe(ConnectionTestStepStatus.Passed);
         _probes.ClusterVersionCalls.ShouldBe(clusterVersionCalls);
+        // Unreadable discovery never guesses: every check is kept.
+        result.Capabilities.ShouldNotBeNull().Checks.Select(c => c.Id).ShouldBe(CapabilityCheckSet.Checks.Select(c => c.Id));
     }
 
     [Fact]

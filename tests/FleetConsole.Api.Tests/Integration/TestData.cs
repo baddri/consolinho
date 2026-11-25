@@ -129,8 +129,10 @@ public sealed class TestData(ApiFactory factory)
     /// <param name="clusterName">The cluster.</param>
     /// <param name="token">The plaintext token; an obviously fake unique one when null.</param>
     /// <param name="name">The credential name; unique when null.</param>
+    /// <param name="inspectNamespaces">The saved inspect namespaces; none when null.</param>
     /// <returns>The credential's id, name and plaintext token (for leak scans).</returns>
-    public async Task<SeededCredential> CredentialAsync(string clusterName, string? token = null, string? name = null)
+    public async Task<SeededCredential> CredentialAsync(
+        string clusterName, string? token = null, string? name = null, IReadOnlyList<string>? inspectNamespaces = null)
     {
         var plaintext = token ?? $"fake-test-token.{Unique()}{Unique()}.not-a-real-signature";
         await using var scope = factory.Services.CreateSignedInScope(Actor);
@@ -145,7 +147,7 @@ public sealed class TestData(ApiFactory factory)
             services.GetRequiredService<ITokenProtector>().Protect(new SensitiveString(plaintext)),
             TokenFingerprints.Compute(new SensitiveString(plaintext)),
             TokenInspector.Inspect(new SensitiveString(plaintext)),
-            InspectNamespaces.Empty,
+            inspectNamespaces is null ? InspectNamespaces.Empty : InspectNamespaces.Create(inspectNamespaces).Value,
             Actor,
             Now);
         services.GetRequiredService<ICredentialRepository>().Add(credential);

@@ -296,6 +296,7 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
 
         var detected = groups.Value.Names.Contains(OpenShiftConfigGroup) ? ClusterDistribution.OpenShift : ClusterDistribution.Kubernetes;
         run.DetectedDistribution = detected;
+        run.ServedApiGroups = groups.Value.Names;
         switch (declared, detected)
         {
             case (ClusterDistribution.OpenShift, ClusterDistribution.OpenShift):
@@ -352,7 +353,9 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         IClusterProbeSession session, TestRun run, InspectNamespaces inspectNamespaces, CancellationToken ct, CancellationToken callerToken)
     {
         run.Begin(ConnectionTestStep.Capabilities);
-        var checks = CapabilityCheckSet.Checks;
+        // CT-1: checks in API groups the cluster doesn't serve are omitted (no review sent); all apply when discovery
+        // wasn't readable.
+        var checks = CapabilityCheckSet.ApplicableTo(run.ServedApiGroups);
 
         // Index 0 is the cluster-admin review, 1..n the checks; results land by index, so order is deterministic.
         var reviews = new[] { CapabilityCheckSet.ClusterAdmin }.Concat(checks.Select(c => c.Attributes)).ToArray();
@@ -493,6 +496,9 @@ internal sealed class ConnectionTester(IClusterProbeClient probes, IClock clock,
         public OpenShiftVersionDto? OpenShiftVersion { get; set; }
 
         public ClusterDistribution? DetectedDistribution { get; set; }
+
+        // The served API group names from discovery; null when discovery wasn't readable (then every check applies).
+        public IReadOnlyCollection<string>? ServedApiGroups { get; set; }
 
         public CapabilitySummaryDto? Capabilities { get; set; }
 

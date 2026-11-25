@@ -1,0 +1,25 @@
+# One small workload so team-b isn't empty (T-0377, KIND-2).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+  namespace: team-b
+  labels:
+    app: echo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: echo
+  template:
+    metadata:
+      labels:
+        app: echo
+    spec:
+      containers:
+        - name: echo
+          image: docker.io/library/busybox:1.37
+          command: ["sh", "-c", "while true; do echo tick; sleep 60; done"]
+          resources:
+            requests: { cpu: 5m, memory: 8Mi }
+            limits: { memory: 16Mi }

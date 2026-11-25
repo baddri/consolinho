@@ -1,0 +1,11 @@
+/*
+ * Link decoration, OCP parity (T-0374). PF 6 base `:where(a)` draws a dashed underline at rest; released OCP shows
+ * no underline at rest and a solid one on hover, so we override PF's link decoration tokens. Field-help terms use the
+ * separate `--pf-t--global--text-decoration--help-text--*` tokens and stay dashed. The high-contrast theme is excluded
+ * on purpose: PF keeps underlined links there for accessibility.
+ */
+:root:not(.pf-v6-theme-high-contrast) {
+  --pf-t--global--text-decoration--link--line--default: none;
+  --pf-t--global--text-decoration--link--style--default: solid;
+  --pf-t--global--text-decoration--link--style--hover: solid;
+}

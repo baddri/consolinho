@@ -1,6 +1,6 @@
 // Public API of the cluster-context feature (SW-1..10): the user's clusters, the sidebar switcher, the environment
 // band, the `/` landing redirect and the `/c/:cluster` gate, the URL-derived active cluster, and the project selector
-// with the remembered project per cluster (NS-1..4).
+// with the remembered project per cluster (NS-1..4) and its fallback namespaces (NSF-1/2).
 export { ClusterGate } from './ClusterGate';
 export { ClusterSwitcher } from './ClusterSwitcher';
 export { clusterSwitchPath } from './clusterSwitchPath';
@@ -8,6 +8,7 @@ export { EnvironmentBanner } from './EnvironmentBanner';
 export { LandingRedirect } from './LandingRedirect';
 export { NamespaceSelector, type NamespaceSelectorProps } from './NamespaceSelector';
 export { NoClustersPage } from './NoClustersPage';
+export { useNamespaceFallback, type NamespaceFallback } from './useNamespaceFallback';
 export { accessibleClustersQueryKey, useAccessibleClusters } from './useAccessibleClusters';
 export { useActiveCluster } from './useActiveCluster';
 export { useLastCluster } from './useLastCluster';

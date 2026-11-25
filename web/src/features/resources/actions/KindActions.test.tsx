@@ -38,10 +38,15 @@ function recordPatches(): string[] {
 function withStubActions(descriptor: ResourceDescriptor): ResourceDescriptor {
   return {
     ...descriptor,
-    useKindActions: function useStubActions({ cluster, obj, reviewByName }: KindActionArgs): KindActions {
+    useKindActions: function useStubActions({
+      cluster,
+      obj,
+      reviewByName,
+      checkAccess,
+    }: KindActionArgs): KindActions {
       const { model } = descriptor;
       const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
-      const access = useActionAccess(cluster, { verb: 'patch', model, ...target }, reviewByName);
+      const access = useActionAccess(cluster, { verb: 'patch', model, ...target }, reviewByName, checkAccess);
       const mutation = useResourceMutation(cluster, {
         model,
         mutationFn: (vars: typeof target) =>

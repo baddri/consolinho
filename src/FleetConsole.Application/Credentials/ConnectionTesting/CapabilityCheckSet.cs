@@ -43,6 +43,22 @@ public static class CapabilityCheckSet
         Write("update-configmaps", "Update config maps", "update", "", "configmaps"),
     ];
 
+    /// <summary>
+    /// The checks that apply to a cluster serving <paramref name="servedGroups"/> (CT-1): a check in an API group the
+    /// cluster doesn't serve (e.g. <c>config.openshift.io</c> on Kubernetes) would only ever be denied, so it is omitted
+    /// rather than reported as noise. The core group (<c>""</c>) is always served. The headline checks are core/<c>apps</c>
+    /// only, so omitting checks never lowers the headline.
+    /// </summary>
+    /// <param name="servedGroups">
+    /// The served group names from discovery; <see langword="null"/> when discovery wasn't readable, in which case every
+    /// check applies (never guess).
+    /// </param>
+    /// <returns>A subset of <see cref="Checks"/> in the same order.</returns>
+    public static IReadOnlyList<CapabilityCheck> ApplicableTo(IReadOnlyCollection<string>? servedGroups) =>
+        servedGroups is null
+            ? Checks
+            : Checks.Where(c => c.Attributes.Group.Length == 0 || servedGroups.Contains(c.Attributes.Group)).ToList();
+
     // Headline rules (ADR-0011): every listed check must be allowed for the level.
     private static readonly string[] EditChecks = ["patch-deployments", "delete-pods", "update-configmaps"];
     private static readonly string[] ViewChecks = ["list-pods", "list-deployments", "list-namespaces"];

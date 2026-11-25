@@ -29,7 +29,7 @@ const IN_PROGRESS_PHASES = ['New', 'Pending', 'Running'];
  * DeploymentConfig sends no `deploymentconfigs` access review at all.
  */
 export function useReplicationControllerActions(args: KindActionArgs<ReplicationControllerResource>): KindActions {
-  const { cluster, obj, reviewByName } = args;
+  const { cluster, obj, reviewByName, checkAccess } = args;
   const dcName = owningDeploymentConfigName(obj);
   const rollbackAccess = useResourceAccess(
     cluster,
@@ -40,7 +40,7 @@ export function useReplicationControllerActions(args: KindActionArgs<Replication
       // List rows share one namespace-level review (ADR-0022 §9), as `useActionAccess` does.
       name: reviewByName ? dcName : undefined,
     },
-    { enabled: dcName !== undefined },
+    { enabled: checkAccess && dcName !== undefined },
   );
   const editCount = useEditCountAction(args, ReplicationControllerModel);
   const phase = deploymentPhaseOf(obj);
@@ -54,7 +54,7 @@ export function useReplicationControllerActions(args: KindActionArgs<Replication
       namespace: obj.metadata.namespace,
       name: reviewByName ? obj.metadata.name : undefined,
     },
-    { enabled: inProgress },
+    { enabled: checkAccess && inProgress },
   );
   const [openDialog, setOpenDialog] = useState<'rollback' | 'cancel-rollout' | null>(null);
   const close = () => setOpenDialog(null);

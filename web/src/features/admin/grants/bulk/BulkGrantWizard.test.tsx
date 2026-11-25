@@ -74,7 +74,7 @@ describe('Bulk grant wizard (T-0040)', () => {
 
       // Already granted and credential-less clusters are listed but not selectable.
       expect(checkboxOf(dialog, 'prod-eu-1')).toBeDisabled();
-      expect(within(dialog).getAllByText('already has access')).toHaveLength(3);
+      expect(within(dialog).getAllByText('already has access')).toHaveLength(4);
       expect(checkboxOf(dialog, 'lab-1')).toBeDisabled();
       expect(within(dialog).getByText('no credentials')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Next' })).toBeDisabled();
@@ -137,7 +137,7 @@ describe('Bulk grant wizard (T-0040)', () => {
             .getAllByRole('link')
             .map((link) => link.textContent)
             .sort(),
-        ).toEqual(['dev-1', 'dev-2', 'prod-eu-1', 'prod-k8s-1', 'prod-us-1', 'staging-eu-1']),
+        ).toEqual(['dev-1', 'dev-2', 'dev-k8s-ns', 'prod-eu-1', 'prod-k8s-1', 'prod-us-1', 'staging-eu-1']),
       );
     },
   );

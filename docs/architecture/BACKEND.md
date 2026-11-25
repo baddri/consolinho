@@ -251,7 +251,7 @@ are never cached or served stale (CACHE-5 → 503); never cache decrypted tokens
 Exception: fan-out services that are not one query per request (the fleet probe, ADR-0041) call `IQueryCache`
 directly with their own per-entry key/tags, because one request reads N independently cached entries.
 
-Access snapshot — key `access:v1:user:{id}`, tags `user:`, `cluster:`/`credential:` of every row, `group:{sha256}` (names are never logged) of every
+Access snapshot — key `access:v2:user:{id}`, tags `user:`, `cluster:`/`credential:` of every row, `group:{sha256}` (names are never logged) of every
 user group; `Application/Access/AccessCacheInvalidation.cs`:
 
 | Events | Tag removed |
@@ -259,7 +259,7 @@ user group; `Application/Access/AccessCacheInvalidation.cs`:
 | `GrantCreated`, `GrantChanged`, `GrantRevoked` | `user:{UserId}`, or `group:{sha256(SubjectName)}` for group grants |
 | `UserDeactivated`, `UserReactivated`, `UserReadOnlyChanged`, `UserGroupsChanged`, `UserLoggedIn` | `user:{UserId}` |
 | `ClusterUpdated`, `ClusterEnabled`, `ClusterDisabled`, `ClusterDeleted` | `cluster:{ClusterId}` |
-| `CredentialRotated`, `CredentialDeleted` | `credential:{CredentialId}` |
+| `CredentialRotated`, `CredentialTested` (may save new inspect namespaces, NSA-2), `CredentialDeleted` | `credential:{CredentialId}` |
 
 ### Blocking a class of operations
 Add `IProxyPolicy` (e.g. `DenyDeleteNamespacePolicy`, `BusinessHoursChangeWindowPolicy`) or an `IPipelineBehavior` for

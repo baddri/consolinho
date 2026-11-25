@@ -1,0 +1,16 @@
+# Namespaces of the kind dev seed (T-0377, KIND-2). fleet-system holds the FleetConsole ServiceAccounts so the
+# SA list in team-a only shows team-a's own default SA.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-a
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: team-b
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fleet-system

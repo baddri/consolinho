@@ -16,12 +16,20 @@ export interface FakeKubeApi {
   close: () => Promise<void>;
 }
 
+/** The part of a SelfSubjectAccessReview request the fake reads. */
+interface SsarBody {
+  spec?: { resourceAttributes?: { verb?: string } };
+}
+
+/** Verbs a read-only token may use. */
+const READ_VERBS: ReadonlySet<string> = new Set(['get', 'list', 'watch']);
+
 /**
  * Starts a minimal Kubernetes API server stand-in for the e2e smoke (QG-4). The dev stack has no cluster to proxy to,
  * and the proxy only accepts `https://` clusters, so this serves HTTPS with a throw-away self-signed certificate
  * (generated with `openssl`; the cluster is registered with `skipTlsVerify`). It answers just enough for the Pods list
  * and details pages through the real FleetConsole proxy: the pod itself, pod/namespace/project lists, a watch that stays open without events, and
- * a "denied" SelfSubjectAccessReview, and the fleet status probes (`fakeClusterHealth.ts`). Everything else is a
+ * SelfSubjectAccessReviews that allow reads only, and the fleet status probes (`fakeClusterHealth.ts`). Everything else is a
  * Kubernetes-style 404 `Status`.
  */
 export async function startFakeKubeApi(): Promise<FakeKubeApi> {
@@ -35,10 +43,16 @@ export async function startFakeKubeApi(): Promise<FakeKubeApi> {
         response.end(JSON.stringify(body));
       };
       if (request.method === 'POST' && url.pathname.endsWith('/selfsubjectaccessreviews')) {
-        json(201, {
-          apiVersion: 'authorization.k8s.io/v1',
-          kind: 'SelfSubjectAccessReview',
-          status: { allowed: false },
+        // A read-only token: reads are allowed (the landing's namespace-listing check, NSF-3), writes are denied.
+        let body = '';
+        request.on('data', (chunk: Buffer) => (body += chunk.toString()));
+        request.on('end', () => {
+          const verb = (JSON.parse(body || '{}') as SsarBody).spec?.resourceAttributes?.verb ?? '';
+          json(201, {
+            apiVersion: 'authorization.k8s.io/v1',
+            kind: 'SelfSubjectAccessReview',
+            status: { allowed: READ_VERBS.has(verb) },
+          });
         });
         return;
       }

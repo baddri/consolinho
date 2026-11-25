@@ -13,6 +13,7 @@ export const credentialIds = {
   dev2View: mockGuid(0x107),
   lab1Edit: mockGuid(0x108),
   prodK8sEdit: mockGuid(0x109),
+  devK8sNsTeamA: mockGuid(0x10a),
 } as const;
 
 /** Builds a JWT-derived credential record; `sa` is `<namespace>/<name>`. */
@@ -53,7 +54,8 @@ function jwtCredential(
  * changed) and failed ones (prod-us-1 authentication, dev-1 TLS reachability). staging-eu-1 has a saved
  * inspect-namespaces list (`team-a`, `team-b`, NST-6). `lab-1` (Kubernetes) has one untested
  * edit credential so the K8s switcher/theme cases have a grant to show; the production Kubernetes `prod-k8s-1`
- * has one successfully tested edit credential (FND-1).
+ * has one successfully tested edit credential (FND-1). `dev-k8s-ns` has `team-a-editor`, a token bound to `team-a`
+ * only (the mock's `namespaced` RBAC profile) whose inspect namespaces are `team-a` (QG55B-2).
  */
 export const credentialFixtures: readonly MockCredential[] = [
   jwtCredential({
@@ -162,5 +164,16 @@ export const credentialFixtures: readonly MockCredential[] = [
     expiresAt: daysFromNow(330),
     lastTest: { testedAt: daysAgo(1), succeeded: true, failedStep: null, headline: 'clusterWideEdit' },
     testScenario: 'edit',
+  }),
+  jwtCredential({
+    id: credentialIds.devK8sNsTeamA,
+    clusterName: 'dev-k8s-ns',
+    name: 'team-a-editor',
+    sa: 'team-a/team-a-editor',
+    issuedDaysAgo: 3,
+    expiresAt: daysFromNow(360),
+    lastTest: { testedAt: daysAgo(1), succeeded: true, failedStep: null, headline: 'limited' },
+    testScenario: 'edit',
+    inspectNamespaces: ['team-a'],
   }),
 ];

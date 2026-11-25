@@ -12,7 +12,9 @@ import {
   type SelfSubjectAccessReview,
   type Status,
 } from '@/shared/k8s';
+import type { AccessibleCluster } from '@/shared/api';
 import { mockDb, mockK8s, setMockUser } from '@/test/handlers';
+import { WEB_POD_NAMES } from './k8s';
 
 /** Plain-`fetch` tests of the mock Kubernetes proxy (T-0070, CP2 contract §1–4). */
 
@@ -455,5 +457,68 @@ describe('mock k8s API server: CP5a project requests and PVC resize (T-0300)', (
     expect(capacity()).toBe('20Gi');
     expect((await patchStorage('5Gi')).status).toBe(200);
     expect(capacity()).toBe('20Gi');
+  });
+});
+
+describe('mock cluster dev-k8s-ns: namespace-scoped token (T-0381, QG55B-2)', () => {
+  const CLUSTER = 'dev-k8s-ns';
+
+  async function accessibleClusters(): Promise<AccessibleCluster[]> {
+    const response = await fetch(`${globalThis.location.origin}/api/clusters`);
+    expect(response.status).toBe(200);
+    return json<AccessibleCluster[]>(response);
+  }
+
+  it("lists each cluster with the winning grant's credential inspect namespaces as fallbackNamespaces", async () => {
+    setMockUser('alice');
+    const clusters = await accessibleClusters();
+    const fallbackOf = (name: string) =>
+      clusters.find((cluster) => cluster.name === name)?.fallbackNamespaces;
+    expect(fallbackOf(CLUSTER)).toEqual(['team-a']);
+    expect(fallbackOf('staging-eu-1')).toEqual(['team-a', 'team-b']);
+    expect(fallbackOf('prod-eu-1')).toEqual([]);
+    expect(clusters.find((cluster) => cluster.name === CLUSTER)).toMatchObject({
+      distribution: 'kubernetes',
+      accessMode: 'readWrite',
+    });
+  });
+
+  it('403s cluster-scoped and foreign-namespace requests, serves team-a', async () => {
+    setMockUser('alice');
+    const namespaces = await get(CLUSTER, '/api/v1/namespaces');
+    expect(namespaces.status).toBe(403);
+    expect(await json<Status>(namespaces)).toMatchObject({ kind: 'Status', reason: 'Forbidden' });
+    expect((await get(CLUSTER, '/api/v1/nodes')).status).toBe(403);
+    expect((await get(CLUSTER, `${SHOP}/pods`)).status).toBe(403);
+    expect((await get(CLUSTER, '/api/v1/pods')).status).toBe(403);
+    expect(await listNames(CLUSTER, '/api/v1/namespaces/team-a/pods')).toEqual([...WEB_POD_NAMES]);
+    expect(await listNames(CLUSTER, '/apis/apps/v1/namespaces/team-a/deployments')).toEqual(['web']);
+    expect(await listNames(CLUSTER, '/api/v1/namespaces/team-a/services')).toEqual(['web']);
+  });
+
+  it('answers SelfSubjectAccessReviews by namespace', async () => {
+    setMockUser('alice');
+    const can = async (verb: string, resource: string, namespace?: string) => {
+      const response = await send(CLUSTER, 'POST', '/apis/authorization.k8s.io/v1/selfsubjectaccessreviews', {
+        apiVersion: 'authorization.k8s.io/v1',
+        kind: 'SelfSubjectAccessReview',
+        spec: { resourceAttributes: { verb, resource, ...(namespace ? { namespace } : {}) } },
+      });
+      return (await json<SelfSubjectAccessReview>(response)).status?.allowed;
+    };
+    expect(await can('list', 'namespaces')).toBe(false);
+    expect(await can('create', 'pods', 'team-a')).toBe(true);
+    expect(await can('create', 'pods', 'shop')).toBe(false);
+  });
+
+  it('serves no OpenShift API group in discovery', async () => {
+    setMockUser('alice');
+    const groups = (await json<{ groups: { name: string }[] }>(await get(CLUSTER, '/apis'))).groups.map(
+      (group) => group.name,
+    );
+    expect(groups.length).toBeGreaterThan(0);
+    expect(
+      groups.filter((group) => group.endsWith('openshift.io') || group === 'operators.coreos.com'),
+    ).toEqual([]);
   });
 });

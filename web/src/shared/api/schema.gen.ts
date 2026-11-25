@@ -726,6 +726,11 @@ export interface components {
             accessMode: components["schemas"]["AccessMode"];
             /** @description The cluster's own web console, if configured. */
             webConsoleUrl: null | string;
+            /**
+             * @description Inspect namespaces of the credential behind the caller's effective grant, in saved
+             *                 order; empty if none. Used by the namespace selector only when listing namespaces is forbidden.
+             */
+            fallbackNamespaces: string[];
         };
         /**
          * @description What a grant lets the user do on its cluster (GRANT-1). Enforced by FleetConsole's proxy (CP2 mutation guard) on top of
@@ -898,7 +903,7 @@ export interface components {
         CapabilitySummary: {
             /** @description The overall capability level. */
             headline: components["schemas"]["CapabilityLevel"];
-            /** @description Every evaluated check in a stable order; render the list as received. */
+            /** @description Every evaluated check in a stable order; checks whose API group the cluster does not serve are omitted (CT-1). Render the list as received. */
             checks: components["schemas"]["CapabilityCheckResult"][];
         };
         /**

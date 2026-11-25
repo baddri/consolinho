@@ -31,6 +31,7 @@ function ActionsMenu({ cluster, descriptor, obj }: ResourceActionsMenuProps) {
     descriptor,
     obj,
     reviewByName: true,
+    checkAccess: true,
     onDeleted: () => void navigate(resourcePath(cluster, descriptor.model, { namespace })),
   });
 

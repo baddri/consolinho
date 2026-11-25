@@ -152,7 +152,7 @@ describe('Grants tabs (T-0039)', () => {
         within(table)
           .getAllByRole('link')
           .map((link) => link.textContent),
-      ).toEqual(['prod-eu-1', 'prod-k8s-1', 'staging-eu-1', 'lab-1']);
+      ).toEqual(['prod-eu-1', 'prod-k8s-1', 'staging-eu-1', 'dev-k8s-ns', 'lab-1']);
       const prod = rowOf(table, 'prod-eu-1');
       expect(within(prod).getByRole('link', { name: 'prod-eu-1' })).toHaveAttribute(
         'href',

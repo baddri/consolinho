@@ -20,6 +20,8 @@ export interface ResourceActionsOptions {
    * SelfSubjectAccessReview (ADR-0022 §9); the details page passes `true`.
    */
   reviewByName: boolean;
+  /** Whether to send the access reviews now (see `KindActionArgs.checkAccess`); list rows defer them to kebab hover. */
+  checkAccess: boolean;
   /** Runs after a successful delete (the details page returns to the list). */
   onDeleted?: () => void;
 }
@@ -57,6 +59,7 @@ export function useResourceActions({
   descriptor,
   obj,
   reviewByName,
+  checkAccess,
   onDeleted,
 }: ResourceActionsOptions): ResourceActions {
   const { model } = descriptor;
@@ -66,11 +69,12 @@ export function useResourceActions({
   // Exactly one of the two runs for the whole life of the menu: callers key it by the model, so the descriptor (and
   // with it the branch) never changes between renders of one instance.
   const kind = descriptor.useKindActions
-    ? descriptor.useKindActions({ cluster, obj, reviewByName })
+    ? descriptor.useKindActions({ cluster, obj, reviewByName, checkAccess })
     : noKindActions();
   const [open, setOpen] = useState<CommonDialog | null>(null);
-  // Read-only kinds never show the common items, so their access reviews are skipped (hooks still run).
-  const reviewCommon = !descriptor.readOnly;
+  // Read-only kinds never show the common items, so their access reviews are skipped (hooks still run); list rows
+  // wait for their kebab to be hovered (`checkAccess`).
+  const reviewCommon = checkAccess && !descriptor.readOnly;
   const patchAccess = useActionAccess(
     cluster,
     { verb: 'patch', model, namespace, name },

@@ -1,0 +1,16 @@
+# kind cluster for local FleetConsole development (T-0377, CP5.5 KIND-1). Used by scripts/kind-dev.sh.
+# Single control-plane node only: the laptop is memory-constrained (~1.5 GB for this node); no extra workers.
+# The node image is the one kind v0.33.0 lists in its release notes, pinned by digest so every run is identical.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: fleetconsole-dev
+nodes:
+  - role: control-plane
+    image: docker.io/kindest/node:v1.37.0@sha256:a1ed56cfb0e7b93589bdf97c8cd566405a265939e3620fc4f5de89adff580ae5
+networking:
+  # Only reachable from this host; scripts/kind-dev.sh tokens prints the resulting https://127.0.0.1:<port> URL.
+  apiServerAddress: 127.0.0.1
+  # Fixed host port so the API URL registered in FleetConsole survives node restarts (podman would otherwise pick a
+  # new random port). Not 6443, to avoid clashing with other local clusters. scripts/kind-dev.sh replaces this value
+  # with $KIND_API_PORT when set; keep the line in exactly this form.
+  apiServerPort: 16443

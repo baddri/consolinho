@@ -54,6 +54,9 @@ it holds, so these rules are strict.
 - Globally read-only users: admin **commands** are refused (`Auth.ReadOnly`, `ReadOnlyGuardBehavior`); admin queries
   and the audit log stay readable (auditor persona). From CP2 the proxy also enforces it.
 - Role Admin grants no cluster access; admins need grants like everyone else.
+- `GET /api/clusters` lists only granted, enabled clusters with switcher fields — never API URL, CA, credential name or
+  token. Its one credential-derived field, `fallbackNamespaces` (CP5.5, T-0375), is the inspect-namespace names of the
+  effective grant's credential: a UI hint for namespaced SAs; the token's RBAC still decides every request.
 - Proxy: user must have an active grant for the cluster; the grant's credential must exist and the cluster be enabled.
 - MutationGuard policy enforces `ReadOnly` grants and globally read-only users **before** forwarding.
 - The cluster's own RBAC (on the SA) still applies afterwards — FleetConsole can only narrow, never widen, access.

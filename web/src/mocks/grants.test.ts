@@ -119,12 +119,18 @@ describe('mock cluster switcher (contract §6)', () => {
       expect.objectContaining({ name: 'prod-eu-1', environment: 'production', accessMode: 'readOnly' }),
       expect.objectContaining({ name: 'prod-k8s-1', environment: 'production', accessMode: 'readOnly' }),
       expect.objectContaining({ name: 'staging-eu-1', environment: 'staging', accessMode: 'readWrite' }),
+      expect.objectContaining({ name: 'dev-k8s-ns', environment: 'development', accessMode: 'readWrite' }),
       expect.objectContaining({ name: 'lab-1', environment: 'development', accessMode: 'readOnly' }),
     ]);
   });
 
   it('gives admins only their own grants (GRANT-6) and bob none (SW-4)', async () => {
-    expect((await unwrap(apiClient.GET('/api/clusters'))).map((c) => c.name)).toEqual(['prod-k8s-1', 'dev-1', 'lab-1']);
+    expect((await unwrap(apiClient.GET('/api/clusters'))).map((c) => c.name)).toEqual([
+      'prod-k8s-1',
+      'dev-1',
+      'dev-k8s-ns',
+      'lab-1',
+    ]);
     setMockUser('bob');
     expect(await unwrap(apiClient.GET('/api/clusters'))).toEqual([]);
   });

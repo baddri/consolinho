@@ -24,6 +24,9 @@ namespace FleetConsole.Application.Access;
 /// candidate's verdict.</param>
 /// <param name="WinnerToken">The encrypted ServiceAccount token of the winning grant's credential.</param>
 /// <param name="WinnerCredentialName">The winning grant's credential name.</param>
+/// <param name="WinnerInspectNamespaces">The winning grant's credential's saved inspect namespaces, in saved order (names
+/// only): a UI hint for the namespace selector when listing namespaces is forbidden; the token still decides what the
+/// user can actually read (CP5.5 NSA-1).</param>
 /// <param name="CandidateCredentialNames">Every candidate grant's credential name by grant id (the Effective access
 /// view lists them per verdict); part of the same snapshot, so it costs no extra query.</param>
 internal sealed record ResolvedClusterAccess(
@@ -39,4 +42,5 @@ internal sealed record ResolvedClusterAccess(
     AccessResolution Resolution,
     EncryptedToken WinnerToken,
     string WinnerCredentialName,
+    IReadOnlyList<string> WinnerInspectNamespaces,
     IReadOnlyDictionary<GrantId, string> CandidateCredentialNames);

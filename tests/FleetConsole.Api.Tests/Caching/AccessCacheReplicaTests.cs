@@ -134,7 +134,7 @@ public sealed class AccessCacheReplicaTests(AccessCacheReplicaTests.Replicas fix
 
         var dump = await DumpRedisAsync(fixture.RedisConnectionString);
 
-        dump.Keys.ShouldContain(key => key.Contains($"access:v1:user:{userId:D}", StringComparison.Ordinal), "the scan saw the access entry");
+        dump.Keys.ShouldContain(key => key.Contains($"access:v2:user:{userId:D}", StringComparison.Ordinal), "the scan saw the access entry");
         dump.Values.ShouldContain(value => value.Contains(userId.ToString("D"), StringComparison.Ordinal), "a value carries the user id (tags)");
         dump.Values.ShouldContain(value => value.Contains(username, StringComparison.Ordinal), "a value carries the snapshot itself");
         var haystacks = dump.Keys.Concat(dump.Values).ToArray();

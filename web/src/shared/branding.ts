@@ -9,7 +9,14 @@ import markLight from './assets/consolinho-mark.svg';
 export const PRODUCT_NAME = 'Consolinho';
 
 /**
- * The product mark (T-0360): a 24px monochrome "stacked consoles" glyph with one muted teal accent. Only the mark is
+ * Product line set under the brand in the masthead lockup (T-0372), mirroring the structure (not the artwork) of
+ * OCP's two-line logo. Display only: About, Login and the document title keep {@link PRODUCT_NAME}.
+ */
+export const PRODUCT_LINE = 'Fleet Console';
+
+/**
+ * The product mark (T-0372): an abstract "fleet" glyph, a teal hub with three satellites on a broken orbit; the
+ * hub is the only accent. Only the mark is
  * an image; the masthead sets the name next to it as HTML text, because an `<img>` SVG cannot use the app's web font
  * (Red Hat Display). Dark strokes for the light theme, light strokes for dark surfaces. Imported (not in `public/`)
  * so they also load in `dev:mock`, whose public dir is `msw/`; Vite inlines or fingerprints them into `dist/`.

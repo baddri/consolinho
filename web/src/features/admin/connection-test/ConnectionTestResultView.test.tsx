@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ConnectionTestResult } from '@/shared/api';
 import {
+  connectionTestFor,
   connectionTestPassed,
   connectionTestTlsFailure,
   connectionTestWithNamespaceRules,
@@ -145,5 +146,54 @@ describe('ConnectionTestResultView (T-0038)', () => {
 
     rerender(<ConnectionTestResultView result={{ ...connectionTestWithNamespaceRules, namespaceRules: [] }} />);
     expect(screen.queryByRole('button', { name: /^Rules in namespace / })).not.toBeInTheDocument();
+  });
+
+  describe('CT-2: OpenShift-only facts follow the detected distribution', () => {
+    const KUBERNETES = { declared: 'kubernetes', servesOpenShift: false, inspectNamespaces: [] } as const;
+    const factsOf = () => screen.getByLabelText('Cluster facts', { selector: 'dl' });
+    const stepTitles = () => stepsOf().map(([, text]) => text.split(':')[0]);
+
+    it('detected Kubernetes: no OpenShift version step or fact, no ClusterOperators check; Kubernetes version stays', () => {
+      render(
+        <ConnectionTestResultView result={connectionTestFor('admin', 'kube-system/admin', KUBERNETES)} />,
+      );
+      expect(stepTitles()).toEqual([
+        'Reachability',
+        'Authentication',
+        'Identity',
+        'Distribution',
+        'Capabilities',
+      ]);
+      expect(factsOf()).toHaveTextContent('Kubernetes versionv1.31.4');
+      expect(factsOf()).not.toHaveTextContent('OpenShift version');
+      expect(screen.queryByText(/N\/A/)).not.toBeInTheDocument();
+      expect(screen.queryByText('List cluster operators')).not.toBeInTheDocument();
+    });
+
+    it('detected OpenShift: the OpenShift version step and fact render unchanged', () => {
+      render(<ConnectionTestResultView result={connectionTestPassed} />);
+      expect(stepTitles()).toContain('OpenShift version');
+      expect(factsOf()).toHaveTextContent('OpenShift versionUnknown');
+    });
+
+    it('declared Kubernetes but detected OpenShift: rows shown with the DIST-7 warning', () => {
+      const result = connectionTestFor('admin', 'kube-system/admin', {
+        ...KUBERNETES,
+        servesOpenShift: true,
+      });
+      render(<ConnectionTestResultView result={result} />);
+      expect(stepsOf()).toContainEqual([
+        'Warning',
+        'Distribution: The cluster serves OpenShift APIs but is registered as Kubernetes. Check the distribution.',
+      ]);
+      expect(stepTitles()).toContain('OpenShift version');
+      expect(factsOf()).toHaveTextContent('OpenShift version4.18.12');
+    });
+
+    it('unreadable discovery (detectedDistribution null) keeps the OpenShift version rows', () => {
+      render(<ConnectionTestResultView result={{ ...connectionTestPassed, detectedDistribution: null }} />);
+      expect(stepTitles()).toContain('OpenShift version');
+      expect(factsOf()).toHaveTextContent('OpenShift version');
+    });
   });
 });

@@ -12,6 +12,7 @@ describe('mock clusters API (contract §8.2)', () => {
     expect(rows.map((r) => r.name)).toEqual([
       'dev-1',
       'dev-2',
+      'dev-k8s-ns',
       'lab-1',
       'prod-eu-1',
       'prod-k8s-1',
@@ -128,6 +129,7 @@ describe('mock credentials API (contract §8.4, §8.5)', () => {
     expect(list.map((c) => c.expiryStatus)).toEqual([
       'expired',
       'expiringSoon',
+      'ok',
       'ok',
       'ok',
       'ok',

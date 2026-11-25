@@ -18,12 +18,13 @@ export const RESTART_PAUSED_REASON = 'The deployment is paused and cannot be res
  * without a modal; Edit Pod count opens the shared count modal, Edit update strategy {@link ConfigureUpdateStrategyModal}.
  */
 export function useDeploymentActions(args: KindActionArgs<Deployment & K8sResource>): KindActions {
-  const { cluster, obj, reviewByName } = args;
+  const { cluster, obj, reviewByName, checkAccess } = args;
   const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
   const patchAccess = useActionAccess(
     cluster,
     { verb: 'patch', model: DeploymentModel, ...target },
     reviewByName,
+    checkAccess,
   );
   const editCount = useEditCountAction(args, DeploymentModel);
   const paused = obj.spec?.paused === true;

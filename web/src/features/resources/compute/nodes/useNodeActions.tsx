@@ -12,9 +12,19 @@ import { isNodeUnschedulable, useNodeScheduling } from './useNodeScheduling';
  * {@link MarkUnschedulableModal}). Both need `patch nodes` and are disabled with the reason otherwise (SAFE5). No
  * drain or evict (spec Q2).
  */
-export function useNodeActions({ cluster, obj, reviewByName }: KindActionArgs<NodeResource>): KindActions {
+export function useNodeActions({
+  cluster,
+  obj,
+  reviewByName,
+  checkAccess,
+}: KindActionArgs<NodeResource>): KindActions {
   const name = obj.metadata.name ?? '';
-  const access = useActionAccess(cluster, { verb: 'patch', model: NodeModel, name }, reviewByName);
+  const access = useActionAccess(
+    cluster,
+    { verb: 'patch', model: NodeModel, name },
+    reviewByName,
+    checkAccess,
+  );
   const schedule = useNodeScheduling(cluster, { toastErrors: { action: 'Mark as schedulable' } });
   const [modalOpen, setModalOpen] = useState(false);
   const unschedulable = isNodeUnschedulable(obj);
@@ -24,8 +34,7 @@ export function useNodeActions({ cluster, obj, reviewByName }: KindActionArgs<No
         itemKey: 'mark-as-schedulable',
         title: 'Mark as schedulable',
         onClick: () => {
-          if (!access.isAriaDisabled)
-            schedule.mutate({ namespace: undefined, name, unschedulable: false });
+          if (!access.isAriaDisabled) schedule.mutate({ namespace: undefined, name, unschedulable: false });
         },
         ...access,
       }

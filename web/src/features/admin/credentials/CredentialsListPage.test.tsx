@@ -17,6 +17,7 @@ const SERVER_ORDER = [
   'lab-1/fleet-edit',
   'dev-2/fleet-view',
   'prod-k8s-1/fleet-edit',
+  'dev-k8s-ns/team-a-editor',
   'prod-us-1/legacy-token',
   'staging-eu-1/fleet-admin',
 ];
@@ -113,6 +114,7 @@ describe('CredentialsListPage (CRED-7)', () => {
     expect(visibleRows(table).map((key) => key.split('/')[0])).toEqual([
       'dev-1',
       'dev-2',
+      'dev-k8s-ns',
       'lab-1',
       'prod-eu-1',
       'prod-eu-1',
