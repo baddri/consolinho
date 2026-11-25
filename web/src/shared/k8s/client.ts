@@ -4,7 +4,7 @@ import { apiVersionOf, type K8sModel, type PropagationPolicy } from './models';
 import type { K8sList, K8sResource } from './types';
 import { resourceApiPath } from './url';
 
-/** Page size of {@link k8sListAll} (DATA-3): big enough for few round trips, small enough for a fast first page. */
+/** Page size of {@link k8sListPages} (DATA-3): big enough for few round trips, small enough for a fast first page. */
 export const LIST_PAGE_SIZE = 250;
 
 /** Which objects a list or watch selects. Selectors use the Kubernetes syntax and are passed through unchanged. */
@@ -78,18 +78,29 @@ export function isExpired(error: unknown): boolean {
 }
 
 /**
- * Lists every object of `model` matching `opts`, paging with `limit=250` + `continue` (DATA-3), and returns the items
- * with the `resourceVersion` of the last page. A `continue` token that expires mid-way (410) restarts the list once
- * from the beginning; a second 410 is thrown.
+ * One page of {@link k8sListPages}: the page's items (with `apiVersion`/`kind`), or a `restart` marker telling the
+ * consumer to drop what it has (the list starts over after an expired `continue` token). Only the last page carries
+ * the `resourceVersion` a watch continues from (ADR-0022 §3).
  */
-export async function k8sListAll<T>(
+export interface K8sListChunk<T> {
+  items: T[];
+  restart?: true;
+  resourceVersion?: string;
+}
+
+/**
+ * Lists every object of `model` matching `opts` page by page, paging with `limit=250` + `continue` (DATA-3), and
+ * yields each page as it lands, so a list renders its first page while the rest load (OCP `incrementallyLoad`).
+ * A `continue` token that expires mid-way (410) yields `{ items: [], restart: true }` and lists once more from the
+ * beginning; a second 410 is thrown.
+ */
+export async function* k8sListPages<T>(
   cluster: string,
   model: K8sModel,
   opts: ListOptions,
   signal?: AbortSignal,
-): Promise<K8sListData<T>> {
-  const listOnce = async (): Promise<K8sListData<T>> => {
-    const items: T[] = [];
+): AsyncGenerator<K8sListChunk<T>> {
+  async function* listOnce(): AsyncGenerator<K8sListChunk<T>> {
     let continueToken: string | undefined;
     for (;;) {
       const path = resourceApiPath(cluster, model, {
@@ -102,20 +113,44 @@ export async function k8sListAll<T>(
         },
       });
       const page = await k8sGetPath<K8sList<T>>(path, signal);
-      for (const item of page.items) items.push(withTypeMeta(item, model));
+      const items = page.items.map((item) => withTypeMeta(item, model));
       // An empty string means "no more pages", just like an absent token.
       continueToken = page.metadata.continue;
       if (!continueToken) {
-        return { items, resourceVersion: page.metadata.resourceVersion ?? '' };
+        yield { items, resourceVersion: page.metadata.resourceVersion ?? '' };
+        return;
       }
+      yield { items };
     }
-  };
+  }
   try {
-    return await listOnce();
+    yield* listOnce();
   } catch (error) {
     if (!isExpired(error)) throw error;
-    return listOnce();
+    yield { items: [], restart: true };
+    yield* listOnce();
   }
+}
+
+/**
+ * Lists every object of `model` matching `opts` (a fold over {@link k8sListPages}) and returns the items with the
+ * `resourceVersion` of the last page. For one-shot reads (Search); live lists use `useK8sList`, which shows pages as
+ * they arrive.
+ */
+export async function k8sListAll<T>(
+  cluster: string,
+  model: K8sModel,
+  opts: ListOptions,
+  signal?: AbortSignal,
+): Promise<K8sListData<T>> {
+  let items: T[] = [];
+  let resourceVersion = '';
+  for await (const chunk of k8sListPages<T>(cluster, model, opts, signal)) {
+    if (chunk.restart) items = [];
+    items.push(...chunk.items);
+    if (chunk.resourceVersion !== undefined) resourceVersion = chunk.resourceVersion;
+  }
+  return { items, resourceVersion };
 }
 
 /**

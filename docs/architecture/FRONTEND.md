@@ -145,10 +145,13 @@ Subscription, Related objects: shown when in `extraTabs` **and** given a compone
 
 - All k8s calls go through `shared/k8s/client.ts`; all FleetConsole API calls through `shared/api`.
 - Query keys always start with `['k8s', cluster, ...]` so switching cluster can never show another cluster's data.
-- Lists use watch to stay live (ADR-0022): the list query holds `{ items, resourceVersion }`, a ref-counted watch
-  (one per key per tab) patches it; 410 → relist; errors → backoff 1 s → 30 s with a "Paused — retrying" status in the heading (nothing is shown while live, CP3.5).
+- Lists use watch to stay live (ADR-0022): the list query streams `limit=250` pages into
+  `{ items, resourceVersion, complete }` (`streamedQuery`), so rows render after the first page (OCP
+  `incrementallyLoad`); after the last page a ref-counted watch (one per key per tab) continues from its
+  `resourceVersion` and patches it; 410 → relist (old rows stay until it completes); errors → backoff 1 s → 30 s with a "Paused — retrying" status in the heading (nothing is shown while live, CP3.5).
   Kubernetes `Status` errors map to `ApiError` with `code = "Kubernetes.<reason>"`; proxy errors keep their `Proxy.*`
-  code. Big lists paginate client-side (PF `Pagination`), no virtualisation.
+  code. Big lists paginate client-side (PF `Pagination`), no virtualisation. Row kebabs send their access reviews only
+  on hover/focus/open (OCP `LazyActionMenu`, `checkAccess`); the details Actions menu checks on mount.
 - Exception (CP4b, SRCH-5): Search result sections are **one-shot lists** (`k8sListAll`, no watch, `staleTime` 30 s,
   key `['k8s', cluster, 'search', modelKey, ns, labelSelector]`), at most 6 requests in flight through one shared
   `p-limit(6)` limiter — N live watches would hold N long-lived connections (HTTP/1.1 allows 6 per origin).

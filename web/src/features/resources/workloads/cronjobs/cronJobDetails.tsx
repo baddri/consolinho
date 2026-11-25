@@ -60,11 +60,16 @@ export function CronJobSections({ obj }: { obj: CronJobResource }) {
  * The CronJob's own actions: "Start Job" (OCP `cronjob-provider.ts`; `create jobs` in the namespace) and the fleet's
  * "Suspend" / "Resume" (`patch cronjobs`, CJ-3). Both write at once, without a modal. The common items follow them.
  */
-export function useCronJobActions({ cluster, obj, reviewByName }: KindActionArgs<CronJobResource>): KindActions {
+export function useCronJobActions({ cluster, obj, reviewByName, checkAccess }: KindActionArgs<CronJobResource>): KindActions {
   const { namespace } = obj.metadata;
   const name = obj.metadata.name ?? '';
-  const createAccess = useActionAccess(cluster, { verb: 'create', model: JobModel, namespace }, reviewByName);
-  const patchAccess = useActionAccess(cluster, { verb: 'patch', model: CronJobModel, namespace, name }, reviewByName);
+  const createAccess = useActionAccess(cluster, { verb: 'create', model: JobModel, namespace }, reviewByName, checkAccess);
+  const patchAccess = useActionAccess(
+    cluster,
+    { verb: 'patch', model: CronJobModel, namespace, name },
+    reviewByName,
+    checkAccess,
+  );
   const suspended = obj.spec?.suspend === true;
   const startJob = useStartJob(cluster);
   const toggleSuspend = useToggleSuspend(cluster, suspended);

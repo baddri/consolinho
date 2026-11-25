@@ -59,6 +59,7 @@ function ActionKeysProbe() {
     descriptor: podDescriptor,
     obj: { apiVersion: 'v1', kind: 'Pod', metadata: { name: POD, namespace: 'shop' } },
     reviewByName: false,
+    checkAccess: true,
   });
   return <p>{items.map((item) => item.itemKey).join(',')}</p>;
 }
@@ -189,13 +190,47 @@ describe('resource actions (UI-8)', () => {
 
   it('rows of one namespace share a single access review per verb (patch, update, delete)', async () => {
     const reviews = recordAccessReviews();
-    renderApp(POD_LIST);
+    const { user } = renderApp(POD_LIST);
 
     await findRow(POD);
+    const rows = screen.getAllByRole('row');
+    for (const row of rows) {
+      const toggle = within(row).queryByRole('button', { name: 'Kebab toggle' });
+      if (toggle) await user.hover(toggle);
+    }
     await waitFor(() => expect(reviews).toHaveLength(3));
     // The rows' checks are namespace-level: no name in the review.
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(reviews).toHaveLength(3);
+  });
+
+  it('sends no access review while rows render; hovering a kebab checks its namespace (T-0370)', async () => {
+    const namespaces = ['ns-a', 'ns-b', 'ns-c', 'ns-d', 'ns-e'];
+    for (const namespace of namespaces) mockK8s.seedPods('dev-1', namespace, 1);
+    const reviewed: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      if (request.method === 'POST' && new URL(request.url).pathname.endsWith(SSAR_PATH)) {
+        void request
+          .clone()
+          .json()
+          .then((body: { spec: { resourceAttributes: { namespace?: string } } }) => {
+            reviewed.push(body.spec.resourceAttributes.namespace ?? '');
+          });
+      }
+    });
+    const { user } = renderApp('/c/dev-1/k8s/all-namespaces/pods?name=load');
+
+    const links = await screen.findAllByRole('link', { name: 'load-00000' }, { timeout: COLD_START_TIMEOUT_MS });
+    expect(links).toHaveLength(5);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(reviewed).toHaveLength(0);
+
+    const row = links[0]?.closest('tr');
+    if (!row) throw new Error('no row');
+    const namespace = within(row).getByRole('link', { name: /^ns-/ }).textContent;
+    await user.hover(within(row).getByRole('button', { name: 'Kebab toggle' }));
+    await waitFor(() => expect(reviewed).toHaveLength(3));
+    expect(new Set(reviewed)).toEqual(new Set([namespace]));
   });
 
   it('deletes a pod from the list: the modal names namespace, cluster and environment; the row goes', async () => {

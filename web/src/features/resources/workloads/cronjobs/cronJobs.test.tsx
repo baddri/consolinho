@@ -218,6 +218,33 @@ describe('CronJobs (T-0194)', () => {
     COLD_START_TEST_TIMEOUT_MS,
   );
 
+  it(
+    'the list sends no access review on render; hovering a kebab checks Start Job and Suspend (T-0370)',
+    async () => {
+      const reviewed: string[] = [];
+      server.events.on('request:start', ({ request }) => {
+        if (request.method !== 'POST' || !request.url.endsWith('/selfsubjectaccessreviews')) return;
+        void request
+          .clone()
+          .json()
+          .then((body: { spec: { resourceAttributes: { resource: string; verb: string } } }) => {
+            const { verb, resource } = body.spec.resourceAttributes;
+            reviewed.push(`${verb} ${resource}`);
+          });
+      });
+      const { user } = renderApp('/c/dev-1/k8s/ns/shop/cronjobs');
+
+      const link = await screen.findByRole('link', { name: 'nightly-report' }, { timeout: COLD_START_TIMEOUT_MS });
+      const row = link.closest('tr');
+      if (!row) throw new Error('no row');
+      expect(reviewed).toEqual([]);
+
+      await user.hover(within(row).getByRole('button', { name: 'Kebab toggle' }));
+      await waitFor(() => expect(reviewed).toEqual(expect.arrayContaining(['create jobs', 'patch cronjobs'])));
+    },
+    COLD_START_TEST_TIMEOUT_MS,
+  );
+
   it('ACT-4: a read-only grant disables every kind item with the reason', async () => {
     setMockUser('alice');
     const posts = recordJobPosts();

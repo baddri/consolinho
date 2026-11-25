@@ -78,21 +78,24 @@ function objectKey(object: WatchedObject): string {
   return object.metadata?.uid ?? `${object.metadata?.namespace ?? ''}/${object.metadata?.name ?? ''}`;
 }
 
-/** Applies a batch of watch events to a cached list (upsert/remove by uid; BOOKMARK only advances the version). */
+/**
+ * Applies a batch of watch events to a cached list (upsert/remove by uid; BOOKMARK only advances the version). Other
+ * fields of the cached state (`useK8sList`'s `complete`) are kept.
+ */
 function applyListEvents(
   list: K8sListData<WatchedObject>,
   events: readonly WatchEvent<WatchedObject>[],
   resourceVersion: string,
 ): K8sListData<WatchedObject> {
   const changes = events.filter((event) => event.type !== 'BOOKMARK');
-  if (changes.length === 0) return { items: list.items, resourceVersion };
+  if (changes.length === 0) return { ...list, resourceVersion };
   const byKey = new Map(list.items.map((item) => [objectKey(item), item]));
   for (const event of changes) {
     const object = event.object;
     if (event.type === 'DELETED') byKey.delete(objectKey(object));
     else byKey.set(objectKey(object), object);
   }
-  return { items: [...byKey.values()], resourceVersion };
+  return { ...list, items: [...byKey.values()], resourceVersion };
 }
 
 /** Resolves after `ms`, or at once when `signal` aborts. */

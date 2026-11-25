@@ -104,6 +104,94 @@ describe('useK8sList', () => {
     expect(traffic.watches).toHaveLength(1);
   });
 
+  it('shows the first page while later pages load and watches from the last page (T-0370)', async () => {
+    mockK8s.seedPods('dev-1', 'load', 600);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get(PROXY, async ({ request }) => {
+        if (new URL(request.url).searchParams.has('continue')) await gate;
+        return undefined;
+      }),
+    );
+    const traffic = recordTraffic();
+    const { result } = renderHook(() => useK8sList<K8sResource>('dev-1', PodModel, { namespace: 'load' }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.data).toHaveLength(250));
+    expect(result.current.isPending).toBe(false);
+    expect(result.current.liveStatus).toBe('connecting');
+    expect(traffic.lists).toHaveLength(2);
+    expect(traffic.watches).toHaveLength(0);
+
+    release();
+    await waitFor(() => expect(result.current.liveStatus).toBe('live'));
+    expect(result.current.data).toHaveLength(600);
+    expect(new Set(result.current.data?.map((pod) => pod.metadata.uid)).size).toBe(600);
+    expect(traffic.lists).toHaveLength(3);
+    expect(traffic.watches).toHaveLength(1);
+    const lastVersion = result.current.data?.reduce(
+      (max, pod) => Math.max(max, Number(pod.metadata.resourceVersion)),
+      0,
+    );
+    expect(traffic.watches[0]?.url.searchParams.get('resourceVersion')).toBe(String(lastVersion));
+  });
+
+  it('relists an incomplete list on remount after the first stream was cancelled mid-paging (T-0370)', async () => {
+    mockK8s.seedPods('dev-1', 'load', 600);
+    let gated = true;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    server.use(
+      http.get(PROXY, async ({ request }) => {
+        if (gated && new URL(request.url).searchParams.has('continue')) await gate;
+        return undefined;
+      }),
+    );
+    const traffic = recordTraffic();
+    // One client across both mounts, so the second mount sees what the first left in the cache.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const shared = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+    const useList = () => useK8sList<K8sResource>('dev-1', PodModel, { namespace: 'load' });
+
+    const first = renderHook(useList, { wrapper: shared });
+    await waitFor(() => expect(first.result.current.data).toHaveLength(250));
+    first.unmount();
+    gated = false;
+    release();
+
+    const second = renderHook(useList, { wrapper: shared });
+    await waitFor(() => expect(second.result.current.liveStatus).toBe('live'));
+    expect(second.result.current.data).toHaveLength(600);
+    expect(traffic.watches).toHaveLength(1);
+    second.unmount();
+  });
+
+  it('drops the rows of an expired continue token and relists once without duplicates', async () => {
+    mockK8s.seedPods('dev-1', 'load', 300);
+    let compacted = false;
+    server.use(
+      http.get(PROXY, ({ request }) => {
+        if (!compacted && new URL(request.url).searchParams.has('continue')) {
+          compacted = true;
+          mockK8s.compact('dev-1');
+        }
+        return undefined;
+      }),
+    );
+    const traffic = recordTraffic();
+    const { result } = renderHook(() => useK8sList<K8sResource>('dev-1', PodModel, { namespace: 'load' }), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(result.current.liveStatus).toBe('live'));
+    expect(result.current.data).toHaveLength(300);
+    expect(traffic.lists).toHaveLength(4);
+  });
+
   it('relists after compaction (410) and goes live again', async () => {
     let compacted = false;
     server.use(

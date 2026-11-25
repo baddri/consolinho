@@ -33,13 +33,19 @@ export function useStartRollout(cluster: string) {
  * "Retry rollout" (`patch deploymentconfigs`; disabled unless the latest RC failed), "Pause rollouts" / "Resume rollouts" (`patch deploymentconfigs`). The common Edit / Delete items follow them.
  */
 export function useDeploymentConfigActions(args: KindActionArgs<DeploymentConfig>): KindActions {
-  const { cluster, obj, reviewByName } = args;
+  const { cluster, obj, reviewByName, checkAccess } = args;
   const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
-  const patchAccess = useActionAccess(cluster, { verb: 'patch', model: DeploymentConfigModel, ...target }, reviewByName);
+  const patchAccess = useActionAccess(
+    cluster,
+    { verb: 'patch', model: DeploymentConfigModel, ...target },
+    reviewByName,
+    checkAccess,
+  );
   const instantiateAccess = useActionAccess(
     cluster,
     { verb: 'create', model: DeploymentConfigModel, subresource: 'instantiate', ...target },
     reviewByName,
+    checkAccess,
   );
   const editCount = useEditCountAction(args, DeploymentConfigModel);
   const startRollout = useStartRollout(cluster);

@@ -63,12 +63,12 @@ export interface RestartActionOptions {
  * at all rather than e.g. that the deployment is paused.
  */
 export function useRestartAction(
-  { cluster, obj, reviewByName }: KindActionArgs<TemplatedWorkload & K8sResource>,
+  { cluster, obj, reviewByName, checkAccess }: KindActionArgs<TemplatedWorkload & K8sResource>,
   model: K8sModel,
   { blockedReason }: RestartActionOptions = {},
 ): ResourceActionItem {
   const target = { namespace: obj.metadata.namespace, name: obj.metadata.name ?? '' };
-  const access = useActionAccess(cluster, { verb: 'patch', model, ...target }, reviewByName);
+  const access = useActionAccess(cluster, { verb: 'patch', model, ...target }, reviewByName, checkAccess);
   const restart = useRestartRollout(cluster, model);
   const props =
     blockedReason !== undefined && !access.isAriaDisabled ? disabledActionProps(blockedReason) : access;

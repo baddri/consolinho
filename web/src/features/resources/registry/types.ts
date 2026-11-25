@@ -103,6 +103,12 @@ export interface KindActionArgs<T extends K8sResource = K8sResource> {
   obj: T;
   /** Whether access checks name the object (details page) or stay namespace-level (list rows, ADR-0022 §9). */
   reviewByName: boolean;
+  /**
+   * Whether to send the access reviews now. List rows pass `false` until their kebab is hovered, focused or opened
+   * (OCP `LazyActionMenu`), so a rendered list sends none; until then items stay aria-disabled (checking). Kind hooks
+   * AND it into every review's `enabled`. The details page passes `true`.
+   */
+  checkAccess: boolean;
 }
 
 /** A kind's own actions: menu items shown before the common ones, and the one dialog they may have open. */

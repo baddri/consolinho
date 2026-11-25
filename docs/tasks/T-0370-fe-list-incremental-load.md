@@ -1,7 +1,7 @@
 ---
 id: T-0370
 title: List pages render the first 250-item page at once and defer row access reviews (OCP incremental load)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: []
@@ -88,14 +88,53 @@ If the session runs long, finish and hand in Part A, and leave Part B for a foll
   - `packages/console-shared/src/components/actions/LazyActionMenu.tsx:LazyActionMenu` (L54–105).
 
 ## Acceptance criteria
-- [ ] A 3-page list (MSW, 600 items) renders rows after page 1 while pages 2–3 are still pending (test with a delayed handler). The final row count is 600, and the watch request carries page 3's `resourceVersion` and starts only after it.
-- [ ] `continue` 410 mid-paging restarts once without duplicate rows. Relist after a watch 410 keeps the old rows until it completes (existing tests stay green).
-- [ ] An All-namespaces list with rows in 5 namespaces sends **0** SelfSubjectAccessReviews on render. Hovering or focusing one kebab sends that namespace's checks. Details-page actions still check on mount.
-- [ ] Kebab keyboard and ARIA are unchanged (existing `ResourceActions.test.tsx` green). `FRONTEND.md` data-fetching bullet updated.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] A 3-page list (MSW, 600 items) renders rows after page 1 while pages 2–3 are still pending (test with a delayed handler). The final row count is 600, and the watch request carries page 3's `resourceVersion` and starts only after it.
+- [x] `continue` 410 mid-paging restarts once without duplicate rows. Relist after a watch 410 keeps the old rows until it completes (existing tests stay green).
+- [x] An All-namespaces list with rows in 5 namespaces sends **0** SelfSubjectAccessReviews on render. Hovering or focusing one kebab sends that namespace's checks. Details-page actions still check on mount.
+- [x] Kebab keyboard and ARIA are unchanged (existing `ResourceActions.test.tsx` green). `FRONTEND.md` data-fetching bullet updated.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: Part A `k8sListPages` + `streamedQuery` list (watch after last page, `complete` kept
+  by the watch manager); Part B `checkAccess` on `KindActionArgs`/`useResourceActions`, row kebab activates on
+  hover/focus/click via a PF-default `actionsToggle`. Tests: incremental 600-pod list, continue-410 restart, 0 SSARs on
+  an all-namespaces render. FRONTEND.md data-fetching bullet updated.
+- 2026-11-25 frontend-engineer (fix round 1): `useK8sList` staleTime is Infinity only for a `complete` list, so a
+  stream cut short relists on remount (test: unmount after page 1, remount → 600 rows + 1 watch; fails without fix).
+  `useCronJobActions` passes `checkAccess` to both reviews (test: no SSAR on CronJobs list render). The 100 ms sleeps
+  in ResourceActions.test are kept: they guard negative assertions ("no more reviews"), which waitFor can't express.
 
 ## Review
+**Round 1 — frontend-architect, 2026-11-25: CHANGES_REQUESTED**
+- `web/src/shared/k8s/hooks.ts:104` — a first stream cancelled mid-paging leaves a partial list in the cache for good.
+  The cause: streamedQuery writes each page with `setQueryData` (manual), and query-core then makes that state the
+  `#revertState` (`query.ts` L990–992). When the last observer leaves (namespace switch or navigating away during an
+  All-namespaces load), `cancel({ revert: true })` restores page 1 with `complete:false` and status `success`. With
+  `staleTime: Infinity` a remount inside gcTime never refetches, and the watch never starts (`liveStatus` stays
+  `connecting`), so the rows after page 1 are lost. The same happens after a mid-stream error once retries run out.
+  Fix: `staleTime: ({ state }) => (state.data?.complete ? Infinity : 0)` so a remount relists (replace mode keeps the
+  partial rows). Add a hooks test: unmount after page 1, remount, expect 600 rows and a watch.
+- `web/src/features/resources/workloads/cronjobs/cronJobDetails.tsx:63-67` — `useCronJobActions` ignores `checkAccess`,
+  so the CronJobs list still sends 2 SSARs per namespace on render (this breaks AC 3). Fix: destructure `checkAccess`
+  and pass it as the 4th argument of both `useActionAccess` calls.
+- Verified OK: the kebab toggle matches PF `ActionsColumn`'s default (label, plain variant, icon, `isExpanded`,
+  `isDisabled`, ref), so ARIA and keyboard behaviour are unchanged. The details menu passes `checkAccess: true`. The
+  watch gets only the last page's version. `continue` 410 → restart marker → no duplicates. A replace-mode relist and
+  `applyListEvents` both keep `complete`. Gating the RS/RC/DC owner fetches behind `checkAccess` is a welcome extra.
+- Nit (optional): `useK8sList` doesn't expose `complete`. Decision consumers (`useRelatedHPA`, `useRetryRollout`,
+  `CsvSubscriptionTab` "not found") can now act on page 1 alone; that is harmless below 250 objects. Consider an
+  `isComplete` field in a follow-up.
+- Gate: the full check-fe run had 8 timeout failures (projectSelector, ResourceYamlTab) under machine load. Both files
+  passed when re-run on their own (35/35), so these look like flakes and not regressions.
+- Nit (optional): `ResourceActions.test.tsx:203,225` use fixed 100 ms sleeps. Prefer asserting after a `waitFor` on a
+  later, deterministic signal.
 
 ## Handover notes
+- `k8sListPages` (client.ts) is the one paging loop; `k8sListAll` folds it (Search unchanged).
+- `useK8sList` cache = `K8sListState` (`complete` flag); `useWatch` gets the version only when `complete`.
+  `applyListEvents` spreads the old state so `complete` survives watch flushes.
+- `isPending` turns false on page 1 (ConsoleDataView `loaded` flips then); `liveStatus` stays `connecting` until watched.
+- `KindActionArgs.checkAccess` (required): every kind hook ANDs it into its reviews' `enabled`, incl.
+  `useNodeActions` (compute/, outside listed paths, one-line change) and the RS/RC `useResourceAccess` calls.
+- Row kebab toggle replicates PF's default `MenuToggle` (label "Kebab toggle", plain, RhUiEllipsisVerticalFillIcon).
+- No ui-probe run: no visual change (toggle markup identical to PF's default).
