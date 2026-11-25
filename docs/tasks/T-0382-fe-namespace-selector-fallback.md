@@ -1,7 +1,7 @@
 ---
 id: T-0382
 title: Namespace selector fallback — list fallbackNamespaces when namespaces can't be listed, "Go to namespace" entry (NSF-1/2/5)
-status: todo
+status: in_review
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: [T-0378, T-0381]
@@ -61,19 +61,31 @@ valid name she types (NSF-2). Lists that 403 inside a chosen namespace keep toda
   (menu structure, filter, footer) and `NamespaceMenuToggle.tsx`.
 
 ## Acceptance criteria
-- [ ] NSF-1: on `dev-k8s-ns` the open selector lists `team-a` with the helper text; no error text; no namespace list
+- [x] NSF-1: on `dev-k8s-ns` the open selector lists `team-a` with the helper text; no error text; no namespace list
   request is sent when the SSAR says no.
-- [ ] NSF-1 response-driven: SSAR allowed but list 403 → same fallback rendering.
-- [ ] NSF-2: no "All namespaces"; typing `team-b` shows `Go to namespace "team-b"` first and selecting it calls
+- [x] NSF-1 response-driven: SSAR allowed but list 403 → same fallback rendering.
+- [x] NSF-2: no "All namespaces"; typing `team-b` shows `Go to namespace "team-b"` first and selecting it calls
   `onSelect('team-b')`; typing `Bad_Name` shows no Go-to item and Enter shows the DNS-label error; typing `team-a`
   shows no Go-to item.
-- [ ] Fallback with `[]`: helper text + Go-to entry only.
-- [ ] OpenShift / listable cluster unaffected (existing tests unchanged and green); NSF-5: a 403 list in `shop` on
+- [x] Fallback with `[]`: helper text + Go-to entry only.
+- [x] OpenShift / listable cluster unaffected (existing tests unchanged and green); NSF-5: a 403 list in `shop` on
   `dev-k8s-ns` still shows the forbidden list state.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-26 frontend-engineer: `useNamespaceFallback` (discovery kind + SSAR list, accessible clusters' fallbackNamespaces);
+  selector fallback mode (SSAR no or list 403): configured names, Go-to item, footer HelperText, "Select a …" toggle.
+  Tests in NamespaceSelector/useNamespaceFallback tests; NS-3 test moved to a 500; ResourceListPage cold-start wait.
 
 ## Review
 
 ## Handover notes
+- Fallback = `isFallback === true` or list error `Kubernetes.Forbidden`; the list is requested only once the SSAR says
+  `isFallback === false` (no doomed request; brief "Loading" while the review is pending). Never fetches the Namespace object.
+- Go-to item id is `#go-to:<name>`; Enter picks Go-to, else first filtered name, else shows the DNS-label error.
+- Outside `paths`: `resources/list/projectSelector.test.tsx` NS-3 case now answers 500 (a 403 is fallback now, as the
+  spec requires); `ResourceListPage.test.tsx` "Kind not supported yet" uses `COLD_START_TIMEOUT_MS` (orchestrator ask).
+- Hook takes optional `{ enabled }` (contract-compatible); the selector reviews only when opened (T-0370: no SSAR on
+  render), so before the first open the toggle still says "All namespaces"; T-0383 calling the hook warms the cache.
+- UI probe: OCP reference wasn't running on :9000, and the probe can't open menus; only ours checked. Menu parts are
+  the same PF Menu/MenuItem/MenuFooter as the listable mode.

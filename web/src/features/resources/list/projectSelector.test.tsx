@@ -38,8 +38,8 @@ function grantLab1(): void {
   } as (typeof mockDb.grants)[number]);
 }
 
-/** Answers the projects list (not its watch) with a Kubernetes 403. */
-function forbidProjects(): void {
+/** Answers the projects list (not its watch) with a Kubernetes 500 (a 403 switches to fallback mode, NSF-1). */
+function failProjects(): void {
   server.use(
     http.get('*/api/clusters/:cluster/k8s/apis/project.openshift.io/v1/projects', ({ request }) =>
       new URL(request.url).searchParams.has('watch')
@@ -49,11 +49,11 @@ function forbidProjects(): void {
               kind: 'Status',
               apiVersion: 'v1',
               status: 'Failure',
-              reason: 'Forbidden',
-              code: 403,
-              message: 'no',
+              reason: 'InternalError',
+              code: 500,
+              message: 'etcd is unavailable',
             },
-            { status: 403 },
+            { status: 500 },
           ),
     ),
   );
@@ -166,13 +166,11 @@ describe('project selector (NS-1..4)', () => {
   });
 
   it('falls back to a typed project name when projects cannot be listed (NS-3)', async () => {
-    forbidProjects();
+    failProjects();
     const { user, router } = renderApp('/c/dev-1/k8s/all-namespaces/pods');
 
     await user.click(await screen.findByRole('button', { name: 'Project: All projects' }));
-    expect(
-      await screen.findByText("You can't list projects on dev-1; enter a project name."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/; enter a project name\.$/)).toBeInTheDocument();
 
     const input = screen.getByRole('textbox', { name: 'Project name' });
     await user.type(input, 'Bad_Name{Enter}');

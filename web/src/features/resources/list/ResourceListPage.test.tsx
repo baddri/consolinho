@@ -215,11 +215,15 @@ describe('resource list states (QG-3, UI-10)', () => {
     expect(router.state.location.pathname).toBe(`/c/prod-us-1/k8s/ns/shop/${plural}`);
   });
 
-  it('says a kind is not supported yet for an unknown plural', async () => {
+  it('says a kind is not supported yet for an unknown plural', { timeout: COLD_START_TEST_TIMEOUT_MS }, async () => {
     renderApp('/c/dev-1/k8s/all-namespaces/widgets');
 
     expect(
-      await screen.findByRole('heading', { name: 'Kind not supported yet', level: 1 }),
+      await screen.findByRole(
+        'heading',
+        { name: 'Kind not supported yet', level: 1 },
+        { timeout: COLD_START_TIMEOUT_MS },
+      ),
     ).toBeInTheDocument();
   });
 
