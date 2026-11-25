@@ -21,6 +21,8 @@ const NONE: string[] = [];
  *
  * `enabled: false` defers the review (pages must not send access reviews on render, T-0370); a cached answer is still
  * returned, so `isFallback` is known early once any caller (the landing redirect, an opened selector) has asked.
+ * Callers should not wait for this before listing: the selector starts its list in parallel and also treats the list's
+ * 403 as fallback, so listable clusters pay no extra round trip; only after a "no" is the list skipped.
  */
 export function useNamespaceFallback(cluster: string, opts: { enabled?: boolean } = {}): NamespaceFallback {
   const discovery = useK8sDiscovery(cluster);

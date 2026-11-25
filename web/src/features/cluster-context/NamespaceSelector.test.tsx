@@ -59,7 +59,7 @@ const searchBox = () => screen.getByRole('textbox', { name: 'Search namespaces' 
 
 describe('namespace selector fallback (NSF-1/2/5)', () => {
   it(
-    'lists the configured namespaces without requesting the namespace list when the review says no (NSF-1)',
+    'lists the configured namespaces, and stops requesting the namespace list once the review says no (NSF-1)',
     { timeout: COLD_START_TEST_TIMEOUT_MS },
     async () => {
       const requests = recordNamespaceLists();
@@ -70,9 +70,27 @@ describe('namespace selector fallback (NSF-1/2/5)', () => {
       expect(optionNames(list)).toEqual(['team-a']);
       expect(screen.queryByText(/enter a namespace name/)).not.toBeInTheDocument();
       expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-      expect(requests).toEqual([]);
+
+      // The first open lists in parallel with the review; with the "no" cached, reopening sends no list request.
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('listbox', { name: 'Namespaces' })).not.toBeInTheDocument());
+      const sent = requests.length;
+      await openSelector(user, 'Namespace: team-a');
+      expect(await screen.findByText(HELPER)).toBeInTheDocument();
+      expect(requests).toHaveLength(sent);
     },
   );
+
+  it('does nothing on Enter with an empty search box (NSF-2)', async () => {
+    const { user, router } = renderApp('/c/dev-k8s-ns/k8s/ns/team-b/pods');
+
+    const list = await openSelector(user, 'Namespace: team-b');
+    await screen.findByText(HELPER);
+    expect(optionNames(list)).toEqual(['team-a', 'team-b']);
+    await user.type(searchBox(), '{Enter}');
+    expect(screen.getByRole('listbox', { name: 'Namespaces' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/c/dev-k8s-ns/k8s/ns/team-b/pods');
+  });
 
   it('falls back the same way when the review allows but the list answers 403 (NSF-1)', async () => {
     allowAccessReviews();

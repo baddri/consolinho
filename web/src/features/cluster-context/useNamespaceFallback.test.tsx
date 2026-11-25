@@ -10,7 +10,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 describe('useNamespaceFallback (NSF-1)', () => {
-  it('is pending first, then falls back to the configured namespaces when the token cannot list namespaces', async () => {
+  it('is pending first, then falls back to the configured namespaces when namespaces cannot be listed', async () => {
     setMockUser('alice');
     const { result } = renderHook(() => useNamespaceFallback('dev-k8s-ns'), { wrapper });
 

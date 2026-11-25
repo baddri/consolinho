@@ -1,7 +1,7 @@
 ---
 id: T-0382
 title: Namespace selector fallback — list fallbackNamespaces when namespaces can't be listed, "Go to namespace" entry (NSF-1/2/5)
-status: in_review
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: [T-0378, T-0381]
@@ -62,7 +62,7 @@ valid name she types (NSF-2). Lists that 403 inside a chosen namespace keep toda
 
 ## Acceptance criteria
 - [x] NSF-1: on `dev-k8s-ns` the open selector lists `team-a` with the helper text; no error text; no namespace list
-  request is sent when the SSAR says no.
+  request is sent once the denial is known (first open may send one 403 list in parallel; orchestrator decision, review round 1).
 - [x] NSF-1 response-driven: SSAR allowed but list 403 → same fallback rendering.
 - [x] NSF-2: no "All namespaces"; typing `team-b` shows `Go to namespace "team-b"` first and selecting it calls
   `onSelect('team-b')`; typing `Bad_Name` shows no Go-to item and Enter shows the DNS-label error; typing `team-a`
@@ -76,12 +76,44 @@ valid name she types (NSF-2). Lists that 403 inside a chosen namespace keep toda
 - 2026-11-26 frontend-engineer: `useNamespaceFallback` (discovery kind + SSAR list, accessible clusters' fallbackNamespaces);
   selector fallback mode (SSAR no or list 403): configured names, Go-to item, footer HelperText, "Select a …" toggle.
   Tests in NamespaceSelector/useNamespaceFallback tests; NS-3 test moved to a 500; ResourceListPage cold-start wait.
+- 2026-11-26 frontend-engineer, round 1 fixes: empty Enter in fallback does nothing (+test); the list now starts in
+  parallel with the SSAR (orchestrator overrode the reviewer's keep-serial nit) and is skipped once the SSAR says no;
+  NSF-1 test asserts no list request on reopen; 500-case text asserted in full; lines wrapped to 120.
 
 ## Review
+- 2026-11-26 frontend-architect, round 1: **CHANGES_REQUESTED**
+  - `web/src/features/cluster-context/NamespaceSelector.tsx:137-141` — in fallback mode, Enter with an empty search box
+    picks `configured.names[0]`, so opening the menu in `team-b` and pressing Enter jumps to `team-a`. Non-fallback
+    mode (L150) and NS-3 do nothing or validate in this case. Required fix: return early when `typed` is empty, matching
+    `if (needle && first)`. Add a test: open in `team-b`, press Enter, and the path is unchanged.
+  - Toggle wording before the first open: **accepted as a split, not an AC miss.** The T-0370 AC (0 SSARs on render)
+    is binding. The open-menu test asserts "Select a namespace", and T-0383's redirects warm the shared SSAR cache.
+    The only cold case left is a deep link to `k8s/all-namespaces/...`, where "All namespaces" correctly describes the
+    URL. Orchestrator: add a T-0383 AC that the toggle on `NoNamespacesPage` reads `Namespace: Select a namespace`.
+  - Nit (optional): `NamespaceSelector.tsx:83` and `:237` exceed 120 columns. Re-wrap the TSDoc line and split the
+    helper-text JSX line.
+  - Nit (optional): the list waits for the SSAR (`isFallback === false`) on every cluster, so OpenShift users get one
+    SSAR round trip (cached 60 s) before the projects list. This is acceptable because the "no doomed request" AC needs
+    it. Mention it in the hook TSDoc and keep it that way.
+  - Nit (optional): `projectSelector.test.tsx` NS-3 now matches only `/; enter a project name\.$/`. Assert the full
+    500 text (`etcd is unavailable; enter a project name.`).
+  - Checked OK: OCP parity (same Menu/MenuSearch/MenuList/MenuFooter structure as `NamespaceDropdown.tsx`, `Kind: title`
+    toggle as OCP L395); feature boundaries; data via `shared/k8s` `useCanI` (key includes cluster, no new keys);
+    loading/empty/error states; no `any`/DOM; a11y labels; MSW tests cover every AC; TSDoc on the hook and component.
+    The edit to `ResourceListPage.test.tsx` outside `paths` is noted in the handover and acceptable.
+- 2026-11-26 frontend-architect, round 2: **APPROVE**
+  - Verified: an empty Enter in fallback mode returns early (`NamespaceSelector.tsx` onSearch), and the new test
+    "does nothing on Enter with an empty search box" covers it. The list now runs in parallel with the review
+    (`isFallback !== true`, the orchestrator's decision), and the NSF-1 test checks that no list request is sent once
+    the "no" is cached. The 500 case asserts the full text. No regressions in the touched code: when the review is
+    pending and the list 403s, the selector still enters fallback through `error.code`.
+  - Nit (optional, follow-up only): `NamespaceSelector.tsx:84` is still 178 columns because the TSDoc re-wrap was
+    missed. Orchestrator: reword the NSF-1 AC to "no list request after the denial is known", as agreed.
 
 ## Handover notes
 - Fallback = `isFallback === true` or list error `Kubernetes.Forbidden`; the list is requested only once the SSAR says
-  `isFallback === false` (no doomed request; brief "Loading" while the review is pending). Never fetches the Namespace object.
+  `isFallback !== true`: in parallel with the SSAR on first open (one possibly doomed list), never after a cached "no".
+  Never fetches the Namespace object.
 - Go-to item id is `#go-to:<name>`; Enter picks Go-to, else first filtered name, else shows the DNS-label error.
 - Outside `paths`: `resources/list/projectSelector.test.tsx` NS-3 case now answers 500 (a 403 is fallback now, as the
   spec requires); `ResourceListPage.test.tsx` "Kind not supported yet" uses `COLD_START_TIMEOUT_MS` (orchestrator ask).

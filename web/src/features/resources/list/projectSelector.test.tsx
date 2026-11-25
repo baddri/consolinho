@@ -170,7 +170,7 @@ describe('project selector (NS-1..4)', () => {
     const { user, router } = renderApp('/c/dev-1/k8s/all-namespaces/pods');
 
     await user.click(await screen.findByRole('button', { name: 'Project: All projects' }));
-    expect(await screen.findByText(/; enter a project name\.$/)).toBeInTheDocument();
+    expect(await screen.findByText('etcd is unavailable; enter a project name.')).toBeInTheDocument();
 
     const input = screen.getByRole('textbox', { name: 'Project name' });
     await user.type(input, 'Bad_Name{Enter}');

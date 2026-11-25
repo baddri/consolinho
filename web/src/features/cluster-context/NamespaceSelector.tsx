@@ -80,8 +80,8 @@ function fallbackText(error: ApiError, cluster: string, noun: string): string {
  * hidden unless switched on; the selected one always shows.
  *
  * **Fallback mode** (NSF-1/2, {@link useNamespaceFallback}): when an access review says the token can't list the
- * kind (checked when the menu opens; the list is then never requested) or the list answers 403, the menu offers the namespaces the admin
- * configured for the user's access instead, without "All …", with a `Go to namespace "<typed>"` first item for any
+ * kind or the list answers 403 — both start in parallel when the menu opens; once the review says no, the list is
+ * no longer requested — the menu offers the namespaces the admin configured for the user's access instead, without "All …", with a `Go to namespace "<typed>"` first item for any
  * other valid name (Enter picks it), and footer helper text in place of the switch. Any other list error keeps NS-3:
  * the menu says why and Enter selects the typed name after a DNS-label check.
  */
@@ -95,8 +95,9 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
   const [showDefaults, setShowDefaults] = useShowDefaultProjects();
   // Reviewed only once the menu opens: rendering a page sends no access review (T-0370).
   const { isFallback, namespaces } = useNamespaceFallback(cluster, { enabled: isOpen });
-  // Only list once the access review allows it: a token that can't list must not send a doomed request (NSF-1).
-  const { options, noun, error } = useProjectOptions(cluster, isOpen && isFallback === false);
+  // List in parallel with the review (no extra round trip); stop once the review says no (NSF-1). The list's own 403
+  // covers the first open, before the review has answered.
+  const { options, noun, error } = useProjectOptions(cluster, isOpen && isFallback !== true);
   const lower = noun.toLowerCase();
   const allLabel = `All ${lower}s`;
   const isFallbackMode = isFallback === true || (error?.code === 'Kubernetes.Forbidden' && !options);
@@ -136,9 +137,11 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
   const onSearch = () => {
     if (isFallbackMode) {
       const typed = searchText.trim();
+      // An empty search box does nothing, as in the listable mode.
+      if (!typed) return;
       const first = configured.goTo ?? configured.names[0];
       if (first) choose(first);
-      else if (typed) setTypedError(namespaceName.safeParse(typed).error?.issues[0]?.message);
+      else setTypedError(namespaceName.safeParse(typed).error?.issues[0]?.message);
       return;
     }
     if (fallback) {
@@ -234,7 +237,9 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
       <MenuFooter>
         {isFallbackMode ? (
           <HelperText>
-            <HelperTextItem>{`You can't list ${lower}s on this cluster. Showing the ${lower}s configured for your access.`}</HelperTextItem>
+            <HelperTextItem>
+              {`You can't list ${lower}s on this cluster. Showing the ${lower}s configured for your access.`}
+            </HelperTextItem>
           </HelperText>
         ) : (
           <Switch
