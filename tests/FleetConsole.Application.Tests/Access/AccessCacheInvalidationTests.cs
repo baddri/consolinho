@@ -27,7 +27,6 @@ public sealed class AccessCacheInvalidationTests
     {
         [typeof(ClusterRegistered)] = "a new cluster has no grants yet; its first grant raises GrantCreated",
         [typeof(CredentialAdded)] = "a new credential is used by no grant yet; assigning it raises GrantCreated/GrantChanged",
-        [typeof(CredentialTested)] = "records a connection test result only",
         [typeof(UserCreated)] = "a new user has no snapshot (and no grants) yet",
         [typeof(UserProvisioned)] = "first login creates the user; it has no snapshot yet",
         [typeof(UserRoleChanged)] = "the admin role is a session claim, not part of cluster access",

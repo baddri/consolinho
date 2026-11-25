@@ -239,6 +239,7 @@ public sealed class ClusterHealthProbeTests : IDisposable
             new AccessResolution(winner, AccessMode.ReadWrite, false, [], false),
             new EncryptedToken([1, 2, 3]),
             "ops-sa",
+            [],
             new Dictionary<GrantId, string>());
     }
 }

@@ -190,7 +190,8 @@ public sealed class GetFleetStatusHandlerTests
             nameof(AccessMode.ReadWrite),
             Guid.NewGuid(),
             "sa-viewer",
-            [1, 2, 3])).ToList();
+            [1, 2, 3],
+            InspectNamespaces: [])).ToList();
         _dispatcher.Send(Arg.Any<IRequest<Result<AccessSnapshot>>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new AccessSnapshot(true, "alice", false, [], rows)));
     }

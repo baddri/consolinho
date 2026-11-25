@@ -61,6 +61,7 @@ internal sealed class LoadAccessSnapshotHandler(IReadModel readModel)
                         g.CredentialId,
                         CredentialName = cr.Name,
                         cr.Token,
+                        cr.InspectNamespaces,
                     })
                     .ToList(),
             });
@@ -89,7 +90,8 @@ internal sealed class LoadAccessSnapshotHandler(IReadModel readModel)
                 r.AccessMode.ToString(),
                 r.CredentialId.Value,
                 r.CredentialName.Value,
-                r.Token.Value))
+                r.Token.Value,
+                [.. r.InspectNamespaces.Values]))
             .ToList();
 
         return new AccessSnapshot(true, user.Username.Value, user.IsReadOnly, [.. user.Groups], rows);

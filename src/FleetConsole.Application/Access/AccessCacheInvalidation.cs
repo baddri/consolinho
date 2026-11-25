@@ -17,7 +17,7 @@ namespace FleetConsole.Application.Access;
 /// <para>Each event removes the tag that <see cref="LoadAccessSnapshotQuery.TagsFor"/> puts on every affected snapshot:
 /// a user grant or user change → <c>user:{id}</c>; a group grant → <see cref="CacheTags.Group"/> (hashed name; every
 /// member's snapshot carries the tags of all their groups, so a new grant reaches members without a row for it); a
-/// cluster change → <c>cluster:{id}</c>; a rotated or deleted credential → <c>credential:{id}</c>. Cascaded deletes (a
+/// cluster change → <c>cluster:{id}</c>; a rotated, tested or deleted credential → <c>credential:{id}</c>. Cascaded deletes (a
 /// deleted cluster's grants and credentials) raise no events of their own and are covered by the cluster tag.</para>
 /// <para>Post-commit and best effort (ADR-0040 §5): if the removal fails the entry still expires after
 /// <c>Cache:Duration</c> (CACHE-4). The events that need no invalidation are listed, with a reason, in the coverage test
@@ -38,6 +38,7 @@ internal sealed class AccessCacheInvalidation(IQueryCache cache) :
     IPostCommitDomainEventHandler<ClusterDisabled>,
     IPostCommitDomainEventHandler<ClusterDeleted>,
     IPostCommitDomainEventHandler<CredentialRotated>,
+    IPostCommitDomainEventHandler<CredentialTested>,
     IPostCommitDomainEventHandler<CredentialDeleted>
 {
     /// <inheritdoc />
@@ -127,6 +128,15 @@ internal sealed class AccessCacheInvalidation(IQueryCache cache) :
 
     /// <inheritdoc />
     public Task HandleAsync(CredentialRotated domainEvent, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(domainEvent);
+        return RemoveAsync(CacheTags.Credential(domainEvent.CredentialId), cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>A test may save new inspect namespaces, which snapshots carry as the namespace fallback (NSA-2); every
+    /// test invalidates (a rare admin action), so the event needs no "namespaces changed" flag.</remarks>
+    public Task HandleAsync(CredentialTested domainEvent, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(domainEvent);
         return RemoveAsync(CacheTags.Credential(domainEvent.CredentialId), cancellationToken);

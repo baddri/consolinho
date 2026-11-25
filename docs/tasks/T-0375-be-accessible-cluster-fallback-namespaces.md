@@ -1,12 +1,12 @@
 ---
 id: T-0375
 title: GET /api/clusters returns fallbackNamespaces (effective credential's inspect namespaces)
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 5.5
 depends_on: []
 paths: [src/FleetConsole.Application/Access, src/FleetConsole.Application/Clusters/ListAccessibleClusters, tests/FleetConsole.Application.Tests/Access, tests/FleetConsole.Application.Tests/Fleet, tests/FleetConsole.Api.Tests/Integration/Clusters, tests/FleetConsole.Api.Tests/Caching, docs/architecture/BACKEND.md]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -74,15 +74,32 @@ other properties (see `OpenApi/SchemaNamingTests` for how schemas are asserted i
   - Seeding: `tests/FleetConsole.Api.Tests/Integration/TestData.cs:CredentialAsync` (L133) seeds `InspectNamespaces.Empty`; add an optional `IReadOnlyList<string>? inspectNamespaces = null` parameter if a test needs pre-seeded names.
 
 ## Acceptance criteria
-- [ ] NSA-1: `/api/clusters` items have `fallbackNamespaces`, saved order, `[]` when none; effective (winning) grant's credential.
-- [ ] NSA-2: re-testing a credential with new inspect namespaces is visible on the user's next `/api/clusters` (API test).
-- [ ] NSA-3: only clusters the caller has a grant on (unchanged filter); admin without grants still gets `[]` list.
-- [ ] Snapshot still one SQL statement (existing SQL-count test green); cache key `access:v2`.
-- [ ] OpenAPI: `AccessibleCluster.fallbackNamespaces` required `string[]` with description; XML docs on every new member.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] NSA-1: `/api/clusters` items have `fallbackNamespaces`, saved order, `[]` when none; effective (winning) grant's credential.
+- [x] NSA-2: re-testing a credential with new inspect namespaces is visible on the user's next `/api/clusters` (API test).
+- [x] NSA-3: only clusters the caller has a grant on (unchanged filter); admin without grants still gets `[]` list.
+- [x] Snapshot still one SQL statement (existing SQL-count test green); cache key `access:v2`.
+- [x] OpenAPI: `AccessibleCluster.fallbackNamespaces` required `string[]` with description; XML docs on every new member.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 backend-engineer: snapshot row/resolved access/DTO carry the winner credential's inspect namespaces; key
+  `access:v2`; `CredentialTested` invalidates `credential:{id}`. Tests: winner-vs-loser + handler projection (unit),
+  shape/order/OpenAPI-required (Clusters), NSA-2 re-test (AccessCacheTests). Outside `paths` (minimal): optional
+  `inspectNamespaces` on `TestData.CredentialAsync` and `AccessReadModel.AddGrant`; BACKEND.md caching table.
 
 ## Review
+- 2026-11-25 backend-architect, round 1: **APPROVE**. Winner-only selection (`ClusterAccessReader.Resolve` uses `winner`,
+  group-loses-to-direct test), same single projection (no N+1), key `access:v2` + both asserted keys bumped,
+  `CredentialTested` evicts `credential:{id}` (`RecordTest` is the only mutator of `InspectNamespaces`; grant re-pointing
+  is covered by `GrantChanged`, delete by `CredentialDeleted`, cascades by `cluster:`), XML docs complete, OpenAPI
+  required + description asserted, NSA-2 end-to-end test present. Reviewer fix: rewrapped the 170-char `CacheKey` doc
+  line. Test-helper edits outside `paths` accepted (minimal, optional params).
 
 ## Handover notes
+- `AccessibleCluster.fallbackNamespaces` (required `string[]`, saved order, `[]` if none) is live on `/api/clusters`
+  and, via the shared `AccessibleClusterDto.From`, on fleet status lines. T-0378 must regenerate API types.
+- Source: `ResolvedClusterAccess.WinnerInspectNamespaces`, filled only from the winning snapshot row
+  (`ClusterAccessReader.Resolve`); still one SQL statement; cache key now `access:v2:user:{id}`.
+- `CredentialTested` now evicts `credential:{id}` on every test (no event shape change); BACKEND.md table updated.
+- Test helpers gained optional `inspectNamespaces`: `TestData.CredentialAsync`, `AccessReadModel.AddGrant`.
+- Gate: `scripts/check-be.sh` green (431 + 884 + 1049 tests, Testcontainers on podman).

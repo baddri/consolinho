@@ -48,8 +48,8 @@ internal sealed class AccessReadModel : IReadModel
         return cluster;
     }
 
-    /// <summary>Adds a direct grant with its own credential.</summary>
-    public Credential AddGrant(User user, Cluster cluster, AccessMode mode)
+    /// <summary>Adds a direct grant with its own credential, optionally with saved inspect namespaces.</summary>
+    public Credential AddGrant(User user, Cluster cluster, AccessMode mode, IReadOnlyList<string>? inspectNamespaces = null)
     {
         var credential = Credential.Add(
             cluster,
@@ -58,7 +58,7 @@ internal sealed class AccessReadModel : IReadModel
             new EncryptedToken([9, 9]),
             TokenFingerprint.Create("0123abcd").Value,
             TokenMetadata.Opaque,
-            InspectNamespaces.Empty,
+            inspectNamespaces is null ? InspectNamespaces.Empty : InspectNamespaces.Create(inspectNamespaces).Value,
             "admin",
             FixedClock.Now);
         CredentialRows.Add(credential);

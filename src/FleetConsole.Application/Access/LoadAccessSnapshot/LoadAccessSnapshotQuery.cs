@@ -19,10 +19,11 @@ namespace FleetConsole.Application.Access.LoadAccessSnapshot;
 internal sealed record LoadAccessSnapshotQuery(UserId UserId) : ICacheableQuery<AccessSnapshot>
 {
     /// <summary>
-    /// <c>access:v1:user:{id}</c>. Bump <c>v1</c> on any change to the shape of <see cref="AccessSnapshot"/>, so a
-    /// shared (Redis) cache never hands an old shape to new code during a rolling deployment.
+    /// <c>access:v2:user:{id}</c> (v2: rows carry the credential's inspect namespaces). Bump the version on any change
+    /// to the shape of <see cref="AccessSnapshot"/>, so a shared (Redis) cache never hands an old shape to new code
+    /// during a rolling deployment.
     /// </summary>
-    public string CacheKey => $"access:v1:user:{UserId.Value:D}";
+    public string CacheKey => $"access:v2:user:{UserId.Value:D}";
 
     /// <summary>
     /// <c>user:{id}</c>, plus <c>cluster:</c> and <c>credential:</c> of every row and <c>group:</c> of every group the
