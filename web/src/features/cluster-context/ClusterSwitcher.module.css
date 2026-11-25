@@ -1,9 +1,0 @@
-/*
- * Menu item name (FND-2): keeps at least 12 characters of the display name before the label group wraps onto its own
- * line. PF's `pf-v6-u-min-width` is 0 unless its CSS variable is overridden inline (needs a cast) and FlexItem has no flex-basis prop,
- * so the width lives here; with `flex_1` (basis 0) in a wrapping Flex the labels wrap only once the name would get
- * narrower than this.
- */
-.name {
-  min-width: 12ch;
-}

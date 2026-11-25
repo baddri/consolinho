@@ -349,7 +349,7 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent(longName);
   });
 
-  it('wraps the label group under the name instead of squeezing it (FND-2)', async () => {
+  it('keeps the name and its labels on one line (FND-2, T-0371)', async () => {
     const displayName = 'Production Kubernetes Frankfurt 1';
     server.use(
       http.get('*/api/clusters', () =>
@@ -371,17 +371,29 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
       await openSwitcher(user, `Cluster ${displayName} (prod-k8s-1, K8s, prod, read only), switch cluster`),
       'prod-k8s-1',
     );
-    // jsdom has no layout: assert the structure that lets the labels wrap as one group (wrap modifier, separate item).
+    // jsdom has no layout: assert the structure that keeps "name … labels" on one line (T-0371): no wrapping, the
+    // name shrinks and truncates, the label group never shrinks.
     const nameItem = within(option).getByText(displayName).closest('.pf-v6-c-truncate')?.parentElement;
     const row = nameItem?.parentElement;
-    expect(row).toHaveClass('pf-v6-l-flex', 'pf-m-wrap');
-    expect(nameItem).toHaveClass('pf-m-flex-1');
+    expect(row).toHaveClass('pf-v6-l-flex', 'pf-m-nowrap');
+    expect(nameItem).toHaveClass('pf-m-flex-1', 'pf-v6-u-min-width');
     const typeTag = within(option).getByText('K8s');
     const labelGroup = typeTag.closest('.pf-v6-l-flex');
     expect(labelGroup).not.toBe(row);
+    expect(labelGroup?.parentElement).toHaveClass('pf-m-flex-none');
     expect(labelGroup?.parentElement?.parentElement).toBe(row);
     for (const tag of ['K8s', 'prod', 'Read only']) expect(labelGroup).toContainElement(within(option).getByText(tag));
     expect(nameItem).not.toContainElement(typeTag);
+  });
+
+  it('opens the menu outside the scrolling sidebar (T-0371)', async () => {
+    const { user } = renderApp('/c/dev-1/overview');
+
+    const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
+    const menu = options[0]?.closest('.pf-v6-c-menu');
+    expect(menu).not.toBeNull();
+    // PF's Popper sets the 25rem width in a layout modifier that jsdom doesn't run, so only placement is asserted.
+    expect(menu?.closest('.pf-v6-c-page__sidebar')).toBeNull();
   });
 
   it.each([
@@ -502,7 +514,7 @@ describe('ClusterSwitcher keyboard (T-0153)', () => {
 });
 
 describe('ClusterSwitcher recent clusters (SW-8)', () => {
-  it('lists the visited clusters newest first, per user, and hides the group while searching', async () => {
+  it('lists the previously used cluster, per user, and hides the group while searching', async () => {
     grantAllClusters();
     const { user } = renderApp('/c/dev-1/overview');
 
@@ -515,7 +527,8 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     );
 
     const recent = await screen.findByRole('listbox', { name: 'Recent clusters' });
-    expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['prod-eu-1', 'dev-1']);
+    // Only the last used cluster other than the shown one (T-0371); the list keeps both.
+    expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['dev-1']);
     expect(screen.getByRole('heading', { name: 'Recent' })).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem(recentKey('admin')) ?? '[]')).toEqual(['prod-eu-1', 'dev-1']);
 
@@ -552,13 +565,15 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['staging-eu-1']);
   });
 
-  it('has no Recent group when it would repeat All clusters', async () => {
+  it('shows exactly one Recent cluster, the last used other than the shown one (T-0371)', async () => {
     localStorage.setItem(recentKey('admin'), JSON.stringify(['prod-k8s-1', 'dev-1', 'lab-1']));
     const { user } = renderApp('/c/dev-1/overview');
 
-    const options = await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
-    expect(optionNames(options)).toEqual(['prod-k8s-1', 'dev-1', 'lab-1']);
-    expect(screen.queryByRole('listbox', { name: 'Recent clusters' })).not.toBeInTheDocument();
+    await openSwitcher(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
+    const recent = screen.getByRole('listbox', { name: 'Recent clusters' });
+    expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['prod-k8s-1']);
+    const all = screen.getByRole('listbox', { name: 'All clusters' });
+    expect(optionNames(within(all).getAllByRole('option'))).toEqual(['prod-k8s-1', 'dev-1', 'lab-1']);
   });
 
   it('has no Recent group when it would hold only the shown cluster (T-0119)', async () => {

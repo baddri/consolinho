@@ -11,3 +11,31 @@
 .scrollable {
   overflow: auto;
 }
+
+/*
+ * The switcher stays at the top of the sidebar while only the nav list below it scrolls (T-0371): the sidebar's
+ * flex column (sidebar-main > sidebar-body > Nav) is height-constrained down to the Nav, whose grid gives the
+ * switcher an auto row and the list the rest. Nothing scrolls behind the switcher, so it keeps the sidebar's own
+ * (glass) background in every theme; the Kubernetes navy box (`clusterTheme.module.css`) is unchanged.
+ * `min-height: 0` lets each flex/grid level shrink below its content; in non-glass themes the sidebar itself is
+ * the scroller, in glass it is sidebar-main, so both stop scrolling once the list fits.
+ */
+.sidebar :global(.pf-v6-c-page__sidebar-main) {
+  min-height: 0;
+}
+
+.sidebarBody {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.nav {
+  flex: 1 1 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.nav > :global(.pf-v6-c-nav__list) {
+  overflow-y: auto;
+}

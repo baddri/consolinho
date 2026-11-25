@@ -89,22 +89,23 @@ export function buildSwitcherSections(input: SwitcherSectionsInput): SwitcherSec
   const all = clusters ?? [];
   const needle = searchText.trim().toLowerCase();
   const matches = needle ? all.filter((cluster) => matchesSearch(cluster, needle)) : all;
-  // Hidden while searching, and when it would only repeat "All clusters" (e.g. a single granted cluster) or hold
-  // nothing but the cluster already checked in "All clusters" (T-0119 item 8).
-  const showRecent =
-    !needle && recent.length < all.length && recent.some((cluster) => cluster.name !== shownName);
+  // Recent holds one cluster: the last used one other than the shown cluster, which the toggle already names and
+  // "All clusters" checks (T-0371). Hidden while searching, when there is none (T-0119 item 8), and when it would
+  // only repeat a single-cluster "All clusters".
+  const previous =
+    needle || all.length <= 1 ? undefined : recent.find((cluster) => cluster.name !== shownName);
   const showRetry = !clusters && hasError;
 
   // Independent of the search: the perspective entry stays while filtering clusters (FLEET-1).
   const sections: SwitcherSection[] = [
     { id: 'fleet', ariaLabel: 'Fleet', rows: [{ kind: 'fleet', key: 'fleet:management', itemId: FLEET_ITEM_ID }] },
   ];
-  if (showRecent) {
+  if (previous) {
     sections.push({
       id: 'recent',
       ariaLabel: 'Recent clusters',
       groupLabel: 'Recent',
-      rows: recent.map((cluster) => clusterRow('recent', cluster)),
+      rows: [clusterRow('recent', previous)],
     });
   }
   let allRows: SwitcherRow[];
@@ -115,7 +116,7 @@ export function buildSwitcherSections(input: SwitcherSectionsInput): SwitcherSec
   sections.push({
     id: 'all',
     ariaLabel: 'All clusters',
-    groupLabel: showRecent ? 'All clusters' : undefined,
+    groupLabel: previous ? 'All clusters' : undefined,
     rows: allRows,
   });
   return sections;

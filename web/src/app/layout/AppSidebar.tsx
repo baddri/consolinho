@@ -9,6 +9,7 @@ import {
 import { FavoritesNavSection } from '@/features/preferences';
 import { useClusterNav } from '@/features/resources';
 import { usePerspective } from '@/shared/routing';
+import styles from './AppShell.module.css';
 import theme from './clusterTheme.module.css';
 import { buildFleetNav, type NavSection } from './navigation';
 
@@ -87,11 +88,12 @@ export function AppSidebar() {
   const cluster = useIsActiveClusterUnavailable() ? undefined : preferredCluster;
 
   return (
-    <PageSidebar>
-      <PageSidebarBody>
-        <Nav aria-label="Global">
+    <PageSidebar className={styles.sidebar}>
+      <PageSidebarBody className={styles.sidebarBody}>
+        <Nav aria-label="Global" className={styles.nav}>
           {/* The Nav is a grid with a row gap, which spaces the switcher and the sections. Min-width 0 keeps a long
-              cluster name with labels from widening the grid column; the name truncates instead. */}
+              cluster name with labels from widening the grid column; the name truncates instead. Only the NavList
+              below scrolls, so the switcher stays in view (T-0371, `AppShell.module.css`). */}
           <div className={`pf-v6-u-min-width ${theme.navHeader}`}>
             <ClusterSwitcher />
           </div>

@@ -30,7 +30,6 @@ import {
   EnvironmentLabel,
   environmentLabel,
 } from '@/shared/ui';
-import styles from './ClusterSwitcher.module.css';
 import { useClusterSwitcherOpenRequest } from './clusterSwitcherRequest';
 import { clusterSwitchPath } from './clusterSwitchPath';
 import { NoMatchStatus } from './NoMatchStatus';
@@ -79,22 +78,20 @@ function ClusterLabels({ cluster, placement }: { cluster: AccessibleCluster; pla
 }
 
 /**
- * Menu item content: display name then labels. The labels sit together in one nested flex item, so when the name
- * would keep fewer than 12 characters (FND-2) the whole group wraps onto its own line under the name instead of
- * squeezing it; a longer name still truncates (full name in a tooltip).
+ * Menu item content on one line: display name then labels. The labels never shrink or wrap; a long name truncates
+ * instead (full name in a tooltip), so the selected item's check icon can't push the labels onto a second line.
  */
 function ClusterBadges({ cluster }: { cluster: AccessibleCluster }) {
   return (
     <Flex
       spaceItems={{ default: 'spaceItemsSm' }}
-      flexWrap={{ default: 'wrap' }}
+      flexWrap={{ default: 'nowrap' }}
       alignItems={{ default: 'alignItemsCenter' }}
-      rowGap={{ default: 'rowGapXs' }}
     >
-      <FlexItem flex={{ default: 'flex_1' }} className={styles.name}>
+      <FlexItem flex={{ default: 'flex_1' }} className="pf-v6-u-min-width">
         <Truncate content={cluster.displayName} />
       </FlexItem>
-      <FlexItem>
+      <FlexItem flex={{ default: 'flexNone' }}>
         <Flex spaceItems={{ default: 'spaceItemsSm' }} flexWrap={{ default: 'nowrap' }}>
           <ClusterLabels cluster={cluster} placement="menu" />
         </Flex>
@@ -375,7 +372,9 @@ export function ClusterSwitcher() {
         </MenuSearch>
       )}
       {hasClusters && <Divider />}
-      <MenuContent maxMenuHeight="60vh">
+      {/* Room for the masthead, the toggle, the search box and the groups' headings: the whole menu stays in the
+          viewport and the cluster list scrolls inside it (T-0371). */}
+      <MenuContent maxMenuHeight="calc(100dvh - 15rem)">
         {sections.map((section, index) => (
           <Fragment key={section.id}>
             {index > 0 && <Divider />}
@@ -403,10 +402,14 @@ export function ClusterSwitcher() {
         menu={menu}
         menuRef={menuRef}
         toggleRef={toggleRef}
-        // The popper is appended to <body>, so the sidebar's overflow never clips it.
-        // Exactly the toggle's width, like OCP's perspective menu: search text and long names never widen it past the
-        // sidebar edge (T-0152); long display names truncate with a tooltip instead (`ClusterBadges`).
-        popperProps={{ width: 'trigger' }}
+        // No `appendTo`: PF's Popper default portals the menu to <body>, so the sidebar's scroll container never clips
+        // it. A fixed width, at least the toggle's, keeps "name … labels" on one line; search text can't widen it and
+        // long names truncate (T-0371).
+        popperProps={{
+          minWidth: 'trigger',
+          width: '25rem',
+          maxWidth: 'calc(100vw - 2rem)',
+        }}
         toggle={
           <MenuToggle
             ref={toggleRef}

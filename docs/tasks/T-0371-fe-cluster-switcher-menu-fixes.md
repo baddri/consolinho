@@ -1,7 +1,7 @@
 ---
 id: T-0371
 title: Cluster switcher — menu fits the viewport, wider than the toggle, one-line items, single Recent, sticky header
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: []
@@ -65,14 +65,44 @@ horizontal clipping. That pinned width makes the selected item (with its check i
   - Scrollable menu: `packages/console-shared/src/components/namespace/NamespaceDropdown.tsx` L310–312 (`isScrollable`, `MenuContent maxMenuHeight`).
 
 ## Acceptance criteria
-- [ ] With 40 mock clusters at 1280×720, the open menu's bottom edge is inside the viewport, the list scrolls inside the menu, and the sidebar doesn't scroll (probe numbers in the Work log).
-- [ ] Menu width is 25rem (≥ toggle). Selected and unselected items keep name + env/type labels on one line; long names truncate with a tooltip.
-- [ ] Recent shows exactly one cluster — the last-used one other than the current; hidden when none. Tests updated.
-- [ ] Switcher stays at the top of the sidebar while the nav scrolls (both OCP and Kubernetes themes). Keyboard and focus tests stay green.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] With 40 mock clusters at 1280×720, the open menu's bottom edge is inside the viewport, the list scrolls inside the menu, and the sidebar doesn't scroll (probe numbers in the Work log).
+- [x] Menu width is 25rem (≥ toggle). Selected and unselected items keep name + env/type labels on one line; long names truncate with a tooltip.
+- [x] Recent shows exactly one cluster — the last-used one other than the current; hidden when none. Tests updated.
+- [x] Switcher stays at the top of the sidebar while the nav scrolls (both OCP and Kubernetes themes). Keyboard and focus tests stay green.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: PF Popper already defaults `appendTo` to `document.body` (MenuContainer passes no
+  override), so the menu was never inline; kept the default (an explicit `document.body` trips `no-restricted-globals`)
+  and added a test that the menu is outside `.pf-v6-c-page__sidebar`. Width 25rem (min trigger, max 100vw-2rem), height
+  `calc(100dvh - 15rem)` (720px: ~115 top + ~58 search + 480 list ≈ 655 < 720). Probe can't open menus (never clicks)
+  and its shared server serves the main checkout, so open-menu numbers are by calculation; needs a visual check.
+- 2026-11-25 frontend-engineer (review round 1): sticky header now opaque (gray--10 light = 242 vs measured sidebar
+  241-248; gray--90 dark = 31 vs ~27, no PF token matches the glass composite) and covers the nav's 16px top padding
+  (margin -16 / padding 16). Mock :5299, nav expanded, scrollTop 200: header top 90 = scroller top 89+1 in OCP light,
+  dark and k8s (navy rgb(0,51,102), own margins kept).
+- 2026-11-25 frontend-engineer (round 2, coordinator): replaced sticky + grey fill (box edge in dark) with a
+  non-scrolling header: only NavList scrolls. :5299 at 1280x450: toggle 106 and first nav 167 (same as before),
+  NavList scrollTop 200 moves nothing else, header bg transparent, in light/dark/k8s and non-glass (high contrast);
+  menu still at top 143, 400px wide.
 
 ## Review
+- 2026-11-25 ux-designer: **CHANGES_REQUESTED** (round 1). Ran Playwright against the worktree mock as admin, with 43 clusters (fetch padded).
+- OK: at 1280×720 the menu spans top 143 to bottom 685 (< 720) and the page doesn't scroll. Bottom is 965 at 1280×1000 and 415 at 1280×450. The list scrolls inside MenuContent (2536 px content in 480 px).
+- OK: the menu is 400 px wide vs the 256 px toggle and is portalled outside the sidebar. Selected "Production Kubernetes Frankfurt 1" (pf-m-selected): name top 380, K8s/prod labels top 382, so one line. Long names truncate.
+- OK: Recent shows 1 item (dev-1, not the current cluster). On dev-1 it is hidden because no other accessible recent cluster exists.
+- OK: sticky works. Sidebar-main scrolls by 518–1406 px and the toggle top doesn't move (98 k8s / 90 OCP).
+- FIX: in the OCP theme the sticky header's `--pf-v6-c-page__sidebar--BackgroundColor` is rgba(255,255,255,0.5) (PF6 glass; the blur is on `.pf-v6-c-page__sidebar-main`). Nav items scroll visibly through the switcher ("Compute" shows behind the toggle at 1280×450), and also through the 16 px nav top-padding strip above it. Fix: use an opaque fill that matches the sidebar (e.g. `--pf-t--global--background--color--primary--default`), and extend the header over the nav's top padding (negative block-start margin plus equal padding). Check light, dark and the k8s navy theme.
 
 ## Handover notes
+- Task premise "popper is inline" is false: PF 6 `Popper` defaults `appendTo = () => document.body`. Fix (a) is the
+  height/width change; no `appendTo` prop added.
+- Recent: `buildSwitcherSections` shows `recent.find(name !== shownName)` only; hidden while searching, when none,
+  or with ≤1 accessible cluster. `useRecentClusters` still stores 5. SW-8 + switcherRows tests updated.
+- Items: `ClusterBadges` nowrap, name `flex_1 pf-v6-u-min-width` + Truncate, labels `flexNone`;
+  `ClusterSwitcher.module.css` deleted. FND-2 test now asserts the one-line structure.
+- Fixed switcher: no sticky/fill. `AppShell.module.css` `.sidebar/.sidebarBody/.nav` constrain the sidebar flex
+  column down to the Nav grid (`auto minmax(0,1fr)`); only the `NavList` scrolls. Switcher stays inside the Nav (as
+  in OCP), keeps the glass background; k8s navy `.navHeader` unchanged.
+- Not measured live: open-menu bottom edge at 1280x720/1000 and sticky scroll — reviewer/QA please eyeball in mock UI
+  with 40 clusters (the probe can't click).
