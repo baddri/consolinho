@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
-import { LOGO_SRC } from '@/shared/branding';
+import { MARK_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
@@ -39,6 +39,13 @@ async function openAbout(user: UserEvent) {
   await user.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Help menu' }));
   await user.click(await screen.findByRole('menuitem', { name: 'About' }));
   return screen.findByRole('dialog', { name: 'Consolinho' });
+}
+
+/** Returns the decorative mark inside the masthead home link, which is named by the product name (T-0360). */
+async function findBrandMark() {
+  const home = await within(await screen.findByRole('banner')).findByRole('link', { name: 'Consolinho' });
+  expect(home).toHaveTextContent('Consolinho');
+  return within(home).getByRole('presentation');
 }
 
 describe('AppShell', () => {
@@ -213,10 +220,10 @@ describe('AppShell', () => {
       document.documentElement.className = '';
     });
 
-    it('uses the glass and felt themes and the light logo by default', async () => {
+    it('uses the glass and felt themes and the light mark by default', async () => {
       renderApp('/c/dev-1/overview');
 
-      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.light);
       expect(document.documentElement).toHaveClass('pf-v6-theme-glass', 'pf-v6-theme-felt');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-dark');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-high-contrast');
@@ -229,7 +236,7 @@ describe('AppShell', () => {
       localStorage.setItem('fleetconsole.theme', 'dark');
       renderApp('/c/dev-1/overview');
 
-      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);
       expect(document.documentElement).toHaveClass('pf-v6-theme-dark');
     });
 
@@ -237,19 +244,19 @@ describe('AppShell', () => {
       const os = mockOsMedia({ dark: false });
       localStorage.setItem('fleetconsole.theme', 'system');
       renderApp('/c/dev-1/overview');
-      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.light);
 
       os.setDark(true);
 
       await waitFor(() => expect(document.documentElement).toHaveClass('pf-v6-theme-dark'));
-      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);
       expect(localStorage.getItem('fleetconsole.theme')).toBe('system');
     });
 
     it('switches glass to high contrast under prefers-contrast: more, live', async () => {
       const os = mockOsMedia({ moreContrast: true });
       renderApp('/c/dev-1/overview');
-      await screen.findByRole('img', { name: 'Consolinho' });
+      await findBrandMark();
 
       expect(document.documentElement).toHaveClass('pf-v6-theme-high-contrast', 'pf-v6-theme-felt');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-glass');
@@ -306,8 +313,8 @@ describe('AppShell', () => {
       });
       expect(within(toggle).getByText('K8s')).toBeInTheDocument();
       expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes');
-      // The navy masthead is dark in both themes, so it shows the dark-theme logo (light theme by default here).
-      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      // The navy masthead is dark in both themes, so it shows the dark-surface mark (light theme by default here).
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);
     });
 
     it.each([

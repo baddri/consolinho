@@ -91,7 +91,7 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   under `.pf-v6-theme-glass` the masthead `background-color`, `border-block-end` and drop shadow are set directly
   (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); the menu toggle's resolved `--BackgroundColor` is
   pinned transparent, so `:hover/:focus` and expanded rules restore it from the hover/expanded variables; the navy
-  masthead uses the dark-theme logo (`LOGO_SRC.dark`); the nav header frame is sm padding cancelled by negative margins
+  masthead uses the dark-surface mark and white wordmark text (`MARK_SRC.dark`, T-0360); the nav header frame is sm padding cancelled by negative margins
   (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
 - Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
   the theme uses no red/orange; the band stays the dominant cue. It is not flush under the masthead: with the glass/felt page it is the first row

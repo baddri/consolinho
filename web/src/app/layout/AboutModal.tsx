@@ -1,6 +1,6 @@
 import { AboutModal as PfAboutModal, Content, Skeleton } from '@patternfly/react-core';
 import { useSystemInfo } from '@/shared/api';
-import { PRODUCT_NAME, useLogoSrc } from '@/shared/branding';
+import { PRODUCT_NAME, useMarkSrc } from '@/shared/branding';
 
 /** Version and environment of this deployment (`GET /api/system/info`) as a description list, with loading/error. */
 function SystemInfoItems() {
@@ -25,17 +25,17 @@ function SystemInfoItems() {
 }
 
 /**
- * The help menu's About dialog, like OCP's (`public/components/about-modal.tsx`): PF `AboutModal` with our logo and
+ * The help menu's About dialog, like OCP's (`public/components/about-modal.tsx`): PF `AboutModal` with our mark and
  * product name, a one-line description and the deployment's version and environment. No Red Hat marks or watermark.
  */
 export function AboutModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const logoSrc = useLogoSrc();
+  const markSrc = useMarkSrc();
   return (
     <PfAboutModal
       isOpen={isOpen}
       onClose={onClose}
       productName={PRODUCT_NAME}
-      brandImageSrc={logoSrc}
+      brandImageSrc={markSrc}
       brandImageAlt={PRODUCT_NAME}
       hasNoContentContainer
     >

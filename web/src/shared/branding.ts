@@ -1,6 +1,6 @@
 import { useTheme } from '@/shared/theme';
-import logoDark from './assets/consolinho-logo-dark.svg';
-import logoLight from './assets/consolinho-logo.svg';
+import markDark from './assets/consolinho-mark-dark.svg';
+import markLight from './assets/consolinho-mark.svg';
 
 /**
  * User-facing product name (T-0055). The source code identity stays FleetConsole; everything a user reads uses this
@@ -9,12 +9,14 @@ import logoLight from './assets/consolinho-logo.svg';
 export const PRODUCT_NAME = 'Consolinho';
 
 /**
- * Wordmark logos: dark text for the light theme, light text for the dark theme. Imported (not in `public/`) so they
- * also load in `dev:mock`, whose public dir is `msw/`; Vite inlines or fingerprints them into `dist/`.
+ * The product mark (T-0360): a 24px monochrome "stacked consoles" glyph with one muted teal accent. Only the mark is
+ * an image; the masthead sets the name next to it as HTML text, because an `<img>` SVG cannot use the app's web font
+ * (Red Hat Display). Dark strokes for the light theme, light strokes for dark surfaces. Imported (not in `public/`)
+ * so they also load in `dev:mock`, whose public dir is `msw/`; Vite inlines or fingerprints them into `dist/`.
  */
-export const LOGO_SRC = { light: logoLight, dark: logoDark } as const;
+export const MARK_SRC = { light: markLight, dark: markDark } as const;
 
-/** Logo URL matching the active colour theme; an `<img>` SVG cannot inherit `currentColor`, hence two files. */
-export function useLogoSrc(): string {
-  return LOGO_SRC[useTheme().theme];
+/** Mark URL matching the active colour theme; an `<img>` SVG cannot inherit `currentColor`, hence two files. */
+export function useMarkSrc(): string {
+  return MARK_SRC[useTheme().theme];
 }
