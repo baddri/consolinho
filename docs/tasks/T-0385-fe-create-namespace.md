@@ -1,7 +1,7 @@
 ---
 id: T-0385
 title: Create Namespace modal on the Namespaces list where project.openshift.io isn't served (NSC-1/2)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: [T-0378]
@@ -55,16 +55,31 @@ modal (Name + Labels, spec NSC-1, Q5) gated like Create Project (NSC-2), so they
   (fields, copy, labels via `SelectorInput`); list button `public/components/namespace.tsx` (~L470 `createNamespaceModal`).
 
 ## Acceptance criteria
-- [ ] NSC-1: on `prod-k8s-1` Namespaces list shows "Create Namespace"; on an OpenShift cluster it doesn't.
-- [ ] NSC-1: modal title/buttons as spec; Name focused, required, DNS-1123 errors; labels `a=b` chips; create sends the
+- [x] NSC-1: on `prod-k8s-1` Namespaces list shows "Create Namespace"; on an OpenShift cluster it doesn't.
+- [x] NSC-1: modal title/buttons as spec; Name focused, required, DNS-1123 errors; labels `a=b` chips; create sends the
   labels; success navigates to the namespace details and toasts; 409/403 shown inline in the modal.
-- [ ] NSC-2: read-only grant (alice on `prod-k8s-1`) → disabled with the read-only reason; SSAR denial (an `edit`
+- [x] NSC-2: read-only grant (alice on `prod-k8s-1`) → disabled with the read-only reason; SSAR denial (an `edit`
   credential) → disabled with the RBAC reason; aria-disabled while checking.
-- [ ] `EditLabelsModal` behaviour unchanged (existing tests green).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] `EditLabelsModal` behaviour unchanged (existing tests green).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-26 frontend-engineer: started; NSC-2 follows Create Project (disabled with reason), per orchestrator.
+- 2026-11-26 frontend-engineer: LabelsInput extracted (EditLabelsModal uses it, tests untouched); namespaces/ button,
+  modal, hook, schema + 8 tests; ListActions wired. check-fe green. UI probe skipped (see Handover notes).
 
 ## Review
 
 ## Handover notes
+- `actions/LabelsInput.tsx`: controlled (`entries`/`onEntriesChange`, `text`/`onTextChange`, `focusOnOpen`) + helpers
+  `typedLabelError`, `labelsWithTyped`, `labelsToMap`; CSS moved `EditLabelsModal.module.css` → `LabelsInput.module.css`.
+  `focusOnOpen` (not `autoFocus`) because jsx-a11y/no-autofocus flags a JSX `autoFocus` prop; behaviour unchanged.
+- `namespaces/`: `CreateNamespaceButton` returns null while discovery is pending or Projects are served; labels live in
+  RHF via `useController` (schema validates them), typed-but-unadded valid text is included on Create.
+- MSW: both vanilla clusters use `edit` credentials, so admin on `prod-k8s-1` sees the RBAC-disabled button and the
+  happy path is only reachable in tests (SSAR/POST overridden in `createNamespace.test.tsx`). If T-0381 adds an admin
+  credential, the manual demo works too; the RBAC-denial test then needs another edit cluster (`lab-1`).
+- NSC-2 follows Create Project (visible, disabled with reason); PO to confirm at T-0387.
+- UI probe not run: it never clicks (modal unreachable) and port 5199 is served from the main checkout, not this
+  worktree; OCP ref (9000) not running. Modal reuses the reviewed `ResourceMutationModal`/`LabelsInput` styles.
+

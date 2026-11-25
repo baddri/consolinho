@@ -1,5 +1,6 @@
 import { NamespaceModel, PROJECT_ANNOTATIONS, type K8sResource } from '@/shared/k8s';
 import { ResourceStatusLabel } from '../../components/ResourceStatusLabel';
+import { CreateNamespaceButton } from '../../namespaces/CreateNamespaceButton';
 import { ageColumn, nameColumn } from '../columns';
 import type { ColumnDef, ResourceDescriptor, ResourceStatus } from '../types';
 import { NamespaceDetails, type NamespaceLike } from './NamespaceDetails';
@@ -39,7 +40,7 @@ export function namespaceLikeColumns<T extends NamespaceLike>(): ColumnDef<T>[] 
 
 /**
  * Namespaces (UI-3, Administration): Name, Display name, Status, Created; delete asks for the name. No Events tab, as
- * OCP's namespace details (PRJ-1).
+ * OCP's namespace details (PRJ-1). "Create Namespace" where Projects aren't served (NSC-1).
  */
 export const namespaceDescriptor: ResourceDescriptor<NamespaceLike> = {
   model: NamespaceModel,
@@ -49,4 +50,5 @@ export const namespaceDescriptor: ResourceDescriptor<NamespaceLike> = {
   deleteRequiresName: true,
   hasEventsTab: false,
   columns: [nameColumn(NamespaceModel), ...namespaceLikeColumns(), ageColumn()],
+  ListActions: CreateNamespaceButton,
 };
