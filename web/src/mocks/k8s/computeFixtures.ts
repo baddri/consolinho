@@ -408,6 +408,18 @@ function machineObjects(
   const machines = plans.map((plan): Machine => {
     const nodeUid = nodeUids.get(plan.name) ?? '';
     const setUid = plan.machineSet ? setUids.get(plan.machineSet) : undefined;
+    // `instanceState` is provider-specific, so the shared `Machine` type doesn't declare it.
+    const providerStatus: NonNullable<Machine['status']>['providerStatus'] & { instanceState: string } = {
+      instanceState: 'running',
+      conditions: [
+        {
+          type: 'MachineCreation',
+          status: 'True',
+          reason: 'MachineCreationSucceeded',
+          message: 'Machine successfully created',
+        },
+      ],
+    };
     return {
       apiVersion: 'machine.openshift.io/v1beta1',
       kind: 'Machine',
@@ -433,16 +445,7 @@ function machineObjects(
         ],
         lastUpdated: minutesBefore(30),
         nodeRef: { kind: 'Node', name: plan.name, uid: nodeUid },
-        providerStatus: {
-          conditions: [
-            {
-              type: 'MachineCreation',
-              status: 'True',
-              reason: 'MachineCreationSucceeded',
-              message: 'Machine successfully created',
-            },
-          ],
-        },
+        providerStatus,
       },
     };
   });
