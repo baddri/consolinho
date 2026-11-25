@@ -1,4 +1,6 @@
+import type { AccessibleCluster } from '@/shared/api';
 import { currentMockUser, mockDb } from '../db';
+import type { MockUser } from '../fixtures';
 import { resolveAccess } from './access';
 import { http } from './http';
 import { compareEnvironment, ordinal, toAccessibleCluster } from './representations';
@@ -12,12 +14,16 @@ export const clusterSwitcherHandlers = [
   http.get('/api/clusters', ({ response }) => {
     const user = currentMockUser();
     if (!user) return undefined;
-    const accessible = mockDb.clusters
-      .flatMap((cluster) => {
-        const access = resolveAccess(user, cluster.name);
-        return access ? [toAccessibleCluster(cluster, access.accessMode)] : [];
-      })
-      .sort((a, b) => compareEnvironment(a.environment, b.environment) || ordinal(a.name, b.name));
-    return response(200).json(accessible);
+    return response(200).json(accessibleClustersOf(user));
   }),
 ];
+
+/** The clusters `user` can open, as `GET /api/clusters` lists them; the fleet status stream (T-0341) covers the same set. */
+export function accessibleClustersOf(user: MockUser): AccessibleCluster[] {
+  return mockDb.clusters
+    .flatMap((cluster) => {
+      const access = resolveAccess(user, cluster.name);
+      return access ? [toAccessibleCluster(cluster, access.accessMode)] : [];
+    })
+    .sort((a, b) => compareEnvironment(a.environment, b.environment) || ordinal(a.name, b.name));
+}

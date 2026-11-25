@@ -5,6 +5,7 @@ import { authHandlers } from './auth';
 import { clusterSwitcherHandlers } from './clusters';
 import { credentialHandlers } from './credentials';
 import { execHandler, k8sProxyHandler } from '../k8s';
+import { fleetHandlers } from './fleet';
 import { grantHandlers } from './grants';
 import { groupHandlers } from './groups';
 import { accessGuard, unhandledApiRoute } from './http';
@@ -20,6 +21,7 @@ export const handlers = [
   ...systemHandlers,
   ...authHandlers,
   ...clusterSwitcherHandlers,
+  ...fleetHandlers,
   ...userHandlers,
   ...effectiveAccessHandlers,
   ...adminClusterHandlers,
@@ -35,3 +37,4 @@ export const handlers = [
 
 export { http } from './http';
 export { encodeAuditCursor } from './audit';
+export { setMockFleetLatency } from './fleet';

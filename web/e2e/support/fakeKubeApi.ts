@@ -4,6 +4,7 @@ import { createServer, type Server } from 'node:https';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { serveClusterHealth } from './fakeClusterHealth';
 
 /** Namespace and pod the fake cluster serves; the browsing spec asserts on them. */
 export const FAKE_NAMESPACE = 'e2e-smoke';
@@ -20,7 +21,8 @@ export interface FakeKubeApi {
  * and the proxy only accepts `https://` clusters, so this serves HTTPS with a throw-away self-signed certificate
  * (generated with `openssl`; the cluster is registered with `skipTlsVerify`). It answers just enough for the Pods list
  * and details pages through the real FleetConsole proxy: the pod itself, pod/namespace/project lists, a watch that stays open without events, and
- * a "denied" SelfSubjectAccessReview. Everything else is a Kubernetes-style 404 `Status`.
+ * a "denied" SelfSubjectAccessReview, and the fleet status probes (`fakeClusterHealth.ts`). Everything else is a
+ * Kubernetes-style 404 `Status`.
  */
 export async function startFakeKubeApi(): Promise<FakeKubeApi> {
   const certificate = selfSignedCertificate();
@@ -50,6 +52,8 @@ export async function startFakeKubeApi(): Promise<FakeKubeApi> {
         response.flushHeaders();
         return;
       }
+      // Fleet status probes (CP5c): nodes, cluster operators, ClusterVersion, /version.
+      if (serveClusterHealth(request, response, url)) return;
       if (url.pathname === `/api/v1/namespaces/${FAKE_NAMESPACE}/pods/${FAKE_POD}`) {
         json(200, pod);
         return;

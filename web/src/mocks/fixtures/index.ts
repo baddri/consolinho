@@ -12,6 +12,7 @@ export {
 export { credentialFixtures, credentialIds } from './credentials';
 export { grantFixtures, grantIds } from './grants';
 export { hostGroupsFixture } from './groups';
+export { fleetScenarioFor, fleetScenarios, type FleetScenario } from './fleetStatus';
 export { fingerprintOf, mockGuid } from './ids';
 export { systemInfoFixture } from './system';
 export { ONE_DAY_MS } from './time';

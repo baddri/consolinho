@@ -1,12 +1,12 @@
 ---
 id: T-0341
 title: Fleet status data — useFleetStatus over the NDJSON stream, MSW fleet handler, e2e fake Tables
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5c
 depends_on: [T-0330, T-0340]
 paths: [web/src/features/fleet/api, web/src/mocks/handlers/fleet.ts, web/src/mocks/handlers/index.ts, web/src/mocks/fixtures/fleetStatus.ts, web/src/mocks/fixtures/index.ts, web/e2e/support/fakeClusterHealth.ts, web/e2e/support/fakeKubeApi.ts, docs/architecture/FRONTEND.md]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -61,14 +61,39 @@ backend needs (contract §2.2/§3).
 - OCP reference: none (fleet invention).
 
 ## Acceptance criteria
-- [ ] Hook test (MSW): rows appear one by one in arrival order; pending until their line; dropped at stream end when absent.
-- [ ] Unmount / refetch aborts the request (signal asserted); refresh keeps previous rows until replaced.
-- [ ] 503 `Fleet.Busy` surfaces as `ApiError` with that code.
-- [ ] e2e fake serves Table vs JSON by `Accept` (unit test in `web/e2e/support` if the folder has one, else covered by T-0344).
+- [x] Hook test (MSW): rows appear one by one in arrival order; pending until their line; dropped at stream end when absent.
+- [x] Unmount / refetch aborts the request (signal asserted); refresh keeps previous rows until replaced.
+- [x] 503 `Fleet.Busy` surfaces as `ApiError` with that code.
+- [x] e2e fake serves Table vs JSON by `Accept` (unit test in `web/e2e/support` if the folder has one, else covered by T-0344).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: started.
+- 2026-11-25 frontend-engineer: streamedQuery (append) + `{current, previous, complete, settled}` reducer with start/end
+  sentinels (append alone kept stale lines); useFleetRows join; MSW fleet handler + scenario table; e2e fakeClusterHealth
+  with unit test; FRONTEND.md paragraph. Scoped checks green. Full gate: build ok, 1491/1492 tests (ResourceDetailsTab
+  flaked under load, passes alone); lint+typecheck red only from others' AppShell.test.tsx WIP. Also touched mocks/index.ts (1 export).
 
 ## Review
+- 2026-11-25 frontend-architect, round 1: **APPROVE**. Scoped `check-fe.sh` green (lint, typecheck, 115 tests).
+  - The start/end markers are FE-only: `useFleetStatus.ts:fleetStatusStream` wraps the generator, nothing is added on the wire, and the contract §2 framing (bare NDJSON, end = body EOF) is unchanged. Sound against query-core 5.108 `streamedQuery`: in `append` mode the reducer gets the cached `prev`, so without a start marker the reducer can't tell where a new stream begins. Yielding `start` only after the first line keeps the data through a 503 refresh, and `end` only on EOF keeps an aborted stream from counting as complete.
+  - `hasCompleted` is a justified addition: it stops dropped clusters from flashing back to "Checking…" every 60 s. It is documented in Handover for T-0342.
+  - No buffering: `fetchFleetStatus` reads line by line through `ndjsonLines()`, and `reader.cancel()` runs in `finally`. The MSW stream enqueues per timer and clears the timers on abort or cancel.
+  - Note: the FRONTEND.md paragraph and its query-key row were already committed with 2aa2b5c (T-0331), so they are not in this diff.
+  - Nit (optional) `useFleetStatus.ts:118`: `refetch: () => void refetch()` gets a new identity on every render. Wrap it in `useCallback` if T-0342 puts it in deps.
+  - Nit (optional) `useFleetStatus.ts:109-110`: `data` and the `useMemo` recompute `query.data ?? EMPTY` twice; use one.
+  - Nit (optional) `useFleetRows.ts:24-28`: once `hasCompleted` is set, a newly granted cluster that is listed but has no line stays hidden (not "Checking…") until its line arrives. This is acceptable, but say so in the TSDoc. Also re-wrap the over-long TSDoc line.
 
 ## Handover notes
+- API (`features/fleet/api`): `fetchFleetStatus(signal)`, `useFleetStatus()` → `{ byName, hasCompleted, isFetching, error,
+  refetch, dataUpdatedAt }` (`hasCompleted` replaces the design's implicit "fetch completed": stays true across refreshes so
+  dropped clusters don't flash back as "Checking…"), `useFleetRows()` → `{ rows, isLoading, clustersError, ...status }`,
+  pure `joinFleetRows`/`reduceFleetStatus` for T-0342 tests. No `api/index.ts`; import the modules directly.
+- Append-mode fix: the stream yields `start` (with the first line) and `end` sentinels; the reducer moves the last complete
+  stream to `previous`, so refresh keeps rows and only a *completed* stream drops absent clusters.
+- MSW: `mocks/handlers/fleet.ts` (untyped: openapi-msw types the ndjson body as one object); `setMockFleetLatency(0)` in
+  tests (exported via `@/mocks`); busy = page URL `?mockFleet=busy`. `accessibleClustersOf(user)` extracted in
+  `handlers/clusters.ts`. Admin sees dev-1, prod-k8s-1, lab-1 only; other scenarios need another mock user.
+- `dev-2` is declared Kubernetes + disabled in `fixtures/clusters.ts`; its scenario is OpenShift-shaped (DIST-5, mirrors T-0331).
+- e2e: `fakeClusterHealth.ts` (healthy 4.18.12, 3 nodes, 3 operators) hooked into `fakeKubeApi.ts` after the watch check;
+  unit test `e2e/support/fakeClusterHealth.test.ts` runs in Vitest. No UI change, so no style probe.
