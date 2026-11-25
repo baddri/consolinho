@@ -114,6 +114,10 @@ describe('ClusterOverviewPage (OVW-1..6)', () => {
       expect(await screen.findByText(/^v\d+\.\d+\.\d+/, {}, wait)).toBeInTheDocument();
       expect(screen.queryByText('Operators')).not.toBeInTheDocument();
       expect(screen.queryByText('Cluster ID')).not.toBeInTheDocument();
+      // DSC-4: no ClusterVersion rows, no ClusterOperators/OLM health.
+      expect(screen.queryByText('OpenShift version')).not.toBeInTheDocument();
+      expect(screen.queryByText('Update channel')).not.toBeInTheDocument();
+      expect(screen.queryByText('A cluster version update is available')).not.toBeInTheDocument();
     },
   );
 

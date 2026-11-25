@@ -31,7 +31,7 @@ const SECTIONS: readonly { id: NavSectionId; title: string }[] = [
 ];
 
 /** A sidebar item that isn't a kind's list, placed among the registry items of its section by `order`. */
-interface StaticNavItem {
+export interface StaticNavItem {
   section: NavSectionId;
   order: number;
   label: string;
@@ -45,7 +45,7 @@ interface StaticNavItem {
  * OCP Home: Overview, Projects, Search, API Explorer, Events — Overview first, Search between Projects (10) and Events
  * (20). Administration: Cluster Settings before Namespaces (10).
  */
-const STATIC_ITEMS: readonly StaticNavItem[] = [
+export const STATIC_NAV_ITEMS: readonly Readonly<StaticNavItem>[] = [
   {
     section: 'home',
     order: 0,
@@ -85,14 +85,22 @@ function kindMatcher(plural: string): (pathname: string) => boolean {
  * The cluster's sidebar sections, derived from the registry and discovery (ADR-0023 §5, UI-2/DATA-2): each
  * descriptor with `nav` becomes an item in its section (by `order`), kinds the cluster doesn't serve are hidden (e.g.
  * Projects on vanilla Kubernetes) and empty sections are dropped. Pages that aren't a kind's list (Overview, Search,
- * Cluster Settings) are {@link STATIC_ITEMS} slotted in by order, hidden like kinds when their `requires` model isn't
+ * Cluster Settings) are {@link STATIC_NAV_ITEMS} slotted in by order, hidden like kinds when their `requires` model isn't
  * served. Namespaced kinds link to `k8s/<plural>` (the namespace redirect), cluster-scoped ones to
  * `k8s/cluster/<plural>`.
  */
 export function useClusterNav(cluster: string): NavSection[] {
   const discovery = useK8sDiscovery(cluster);
+  return buildClusterNav(cluster, (model) => discovery.isServed(model));
+}
+
+/**
+ * Pure core of {@link useClusterNav}: the sidebar for `cluster` given which models it serves. Exported so the
+ * distribution gating can be table-tested against recorded discovery documents without rendering (DSC-1/2).
+ */
+export function buildClusterNav(cluster: string, isServed: (model: K8sModel) => boolean): NavSection[] {
   const navigable = resourceDescriptors().filter(
-    (descriptor) => descriptor.nav && discovery.isServed(descriptor.model),
+    (descriptor) => descriptor.nav && isServed(descriptor.model),
   );
   return SECTIONS.map((section) => ({
     id: section.id,
@@ -106,8 +114,8 @@ export function useClusterNav(cluster: string): NavSection[] {
           to: resourcePath(cluster, model),
           isActive: kindMatcher(model.plural),
         })),
-      ...STATIC_ITEMS.filter(
-        (item) => item.section === section.id && (!item.requires || discovery.isServed(item.requires)),
+      ...STATIC_NAV_ITEMS.filter(
+        (item) => item.section === section.id && (!item.requires || isServed(item.requires)),
       ).map((item) => ({
         order: item.order,
         label: item.label,

@@ -1,12 +1,12 @@
 ---
 id: T-0384
 title: Discovery-driven sidebar on Kubernetes — table test over every descriptor/static item vs the kind fixture, DSC-1/3/4 checks (DSC-1..4)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: [T-0378]
 paths: [web/src/features/resources/nav, web/src/features/resources/networking/services/ServiceRoutes.test.tsx, web/src/features/resources/search, web/src/features/resources/overview, web/src/features/resources/list, web/src/features/resources/cluster-settings, web/src/features/fleet/overview]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -55,16 +55,33 @@ future OpenShift-only kind or static item can't slip in ungated (DSC-2), and tha
   `flags.required`).
 
 ## Acceptance criteria
-- [ ] DSC-2: table test over every nav descriptor and static item passes; deliberately adding an ungated static item
+- [x] DSC-2: table test over every nav descriptor and static item passes; deliberately adding an ungated static item
   or an OpenShift-group descriptor makes it fail (verify locally, note in Work log).
-- [ ] DSC-1: exact kind sidebar asserted.
-- [ ] DSC-3: three unserved URLs render the not-served state on a vanilla cluster.
-- [ ] DSC-4: Service Routes absent, Search kinds served-only, Overview Kubernetes-only rows, Fleet row as specified.
-- [ ] `useClusterNav` behaviour unchanged (existing nav tests green).
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] DSC-1: exact kind sidebar asserted.
+- [x] DSC-3: three unserved URLs render the not-served state on a vanilla cluster.
+- [x] DSC-4: Service Routes absent, Search kinds served-only, Overview Kubernetes-only rows, Fleet row as specified.
+- [x] `useClusterNav` behaviour unchanged (existing nav tests green).
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-26 frontend-engineer: extracted `buildClusterNav` + `STATIC_NAV_ITEMS`; `nav/kindDiscovery.test.ts` (DSC-1/2)
+  over the kind fixture. Verified: an ungated static item fails with the "add `requires`" message; dropping the
+  `isServed` filter fails all six OpenShift-group descriptors. DSC-3/4 added to list/search/overview/fleet tests; no
+  production fixes needed. Fixture reached via new `src/test/kindDiscovery.ts` (lint: tests import `src/test` only).
 
 ## Review
+- 2026-11-26 frontend-architect, round 1: **APPROVE**. Refactor is behaviour-preserving (`useClusterNav` →
+  `buildClusterNav`); DSC-1/2 table test mirrors `useK8sDiscovery` group/version gating and the allowlist message is
+  actionable; DSC-3/4 covered (settings/cluster + Service Routes already pinned on `prod-k8s-1`). Nits (optional):
+  - `web/src/features/resources/nav/useClusterNav.ts:94` — `discovery.isServed` is already a stable `useCallback`; pass it directly instead of wrapping.
+  - `web/src/features/resources/search/SearchPage.test.tsx:70,184` — formatter-only reflows of untouched assertions; keep diffs to the task.
+  - `web/src/test/kindDiscovery.ts:8,11` — `as` casts could be `satisfies`-checked annotations so a fixture shape drift fails typecheck.
+  - Follow-up: the "Kind not supported yet" 1 s `findBy` flake in `ResourceListPage.test` should use `COLD_START_TIMEOUT_MS` (separate task).
 
 ## Handover notes
+- `buildClusterNav(cluster, isServed)` is the pure nav builder; `useClusterNav` only wires discovery into it.
+- DSC-2 allowlist of ungated static items = Overview, Search; new static items must set `requires` or join it.
+- `web/src/test/kindDiscovery.ts` (outside `paths`, one re-export file) types the kind `/api` + `/apis` JSON for tests.
+- DSC-3 settings/cluster and DSC-4 Service Routes were already pinned (clusterSettings.test, ServiceRoutes.test);
+  routes/projects not-served added in ResourceListPage.test. Overview/Fleet vanilla tests extended, not duplicated.
+- `ResourceListPage.test` "Kind not supported yet" (1 s findBy) flaked once under parallel load; passes alone.

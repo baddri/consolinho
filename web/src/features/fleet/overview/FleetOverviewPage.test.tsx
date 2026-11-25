@@ -119,6 +119,14 @@ describe('FleetOverviewPage', () => {
     expect(k8s.getByText('v1.31.4')).toBeInTheDocument();
     expect(k8s.getByText('Kubernetes')).toBeInTheDocument();
     expect(k8s.getAllByText('-')).toHaveLength(2);
+    // DSC-4: health comes from nodes alone; no OpenShift section reads as Restricted or failed.
+    expect(k8s.getByText('Healthy')).toBeInTheDocument();
+    expect(k8s.getByRole('link', { name: /^\d+ of \d+ Ready$/ })).toHaveAttribute(
+      'href',
+      '/c/prod-k8s-1/k8s/cluster/nodes',
+    );
+    expect(k8s.queryByText('Restricted')).not.toBeInTheDocument();
+    expect(k8s.queryByText(/Unreachable|Timed out|Error|Failed/)).not.toBeInTheDocument();
 
     const lab = within(row('lab-1'));
     expect(lab.getByText('Unreachable')).toBeInTheDocument();

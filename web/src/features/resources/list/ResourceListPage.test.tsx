@@ -244,6 +244,20 @@ describe('resource list states (QG-3, UI-10)', () => {
   });
 });
 
+describe('OpenShift-only URLs on a Kubernetes cluster (DSC-3)', () => {
+  it.each([
+    ['/c/prod-k8s-1/k8s/ns/shop/routes', "Routes aren't available on prod-k8s-1"],
+    ['/c/prod-k8s-1/k8s/cluster/projects', "Projects aren't available on prod-k8s-1"],
+  ])('%s shows the not-served state', { timeout: COLD_START_TEST_TIMEOUT_MS }, async (path, heading) => {
+    renderApp(path);
+
+    expect(
+      await screen.findByRole('heading', { name: heading, level: 1 }, { timeout: COLD_START_TIMEOUT_MS }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+  });
+});
+
 describe('resource list filters and sorting (UI-3)', () => {
   it('filters by name and keeps the filter in the URL', async () => {
     const { user, router } = renderApp('/c/dev-1/k8s/ns/shop/pods');
