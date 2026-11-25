@@ -53,6 +53,7 @@ state with a way to type a name (NSF-4). Persona Alice "wants to open the consol
 - [ ] NSF-4: no fallback namespaces → empty state with exact copy; typing `team-a` and choosing Go-to opens
   `k8s/ns/team-a/pods`; no error toast rendered.
 - [ ] OpenShift and listable Kubernetes landings unchanged (existing tests green).
+- [ ] On `NoNamespacesPage` and after a fallback redirect, the namespace toggle reads `Namespace: Select a namespace` without opening the menu, because the redirect warms the shared access-check cache (T-0382 review).
 - [ ] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
