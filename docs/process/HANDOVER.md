@@ -19,8 +19,8 @@
 
 ## Next actions (resume here)
 1. CP5.5 spec `docs/specs/CP5.5-kubernetes-clusters.md` (5.5a backend+kind+CT, 5.5b K8s UI). In flight:
-   5.5b lanes (FE worktrees): T-0383.
-   Done: T-0376 aa5b50b, T-0372 6aa623f+97647a2, T-0377 879c48d (kind API port 16443), T-0378 274c6b1, T-0385 367df0b, T-0384 9a66c11, T-0381 c954355, T-0382 b5a79bf+b4ea1ed (check-fe 1664).
+   5.5b build lanes done; T-0379 (QA kind smoke) running.
+   Done: T-0376 aa5b50b, T-0372 6aa623f+97647a2, T-0377 879c48d (kind API port 16443), T-0378 274c6b1, T-0385 367df0b, T-0384 9a66c11, T-0381 c954355, T-0382 b5a79bf+b4ea1ed, T-0383 a80475c (check-fe 1675).
    Follow-up T-0380 Login lockup (backlog). Next: T-0379 QA kind smoke (needs a free heavy slot), then T-0386, T-0387
    (PO to confirm NSC-2 disabled-vs-hidden).
    At ACCEPT tell PO: T-0375 also added fallbackNamespaces to fleet status lines (accepted deviation).
