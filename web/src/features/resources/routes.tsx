@@ -3,6 +3,7 @@ import { ClusterLanding } from './ClusterLanding';
 import { ResourcePageSkeleton } from './components/ResourcePageSkeleton';
 import { NamespaceRedirect } from './NamespaceRedirect';
 import { SearchRedirect } from './search/SearchRedirect';
+import type { ClusterSettingsRouteHandle } from './cluster-settings/ClusterSettingsPage';
 import type { DetailsTab } from './paths';
 import type { ResourceRouteHandle } from './resourceRoute';
 
@@ -19,13 +20,42 @@ const detailsPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
 /** Edit Deployment (FORM-1): a full page of its own, not a details tab. */
 const editDeploymentPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   lazy: () =>
-    import('./workloads/deployments/form/EditDeploymentPage').then((m) => ({ Component: m.EditDeploymentPage })),
+    import('./workloads/deployments/form/EditDeploymentPage').then((m) => ({
+      Component: m.EditDeploymentPage,
+    })),
   HydrateFallback: ResourcePageSkeleton,
 };
 
 const searchPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   lazy: () => import('./search/SearchPage').then((m) => ({ Component: m.SearchPage })),
   HydrateFallback: ResourcePageSkeleton,
+};
+
+/**
+ * Administration → Cluster Settings (CS-1): the page with the Details tab as index and ClusterOperators as a child;
+ * the child's handle tells `ClusterSettingsPage` the active tab.
+ */
+const clusterSettingsRoute: RouteObject = {
+  path: 'settings/cluster',
+  lazy: () =>
+    import('./cluster-settings/ClusterSettingsPage').then((m) => ({ Component: m.ClusterSettingsPage })),
+  HydrateFallback: ResourcePageSkeleton,
+  children: [
+    {
+      index: true,
+      handle: { settingsTab: 'details' } satisfies ClusterSettingsRouteHandle,
+      lazy: () =>
+        import('./cluster-settings/ClusterVersionDetails').then((m) => ({
+          Component: m.ClusterVersionDetails,
+        })),
+    },
+    {
+      path: 'clusteroperators',
+      handle: { settingsTab: 'clusteroperators' } satisfies ClusterSettingsRouteHandle,
+      lazy: () =>
+        import('./cluster-settings/ClusterOperatorsTab').then((m) => ({ Component: m.ClusterOperatorsTab })),
+    },
+  ],
 };
 
 /** The descriptor-owned kind tabs (`KindTabs`): one module rendering the descriptor's component for the tab. */
@@ -94,7 +124,7 @@ function detailsRoutes(path: string, scope: ResourceRouteHandle['scope']): Route
 
 /**
  * Children of `c/:cluster` (ADR-0023 §1): the cluster landing, the namespace redirect, list pages per scope,
- * details pages with their tabs and the Search page. Page modules load lazily (same convention as `features/admin/routes.tsx`);
+ * details pages with their tabs, Cluster Settings and the Search page. Page modules load lazily (same convention as `features/admin/routes.tsx`);
  * `HydrateFallback` shows a page skeleton when the app starts on a resource URL. Each route's `handle` tells
  * `useResourceRoute` its scope (and tab).
  */
@@ -112,6 +142,7 @@ export const resourceRoutes: RouteObject[] = [
   },
   ...detailsRoutes('k8s/ns/:namespace/:plural/:name', 'ns'),
   ...detailsRoutes('k8s/cluster/:plural/:name', 'cluster'),
+  clusterSettingsRoute,
   // Home → Search (SRCH-1): `search` picks the last project like `k8s/:plural`.
   { path: 'search', element: <SearchRedirect /> },
   { path: 'search/ns/:namespace', ...searchPage },

@@ -84,7 +84,8 @@ function useFilterNodes(descriptor: ResourceDescriptor) {
 /**
  * The shared `ConsoleDataView` of one live list of a kind (list pages and a workload's Pods tab): data from
  * `useK8sList`, filters from the URL (`?name=` client-side, `?label=` sent as `labelSelector` together with the
- * `fixedSelector`, descriptor filters such as `?status=`), the descriptor's columns and row actions.
+ * `fixedSelector`, descriptor filters such as `?status=`), the descriptor's columns and row actions (none for a
+ * `readOnly` kind without `useKindActions`).
  */
 export function useResourceDataView({
   descriptor,
@@ -143,6 +144,8 @@ export function useResourceDataView({
     (obj: K8sResource) => <ResourceRowActions cluster={cluster} descriptor={descriptor} obj={obj} />,
     [cluster, descriptor],
   );
+  // A read-only kind without kind actions has nothing to put in a kebab: no Actions column, as OCP (ClusterOperators).
+  const hasRowActions = !descriptor.readOnly || descriptor.useKindActions !== undefined;
   const defaultSort = descriptor.defaultSort ?? { columnId: 'name', direction: 'asc' };
 
   return {
@@ -174,7 +177,7 @@ export function useResourceDataView({
         onClearAllFilters={filters.clearAll}
         isFiltered={filters.isFiltered}
         getLabels={objectLabels}
-        rowActions={rowActions}
+        rowActions={hasRowActions ? rowActions : undefined}
         hasNamespaceHint={model.namespaced}
       />
     ),

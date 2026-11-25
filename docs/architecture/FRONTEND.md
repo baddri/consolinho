@@ -134,7 +134,9 @@ column `DetailsSection` (shared `DetailsItem`s only, no tables or headings) — 
 and actions generic (Edit YAML, Delete, gated by `useResourceAccess`). The `detailTabs`/`actions` fields above arrive
 with CP4. The sidebar's cluster sections come from `useClusterNav(cluster)` (registry + discovery).
 CP5a: `ListActions` (list heading buttons); the Pods tab shows only when `podsSelector(obj)` returns a selector (T-0301).
-CP5b (T-0331): `readOnly` (kind actions only, YAML read-only with a notice, no SSAR), `KindTabs` (Machines,
+CP5b (T-0331): `readOnly` (kind actions only, YAML read-only with a notice, no SSAR; no row Actions column
+without `useKindActions`, T-0335), `listPath(cluster)` (details breadcrumb target when the list isn't the generic page:
+ClusterOperators → the Cluster Settings tab, OCP `breadcrumbsFor`, T-0335), `KindTabs` (Machines,
 Subscription, Related objects: shown when in `extraTabs` **and** given a component, routed via `ResourceKindTab`),
 `allNamespacesLabelSelector` (a `LabelSelector` ANDed with `?label=` in all-namespaces mode, CSV `!olm.copiedFrom`),
 `nav.label` (CSV "Installed Operators"); static nav items may `require` a model discovery must serve (Cluster Settings).

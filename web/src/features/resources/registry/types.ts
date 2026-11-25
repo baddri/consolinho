@@ -204,6 +204,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * Every mutating item gates itself with `useActionAccess`.
    */
   useKindActions?(args: KindActionArgs<T>): KindActions;
+  /**
+   * Where the details breadcrumb's list link goes when the kind's list isn't the generic list page (OCP
+   * `breadcrumbsFor`): ClusterOperators lead back to the Cluster Settings tab. Unset: the generic list.
+   */
+  listPath?(cluster: string): string;
   /** Delete asks to type the name (Namespace, Project). */
   deleteRequiresName?: boolean;
   /**
