@@ -14,3 +14,8 @@
   font-family: var(--pf-t--global--font--family--heading);
   line-height: var(--pf-t--global--font--line-height--heading);
 }
+
+/* component-groups `PageHeader` `iconMinWidth`: the lead icon column is at least 48px wide. */
+.leadIcon {
+  min-width: 48px;
+}

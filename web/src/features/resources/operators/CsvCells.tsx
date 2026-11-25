@@ -5,8 +5,17 @@ import { ClusterServiceVersionModel, NamespaceModel } from '@/shared/k8s';
 import { DASH, Status } from '@/shared/ui';
 import { ResourceLink } from '../components/ResourceLink';
 import { resourcePath } from '../paths';
-import { csvPhase, isCopiedCsv, providedApiName, providedApis, targetNamespaces, type CsvResource } from './csv';
+import {
+  csvPhase,
+  isCopiedCsv,
+  providedApiName,
+  providedApis,
+  subscriptionForCsv,
+  targetNamespaces,
+  type CsvResource,
+} from './csv';
 import { csvLinkClassName, CsvLogo } from './CsvLogo';
+import { subscriptionStatusTitle, useCsvSubscriptions } from './SubscriptionStatus';
 
 /** Provided APIs listed in a row before "View N more..." (OCP `CsvProvidedAPIsCell`). */
 const MAX_LISTED_APIS = 4;
@@ -33,16 +42,20 @@ export function CsvNameCell({ obj }: { obj: CsvResource }) {
 }
 
 /**
- * Status cell (OCP `ClusterServiceVersionStatus`): the phase with its icon (Succeeded, Failed, Installing…) and the
- * phase's `status.reason` in subtle text below; nothing without a phase.
+ * Status cell (OCP `CsvStatusCell` → `ClusterServiceVersionStatus`): the phase with its icon (Succeeded, Failed,
+ * Installing…) and, below it, the installing Subscription's status as subtle text ({@link subscriptionStatusTitle},
+ * from the page's one Subscriptions list); no line while that list loads, without a Subscription or for other states.
+ * "-" without a phase.
  */
 export function CsvStatusCell({ obj }: { obj: CsvResource }) {
+  const subscriptions = useCsvSubscriptions();
   const phase = csvPhase(obj);
   if (!phase) return DASH;
+  const subscriptionStatus = subscriptions && subscriptionStatusTitle(subscriptionForCsv(subscriptions, obj));
   return (
     <>
       <Status status={phase} />
-      {obj.status?.reason && <div className="pf-v6-u-text-color-subtle">{obj.status.reason}</div>}
+      {subscriptionStatus && <div className="pf-v6-u-text-color-subtle">{subscriptionStatus}</div>}
     </>
   );
 }

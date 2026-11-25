@@ -27,6 +27,22 @@ async function findRow(table: HTMLElement, displayName: string): Promise<HTMLEle
   return row;
 }
 
+/** Paths of every Subscriptions list request (`watch=1` streams excluded). */
+function recordSubscriptionLists(): string[] {
+  const paths: string[] = [];
+  const listener = ({ request }: { request: Request }) => {
+    const url = new URL(request.url);
+    if (url.pathname.endsWith('/subscriptions') && !url.searchParams.has('watch')) {
+      paths.push(url.pathname);
+    }
+  };
+  server.events.on('request:start', listener);
+  onTestFinished(() => {
+    server.events.removeListener('request:start', listener);
+  });
+  return paths;
+}
+
 /** `labelSelector` of every CSV list request (`null` without one). */
 function recordCsvListSelectors(): (string | null)[] {
   const selectors: (string | null)[] = [];
@@ -71,6 +87,7 @@ describe('Installed Operators (T-0337)', () => {
     'OLM-1: the all-namespaces list shows OCP columns, each operator once, with status and provided APIs',
     async () => {
       const selectors = recordCsvListSelectors();
+      const subscriptionLists = recordSubscriptionLists();
       renderApp(ALL);
       const table = await screen.findByRole(
         'grid',
@@ -102,8 +119,16 @@ describe('Installed Operators (T-0337)', () => {
       );
       const failed = await findRow(table, 'Log Forwarder Operator');
       expect(failed).toHaveTextContent('Failed');
-      expect(failed).toHaveTextContent('InstallComponentFailed');
       expect(selectors.every((selector) => selector === '!olm.copiedFrom')).toBe(true);
+      // T-0366: OCP heading and help text, and each row's Subscription status from one Subscriptions list.
+      expect(screen.getByRole('heading', { level: 1, name: 'Installed Operators' })).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Installed Operators are represented by ClusterServiceVersions within this Namespace.',
+        ),
+      ).toBeInTheDocument();
+      expect(await within(certUtils).findByText('Upgrade available')).toBeInTheDocument();
+      expect(subscriptionLists).toHaveLength(1);
     },
     COLD_START_TEST_TIMEOUT_MS,
   );
@@ -124,6 +149,22 @@ describe('Installed Operators (T-0337)', () => {
       );
       expect(screen.getByText('global-operators')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Actions' })).not.toBeInTheDocument();
+      // T-0366: OCP breadcrumb and title, and the overview in its own section above "<Kind> details".
+      const breadcrumb = screen.getByRole('navigation', { name: 'Breadcrumb' });
+      expect(within(breadcrumb).getByRole('link', { name: 'Installed Operators' })).toHaveAttribute(
+        'href',
+        OPS,
+      );
+      expect(within(breadcrumb).getByText('Operator details')).toBeInTheDocument();
+      // The h1 names the operator only; the provider line sits under it, outside the heading (OCP).
+      expect(screen.getByRole('heading', { level: 1 })).toHaveAccessibleName('Cert Utils Operator');
+      expect(screen.getByText('1.3.12 provided by Example Community')).toBeInTheDocument();
+      const providedApis = screen.getByRole('heading', { name: 'Provided APIs' });
+      const detailsHeading = screen.getByRole('heading', { name: 'ClusterServiceVersion details' });
+      expect(
+        providedApis.compareDocumentPosition(detailsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(detailsHeading.closest('section')?.contains(providedApis)).toBe(false);
     },
     COLD_START_TEST_TIMEOUT_MS,
   );
@@ -178,6 +219,38 @@ describe('Installed Operators (T-0337)', () => {
       expect(
         await screen.findByRole('heading', { name: 'No Operator Subscription' }, { timeout: COLD_START_TIMEOUT_MS }),
       ).toBeInTheDocument();
+    },
+    COLD_START_TEST_TIMEOUT_MS,
+  );
+
+  it(
+    'T-0366: the list Status line is plain text for each Subscription state and absent without a Subscription',
+    async () => {
+      const subscription = mockK8s.get(
+        'dev-1',
+        SubscriptionModel,
+        'openshift-operators',
+        'pipeline-runner-operator',
+      ) as SubscriptionResource;
+      const orphaned: SubscriptionResource = {
+        ...subscription,
+        status: { ...subscription.status, installedCSV: undefined },
+      };
+      mockK8s.upsert('dev-1', orphaned);
+      renderApp(ALL);
+      const table = await screen.findByRole(
+        'grid',
+        { name: 'ClusterServiceVersions' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
+      const upToDate = await within(await findRow(table, 'Log Forwarder Operator')).findByText('Up to date');
+      expect(upToDate).toHaveClass('pf-v6-u-text-color-subtle');
+      expect(
+        within(await findRow(table, 'Cert Utils Operator')).getByText('Upgrade available'),
+      ).toBeInTheDocument();
+      expect(await findRow(table, 'Pipeline Runner Operator')).not.toHaveTextContent(
+        /Up to date|Upgrade available|Upgrading|Unknown failure/,
+      );
     },
     COLD_START_TEST_TIMEOUT_MS,
   );

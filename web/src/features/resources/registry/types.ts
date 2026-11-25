@@ -112,6 +112,22 @@ export interface KindActions {
   dialog: ReactNode;
 }
 
+/** Details breadcrumb labels replacing `<Kinds>` / `<Kind> details` (OCP `breadcrumbsFor`). */
+export interface BreadcrumbLabels {
+  list: string;
+  details: string;
+}
+
+/**
+ * A kind's own details heading (OCP `DetailsPage` `icon` + `OverrideTitle`): `leadIcon` sits left of the title behind a
+ * divider, `title` is the h1's whole content and `caption` a small subtle line under it, outside the h1.
+ */
+export interface DetailsHeading {
+  leadIcon?: ReactNode;
+  title: ReactNode;
+  caption?: ReactNode;
+}
+
 /** Everything the generic pages need to render one kind. */
 export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   model: K8sModel;
@@ -134,10 +150,32 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   status?(obj: T): ResourceStatus | undefined;
   /** No status badge in the details heading (OCP Deployment: status is a "Status" row of the Details tab instead). */
   hideHeadingStatus?: boolean;
+  /**
+   * List page h1 when it isn't `model.labelPlural` (OCP `ListPage` `title`): CSVs are "Installed Operators". The nav
+   * label is {@link nav}'s own.
+   */
+  listTitle?: string;
+  /** Help text under the list page h1 (OCP `ListPage` `helpText`); none when unset. */
+  listHelpText?: string;
+  /**
+   * Breadcrumb labels of the details page when they aren't `<Kinds> › <Kind> details` (OCP `breadcrumbsFor`), e.g.
+   * "Installed Operators › Operator details". The list link itself still follows {@link listPath}.
+   */
+  detailsCrumbs?: BreadcrumbLabels;
+  /**
+   * Replaces the kind badge + name heading of a loaded object ({@link DetailsHeading}). Until the object loads the
+   * generic heading shows. Plain function returning elements, like {@link status}.
+   */
+  detailsHeading?(obj: T): DetailsHeading;
   /** Extra rows of the common metadata column ({@link SummaryFields}). */
   summary?: SummaryFields<T>;
   /** Shown under the "<Kind> details" heading above the grid, e.g. a deployment's pod ring. */
   DetailsTop?(props: { obj: T }): ReactNode;
+  /**
+   * An unheaded section of the Details tab *above* the "<Kind> details" section (OCP CSV details' first `PaneBody`:
+   * Provided APIs, Description and the provider sidebar). Same component shape as {@link DetailsSection}.
+   */
+  DetailsLead?(props: { obj: T }): ReactNode;
   /**
    * Kind-specific fields of the Details tab (T-0075, T-0113): `DetailsItem`s only, rendered as the right column of the
    * "<Kind> details" grid next to the common metadata (`UX.md` §6). A function component

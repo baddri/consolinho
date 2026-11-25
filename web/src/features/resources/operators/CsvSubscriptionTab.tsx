@@ -33,33 +33,9 @@ import { ResourceErrorState } from '../components/ResourceErrorState';
 import { resourcePath } from '../paths';
 import { operatorNamespace, upgradeRequiresApproval, type CsvResource, type SubscriptionResource } from './csv';
 import styles from './CsvSubscriptionTab.module.css';
+import { SubscriptionStatus } from './SubscriptionStatus';
 
 const NONE = 'None';
-
-/** The Subscription's state as OCP `SubscriptionStatus` words it, with the matching status icon. */
-function SubscriptionState({
-  subscription,
-  requiresApproval,
-}: {
-  subscription: SubscriptionResource;
-  requiresApproval: boolean;
-}) {
-  const state = subscription.status?.state;
-  switch (state) {
-    case 'UpgradeAvailable':
-      return <StatusIconText status="warning" text="Upgrade available" />;
-    case 'UpgradePending':
-      return requiresApproval ? (
-        <StatusIconText status="info" text="Upgrade available" />
-      ) : (
-        <StatusIconText status="pending" text="Upgrading" />
-      );
-    case 'AtLatestKnown':
-      return <StatusIconText status="success" text="Up to date" />;
-    default:
-      return <span className={state ? undefined : 'pf-v6-u-text-color-subtle'}>{state ?? 'Unknown failure'}</span>;
-  }
-}
 
 /** "Cannot update" with why (OCP `SourceMissingStatus` / `SourceUnhealthyStatus`). */
 function CannotUpdate({ reason }: { reason: string }) {
@@ -117,7 +93,7 @@ function SubscriptionUpdates({ cluster, subscription, installPlan }: UpdatesProp
               {!health ? (
                 <CannotUpdate reason="CatalogSource not found" />
               ) : health.healthy ? (
-                <SubscriptionState subscription={subscription} requiresApproval={requiresApproval} />
+                <SubscriptionStatus subscription={subscription} requiresApproval={requiresApproval} />
               ) : (
                 <CannotUpdate reason="CatalogSource unhealthy" />
               )}

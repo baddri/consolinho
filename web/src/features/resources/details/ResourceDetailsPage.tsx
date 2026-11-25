@@ -211,6 +211,8 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
         name={name}
         status={obj && !descriptor.hideHeadingStatus ? descriptor.status?.(obj) : undefined}
         listTo={descriptor.listPath?.(cluster)}
+        crumbs={descriptor.detailsCrumbs}
+        heading={obj && descriptor.detailsHeading?.(obj)}
         actions={obj && <ResourceActionsMenu cluster={cluster} descriptor={descriptor} obj={obj} />}
         alert={descriptor.HeadingAlert && <descriptor.HeadingAlert cluster={cluster} />}
       />

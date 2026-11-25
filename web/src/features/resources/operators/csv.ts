@@ -95,6 +95,20 @@ export function operatorNamespace(csv: CsvResource): string | undefined {
   return csv.metadata.annotations?.['olm.operatorNamespace'] ?? csv.metadata.namespace;
 }
 
+/**
+ * The Subscription that installed `csv` (OCP `subscriptionForCSV`): in the operator's namespace, with `installedCSV`
+ * naming it. `undefined` when none of `subscriptions` does.
+ */
+export function subscriptionForCsv(
+  subscriptions: readonly SubscriptionResource[],
+  csv: CsvResource,
+): SubscriptionResource | undefined {
+  const namespace = operatorNamespace(csv);
+  return subscriptions.find(
+    ({ metadata, status }) => metadata.namespace === namespace && status?.installedCSV === csv.metadata.name,
+  );
+}
+
 /** The OperatorGroup that installed the operator (`olm.operatorGroup`, OCP `operatorGroupFor`). */
 export function operatorGroup(csv: CsvResource): string | undefined {
   return csv.metadata.annotations?.['olm.operatorGroup'];
