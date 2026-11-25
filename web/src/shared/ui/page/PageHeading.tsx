@@ -32,7 +32,8 @@ export interface PageHeadingProps {
   icon?: ReactNode;
   /**
    * Left of the whole title block, behind a vertical divider (component-groups `PageHeader` `icon`), e.g. an
-   * operator's logo on its details page; the breadcrumb stays above it.
+   * operator's logo on its details page; the breadcrumb stays above it. With it the title block takes OCP's logo
+   * heading type scale (`ClusterServiceVersionLogo` in `co-page-heading`): 15px name, 600-weight caption, 8px margins.
    */
   leadIcon?: ReactNode;
   /**
@@ -130,11 +131,15 @@ export function PageHeading({
           flexWrap={{ default: 'wrap' }}
           gap={{ default: 'gapSm' }}
         >
-          <FlexItem>
+          <FlexItem className={leadIcon ? styles.logoName : undefined}>
             <Title
               headingLevel="h1"
               className={
-                [icon ? styles.title : undefined, subtitle ? 'pf-v6-u-mb-sm' : undefined]
+                [
+                  icon ? styles.title : undefined,
+                  leadIcon ? styles.logoTitle : undefined,
+                  subtitle ? 'pf-v6-u-mb-sm' : undefined,
+                ]
                   .filter(Boolean)
                   .join(' ') || undefined
               }
@@ -143,7 +148,11 @@ export function PageHeading({
               {title}
             </Title>
             {titleCaption && (
-              <div className="pf-v6-u-font-size-xs pf-v6-u-text-color-subtle">{titleCaption}</div>
+              <div
+                className={`pf-v6-u-font-size-xs pf-v6-u-text-color-subtle${leadIcon ? ` ${styles.logoCaption}` : ''}`}
+              >
+                {titleCaption}
+              </div>
             )}
           </FlexItem>
           {status && <FlexItem className={styles.status}>{status}</FlexItem>}

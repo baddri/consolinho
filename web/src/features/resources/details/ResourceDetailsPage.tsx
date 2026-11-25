@@ -223,7 +223,8 @@ function ResourceDetails({ cluster, descriptor, namespace, name, tab }: Resource
 
 /**
  * URL-driven tabs in `RESOURCE_TABS` order, filtered by {@link hasTab}, as `PageTabs` aligned with the heading, then
- * the active tab's content labelled by the tab: Details in a plain element around its own bordered sections, YAML in a
+ * the active tab's content labelled by the tab: Details and Subscription in a plain element around their own bordered
+ * sections, YAML in a
  * filled unpadded section (the editor reaches the bottom), Logs and Terminal in a filled `PageBody`, the others in a
  * `PageBody`.
  */
@@ -244,9 +245,9 @@ function ResourceTabs({
   return (
     <>
       <PageTabs tabs={tabs} activeKey={tab} aria-label={`${model.label} tabs`} />
-      {tab === 'details' ? (
-        // The Details tab renders its own bordered sections (`DetailsSubsection`, OCP `PaneBody`s). A plain element:
-        // PageGroup drops `aria-label` unless it scrolls.
+      {tab === 'details' || tab === 'subscription' ? (
+        // Details and Subscription (OCP `SubscriptionDetails`: two `PaneBody`s) render their own bordered sections
+        // (`DetailsSubsection`, OCP `PaneBody`s). A plain element: PageGroup drops `aria-label` unless it scrolls.
         <div role="tabpanel" aria-label={TAB_TITLES[tab]}>
           {children}
         </div>

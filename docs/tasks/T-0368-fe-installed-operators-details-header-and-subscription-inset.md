@@ -1,12 +1,12 @@
 ---
 id: T-0368
 title: Installed Operators details — OCP header type scale and Subscription tab inset
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5b
 depends_on: [T-0366]
 paths: [web/src/features/resources/operators, web/src/shared/ui/page/PageHeading.tsx]
-review_rounds: 0
+review_rounds: 1
 ---
 
 ## Goal
@@ -40,12 +40,28 @@ vs ref `/k8s/ns/aap/operators.coreos.com~v1alpha1~ClusterServiceVersion/aap-oper
 - Probe: `scratchpad m.mjs`-style computed-style diff or `scripts/ui-probe.mjs --pair 'h1=h1'` on the two routes above.
 
 ## Acceptance criteria
-- [ ] Header: name 15px/600, caption 12px/600 subtle, title block 40px tall at heading top + 8px (probe vs ref).
-- [ ] Subscription tab h2 at the same x/width as the Details tab and OCP (346 / 894 at 1280); DL margin-bottom 0.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Header: name 15px/600, caption 12px/600 subtle, title block 40px tall at heading top + 8px (probe vs ref).
+- [x] Subscription tab h2 at the same x/width as the Details tab and OCP (346 / 894 at 1280); DL margin-bottom 0.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: lead-icon heading gets OCP's logo type scale in `PageHeading.module.css`; Subscription
+  tab renders its sections unwrapped (like Details), states in a `PageBody`; DL `mb-lg` dropped. Probe matches OCP.
 
 ## Review
+- Round 1 (frontend-architect, 2026-11-25): **APPROVE**. Logo heading styles keyed on `leadIcon` with no new prop: OK. Its
+  only user is the CSV `detailsHeading`; the styles are documented on the prop and in the CSS with the OCP `_catalog.scss` rule. Subscription
+  tab in the plain tab panel, with its states in a `PageBody`: OK. `subscription` is a CSV-only `extraTabs` entry, so other kinds'
+  details/YAML/Events panels are unchanged; DL `mb-lg` dropped. Targeted gate green (details, operators, shared/ui: 166 tests).
+  - Optional: if a second kind ever passes `leadIcon`, split the CSV type scale into its own flag; the coupling is fine with one user.
+- Round 1 (ux-designer, 2026-11-25): **APPROVE**. Probe: mock cert-utils-operator (alice/prod-eu-1) vs ref aap-operator, Details and Subscription tabs, 1280 light. Header identical: name 15px/600 at 427,223 with mb 5px, caption 12px/600 subtle rgb(77,77,77) at y=248, title block 40px with mb 8px; still one h1 holding only the name. Subscription tab h2 at x=346 width 894 like OCP and the Details tab; DL margin-bottom 0. Remaining 8px y offset is OCP's scrollable tab bar (34 operand tabs, scroll buttons, 53px vs 45px), content-driven, not a finding.
 
 ## Handover notes
+- Header: `PageHeading` applies the 15px name (via `--pf-v6-c-title--m-h1--FontSize`, PF's selector beats one class),
+  5px below, 8px block margins and the heading-font/600/heading-line-height caption whenever `leadIcon` is set: in
+  OCP the logo heading is the only lead-icon heading, so no extra prop. Probe vs ref: name 15px/600 20px box, caption
+  12px/600 16px box, block 40px tall — no style mismatches (only text widths).
+- Subscription tab: outside `paths`, `ResourceDetailsPage` `ResourceTabs` now renders `subscription` in the same plain
+  tabpanel as `details` (OCP's two `PaneBody`s = our `DetailsSubsection`s); `CsvSubscriptionTab` wraps its error /
+  loading / empty states in `PageBody` so they keep the padding. Probe: dl 894px wide, h2/dl x match OCP.
+- No new unit tests: the changes are CSS/containers jsdom can't measure; existing tab tests still pass.
