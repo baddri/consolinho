@@ -20,6 +20,8 @@ export const grantIds = {
   sreStaging: mockGuid(0x20d),
   ghostTeamStaging: mockGuid(0x20f),
   platformStaging: mockGuid(0x210),
+  aliceDevK8sNs: mockGuid(0x211),
+  adminDevK8sNs: mockGuid(0x212),
 } as const;
 
 /** Builds a user grant record that was never edited. */
@@ -67,6 +69,7 @@ function groupGrant(
  * `dev-2`, deactivated `dave` on dev-1, `ines` through the expired prod-us-1 credential. `pending-paul` has readWrite
  * through the view-only prod-eu-1 credential, which makes the TEST-4 "cannot modify workloads" hint appear. The
  * production Kubernetes `prod-k8s-1` is granted to alice (readOnly) and admin (readWrite) for the FND-1 RO/RW paths.
+ * The namespace-scoped `dev-k8s-ns` is granted readWrite to alice and admin (namespace-selector fallback, QG55B-2).
  */
 export const grantFixtures: readonly MockGrant[] = [
   grant(grantIds.aliceProdEu, 'alice', 'prod-eu-1', credentialIds.prodEuView, 'readOnly', 60),
@@ -76,6 +79,8 @@ export const grantFixtures: readonly MockGrant[] = [
   grant(grantIds.adminLab1, 'admin', 'lab-1', credentialIds.lab1Edit, 'readWrite', 20),
   grant(grantIds.aliceProdK8s, 'alice', 'prod-k8s-1', credentialIds.prodK8sEdit, 'readOnly', 15),
   grant(grantIds.adminProdK8s, 'admin', 'prod-k8s-1', credentialIds.prodK8sEdit, 'readWrite', 15),
+  grant(grantIds.aliceDevK8sNs, 'alice', 'dev-k8s-ns', credentialIds.devK8sNsTeamA, 'readWrite', 3),
+  grant(grantIds.adminDevK8sNs, 'admin', 'dev-k8s-ns', credentialIds.devK8sNsTeamA, 'readWrite', 3),
   grant(grantIds.carolProdEu, 'carol', 'prod-eu-1', credentialIds.prodEuEdit, 'readWrite', 40),
   grant(grantIds.carolDev2, 'carol', 'dev-2', credentialIds.dev2View, 'readOnly', 35),
   grant(grantIds.daveDev1, 'dave', 'dev-1', credentialIds.dev1Edit, 'readOnly', 30),

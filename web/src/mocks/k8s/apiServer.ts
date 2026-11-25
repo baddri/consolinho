@@ -460,7 +460,9 @@ async function accessReview(api: ApiServerRequest): Promise<Response> {
   if (!spec || !attributes) return badRequest('spec.resourceAttributes is required');
   const verb = attributes.verb ?? '';
   const resource = attributes.resource ?? '';
-  const allowed = credentialAllows(api.credential, verb, resource);
+  // An empty namespace is the cluster scope, like an absent one.
+  const namespace = attributes.namespace === '' ? undefined : attributes.namespace;
+  const allowed = credentialAllows(api.credential, verb, resource, namespace);
   const review: SelfSubjectAccessReview = {
     apiVersion: 'authorization.k8s.io/v1',
     kind: 'SelfSubjectAccessReview',
@@ -545,7 +547,7 @@ export async function apiServer(api: ApiServerRequest): Promise<Response> {
   const handler = subresource === undefined ? undefined : SUBRESOURCES[subresource];
   if (subresource !== undefined && !handler?.appliesTo(model)) return unknownResource();
   const resource = rbacResource(model.plural, subresource);
-  if (!credentialAllows(api.credential, verb, resource)) {
+  if (!credentialAllows(api.credential, verb, resource, namespace)) {
     return statusResponse(
       403,
       'Forbidden',

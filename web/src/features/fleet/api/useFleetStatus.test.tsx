@@ -150,7 +150,7 @@ describe('useFleetStatus against the mock backend', () => {
     await waitFor(() => expect(result.current.hasCompleted).toBe(true));
     const byName = result.current.byName;
     // The admin's clusters, in the scenarios' delay (= arrival) order.
-    expect(Object.keys(byName)).toEqual(['dev-1', 'prod-k8s-1', 'lab-1']);
+    expect(Object.keys(byName)).toEqual(['dev-1', 'prod-k8s-1', 'dev-k8s-ns', 'lab-1']);
     expect(byName['dev-1']?.clusterVersion?.currentVersion).toBe('4.18.12');
     expect(byName['prod-k8s-1']?.kubernetesVersion?.gitVersion).toBe('v1.31.4');
     expect(byName['lab-1']?.failure).toBe('timeout');

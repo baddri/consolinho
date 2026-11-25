@@ -112,6 +112,8 @@ export const fleetScenarios: Readonly<Record<string, FleetScenario>> = {
     delayMs: 600,
     line: openShift({ clusterOperators: operators({ degraded: 1 }), nodes: nodes(1) }),
   },
+  // Namespace-scoped token (QG55B-2); the switcher entry carries `fallbackNamespaces: ["team-a"]`.
+  'dev-k8s-ns': { delayMs: 300, line: kubernetes() },
   'lab-1': {
     delayMs: 5000,
     line: {

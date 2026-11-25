@@ -9,7 +9,16 @@ import { checkFilterOption } from '../dataViewTestUtils';
 import { adminRoute } from '../routes';
 
 /** All fixture cluster names in display order (sorted by name). */
-const ALL_CLUSTERS = ['dev-1', 'dev-2', 'lab-1', 'prod-eu-1', 'prod-k8s-1', 'prod-us-1', 'staging-eu-1'];
+const ALL_CLUSTERS = [
+  'dev-1',
+  'dev-2',
+  'dev-k8s-ns',
+  'lab-1',
+  'prod-eu-1',
+  'prod-k8s-1',
+  'prod-us-1',
+  'staging-eu-1',
+];
 
 /** Waits until the clusters table shows data rows and returns it (`timeout` for the file's cold start). */
 async function findClustersTable(timeout?: number) {
@@ -109,7 +118,7 @@ describe('ClustersListPage (CLU-7)', () => {
 
     await user.clear(screen.getByRole('textbox', { name: 'Filter by name' }));
     await user.paste('Development');
-    await waitFor(() => expect(visibleClusters(table)).toEqual(['dev-1', 'dev-2']));
+    await waitFor(() => expect(visibleClusters(table)).toEqual(['dev-1', 'dev-2', 'dev-k8s-ns']));
 
     await checkFilterOption(user, 'Status', 'Disabled');
     await waitFor(() => expect(visibleClusters(table)).toEqual(['dev-2']));

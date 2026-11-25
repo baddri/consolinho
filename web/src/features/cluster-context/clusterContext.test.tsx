@@ -77,7 +77,13 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
         user,
         'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
       );
-      expect(optionNames(options)).toEqual(['prod-eu-1', 'prod-k8s-1', 'staging-eu-1', 'lab-1']);
+      expect(optionNames(options)).toEqual([
+        'prod-eu-1',
+        'prod-k8s-1',
+        'staging-eu-1',
+        'dev-k8s-ns',
+        'lab-1',
+      ]);
       const [prod, prodK8s, staging] = options as [HTMLElement, HTMLElement, HTMLElement];
       expect(within(prod).getByText('prod')).toBeInTheDocument();
       expect(within(prod).getByText('Read only')).toBeInTheDocument();
@@ -156,6 +162,7 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
       'prod-eu-1',
       'prod-k8s-1',
       'staging-eu-1',
+      'dev-k8s-ns',
       'lab-1',
     ]);
     // Outside a cluster the toggle names the preferred cluster (the one the sidebar links target), never a blank.
@@ -401,8 +408,8 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
   });
 
   it.each([
-    ['k8s', ['prod-k8s-1', 'dev-2', 'lab-1']],
-    ['kubernetes', ['prod-k8s-1', 'dev-2', 'lab-1']],
+    ['k8s', ['prod-k8s-1', 'dev-2', 'dev-k8s-ns', 'lab-1']],
+    ['kubernetes', ['prod-k8s-1', 'dev-2', 'dev-k8s-ns', 'lab-1']],
     ['ocp', ['prod-eu-1', 'prod-us-1', 'staging-eu-1', 'dev-1']],
     ['OpenShift', ['prod-eu-1', 'prod-us-1', 'staging-eu-1', 'dev-1']],
   ])('filters by cluster type "%s"', async (text, expected) => {
@@ -577,7 +584,12 @@ describe('ClusterSwitcher recent clusters (SW-8)', () => {
     const recent = screen.getByRole('listbox', { name: 'Recent clusters' });
     expect(optionNames(within(recent).getAllByRole('option'))).toEqual(['prod-k8s-1']);
     const all = screen.getByRole('listbox', { name: 'All clusters' });
-    expect(optionNames(within(all).getAllByRole('option'))).toEqual(['prod-k8s-1', 'dev-1', 'lab-1']);
+    expect(optionNames(within(all).getAllByRole('option'))).toEqual([
+      'prod-k8s-1',
+      'dev-1',
+      'dev-k8s-ns',
+      'lab-1',
+    ]);
   });
 
   it('has no Recent group when it would hold only the shown cluster (T-0119)', async () => {
@@ -1002,7 +1014,7 @@ describe('useAccessibleClusters (SW-6)', () => {
   it('refetches on window focus and every 5 minutes', async () => {
     const { queryClient } = renderWithProviders(<ClustersProbe />);
 
-    expect(await screen.findByText('3 clusters')).toBeInTheDocument();
+    expect(await screen.findByText('4 clusters')).toBeInTheDocument();
     const query = queryClient.getQueryCache().find({ queryKey: accessibleClustersQueryKey, exact: true });
     expect(accessibleClustersQueryKey).toEqual(['api', 'clusters']);
     expect(query?.options).toMatchObject({

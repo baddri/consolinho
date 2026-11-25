@@ -24,7 +24,13 @@ import { workloadObjects } from './workloadFixtures';
  */
 
 /** Clusters that are vanilla Kubernetes: no `project.openshift.io` group in discovery. */
-export const VANILLA_CLUSTERS: ReadonlySet<string> = new Set(['lab-1', 'prod-k8s-1']);
+export const VANILLA_CLUSTERS: ReadonlySet<string> = new Set(['lab-1', 'prod-k8s-1', 'dev-k8s-ns']);
+
+/**
+ * Extra namespaces seeded only on one cluster (T-0381): `dev-k8s-ns`'s namespace-scoped token works in `team-a`, which
+ * holds a copy of the `shop` application so lists, logs and details are non-empty there.
+ */
+const CLUSTER_ONLY_NAMESPACES: Readonly<Record<string, readonly string[]>> = { 'dev-k8s-ns': ['team-a'] };
 
 /** Whether `cluster` serves OpenShift's `project.openshift.io/v1`. */
 export function servesProjects(cluster: string): boolean {
@@ -107,7 +113,7 @@ export function runningPodStatus(restartCount: number, startedMinutesAgo: number
 }
 
 /** A pod's status while its `web` container crash-loops (last exit code 1). */
-export function crashLoopPodStatus(podName: string, restartCount: number): PodStatus {
+export function crashLoopPodStatus(podName: string, restartCount: number, namespace = 'shop'): PodStatus {
   const finishedAt = minutesBefore(2);
   return {
     phase: 'Running',
@@ -142,7 +148,7 @@ export function crashLoopPodStatus(podName: string, restartCount: number): PodSt
         state: {
           waiting: {
             reason: 'CrashLoopBackOff',
-            message: `back-off 5m0s restarting failed container=web pod=${podName}_shop(${podName})`,
+            message: `back-off 5m0s restarting failed container=web pod=${podName}_${namespace}(${podName})`,
           },
         },
         lastState: {
@@ -280,8 +286,8 @@ function projectObject(namespace: Namespace): Project {
   };
 }
 
-/** The objects of the `shop` application: deployment, pods, service, config maps and events. */
-function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
+/** The objects of the `shop` application (in `namespace`): deployment, pods, service, config maps and events. */
+function shopObjects(cluster: string, nextUid: () => string, namespace = 'shop'): K8sResource[] {
   const seed = clusterSeed(cluster);
   const tag = cluster.startsWith('dev') || cluster.startsWith('lab') ? '1.5.0-rc.1' : '1.4.2';
   const image = `quay.io/example/web:${tag}`;
@@ -293,7 +299,7 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     apiVersion: 'apps/v1',
     metadata: {
       name: 'web',
-      namespace: 'shop',
+      namespace,
       uid: deploymentUid,
       generation: 4,
       creationTimestamp: minutesBefore(60 * 24 * 30),
@@ -371,13 +377,13 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
   const crashRestarts = 5 + (seed % 7);
   const pods = WEB_POD_NAMES.map((name, index) =>
     podObject(
-      'shop',
+      namespace,
       name,
       nextUid(),
       'web',
       image,
       index === WEB_POD_NAMES.length - 1
-        ? crashLoopPodStatus(name, crashRestarts)
+        ? crashLoopPodStatus(name, crashRestarts, namespace)
         : runningPodStatus(index, 170 - index * 10),
       replicaSetUid,
     ),
@@ -388,7 +394,7 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     apiVersion: 'v1',
     metadata: {
       name: 'web',
-      namespace: 'shop',
+      namespace,
       uid: nextUid(),
       creationTimestamp: minutesBefore(60 * 24 * 30),
       labels: { app: 'web' },
@@ -409,7 +415,7 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     apiVersion: 'v1',
     metadata: {
       name: 'web-config',
-      namespace: 'shop',
+      namespace,
       uid: nextUid(),
       creationTimestamp: minutesBefore(60 * 24 * 30),
       labels: { app: 'web' },
@@ -425,7 +431,7 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     apiVersion: 'v1',
     metadata: {
       name: 'web-assets',
-      namespace: 'shop',
+      namespace,
       uid: nextUid(),
       creationTimestamp: minutesBefore(60 * 24 * 30),
       labels: { app: 'web' },
@@ -471,7 +477,7 @@ function shopObjects(cluster: string, nextUid: () => string): K8sResource[] {
     apiVersion: 'apps/v1',
     metadata: {
       name: WEB_REPLICASET,
-      namespace: 'shop',
+      namespace,
       uid: replicaSetUid,
       creationTimestamp: minutesBefore(180),
       labels: { app: 'web', 'pod-template-hash': WEB_REPLICASET.slice(4) },
@@ -541,5 +547,10 @@ export function seedClusterObjects(cluster: string): K8sResource[] {
     ...networkingStorageObjects(cluster, nextUid, servesProjects(cluster)),
     ...computeObjects(cluster, nextUid, servesProjects(cluster)),
     ...clusterObjects(cluster, nextUid, servesProjects(cluster)),
+    // Appended last so the uids of every other object stay the same as on the other clusters.
+    ...(CLUSTER_ONLY_NAMESPACES[cluster] ?? []).flatMap((name) => [
+      namespaceObject(name, nextUid()) as K8sResource,
+      ...shopObjects(cluster, nextUid, name),
+    ]),
   ];
 }

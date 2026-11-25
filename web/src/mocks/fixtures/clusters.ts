@@ -15,7 +15,9 @@ export const FAKE_CA_BUNDLE = [
  * Kubernetes and serves no OpenShift APIs (`k8s/fixtures.ts:VANILLA_CLUSTERS`); `dev-2` is declared Kubernetes but
  * serves OpenShift APIs — the DIST-5 mismatch demo (discovery wins, ADR-0032). `prod-k8s-1` is a production
  * Kubernetes cluster with a long display name (FND-1/FND-2): alice reads it read-only, admin read-write. It follows
- * `prod-us-1` so the production group stays together in the switcher.
+ * `prod-us-1` so the production group stays together in the switcher. `dev-k8s-ns` is a vanilla Kubernetes cluster
+ * reached through a namespace-scoped token that cannot list namespaces; its credential's inspect namespaces
+ * (`team-a`) become the switcher's `fallbackNamespaces` (QG55B-2, NSF).
  */
 export const clusterFixtures: readonly MockCluster[] = [
   {
@@ -125,6 +127,24 @@ export const clusterFixtures: readonly MockCluster[] = [
     updatedAt: daysAgo(6),
     updatedBy: 'admin',
     version: 3,
+  },
+  {
+    name: 'dev-k8s-ns',
+    displayName: 'Development Kubernetes (namespaced)',
+    environment: 'development',
+    distribution: 'kubernetes',
+    apiUrl: 'https://api.dev-k8s-ns.example.com:6443',
+    webConsoleUrl: null,
+    description: null,
+    caBundle: null,
+    skipTlsVerify: false,
+    isEnabled: true,
+    connectionSettingsChangedAt: daysAgo(3),
+    createdAt: daysAgo(3),
+    createdBy: 'admin',
+    updatedAt: null,
+    updatedBy: null,
+    version: 1,
   },
   {
     name: 'lab-1',
