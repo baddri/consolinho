@@ -1,0 +1,213 @@
+/* OCP `dashboard.scss` `.co-dashboard-grid`: 1rem between cards (PF's gutter is 24px). */
+.grid {
+  --pf-v6-l-grid--m-gutter--GridGap: 1rem;
+}
+
+/* OCP `DashboardGrid` measures the dashboard (`smallGrid = width <= 992`), not the viewport: a container query. */
+.dashboard {
+  container-type: inline-size;
+}
+
+@container (min-width: 993px) {
+  .grid > .leftColumn,
+  .grid > .rightColumn {
+    --pf-v6-l-grid__item--GridColumnEnd: span 3;
+  }
+
+  .grid > .leftColumn {
+    --pf-v6-l-grid--item--Order: -1;
+  }
+
+  .grid > .mainColumn {
+    --pf-v6-l-grid__item--GridColumnEnd: span 6;
+  }
+}
+
+/* OCP `.co-overview-card__actions` keeps the header link vertically centred with the title. */
+.headerActions {
+  align-self: center;
+}
+
+/* --- Status card (OCP `status-card.scss`) --- */
+
+/* `.co-status-card__health-body`: the items sit straight in the card, padded like a card body. */
+.healthBody {
+  display: flex;
+  flex-wrap: wrap;
+  padding-bottom: var(--pf-v6-c-card--child--PaddingBlockEnd);
+  padding-left: var(--pf-v6-c-card--child--PaddingInlineStart);
+  padding-right: var(--pf-v6-c-card--child--PaddingInlineEnd);
+}
+
+/* `.co-status-card__health-item` */
+.healthItem {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  padding-right: 3rem;
+}
+
+.healthItem:last-of-type {
+  padding-right: 0;
+}
+
+/* OCP `.co-dashboard-icon`: the icon box is sized by a 20px font (line box 30px), which sets the item height. */
+.healthIcon {
+  font-size: 1.25rem;
+}
+
+/* `.co-status-card__health-item-text` */
+.healthItemText {
+  display: block;
+  margin-left: 1rem;
+  overflow-wrap: break-word;
+  white-space: pre-line;
+  word-break: break-word;
+}
+
+/* `.co-status-card__popup`: the title link button has no padding. */
+.popupButton:global(.pf-v6-c-button) {
+  padding: 0;
+}
+
+/* The update notice under the health items, padded like `.co-status-card__alert-item`. */
+.alertsBody {
+  border-top: var(--pf-t--global--border--width--divider--default) solid var(--pf-t--global--border--color--default);
+  padding: var(--pf-v6-c-card--first-child--PaddingBlockStart) var(--pf-v6-c-card--child--PaddingInlineEnd)
+    var(--pf-v6-c-card--child--PaddingBlockEnd) var(--pf-v6-c-card--child--PaddingInlineStart);
+}
+
+/* `status-popup.scss` */
+.popupRow {
+  display: flex;
+  justify-content: space-between;
+  padding-bottom: var(--pf-t--global--spacer--xs);
+}
+
+.popupRowBold {
+  font-weight: var(--pf-t--global--font--weight--body--bold);
+}
+
+.popupStatus {
+  align-items: center;
+  display: flex;
+  gap: var(--pf-t--global--spacer--xs);
+  padding-left: var(--pf-t--global--spacer--xs);
+  white-space: nowrap;
+}
+
+.popupDetail {
+  font-weight: normal;
+}
+
+/* --- Inventory card (OCP `inventory-card.scss`) --- */
+
+/* `.co-inventory-card__item` */
+.inventoryItem {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+/* `.co-inventory-card__item-title` */
+.inventoryTitle {
+  display: flex;
+  margin-right: 0.5rem;
+}
+
+/* `.co-inventory-card__item-status` */
+.inventoryStatuses {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* `.co-inventory-card__status`; the count keeps `spacer--sm` from its icon. */
+.inventoryStatus {
+  align-items: center;
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: var(--pf-t--global--spacer--sm);
+  margin-left: 1.8rem;
+}
+
+/* --- Activity card (OCP `activity-card.scss`) --- */
+
+/* `.co-activity-card__body` */
+.activityBody {
+  max-height: 30rem;
+  min-height: 10rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* `.co-activity-card__ongoing-title` / `__recent-title`: a thin ruled title row. */
+.activityTitle {
+  border-bottom: var(--pf-t--global--border--width--divider--default) solid
+    var(--pf-t--global--border--color--default);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 0.2rem var(--pf-v6-c-card--child--PaddingInlineEnd) 0.2rem var(--pf-v6-c-card--child--PaddingInlineStart);
+}
+
+/* `.co-activity-item__ongoing` */
+.ongoingItem {
+  margin: 1rem var(--pf-v6-c-card--child--PaddingInlineEnd) 1rem var(--pf-v6-c-card--child--PaddingInlineStart);
+}
+
+/* `.co-activity-card__recent-accordion` */
+.recentAccordion:global(.pf-v6-c-accordion) {
+  padding: 0.75rem 0;
+}
+
+.recentAccordion :global(.pf-v6-c-accordion__toggle) {
+  --pf-v6-c-accordion__toggle--PaddingRight: var(--pf-v6-c-card--child--PaddingInlineEnd);
+  --pf-v6-c-accordion__toggle--PaddingLeft: var(--pf-v6-c-card--child--PaddingInlineStart);
+
+  line-height: 18px;
+}
+
+.recentAccordion :global(.pf-v6-c-accordion__toggle-text) {
+  font-weight: var(--pf-t--global--font--weight--body--default);
+}
+
+.recentAccordion :global(.pf-v6-c-accordion__expandable-content-body) {
+  padding-inline-end: var(--pf-v6-c-card--child--PaddingInlineEnd);
+  padding-inline-start: var(--pf-v6-c-card--child--PaddingInlineStart);
+}
+
+/* `.co-recent-item__title` / `__title-message` */
+.recentTitle,
+.recentMessage {
+  align-items: center;
+  display: flex;
+  overflow: hidden;
+}
+
+/* `.co-recent-item__title-timestamp` */
+.recentTime {
+  min-width: 60px;
+  padding-right: 0.3rem;
+  text-align: left;
+}
+
+/* `.co-recent-item__icon` */
+.recentIcon {
+  margin-right: var(--pf-t--global--spacer--xs);
+  min-width: 18px;
+}
+
+/* `.co-recent-item__title-message-text` */
+.recentMessageText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* `.co-recent-item__content-message` */
+.recentContentMessage {
+  margin-top: 0.5rem;
+  overflow-wrap: break-word;
+}

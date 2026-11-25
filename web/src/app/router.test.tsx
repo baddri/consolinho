@@ -36,11 +36,11 @@ describe('routes', () => {
     },
   );
 
-  it('keeps overview as an unlisted placeholder', async () => {
+  it('renders the cluster overview dashboard at /c/:cluster/overview', async () => {
     renderApp('/c/dev-1/overview');
 
     expect(await screen.findByRole('heading', { name: 'Overview', level: 1 })).toBeInTheDocument();
-    expect(await routeParams()).toEqual({ cluster: 'dev-1' });
+    expect(await screen.findByText('Cluster inventory')).toBeInTheDocument();
   });
 
   it.each([

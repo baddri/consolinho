@@ -9,6 +9,7 @@ export {
   pageCount,
   INVENTORY_LIMIT,
   k8sGet,
+  k8sGetPath,
   k8sUpdate,
   k8sPatch,
   k8sDelete,

@@ -1,0 +1,17 @@
+/* OCP `.co-m-pane__body-group` (`_common.scss`): the counts sit one gutter above the details grid. */
+.group {
+  padding-block-end: var(--pf-t--global--spacer--gutter--default);
+}
+
+/* OCP `.co-detail-table` (`_detail-table.scss`): a wrapping flex row instead of PatternFly's description-list grid,
+   so all four count cards fit one line; stacked on extra-small screens. */
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 575px) {
+  .counts {
+    flex-direction: column;
+  }
+}

@@ -1,7 +1,7 @@
 ---
 id: T-0336
 title: Cluster overview dashboard — Details, Status, Inventory, Activity cards (moves features/home)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5b
 depends_on: [T-0335]
@@ -65,14 +65,49 @@ Utilization card. The Status card uses the **shared** health rules (T-0330), the
   `packages/console-app/src/components/dashboards-page/OperatorStatus.tsx`.
 
 ## Acceptance criteria
-- [ ] OVW-1: grid with four cards at `/c/<cluster>/overview`; Home > Overview first nav item.
-- [ ] OVW-2/3: `dev-2` Status card Degraded (operator popover lists the degraded one); `staging-eu-1` Updating + Ongoing activity; `prod-eu-1` update alert; `prod-k8s-1` Kubernetes version, no Operators item.
-- [ ] OVW-4: counts with "+" when only `continue` is returned (MSW test with a small limit); one request per count.
-- [ ] OVW-6: a forbidden ClusterOperators read (`prod-us-1` RO persona) leaves the other cards intact.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] OVW-1: grid with four cards at `/c/<cluster>/overview`; Home > Overview first nav item.
+- [x] OVW-2/3: `dev-2` Status card Degraded (operator popover lists the degraded one); `staging-eu-1` Updating + Ongoing activity; `prod-eu-1` update alert; `prod-k8s-1` Kubernetes version, no Operators item.
+- [x] OVW-4: counts with "+" when only `continue` is returned (MSW test with a small limit); one request per count.
+- [x] OVW-6: a forbidden ClusterOperators read (`prod-us-1` RO persona) leaves the other cards intact.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: started; OCP dashboard cards (Details, Status, Inventory, Activity) researched.
+- 2026-11-25 frontend-engineer: `resources/overview/` (4 cards, `useResourceCount`, lazy route); `features/home` removed;
+  overview.test.tsx covers OVW-1..6; ui-probe vs OCP `/dashboards` at 1280/1600 clean except content-driven sizes.
+- 2026-11-25 frontend-engineer: round 1 fixes: status icons wrapped in PF `Icon status` (the warning colour was probed in both themes), a
+  "Cluster" `PageTabs` row, and a "View all events" footer link behind a Divider. Deviation: no fetch of 51; the stream already holds
+  up to 500 events, so the link shows when `shown.length > 50`. The scoped gate is green (44 tests).
 
 ## Review
+- Round 1 (frontend-architect, 2026-11-25): **CHANGES_REQUESTED**. Overview and router tests pass (43/43) and lint/typecheck are
+  ok. The container query is idiomatic: it sets PF Grid's own `GridColumnEnd`/`Order` custom properties inside
+  `@container`, since PF has no container breakpoints. No N+1: about seven fixed `limit`ed count requests, no
+  pagination, no watch. Decisions accepted: OCP Pause/Resume link and copy, Restricted/Not available wording, counts
+  within the page, the key factory staying in `overview/`, and the `k8sGetPath` export.
+  - overview/InventoryCard.tsx:67 and overview/ActivityCard.tsx:44 — `pf-v6-u-danger-color-100` / `pf-v6-u-warning-color-100` don't exist in PF6 (0 hits in `@patternfly/patternfly`), so the icons render uncoloured — wrap them in PF `<Icon status="danger|warning" isInline>` (as `ClusterUpdateStatus` does) and assert nothing visual beyond that.
+  - Optional: ClusterOverviewPage.tsx:15 — over-long doc line; wrap it.
+- Round 1 (ux-designer, 2026-11-25): **CHANGES_REQUESTED**. Probed alice/prod-eu-1 against `:9000/dashboards` at 1280 and 1600: grid
+  matches (1280: one column Status, Details, Inventory, Activity; 1600: 292/599/292 at x 346/654/1269), card titles 16px/600, no header padding/border drift; Details rows/"View settings", update Alert, Pause link and "Restricted" accepted.
+  - Overview page — no tab row under the "Overview" h1; OCP always renders a single "Cluster" tab (PF Tabs `pf-m-page-insets`, 45px; cards start y=249 vs ours 204) — `public/components/dashboard/dashboards-page/dashboards.tsx` L98 `<HorizontalNav pages={allPages} noStatusBox />` — render the shared horizontal-nav tabs with one "Cluster" tab.
+  - Activity card — "View events" header action; OCP's CardHeader has only the title, and "View all events" (→ all-namespaces Events) is a `<Divider/><CardFooter>` link shown only when more than 50 events exist — `cluster-dashboard/activity-card.tsx` L39-55, L181 — drop the header action, add the conditional footer link (fetch limit 51 to know).
+  - Inventory/Activity status icons uncoloured — already listed by frontend-architect (PF `<Icon status>`); verify both themes after the fix.
+- Round 2 (ux-designer, 2026-11-25): **APPROVE**. Probe vs `:9000/dashboards`: "Cluster" tab row `pf-m-page-insets` 45px at y=188 and first card at y=249, identical to OCP; Activity header has no actions; footer "View all events" after a `pf-v6-c-divider` only above 50 events (code L136-143 + OVW-5 test; mocks have fewer, so not rendered live, same as OCP); dark-theme warning icon `pf-m-warning` rgb(255,204,23), success/info coloured too.
+- Round 2 (frontend-architect, 2026-11-25): **APPROVE**. The icons use PF `<Icon status isInline>` (InventoryCard:76, ActivityCard:55). The
+  deviation is accepted: `stream.shown.length > 50` reuses the existing stream (up to 500), so no extra request.
 
 ## Handover notes
+- Outside `paths`: `shared/k8s/index.ts` now exports `k8sGetPath` (Kubernetes `GET /version`); `app/router.test.tsx`
+  "unlisted placeholder" test renamed and asserts the dashboard (the placeholder's param dump is gone).
+- Layout: OCP's `DashboardGrid` switches on the dashboard width (> 992px), not the viewport, so this uses a CSS
+  container query on the PageSection; at 1280 with the sidebar open both are one column, Status first.
+- Count key factory `resourceCountQueryKey` lives in `overview/` (adds `labelSelector` for the CSV count,
+  `!olm.copiedFrom`); move to `shared/k8s` if another feature needs counts.
+- Status "Cluster" item uses the shared `clusterHealth` status: healthy = bare check, Updating, Degraded,
+  `restricted` shown as "Restricted" (fleet word), unreachable/token = "Not available".
+- Decision (OCP over task wording): Pause/Resume is OCP's inline link button with pause/play icons, not `TogglePlay`;
+  ongoing text is OCP's "Updating cluster to <v>" + "Started <time>".
+- Inventory: Nodes Not Ready and PVC Pending are counted within the one limited page; Pods Failed/Pending are two
+  extra fieldSelector counts. Recent events capped at 50; "View events" header link → all-namespaces Events.
+- OVW-6 test refreshes ines' expired prod-us-1 view credential in mockDb (the fixture one 502s every read).
+- `clusterFixtures.ts` needed no change (scenarios already present).
