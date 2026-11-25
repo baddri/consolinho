@@ -18,7 +18,7 @@ export interface BadgedNameProps {
 /**
  * OCP `ResourceLink` layout (`co-resource-item`) without the routing: kind badge (its own 4px right margin) and name
  * on one line, baseline-aligned, the name wrapping only when its column is too narrow and allows it. As OCP, the name
- * element (the link) is a direct flex child, so it is blockified to a full 21px line box under PF's dashed underline;
+ * element (the link) is a direct flex child, so it is blockified to a full 21px line box under the link's hover underline;
  * plain text gets a `span`. Used for links whose target isn't the object's details page (namespace column) and for
  * kinds the registry doesn't know (owner `ReplicaSet`).
  */

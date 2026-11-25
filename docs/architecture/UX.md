@@ -21,6 +21,8 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
 - PatternFly 6 components and `--pf-t--global--*` tokens first. Where OCP itself uses custom SCSS (masthead, nav, resource
   badges, `co-*` classes), reproduce OCP's values in a colocated CSS module, and give each rule a comment with the
   OCP `*.scss` path it mirrors. Never hard-code colours that OCP takes from tokens.
+- Links: no underline at rest, solid underline on hover (released OCP; `app/global.css` overrides PF's dashed link
+  tokens, T-0374). Dashed underline is reserved for details field-help terms. High contrast keeps PF's defaults.
 - Both themes (light, dark) and widths 1280 and 1920 must look right. No horizontal page scroll at 1280.
 - Every page renders loading (Skeleton), error (ErrorState + Retry) and empty (EmptyState) explicitly.
 - Theme classes on `<html>` like OCP (`public/index.html` inline script): `pf-v6-theme-dark` per colour scheme, and

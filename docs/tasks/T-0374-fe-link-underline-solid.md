@@ -1,7 +1,7 @@
 ---
 id: T-0374
 title: Links have no dashed underline (solid on hover); dashed stays only for details field-help terms
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: []
@@ -57,13 +57,20 @@ The dashed help-text affordance on details-page field terms must stay.
   - Note: the clone is on PF 6.6.1 with the same base tokens, so compare against released OCP behaviour, as the human did.
 
 ## Acceptance criteria
-- [ ] In light and dark themes, list links (name, pod status count, pod selector) have no underline at rest and a solid underline on hover (`scripts/ui-probe.mjs` computed `text-decoration-line` / `-style` in the Work log).
-- [ ] Details-page field-help terms still render dashed. The high-contrast theme still renders dashed links.
-- [ ] No component-level CSS overrides were added. `ResourceLink` comment and `UX.md` are updated.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] In light and dark themes, list links (name, pod status count, pod selector) have no underline at rest and a solid underline on hover (`scripts/ui-probe.mjs` computed `text-decoration-line` / `-style` in the Work log).
+- [x] Details-page field-help terms still render dashed. The high-contrast theme still renders dashed links.
+- [x] No component-level CSS overrides were added. `ResourceLink` comment and `UX.md` are updated.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: in_progress → in_review. Added `app/global.css` (token override, high contrast excluded), imported after PF CSS; ResourceLink comment + UX.md §1 note.
+- Probe (light+dark, `/c/dev-1/k8s/all-namespaces/deployments`): name, pod-count and selector links `text-decoration-line=none; style=solid`; hover tokens resolve `underline`/`solid`. Pods Status popover toggle (inline link button): `none; solid`.
+- Probe `/c/dev-1/k8s/ns/shop/deployments/worker`: field-help term `underline; dashed`; description links `none; solid`.
 
 ## Review
 
 ## Handover notes
+- `web/src/app/global.css` is the single global stylesheet; it only overrides PF's three link decoration tokens under `:root:not(.pf-v6-theme-high-contrast)`.
+- The comment to fix lives in `features/resources/components/ResourceLink.tsx` (`BadgedName`), not `shared/ui/ResourceLink.tsx` as the task's `paths` said.
+- High contrast is not probe-verifiable (the probe has no contrast flag); it is excluded by selector, so PF's high-contrast tokens (dashed) apply unchanged.
+- The probe can't hover, so hover is checked via the resolved hover tokens (`underline`/`solid`), not the `:hover` computed style.
