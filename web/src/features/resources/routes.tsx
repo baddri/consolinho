@@ -26,6 +26,12 @@ const editDeploymentPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   HydrateFallback: ResourcePageSkeleton,
 };
 
+/** Home → Overview (OVW-1, OCP `/dashboards`): the cluster dashboard. */
+const overviewPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
+  lazy: () => import('./overview/ClusterOverviewPage').then((m) => ({ Component: m.ClusterOverviewPage })),
+  HydrateFallback: ResourcePageSkeleton,
+};
+
 const searchPage: Pick<RouteObject, 'lazy' | 'HydrateFallback'> = {
   lazy: () => import('./search/SearchPage').then((m) => ({ Component: m.SearchPage })),
   HydrateFallback: ResourcePageSkeleton,
@@ -144,6 +150,7 @@ export const resourceRoutes: RouteObject[] = [
   ...detailsRoutes('k8s/cluster/:plural/:name', 'cluster'),
   clusterSettingsRoute,
   // Home → Search (SRCH-1): `search` picks the last project like `k8s/:plural`.
+  { path: 'overview', ...overviewPage },
   { path: 'search', element: <SearchRedirect /> },
   { path: 'search/ns/:namespace', ...searchPage },
   { path: 'search/all-namespaces', ...searchPage },

@@ -4,7 +4,6 @@ import { adminRoute, legacyAdminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
 import { fleetRoute } from '@/features/fleet';
-import { OverviewPage } from '@/features/home';
 import { preferencesRoute } from '@/features/preferences';
 import { resourceRoutes } from '@/features/resources';
 import { NotFoundPage } from '@/shared/ui';
@@ -33,10 +32,8 @@ export const routes: RouteObject[] = [
             path: 'c/:cluster',
             element: <ClusterGate />,
             children: [
-              // Landing, `k8s/...` lists and details (ADR-0023); page modules are lazy.
+              // Landing, Overview, `k8s/...` lists and details (ADR-0023); page modules are lazy.
               ...resourceRoutes,
-              // Unlisted placeholders until CP5.
-              { path: 'overview', element: <OverviewPage /> },
             ],
           },
           {
