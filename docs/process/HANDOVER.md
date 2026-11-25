@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-25 (CP5.5 started) · **Current checkpoint:** CP5.5 BUILD (5.5a) ·
+**Last updated:** 2026-11-25 (CP5.5 BUILD mid-5.5a) · **Current checkpoint:** CP5.5 BUILD (5.5a) ·
 **Branch:** `cp/5.5-kubernetes-clusters`
 
 ## Where we are
@@ -14,12 +14,16 @@
 - CP5 decisions taken as "recommended" (human said so, 2026-11-25), all for OCP parity: "No Operator Subscription"
   wording, "No owner" as popover, no Nodes item on the Status card, help-text 2nd sentence and "Cannot update /
   CatalogSource not found" omitted. Rows in `docs/architecture/ocp-parity.md`.
-- No task is `in_progress` or `in_review`.
+- CP5.5 done so far: T-0370 (streamed list pages), T-0371 (switcher), T-0373 (YAML preload), T-0374 (solid links),
+  T-0375 (fallbackNamespaces). Combined check-fe 1584/1584.
 
 ## Next actions (resume here)
-1. CP5.5 spec `docs/specs/CP5.5-kubernetes-clusters.md` (5.5a backend+kind+CT, 5.5b K8s UI). Human-requested UI fixes
-   T-0370..T-0374 run in the 5.5a FE lane. In flight: T-0370 (worktree), T-0371 (worktree, Recent = 1 *other* cluster
-   per human), T-0374 (shared tree). Next: T-0373, T-0372; backend-architect designs 5.5a BE tasks (NSA, CT, KIND).
+1. CP5.5 spec `docs/specs/CP5.5-kubernetes-clusters.md` (5.5a backend+kind+CT, 5.5b K8s UI). In flight:
+   5.5b lanes (FE worktrees): T-0381 (→T-0382→T-0383), T-0384, T-0385.
+   Done: T-0376 aa5b50b, T-0372 6aa623f+97647a2, T-0377 879c48d (kind API port 16443), T-0378 274c6b1.
+   Follow-up T-0380 Login lockup (backlog). Next: T-0379 QA kind smoke (needs a free heavy slot), then T-0386, T-0387
+   (PO to confirm NSC-2 disabled-vs-hidden).
+   At ACCEPT tell PO: T-0375 also added fallbackNamespaces to fleet status lines (accepted deviation).
 2. kind v0.33.0 installed to ~/.local/bin (human approved 2026-11-25).
 3. Backlog: T-0367, T-0349, T-0350; CP6 follow-ups T-0107, T-0108, T-0130, T-0134, T-0128.
 
@@ -30,6 +34,10 @@
 - e2e: with Aspire running, `cd web && npm run e2e`.
 
 ## Needs human
+- 2026-11-25 T-0377 testing: kind briefly set a kind context as current in `~/.kube/config`; restored to
+  `default/api-acm-bri-poc-sandbox…:6443/kube:admin` (best guess from shell history), kind entries removed, no real-cluster
+  calls. Confirm with `oc config current-context`. Backup copy (may hold credentials) in the session scratchpad:
+  `kubeconfig.after-kind.bak` — delete it. Script now uses an isolated kubeconfig.
 - Push `main` + tags to a remote? (not done.)
 - About 35 stale agent worktrees under `.claude/worktrees/` (some with uncommitted leftovers) — OK to prune?
 - Leftover podman volume `fleetconsole.apphost-aff1e2f998-postgres-data` — safe to remove.
