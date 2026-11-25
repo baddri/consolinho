@@ -36,8 +36,15 @@ export interface ResourceDataViewOptions {
   descriptor: ResourceDescriptor;
   cluster: string;
   scope: ListScope;
-  /** A namespace, {@link ALL_NAMESPACES}, or `undefined` (cluster-scoped). */
+  /**
+   * A namespace, {@link ALL_NAMESPACES}, or `undefined`: a cluster-scoped kind, or every namespace of a namespaced
+   * kind outside any project scope (a Node's Pods tab), without the column-management namespace hint.
+   */
   namespace: string | undefined;
+  /** `ConsoleDataView` id, which keys the persisted column choices; defaults to the model's plural. */
+  id?: string;
+  /** Field selector sent with the list and its watch (a Node's Pods tab: `spec.nodeName=<node>`); part of the query key. */
+  fieldSelector?: string;
   /**
    * Label selector every listed object must match (`matchExpressions` included), ANDed with the user's `?label=` filter
    * and not shown in it (a workload's Pods tab lists only its pods).
@@ -54,6 +61,8 @@ export interface ResourceDataViewOptions {
 export interface ResourceDataView {
   /** The live list's watch status, for the page heading's paused indicator. */
   liveStatus: LiveStatus;
+  /** The listed objects (after `rowFilter`, before the user's filters); `undefined` while loading. */
+  data: K8sResource[] | undefined;
   /** The `ConsoleDataView` with toolbar, table and every state. */
   dataView: ReactNode;
 }
@@ -84,7 +93,7 @@ function useFilterNodes(descriptor: ResourceDescriptor) {
 /**
  * The shared `ConsoleDataView` of one live list of a kind (list pages and a workload's Pods tab): data from
  * `useK8sList`, filters from the URL (`?name=` client-side, `?label=` sent as `labelSelector` together with the
- * `fixedSelector`, descriptor filters such as `?status=`), the descriptor's columns and row actions (none for a
+ * `fixedSelector`, an optional `fieldSelector`, descriptor filters such as `?status=`), the descriptor's columns and row actions (none for a
  * `readOnly` kind without `useKindActions`).
  */
 export function useResourceDataView({
@@ -92,6 +101,8 @@ export function useResourceDataView({
   cluster,
   scope,
   namespace,
+  id,
+  fieldSelector,
   fixedSelector,
   rowFilter,
 }: ResourceDataViewOptions): ResourceDataView {
@@ -103,6 +114,7 @@ export function useResourceDataView({
   const list = useK8sList<K8sResource>(cluster, model, {
     namespace: namespace === ALL_NAMESPACES ? undefined : namespace,
     labelSelector,
+    fieldSelector,
   });
 
   const rows = useMemo(
@@ -150,9 +162,10 @@ export function useResourceDataView({
 
   return {
     liveStatus: list.liveStatus,
+    data: rows,
     dataView: (
       <ConsoleDataView
-        id={model.plural}
+        id={id ?? model.plural}
         label={model.labelPlural}
         data={rows}
         filteredData={filtered}
@@ -178,7 +191,7 @@ export function useResourceDataView({
         isFiltered={filters.isFiltered}
         getLabels={objectLabels}
         rowActions={hasRowActions ? rowActions : undefined}
-        hasNamespaceHint={model.namespaced}
+        hasNamespaceHint={model.namespaced && namespace !== undefined}
       />
     ),
   };
