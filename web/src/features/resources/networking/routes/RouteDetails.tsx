@@ -1,16 +1,14 @@
-import {
-  Button,
-  DescriptionList,
-  EmptyState,
-  EmptyStateBody,
-  PageSection,
-  Popover,
-  Title,
-} from '@patternfly/react-core';
+import { Button, DescriptionList, PageSection, Popover, Title } from '@patternfly/react-core';
 import { QuestionCircleIcon } from '@patternfly/react-icons';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import { ServiceModel, type K8sResource, type Route, type RouteIngress, type RouteTargetReference } from '@/shared/k8s';
-import { DASH, DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
+import {
+  ServiceModel,
+  type K8sResource,
+  type Route,
+  type RouteIngress,
+  type RouteTargetReference,
+} from '@/shared/k8s';
+import { ConsoleEmptyState, DASH, DetailsItem, DetailsSubsection, Status } from '@/shared/ui';
 import { ConditionsTable } from '../../components/ConditionsTable';
 import { ResourceLink } from '../../components/ResourceLink';
 import { RouteLocation } from './RouteLocation';
@@ -44,9 +42,10 @@ function CustomRouteHelp({ ingress }: { ingress: RouteIngress }) {
       headerContent="Custom route"
       bodyContent={
         <p>
-          To use a custom route, you must update your DNS provider by creating a canonical name (CNAME) record. Your
-          CNAME record should point to your custom domain <strong>{ingress.host}</strong>, to the OpenShift canonical
-          router hostname, <strong>{ingress.routerCanonicalHostname}</strong>, as the alias.
+          To use a custom route, you must update your DNS provider by creating a canonical name (CNAME)
+          record. Your CNAME record should point to your custom domain <strong>{ingress.host}</strong>, to the
+          OpenShift canonical router hostname, <strong>{ingress.routerCanonicalHostname}</strong>, as the
+          alias.
         </p>
       }
     >
@@ -145,7 +144,9 @@ function TrafficSection({ route }: { route: RouteObject }) {
   return (
     <DetailsSubsection title="Traffic">
       {/* OCP `co-m-pane__explanation`. */}
-      <p className="pf-v6-u-text-color-subtle pf-v6-u-mb-lg">This route splits traffic across multiple services.</p>
+      <p className="pf-v6-u-text-color-subtle pf-v6-u-mb-lg">
+        This route splits traffic across multiple services.
+      </p>
       <Table aria-label="Traffic" variant="compact">
         <Thead>
           <Tr>
@@ -200,9 +201,7 @@ function IngressStatusSection({ route, ingress }: { route: Route; ingress: Route
 function NoRouteStatus() {
   return (
     <PageSection hasBodyWrapper={false}>
-      <EmptyState variant="sm" className="pf-v6-u-pt-xl-on-md">
-        <EmptyStateBody>No route status</EmptyStateBody>
-      </EmptyState>
+      <ConsoleEmptyState>No route status</ConsoleEmptyState>
     </PageSection>
   );
 }

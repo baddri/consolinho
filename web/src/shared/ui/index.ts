@@ -14,6 +14,7 @@ export {
   type ConfirmModalProps,
   type InlineLabelTitleProps,
 } from './ConfirmModal';
+export { ConsoleEmptyState, type ConsoleEmptyStateProps } from './ConsoleEmptyState';
 export {
   ConsoleDataView,
   type ConsoleDataViewProps,

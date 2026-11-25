@@ -1,7 +1,7 @@
-import { Bullseye, EmptyState, EmptyStateBody, Spinner } from '@patternfly/react-core';
+import { Bullseye, Spinner } from '@patternfly/react-core';
 import type { ReactNode } from 'react';
 import { EventModel } from '@/shared/k8s';
-import { TogglePlay } from '@/shared/ui';
+import { ConsoleEmptyState, TogglePlay } from '@/shared/ui';
 import { ResourceErrorState } from '../components/ResourceErrorState';
 import { EventCard } from './EventCard';
 import { MAX_EVENTS, type EventFilters } from './eventStream';
@@ -10,15 +10,6 @@ import { useEventStream } from './useEventStream';
 
 /** OCP `NoEvents` text (`events.tsx`). */
 export const NO_EVENTS = 'No events';
-
-/** OCP `ConsoleEmptyState` (`variant sm`, `pf-v6-u-pt-xl-on-md`) as the stream uses it. */
-function StreamEmptyState({ title, children }: { title?: string; children: ReactNode }) {
-  return (
-    <EmptyState variant="sm" className="pf-v6-u-pt-xl-on-md" titleText={title} headingLevel="h2">
-      <EmptyStateBody>{children}</EmptyStateBody>
-    </EmptyState>
-  );
-}
 
 /** Props for {@link EventStreamView}. */
 export interface EventStreamViewProps {
@@ -80,14 +71,14 @@ export function EventStreamView({
     statusText = stream.isActive ? 'Streaming events...' : 'Event stream is paused.';
   }
   if (!stream.isPending && (allCount === 0 || (count === 0 && isResourceStream))) {
-    body = <StreamEmptyState>{NO_EVENTS}</StreamEmptyState>;
+    body = <ConsoleEmptyState headingLevel="h2">{NO_EVENTS}</ConsoleEmptyState>;
   } else if (!stream.isPending && count === 0) {
     body = (
-      <StreamEmptyState title="No matching events">
+      <ConsoleEmptyState title="No matching events" headingLevel="h2">
         {allCount >= MAX_EVENTS
           ? `${MAX_EVENTS}+ events exist, but none match the current filter`
           : `${allCount} ${allCount === 1 ? 'event exists' : 'events exist'}, but none match the current filter`}
-      </StreamEmptyState>
+      </ConsoleEmptyState>
     );
   }
 
@@ -108,7 +99,10 @@ export function EventStreamView({
       {count > 0 && (
         <div role="list" aria-label="Events">
           {stream.shown.map((event, index) => (
-            <div role="listitem" key={event.metadata.uid ?? `${event.metadata.namespace ?? ''}/${event.metadata.name ?? ''}`}>
+            <div
+              role="listitem"
+              key={event.metadata.uid ?? `${event.metadata.namespace ?? ''}/${event.metadata.name ?? ''}`}
+            >
               <EventCard event={event} index={index} />
             </div>
           ))}

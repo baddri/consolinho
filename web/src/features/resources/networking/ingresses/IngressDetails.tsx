@@ -1,9 +1,8 @@
 import { ExternalLinkButton } from '@patternfly/react-component-groups';
-import { EmptyState, EmptyStateBody } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import { Fragment } from 'react';
 import { SecretModel, ServiceModel, type Ingress, type K8sResource } from '@/shared/k8s';
-import { DASH, DetailsItem, DetailsSubsection } from '@/shared/ui';
+import { ConsoleEmptyState, DASH, DetailsItem, DetailsSubsection } from '@/shared/ui';
 import { ResourceLink } from '../../components/ResourceLink';
 import { hostUrl } from '../linkOut';
 import { ingressClass, ingressRuleRows, loadBalancerAddresses, type IngressRuleRow } from './ingressRules';
@@ -82,7 +81,11 @@ function RuleRow({ row, namespace }: { row: IngressRuleRow; namespace: string | 
         {row.pathType ?? DASH}
       </Td>
       <Td dataLabel="Service" visibility={['hidden', 'visibleOnSm']}>
-        {row.serviceName ? <ResourceLink model={ServiceModel} name={row.serviceName} namespace={namespace} /> : DASH}
+        {row.serviceName ? (
+          <ResourceLink model={ServiceModel} name={row.serviceName} namespace={namespace} />
+        ) : (
+          DASH
+        )}
       </Td>
       <Td dataLabel="Service port" visibility={['hidden', 'visibleOnMd']}>
         {row.servicePort ?? DASH}
@@ -98,14 +101,13 @@ function IngressRulesSection({ ingress }: { ingress: IngressObject }) {
     <DetailsSubsection title="Ingress rules">
       {/* OCP `co-m-pane__explanation`. */}
       <p className="pf-v6-u-text-color-subtle pf-v6-u-mb-lg">
-        These rules are handled by a routing layer (Ingress Controller) which is updated as the rules are modified. The
-        Ingress controller implementation defines how headers and other metadata are forwarded or manipulated
+        These rules are handled by a routing layer (Ingress Controller) which is updated as the rules are
+        modified. The Ingress controller implementation defines how headers and other metadata are forwarded
+        or manipulated
       </p>
       {rows.length === 0 ? (
         // networking-plugin `EmptyBox`.
-        <EmptyState variant="sm" className="pf-v6-u-pt-xl-on-md">
-          <EmptyStateBody>No Rules found</EmptyStateBody>
-        </EmptyState>
+        <ConsoleEmptyState>No Rules found</ConsoleEmptyState>
       ) : (
         <Table aria-label="Ingress rules" gridBreakPoint="">
           <Thead>
@@ -152,7 +154,11 @@ function IngressTlsSection({ ingress }: { ingress: IngressObject }) {
                 </Td>
                 <Td dataLabel="Secret name">
                   {tls.secretName ? (
-                    <ResourceLink model={SecretModel} name={tls.secretName} namespace={ingress.metadata.namespace} />
+                    <ResourceLink
+                      model={SecretModel}
+                      name={tls.secretName}
+                      namespace={ingress.metadata.namespace}
+                    />
                   ) : (
                     DASH
                   )}

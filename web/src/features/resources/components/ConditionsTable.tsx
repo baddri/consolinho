@@ -1,5 +1,5 @@
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
-import { Timestamp } from '@/shared/ui';
+import { ConsoleEmptyState, Timestamp } from '@/shared/ui';
 
 /** The fields every Kubernetes status condition has (pod, deployment, replica set…). */
 export interface K8sCondition {
@@ -15,7 +15,7 @@ export interface K8sCondition {
  * Message (≥ sm); "No conditions found" without any.
  */
 export function ConditionsTable({ conditions }: { conditions: readonly K8sCondition[] | undefined }) {
-  if (!conditions?.length) return <>No conditions found</>;
+  if (!conditions?.length) return <ConsoleEmptyState>No conditions found</ConsoleEmptyState>;
   return (
     <Table aria-label="Conditions" gridBreakPoint="">
       <Thead>
