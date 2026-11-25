@@ -223,6 +223,8 @@ interface CsvPlan {
   reason: string;
   message: string;
   allNamespaces: boolean;
+  /** Kinds of the CRDs it owns (group `<package>.example.com`); more than four overflow the list cell. */
+  crds: readonly string[];
 }
 
 const CSVS: readonly CsvPlan[] = [
@@ -234,6 +236,7 @@ const CSVS: readonly CsvPlan[] = [
     reason: 'InstallSucceeded',
     message: 'install strategy completed with no errors',
     allNamespaces: true,
+    crds: ['CertificateSync', 'CertificateMerge', 'TrustBundle', 'CertificateInjection', 'KeystoreExport'],
   },
   {
     name: 'log-forwarder-operator.v5.9.3',
@@ -244,6 +247,7 @@ const CSVS: readonly CsvPlan[] = [
     message:
       'install strategy failed: Deployment.apps "log-forwarder-operator" is invalid: spec.template.spec.containers[0].image: Required value',
     allNamespaces: false,
+    crds: ['LogForwarder'],
   },
   {
     name: 'pipeline-runner-operator.v1.15.0',
@@ -254,13 +258,37 @@ const CSVS: readonly CsvPlan[] = [
     message:
       'installing: waiting for deployment pipeline-runner-operator to become ready: 0 of 1 updated replicas are available',
     allNamespaces: false,
+    crds: ['Pipeline', 'PipelineRun'],
   },
 ];
 
-/** The CSV of `plan` in `namespace`; copies (outside `openshift-operators`) carry `olm.copiedFrom` as OLM writes them. */
-function csvObject(plan: CsvPlan, namespace: string, uid: string): ClusterServiceVersion {
+/**
+ * Markdown description of `plan`, as operator authors write them: headings, a list, a link, and an embedded
+ * `<script>` the details page must not render (raw HTML is skipped).
+ */
+function csvDescription(plan: CsvPlan): string {
+  return [
+    `## About ${plan.displayName}`,
+    '',
+    `**${plan.displayName}** runs on the mock clusters.`,
+    '',
+    '* Watches its custom resources',
+    '* Reconciles them every minute',
+    '',
+    `See the [documentation](https://docs.example.com/${plan.name}) for details.`,
+    '',
+    '<script>alert("not rendered")</script>',
+  ].join('\n');
+}
+
+/**
+ * The CSV of `plan` in `namespace`; copies (outside `openshift-operators`) carry `olm.copiedFrom` as OLM writes them.
+ * OLM's annotations name the operator's namespace, OperatorGroup and target namespaces (empty: all namespaces).
+ */
+function csvObject(plan: CsvPlan, namespace: string, uid: string): K8sResource {
   const copied = namespace !== OPERATORS_NAMESPACE;
-  return {
+  const packageName = plan.name.split('.')[0] ?? plan.name;
+  const base: ClusterServiceVersion = {
     apiVersion: 'operators.coreos.com/v1alpha1',
     kind: 'ClusterServiceVersion',
     metadata: {
@@ -269,13 +297,18 @@ function csvObject(plan: CsvPlan, namespace: string, uid: string): ClusterServic
       uid,
       creationTimestamp: minutesBefore(plan.phase === 'Succeeded' ? 10 * DAY_MINUTES : 15),
       labels: {
-        [`operators.coreos.com/${plan.name.split('.')[0] ?? plan.name}.${OPERATORS_NAMESPACE}`]: '',
+        [`operators.coreos.com/${packageName}.${OPERATORS_NAMESPACE}`]: '',
         ...(copied ? { 'olm.copiedFrom': OPERATORS_NAMESPACE } : {}),
+      },
+      annotations: {
+        'olm.operatorNamespace': OPERATORS_NAMESPACE,
+        'olm.operatorGroup': plan.allNamespaces ? 'global-operators' : `${packageName}-group`,
+        'olm.targetNamespaces': plan.allNamespaces ? '' : OPERATORS_NAMESPACE,
       },
     },
     spec: {
       displayName: plan.displayName,
-      description: `${plan.displayName} for the mock clusters.`,
+      description: csvDescription(plan),
       version: plan.version,
       provider: { name: 'Example Community' },
       icon: [{ base64data: FAKE_ICON, mediatype: 'image/svg+xml' }],
@@ -302,6 +335,32 @@ function csvObject(plan: CsvPlan, namespace: string, uid: string): ClusterServic
       ],
     },
   };
+  // Fields beyond the shared type, as the Installed Operators pages read them.
+  return {
+    ...base,
+    spec: {
+      ...base.spec,
+      links: [{ name: 'Documentation', url: `https://docs.example.com/${plan.name}` }],
+      maintainers: [{ name: 'Example Maintainers', email: 'maintainers@example.com' }],
+      customresourcedefinitions: {
+        owned: plan.crds.map((kind) => ({
+          name: `${kind.toLowerCase()}s.${packageName}.example.com`,
+          version: 'v1',
+          kind,
+          displayName: kind.replace(/([a-z])([A-Z])/g, '$1 $2'),
+          description: `Manages a ${kind}.`,
+        })),
+      },
+      install: {
+        strategy: 'deployment',
+        spec: {
+          deployments: [{ name: packageName }],
+          permissions: [{ serviceAccountName: packageName }],
+        },
+      },
+    },
+    status: { ...base.status, lastUpdateTime: minutesBefore(10) },
+  } as K8sResource;
 }
 
 /**
@@ -367,9 +426,18 @@ function olmObjects(nextUid: () => string): K8sResource[] {
               },
             }
           : {}),
+        catalogHealth: [
+          {
+            catalogSourceRef: { name: 'community-operators', namespace: 'openshift-marketplace' },
+            healthy: true,
+          },
+        ],
+        ...(manual
+          ? { conditions: [condition('InstallPlanPending', 'True', 'RequiresApproval', undefined, 120)] }
+          : {}),
         lastUpdated: minutesBefore(5),
       },
-    };
+    } as Subscription;
   });
   return [...csvs, ...subscriptions, installPlan] as K8sResource[];
 }

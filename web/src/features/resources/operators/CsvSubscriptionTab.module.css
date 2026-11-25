@@ -1,0 +1,13 @@
+/* OCP `_detail-table.scss` `.co-detail-table`: the update cards sit in a wrapping row instead of PF's grid. */
+.updates {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* OCP `.co-detail-table__breakdown`: the installed / installing counts beside the upgrade status. */
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+}

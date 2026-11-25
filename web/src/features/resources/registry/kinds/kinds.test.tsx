@@ -32,7 +32,7 @@ function terms(list: HTMLElement): string[] {
 }
 
 /** The table row whose name link is `name` (the first such link: an HPA's scale target can share the name). */
-async function findRow(table: HTMLElement, name: string): Promise<HTMLElement> {
+async function findRow(table: HTMLElement, name: string | RegExp): Promise<HTMLElement> {
   const [link] = await within(table).findAllByRole('link', { name });
   const row = link?.closest('tr');
   if (!row) throw new Error(`no row for ${name}`);
@@ -423,8 +423,9 @@ describe('CP5b engine (T-0331)', () => {
         { name: 'ClusterServiceVersions' },
         { timeout: COLD_START_TIMEOUT_MS },
       );
-      await findRow(table, 'log-forwarder-operator.v5.9.3');
-      expect(within(table).getAllByRole('link', { name: 'cert-utils-operator.v1.3.12' })).toHaveLength(1);
+      // The name cell links the operator's display name, version and provider (T-0337).
+      await findRow(table, /^Log Forwarder Operator/);
+      expect(within(table).getAllByRole('link', { name: /^Cert Utils Operator/ })).toHaveLength(1);
       expect(selectors).not.toHaveLength(0);
       expect(selectors.every((selector) => selector === '!olm.copiedFrom')).toBe(true);
       unmount();
@@ -432,7 +433,7 @@ describe('CP5b engine (T-0331)', () => {
       selectors.length = 0;
       renderApp('/c/dev-1/k8s/ns/shop/clusterserviceversions');
       const shop = await screen.findByRole('grid', { name: 'ClusterServiceVersions' });
-      await findRow(shop, 'cert-utils-operator.v1.3.12');
+      await findRow(shop, /^Cert Utils Operator/);
       expect(selectors).not.toHaveLength(0);
       expect(selectors.every((selector) => selector === null)).toBe(true);
     },

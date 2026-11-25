@@ -1,0 +1,58 @@
+/* OCP `_catalog.scss` `.co-clusterserviceversion-link` / `-logo` / `-logo__icon` / `-logo__name` and
+   `.co-catalog-item-icon__bg` / `__img--large` (40px icon on a white rounded tile). */
+.link {
+  text-decoration: none;
+}
+
+.link .displayName {
+  text-decoration: underline;
+}
+
+.logo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--pf-t--global--spacer--md);
+}
+
+.icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--pf-t--global--spacer--xs);
+  padding: var(--pf-t--global--spacer--xs);
+  border-radius: var(--pf-t--global--border--radius--small);
+  background: var(--pf-t--color--white);
+  color: var(--pf-t--color--black);
+}
+
+.iconBg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.img {
+  width: 100%;
+  max-width: 40px;
+  max-height: 40px;
+}
+
+.placeholder {
+  font-size: 40px;
+}
+
+.name {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.displayName {
+  margin-bottom: 5px;
+  font-size: 15px;
+  font-weight: var(--pf-t--global--font--weight--heading--default);
+  line-height: var(--pf-t--global--font--line-height--heading);
+}

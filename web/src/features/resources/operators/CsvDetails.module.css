@@ -1,0 +1,14 @@
+/* OCP `CRDCard`: fixed 300px cards in a wrapping row (`Flex gapXl`, `pf-v6-u-mb-md`). */
+.apiCard {
+  width: 300px;
+}
+
+/* OCP `co-clusterserviceversion-details__field`: the sidebar's lists stack with a gap. */
+.sidebarField {
+  padding-bottom: var(--pf-t--global--spacer--lg);
+}
+
+/* OCP `co-break-all` on link and maintainer e-mail texts. */
+.breakAll {
+  word-break: break-all;
+}
