@@ -1,9 +1,11 @@
 import { screen, waitFor, within } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
 import { PRODUCT_NAME } from '@/shared/branding';
 import { setWatchTimingForTests } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { credentialIds, mockDb, setMockUser } from '@/test/handlers';
 import { renderApp } from '@/test/render';
+import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 import { resourceRoutes } from './routes';
 
@@ -37,6 +39,23 @@ describe('cluster landing (UI-2)', () => {
     await waitFor(() => expect(pathOf(router)).toBe('/c/dev-1/k8s/cluster/projects'), {
       timeout: COLD_START_TIMEOUT_MS,
     });
+  });
+
+  it('lands on the baseline Namespaces list when discovery fails, without refetching it in a loop', async () => {
+    let discoveryRequests = 0;
+    const notFound = () => {
+      discoveryRequests += 1;
+      return HttpResponse.json({ kind: 'Status', code: 404 }, { status: 404 });
+    };
+    server.use(
+      http.get('*/api/clusters/:cluster/k8s/api', notFound),
+      http.get('*/api/clusters/:cluster/k8s/apis', notFound),
+    );
+    const { router } = renderApp('/c/dev-1');
+
+    await waitFor(() => expect(pathOf(router)).toBe('/c/dev-1/k8s/cluster/namespaces'));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(discoveryRequests).toBe(2);
   });
 });
 

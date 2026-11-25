@@ -28,13 +28,17 @@ async function fetchServedGroupVersions(cluster: string, signal: AbortSignal): P
 /**
  * Which API group/versions `cluster` serves (DATA-2) — e.g. `project.openshift.io/v1` only on OpenShift. Fetched once
  * per cluster per session (`staleTime: Infinity`). `isServed(model)` answers from the {@link BASELINE_GROUP_VERSIONS}
- * while pending or on error.
+ * while pending or on error; an error is final for the session (no refetch on mount, T-0389).
  */
 export function useK8sDiscovery(cluster: string): { isServed(model: K8sModel): boolean; isPending: boolean } {
   const query = useQuery({
     queryKey: k8sQueryKeys.discovery(cluster),
     queryFn: ({ signal }) => fetchServedGroupVersions(cluster, signal),
     staleTime: Infinity,
+    // A failed discovery has no data, so by default every newly mounted observer would refetch it — and the refetch
+    // puts the query back to pending, which swaps skeletons and mounts more observers: a request loop (T-0389). The
+    // baseline answers on error instead; transient failures are already retried by the client's retry policy.
+    retryOnMount: false,
   });
   const served = query.data ?? BASELINE_GROUP_VERSIONS;
   const isServed = useCallback((model: K8sModel) => served.has(apiVersionOf(model)), [served]);
