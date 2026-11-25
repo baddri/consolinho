@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAccessibleClusters } from '@/features/cluster-context';
 import type { AccessibleCluster, ApiError, FleetClusterStatus } from '@/shared/api';
 import { useFleetStatus, type FleetStatus, type FleetStatusByName } from './useFleetStatus';
@@ -18,6 +18,8 @@ export interface FleetRows extends Omit<FleetStatus, 'byName'> {
   isLoading: boolean;
   /** Error of the cluster list; the stream's error is {@link FleetStatus.error}. */
   clustersError: ApiError | null;
+  /** Reloads the cluster list (the page's retry when it failed). */
+  refetchClusters: () => void;
 }
 
 /**
@@ -53,6 +55,8 @@ export function useFleetRows(): FleetRows {
   const clusters = useAccessibleClusters();
   const { byName, ...status } = useFleetStatus();
   const { isFetching, hasCompleted } = status;
+  const { refetch: refetchClusterList } = clusters;
+  const refetchClusters = useCallback(() => void refetchClusterList(), [refetchClusterList]);
   const rows = useMemo(
     () => joinFleetRows(clusters.data ?? [], byName, { isFetching, hasCompleted }),
     [clusters.data, byName, isFetching, hasCompleted],
@@ -62,5 +66,6 @@ export function useFleetRows(): FleetRows {
     rows,
     isLoading: clusters.isPending && Object.keys(byName).length === 0,
     clustersError: clusters.error,
+    refetchClusters,
   };
 }

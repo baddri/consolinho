@@ -1,5 +1,5 @@
 import { experimental_streamedQuery as streamedQuery, useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ApiError, FleetClusterStatus } from '@/shared/api';
 import { fetchFleetStatus } from './fleetStatus';
 
@@ -110,14 +110,16 @@ export function useFleetStatus(): FleetStatus {
     retry: false,
   });
   const data = query.data ?? EMPTY;
-  const byName = useMemo(() => shownLines(query.data ?? EMPTY), [query.data]);
-  const { refetch } = query;
+  const byName = useMemo(() => shownLines(data), [data]);
+  const { refetch: refetchQuery } = query;
+  // Stable identity, so memoised consumers (the page's heading actions) don't re-render on every line.
+  const refetch = useCallback(() => void refetchQuery(), [refetchQuery]);
   return {
     byName,
     hasCompleted: data.settled,
     isFetching: query.isFetching,
     error: query.error,
-    refetch: () => void refetch(),
+    refetch,
     dataUpdatedAt: query.dataUpdatedAt,
   };
 }

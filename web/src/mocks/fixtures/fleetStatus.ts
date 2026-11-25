@@ -23,12 +23,12 @@ const NEXT_VERSION = '4.18.14';
 const NODE_COUNT = 6;
 const OPERATOR_COUNT = 10;
 
-const nodes = (notReady = 0): FleetNodes => ({
+const nodes = (notReady = 0, unschedulable = 0): FleetNodes => ({
   outcome: 'ok',
   total: NODE_COUNT,
   ready: NODE_COUNT - notReady,
   notReady,
-  unschedulable: 0,
+  unschedulable,
 });
 
 const operators = (
@@ -102,7 +102,11 @@ export const fleetScenarios: Readonly<Record<string, FleetScenario>> = {
       clusterOperators: operators({ progressing: 2 }),
     }),
   },
-  'dev-1': { delayMs: 100, line: openShift({ clusterVersion: clusterVersion({ availableUpdates: 0 }) }) },
+  // worker-2 is cordoned in `mocks/k8s/computeFixtures.ts` (CORDONED): Ready, but unschedulable.
+  'dev-1': {
+    delayMs: 100,
+    line: openShift({ clusterVersion: clusterVersion({ availableUpdates: 0 }), nodes: nodes(0, 1) }),
+  },
   // Declared Kubernetes but serves OpenShift (DIST-5): the `ingress` operator is Degraded and worker-3 NotReady.
   'dev-2': {
     delayMs: 600,
