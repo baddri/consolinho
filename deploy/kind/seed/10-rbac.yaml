@@ -1,0 +1,63 @@
+# ServiceAccounts FleetConsole uses against the kind cluster (T-0377, KIND-2).
+# - fleet-viewer: cluster-wide read (ClusterRole view) plus namespaces get/list/watch, which `view` does not grant.
+# - team-a-editor: `edit` in team-a only; deliberately gets 403 on `list namespaces` (drives namespace fallback, NSF).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fleet-viewer
+  namespace: fleet-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: team-a-editor
+  namespace: fleet-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fleetconsole-fleet-viewer-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: fleet-viewer
+    namespace: fleet-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fleetconsole-namespace-reader
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fleetconsole-fleet-viewer-namespace-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: fleetconsole-namespace-reader
+subjects:
+  - kind: ServiceAccount
+    name: fleet-viewer
+    namespace: fleet-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fleetconsole-team-a-editor-edit
+  namespace: team-a
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: edit
+subjects:
+  - kind: ServiceAccount
+    name: team-a-editor
+    namespace: fleet-system

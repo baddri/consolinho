@@ -97,6 +97,49 @@ curl http://localhost:5180/health                      # Healthy
 curl http://localhost:<web-port>/api/system/info       # {"version":"1.0.0+<sha>","environment":"Development"} via the Vite proxy
 ```
 
+## Local Kubernetes cluster (kind)
+
+A vanilla Kubernetes cluster to develop and smoke-test the **Kubernetes** distribution against (CP5.5, T-0377). It is a
+separate script, not part of `aspire run`: the single kind node costs **~1.5 GB RAM**, so start it only when you need it
+and `down` it afterwards.
+
+Prerequisites: rootless podman (above) and [kind](https://kind.sigs.k8s.io/) **v0.33.0** on your `PATH`
+(e.g. `~/.local/bin/kind`). No host `kubectl` is needed: the script runs kubectl inside the kind node and never reads or
+changes `~/.kube/config` or your current `oc` context.
+
+```bash
+scripts/kind-dev.sh up       # create cluster fleetconsole-dev (node image kindest/node:v1.37.0@sha256:a1ed56cf…) + seed; re-runs are no-ops
+scripts/kind-dev.sh status   # present? node Ready? API URL, pods in team-a
+scripts/kind-dev.sh tokens   # API URL, CA PEM and fresh tokens for fleet-viewer and team-a-editor (stdout only)
+scripts/kind-dev.sh down     # delete the cluster and free the RAM
+```
+
+The seed (`deploy/kind/seed/`) creates namespaces `team-a`, `team-b`, `fleet-system`; in `team-a` a Deployment, Service,
+Ingress, StatefulSet with a PVC, CronJob, ConfigMap, Secret and a `crashloop` Pod (Warning events). ServiceAccounts in
+`fleet-system`: **`fleet-viewer`** (cluster-wide `view` + list namespaces) and **`team-a-editor`** (`edit` in `team-a`
+only — it gets 403 on `list namespaces`, which exercises the namespace fallback).
+
+Register it in FleetConsole:
+1. **Admin › Clusters › Add**: Distribution **Kubernetes**, API URL from `tokens` (`https://127.0.0.1:16443`),
+   TLS **CA bundle** = the printed PEM.
+2. Add two credentials with the two printed tokens. Run the connection test for `team-a-editor` with *inspect
+   namespaces* `team-a` and save them; they become that credential's `fallbackNamespaces`.
+3. Grant the cluster (with one of the credentials) to a user, then pick it in the cluster switcher.
+
+Tokens expire after `KIND_TOKEN_DURATION` (default `24h`, e.g. `KIND_TOKEN_DURATION=168h scripts/kind-dev.sh tokens`);
+rotate by running `tokens` again and updating the credential. The API port changes when the cluster is recreated.
+After a host reboot the node container is stopped but the cluster still exists. `status`/`tokens` then say so, and `up`
+starts the node again; seed, tokens and the API URL survive. The API port is fixed at **16443** (override with
+`KIND_API_PORT=<port> scripts/kind-dev.sh up` when creating; `up` fails with a clear message if the port is taken).
+
+Re-record the discovery fixtures the SPA tests use (`web/src/mocks/k8s/fixtures/kind/`) after bumping the node image:
+
+```bash
+for p in api apis; do podman exec fleetconsole-dev-control-plane kubectl --kubeconfig /etc/kubernetes/admin.conf get --raw "/$p" | python3 -m json.tool --indent 2 > "web/src/mocks/k8s/fixtures/kind/$p.json"; done
+```
+
+If `kind create` fails with cgroup errors, see `docs/dev/TROUBLESHOOTING.md`.
+
 ## Logging in locally (DevOAuth)
 
 In production FleetConsole logs users in with the OpenShift OAuth server of the cluster it runs on
