@@ -40,15 +40,20 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   of the `Nav` is the header switcher, then the `NavExpandable` sections.
   Content follows the perspective like OCP `PerspectiveNav.tsx`: cluster pages show, like OCP "Core platform", Home,
   Favorites (starred pages, `packages/console-app/src/components/favorite/`), then the cluster sections; fleet pages
-  (`/fleet/...`) show only the fleet sections (Fleet administration), never mixed (ADR-0033 §5). Every section starts collapsed, also the one holding the
+  (`/fleet/...`) show only the fleet sections, never mixed (ADR-0033 §5): **Fleet** › **Overview** (`/fleet/overview`)
+  first for every user, like OCP's Administrator "Home › Overview" (`console-app/console-extensions.json` id
+  `dashboards`), then **Fleet administration** for admins only (non-admins never see it; direct URLs show the "You
+  don't have access to Fleet administration" page with the Fleet section only). `/fleet` redirects to `/fleet/overview`. Every section starts collapsed, also the one holding the
   active page (marked current), like OCP `NavSection.tsx` (`useState(false)`).
 - **Cluster switcher = OCP's perspective switcher** (`packages/console-app/src/components/nav/NavHeader.tsx`): a
   full-width `MenuToggle` (`isFullWidth`, an icon, the name as `Title h2 size="md"`) at the top of the sidebar, menu
   opening under it. One line, same height as OCP's toggle (labels inline after the name), no divider under it. Fleet additions: search box, Recent / All clusters groups, environment and Read only labels.
-  Perspective entry (fleet invention, like OCP's perspective menu items): admins get "Fleet management" (`GlobeIcon`)
-  as the first menu entry, in its own list under the search divider with a divider below, never filtered by the
+  Perspective entry (fleet invention, like OCP's perspective menu items): every signed-in user (CP5c FLT-1; admins only
+  before) gets "Fleet management" (`GlobeIcon`) as the first menu entry, also when they have no cluster (the menu then
+  shows it plus "No clusters"), in its own list under the search divider with a divider below, never filtered by the
   search. On fleet pages the toggle shows the globe + "Fleet management" (`Title h2 md`, no labels) and that entry is
-  selected. On other non-cluster pages (Preferences) it shows the cluster the cluster nav links point to.
+  selected, and the masthead and nav header are neutral (§2a OpenShift values) even right after a Kubernetes cluster
+  page. On other non-cluster pages (Preferences) it shows the cluster the cluster nav links point to.
 - Project selector = OCP namespace bar (`public/components/namespace-bar.tsx`): first row of the main area, above the
   page heading, on namespaced list **and** details pages; `Project: <name>` toggle, then a divider. The toggle has no
   hover/pressed background and no border (OCP `NamespaceDropdown.scss` `.co-namespace-dropdown__menu-toggle`).
