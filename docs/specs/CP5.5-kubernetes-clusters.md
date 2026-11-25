@@ -126,7 +126,7 @@ namespace with an OCP-shaped sidebar that only shows what the cluster serves. Sp
 - **NSC-1** Where `project.openshift.io` is not served, the Namespaces list has a "Create Namespace" heading button
   (OCP `namespace.tsx` `CreateNamespaceModal`): Name (required, focused, DNS-1123 validated) and Labels (key=value
   chips). On success, navigate to the new namespace's details. Default network policy is out of scope.
-- **NSC-2** The button is hidden for read-only access and disabled with the SAFE reason when the token is denied
+- **NSC-2** The button is disabled with a reason for read-only access (amended at acceptance; was "hidden") and disabled with the SAFE reason when the token is denied
   (`SelfSubjectAccessReview` create namespaces, as Create Project in CP5a). Mutation guard and audit as for any create.
 
 ### 5.5b.4 Quality gates (QG55B)
@@ -191,3 +191,34 @@ description).
 - (CP5.5 spec) Per-grant namespace list for the selector fallback, independent of the credential's inspect namespaces.
 - (CP5.5 spec) kind cluster as an optional AppHost resource; CI job running `kubernetes.e2e.ts`.
 - (CP5.5 spec) Create Namespace: default network policy option (OCP parity).
+- (CP5.5 accept) T-0390 — Discovery recovers from a transient failure: degraded flag + 30 s poll keeping the last good
+  result (OCP `api-discovery.ts:startAPIDiscovery`); today a discovery error lasts until reload.
+- (CP5.5 accept) T-0380 — Login page shows the mark with the two-line wordmark (brand lockup, T-0372 review follow-up).
+- (CP5.5 accept) Namespace selector fallback: skip the parallel namespace list when a cached SSAR already says "no", so
+  a fallback user sends no 403 on reopen (first open may still send one, NSF-1 deviation).
+- (CP5.5 accept) DSC-2 coverage: extend the gating table test to non-nav OpenShift descriptors (ClusterVersion,
+  ClusterOperator, OLM kinds) so a new ungated cross-link fails a unit test, not only the kind e2e.
+- (CP5.5 accept) Fallback landing: remember the last *page* (not only namespace) per cluster, so a namespaced user
+  returns to e.g. Deployments instead of always Pods.
+
+## Acceptance (product owner, 2026-11-26, HEAD 4f516d2)
+
+**Verdict: ACCEPTED.** All §4 criteria met per the QA traceability in `docs/tasks/T-0391-qa-cp55-verify.md`
+(NSA-1..3, CT-1..3, KIND-1..5, QG55A, NSF-1..5, DSC-1..5, NSC-1/2, QG55B-1..4, §4.3 T-0370..T-0374); gates green
+(BE 2369, FE 1677, e2e 60 + 4 kind-gated skips; kind e2e 4/4 in T-0386; kind smoke in T-0379). No blockers.
+
+Deviation decisions:
+1. NSC-2 disabled-with-reason instead of hidden for read-only — **ACCEPT**: matches our Create Project (CP5a SAFE5-2)
+   and T-0387; "read-only" is a fleet concept the user should see explained. NSC-2 now reads "disabled with the reason".
+2. NSF-3 lands on the Pods list of the fallback namespace — **ACCEPT**: the normal landing (Namespaces list) is exactly
+   what the token can't read; Pods is the first day-2 page and keeps the namespace in the URL (`ClusterLanding.tsx`).
+3. NSF-1 one 403 list may race the SSAR on first open — **ACCEPT**: the 403 is handled as fallback (no error shown),
+   and not blocking the list on the SSAR keeps the selector fast for the common, allowed case (T-0370).
+4. T-0375 fallbackNamespaces also on fleet status lines — **ACCEPT**: same user, same filter, shared
+   `AccessibleClusterDto.From`; one mapping beats two. Amends §4.4 "No other endpoint changes".
+5. Discovery error lasts until reload — **ACCEPT for CP5.5**: T-0389 removed the worse refetch loop; recovery is
+   backlog T-0390 (OCP's 30 s poll). Should be scheduled before kind/K8s clusters are used in production.
+
+Improvement ideas (all `later`, listed in §8): T-0390 discovery recovery; T-0380 login brand lockup; skip the racing
+403 when SSAR is cached; DSC-2 table over non-nav descriptors (QA risk note); remember last page per cluster for
+fallback users.

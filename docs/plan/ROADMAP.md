@@ -121,7 +121,7 @@ on one page.
   group, invalidated from the existing domain events after commit; short TTL backstop; **fail-safe off** for authorization;
   the decrypted token never leaves L1 (Redis holds the encrypted one). Redis in the AppHost and the OpenShift manifests.
 
-## CP5.5 — Kubernetes clusters
+## CP5.5 — Kubernetes clusters — DONE (tags cp-5.5a, cp-5.5b; deployed to consolinho)
 Onboard plain Kubernetes clusters on the CP3.7 prep: namespaces vs Projects (namespace picker fallback from the credential's
 saved namespaces), per-distribution sidebar from discovery, Kubernetes-only kinds where needed, local kind cluster on podman
 for dev and e2e. (CP3.7 ACCEPT) Connection-test summary hides "OpenShift version" and "List cluster operators" on Kubernetes.
@@ -192,3 +192,16 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP5 spec) Create forms: Route, Ingress, NetworkPolicy, StorageClass; "Set as default" StorageClass; VolumeSnapshots.
 - (CP5 spec) Project details Workloads and RoleBindings tabs.
 - (CP5a ACCEPT) Route list "Backend health" column (OCP networking-plugin): derive from Service + Endpoints, no per-row requests.
+- (CP5.5 spec) Kubernetes-only kinds: IngressClasses, EndpointSlices, CustomResourceDefinitions browser.
+- (CP5.5 spec) Per-grant namespace list for the selector fallback, independent of the credential's inspect namespaces.
+- (CP5.5 spec) kind cluster as an optional AppHost resource; CI job running `kubernetes.e2e.ts`.
+- (CP5.5 spec) Create Namespace: default network policy option (OCP parity).
+- (CP5.5 accept) T-0390 — Discovery recovers from a transient failure: degraded flag + 30 s poll keeping the last good
+  result (OCP `api-discovery.ts:startAPIDiscovery`); today a discovery error lasts until reload.
+- (CP5.5 accept) T-0380 — Login page shows the mark with the two-line wordmark (brand lockup, T-0372 review follow-up).
+- (CP5.5 accept) Namespace selector fallback: skip the parallel namespace list when a cached SSAR already says "no", so
+  a fallback user sends no 403 on reopen (first open may still send one, NSF-1 deviation).
+- (CP5.5 accept) DSC-2 coverage: extend the gating table test to non-nav OpenShift descriptors (ClusterVersion,
+  ClusterOperator, OLM kinds) so a new ungated cross-link fails a unit test, not only the kind e2e.
+- (CP5.5 accept) Fallback landing: remember the last *page* (not only namespace) per cluster, so a namespaced user
+  returns to e.g. Deployments instead of always Pods.
