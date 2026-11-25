@@ -41,10 +41,10 @@ async function openAbout(user: UserEvent) {
   return screen.findByRole('dialog', { name: 'Consolinho' });
 }
 
-/** Returns the decorative mark inside the masthead home link, which is named by the product name (T-0360). */
+/** Returns the decorative mark inside the masthead home link, named by the two-line lockup text (T-0372). */
 async function findBrandMark() {
-  const home = await within(await screen.findByRole('banner')).findByRole('link', { name: 'Consolinho' });
-  expect(home).toHaveTextContent('Consolinho');
+  const home = await within(await screen.findByRole('banner')).findByRole('link', { name: 'Consolinho Fleet Console' });
+  expect(home).toHaveTextContent('ConsolinhoFleet Console');
   return within(home).getByRole('presentation');
 }
 
@@ -57,7 +57,7 @@ describe('AppShell', () => {
       const { user } = renderApp('/c/dev-1/overview');
 
       expect(
-        await screen.findByRole('link', { name: 'Consolinho' }, { timeout: COLD_START_TIMEOUT_MS }),
+        await screen.findByRole('link', { name: 'Consolinho Fleet Console' }, { timeout: COLD_START_TIMEOUT_MS }),
       ).toHaveAttribute('href', '/');
       const masthead = screen.getByRole('banner');
       const mastheadButtons = within(masthead)
@@ -192,7 +192,7 @@ describe('AppShell', () => {
   describe('Help › About', () => {
     it('shows the product name, version and environment from the Api', async () => {
       const { user } = renderApp('/c/dev-1/overview');
-      await screen.findByRole('link', { name: 'Consolinho' });
+      await screen.findByRole('link', { name: 'Consolinho Fleet Console' });
 
       const about = await openAbout(user);
       expect(within(about).getByRole('heading', { name: 'Consolinho' })).toBeInTheDocument();
@@ -206,7 +206,7 @@ describe('AppShell', () => {
     it('shows a fallback when version information cannot be loaded', async () => {
       server.use(http.get('*/api/system/info', () => new HttpResponse(null, { status: 503 })));
       const { user } = renderApp('/c/dev-1/overview');
-      await screen.findByRole('link', { name: 'Consolinho' });
+      await screen.findByRole('link', { name: 'Consolinho Fleet Console' });
 
       const about = await openAbout(user);
       expect(await within(about).findByText('Version information unavailable')).toBeInTheDocument();

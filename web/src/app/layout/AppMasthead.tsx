@@ -15,7 +15,7 @@ import {
 import { Link, type LinkProps } from 'react-router';
 import { UserMenu } from '@/features/auth';
 import { useShownCluster } from '@/features/cluster-context';
-import { MARK_SRC, PRODUCT_NAME, useMarkSrc } from '@/shared/branding';
+import { MARK_SRC, PRODUCT_LINE, PRODUCT_NAME, useMarkSrc } from '@/shared/branding';
 import styles from './AppMasthead.module.css';
 import theme from './clusterTheme.module.css';
 import { HelpMenu } from './HelpMenu';
@@ -26,11 +26,11 @@ function HomeLink(props: Omit<LinkProps, 'to'>) {
 }
 
 /**
- * Top bar like OCP's (UX.md §2): sidebar toggle and brand (24px mark plus the name in Red Hat Display, linking home) on
+ * Top bar like OCP's (UX.md §2): sidebar toggle and brand (28px mark plus a two-line "brand over product" lockup in Red Hat Display, linking home, T-0372) on
  * the left, a right-aligned toolbar with the help menu and the user menu (`masthead-toolbar.tsx`). No theme button
  * (colour scheme moves to User preferences) and no context selectors — the cluster switcher sits in the sidebar.
  * On Kubernetes clusters `clusterTheme.module.css` turns it navy (UX.md §2a) and the dark-surface mark is used.
- * Like OCP, the link carries the product name as its accessible name and the brand inside is decorative.
+ * Like OCP, the link carries the full lockup text as its accessible name (label-in-name) and the brand inside is decorative.
  */
 export function AppMasthead() {
   const themeMarkSrc = useMarkSrc();
@@ -43,10 +43,11 @@ export function AppMasthead() {
           <PageToggleButton isHamburgerButton aria-label="Global navigation" />
         </MastheadToggle>
         <MastheadBrand>
-          <MastheadLogo component={HomeLink} className={styles.logo} aria-label={PRODUCT_NAME}>
-            <Brand src={markSrc} alt="" heights={{ default: '24px' }} />
+          <MastheadLogo component={HomeLink} className={styles.logo} aria-label={`${PRODUCT_NAME} ${PRODUCT_LINE}`}>
+            <Brand src={markSrc} alt="" heights={{ default: '28px' }} />
             <span className={styles.wordmark} aria-hidden>
-              {PRODUCT_NAME}
+              <span className={styles.brand}>{PRODUCT_NAME}</span>
+              <span className={styles.product}>{PRODUCT_LINE}</span>
             </span>
           </MastheadLogo>
         </MastheadBrand>

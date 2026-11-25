@@ -1,7 +1,7 @@
 ---
 id: T-0372
 title: Branding — two-part stacked wordmark (brand over product) and an abstract fleet mark
-status: todo
+status: in_review
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: []
@@ -54,13 +54,20 @@ OpenShift artwork, fonts-as-logo or trademarks.
   - `public/imgs/openshift-logo.svg` (119.2×40 lockup: brand line over product line).
 
 ## Acceptance criteria
-- [ ] The masthead shows the new mark (28px) and the two-line "Consolinho / Fleet Console" lockup, about 40px tall, vertically centred. Probe numbers for light, dark and the Kubernetes theme are in the Work log.
-- [ ] The accessible name of the home link is "Consolinho Fleet Console". The mark image is decorative. Tests are updated.
-- [ ] Favicon, About and Login use the new mark in light and dark. No OpenShift or Red Hat artwork or wordmark is used.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] The masthead shows the new mark (28px) and the two-line "Consolinho / Fleet Console" lockup, about 40px tall, vertically centred. Probe numbers for light, dark and the Kubernetes theme are in the Work log.
+- [x] The accessible name of the home link is "Consolinho Fleet Console". The mark image is decorative. Tests are updated.
+- [x] Favicon, About and Login use the new mark in light and dark. No OpenShift or Red Hat artwork or wordmark is used.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 frontend-engineer: in_progress → in_review. New fleet mark (hub + 3 satellites + broken ring) in both mark SVGs and favicon; `PRODUCT_LINE`; two-line `.brand`/`.product` lockup; aria-label "Consolinho Fleet Console"; tests updated.
+- Probe (mock :5372, 1280w), identical in OCP light/dark and Kubernetes light/dark: masthead 73px; link 149×40 at y16; mark 28×28 at y22; wordmark 113×32 at y20 (brand 12px, product 18px/19.8px); all centred on y36. Colours: #151515 (OCP light), #fff (OCP dark, Kubernetes both); Kubernetes uses the dark mark.
 
 ## Review
 
 ## Handover notes
+- Brand line uses the token `--pf-t--global--font--weight--body--bold`, which computes to **600** in PF6 (the spec text said 700). I kept the token, not a raw 700.
+- The wordmark is 32px of text inside the 40px logo box. The box keeps OCP's 40px, so the masthead stays at 73px.
+- Ring arcs leave gaps of about ±22° around each satellite (r=9, stroke 1.5, round caps). At 16px the hub is about 5px wide, the dots about 2.7px and the ring 1px; I judged this from the geometry, not a 16px render. The masthead render at 28px is clear. `xmllint` validates all three SVGs.
+- About and Login pick up the mark through `useMarkSrc()`; their code is unchanged. `LoginPage.test` still passes (its img name is PRODUCT_NAME).
+- Screenshot (scratchpad, not committed): ocp-light.png.

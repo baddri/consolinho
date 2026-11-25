@@ -1,7 +1,7 @@
 /*
- * Brand lockup (T-0360): the 24px mark and the product name side by side. OCP's `public/style/_overrides.scss`
+ * Brand lockup (T-0372): the 28px mark and the two-line wordmark side by side. OCP's `public/style/_overrides.scss`
  * raises `.pf-v6-c-masthead__logo` max-height to 60px and drops PF's fixed width for its 40px image logo; we keep
- * the auto width (the lockup is wider than PF's default box) but not the 60px, since our brand is only 24px high.
+ * the auto width (the lockup is wider than PF's default box) but not the 60px, since our mark is only 28px high.
  * The box keeps OCP's 40px logo height, so the masthead stays as high as OCP's (73px; PF's 2.375rem box gives 70px).
  */
 .logo {
@@ -17,17 +17,31 @@
   text-decoration: none;
 }
 
-/* The name as real type: Red Hat Display, the face of OCP's masthead wordmark (PF's heading family). */
+/*
+ * Two-line lockup (T-0372), the structure of OCP's 40px `openshift-logo.svg`: a small bold brand line over a larger
+ * regular product line, set as real type in Red Hat Display (PF's heading family).
+ */
 .wordmark {
+  display: inline-flex;
+  flex-direction: column;
   font-family: var(--pf-t--global--font--family--heading);
-  font-size: var(--pf-t--global--font--size--heading--h3);
-  font-weight: 500; /* medium: PF has no 500 token (its heading default is 600) */
-  line-height: 1;
   letter-spacing: normal;
   white-space: nowrap;
 }
 
-/* The Kubernetes masthead is a fixed navy surface in both themes (UX.md §2a): use its text colour. */
+.brand {
+  font-size: var(--pf-t--global--font--size--xs);
+  font-weight: var(--pf-t--global--font--weight--body--bold);
+  line-height: 1;
+}
+
+.product {
+  font-size: var(--pf-t--global--font--size--lg);
+  font-weight: var(--pf-t--global--font--weight--body--default);
+  line-height: 1.1;
+}
+
+/* The Kubernetes masthead is a fixed navy surface in both themes (UX.md §2a): use its text colour on both lines. */
 :global([data-cluster-type='kubernetes']) .wordmark {
   color: var(--fc-k8s--text);
 }
