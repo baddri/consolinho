@@ -2,38 +2,33 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-26 (CP5.5 VERIFY) · **Current checkpoint:** CP5.5 BUILD (5.5a) ·
-**Branch:** `cp/5.5-kubernetes-clusters`
+**Last updated:** 2026-11-26 (CP5.5 CLOSED, deploy pending) · **Current checkpoint:** CP5.5 CLOSE → next CP6 ·
+**Branch:** `main` (merged 28a6fe8; `cp/5.5-kubernetes-clusters` kept)
 
 ## Where we are
-- CP0–CP5 DONE. Tags: cp-0 … cp-3.7, cp-4a/b/c, **cp-5a, cp-5b, cp-5c**. Nothing pushed (pushing needs the human).
-- CP5 (networking, storage, compute, operators, fleet overview): spec `docs/specs/CP5-networking-storage-compute.md`
-  (§5a.12, §5b, §5c acceptance), API contract `docs/specs/CP5-api-contract.md`, ADR-0041. Final gate in a clean
-  worktree: check-fe 1571/1571, e2e 60/60, check-be green (QA).
-- Deployed: cp-5b (includes everything) to `consolinho` on the current `oc` login, 3/3 pods ready. The new enterprise logo (T-0360) shipped with cp-5a.
-- CP5 decisions taken as "recommended" (human said so, 2026-11-25), all for OCP parity: "No Operator Subscription"
-  wording, "No owner" as popover, no Nodes item on the Status card, help-text 2nd sentence and "Cannot update /
-  CatalogSource not found" omitted. Rows in `docs/architecture/ocp-parity.md`.
-- CP5.5 done so far: T-0370 (streamed list pages), T-0371 (switcher), T-0373 (YAML preload), T-0374 (solid links),
-  T-0375 (fallbackNamespaces). Combined check-fe 1584/1584.
+- CP0–CP5.5 DONE. Tags: cp-0 … cp-3.7, cp-4a/b/c, cp-4.5a/b, cp-5a/b/c, **cp-5.5a, cp-5.5b** (both on merge 28a6fe8).
+  Nothing pushed (pushing needs the human).
+- CP5.5 (Kubernetes clusters): spec `docs/specs/CP5.5-kubernetes-clusters.md` §Acceptance = ACCEPTED (all 5 deviations
+  accepted). VERIFY T-0391: check-be 2369, check-fe 1677, e2e 60 (+4 kind skipped), kind e2e 4/4 (`E2E_KIND=1`), kind smoke green.
+- Human UI fixes T-0370..T-0374 shipped in CP5.5. Local kind: `scripts/kind-dev.sh` (isolated kubeconfig, API :16443).
+- Deployed on consolinho: still cp-5b. **cp-5.5 deploy blocked: `oc` login expired.**
 
 ## Next actions (resume here)
-1. CP5.5 spec `docs/specs/CP5.5-kubernetes-clusters.md` (5.5a backend+kind+CT, 5.5b K8s UI). In flight:
-   5.5b build lanes done; T-0379 done (kind smoke all green). T-0386 done aa51090 (kind e2e 4/4, E2E_KIND=1). T-0389 done 1135049 (discovery refetch loop; check-fe 1676). Next: VERIFY (qa-engineer: check-be, check-fe, default e2e, all spec ACs), then ACCEPT, CLOSE. Follow-up T-0390 (discovery recovery, backlog).
-   Done: T-0376 aa5b50b, T-0372 6aa623f+97647a2, T-0377 879c48d (kind API port 16443), T-0378 274c6b1, T-0385 367df0b, T-0384 9a66c11, T-0381 c954355, T-0382 b5a79bf+b4ea1ed, T-0383 a80475c, T-0387 ux APPROVE 4c1fc3c, T-0388 c990cb5 (check-fe 1675). PO to confirm NSC-2 = disabled-with-reason (ux recommends; spec says hidden).
-   Follow-up T-0380 Login lockup (backlog).
-   At ACCEPT tell PO (accepted deviations): T-0375 fallbackNamespaces on fleet status lines; NSC-2 disabled-with-reason
-   (spec: hidden); NSF-3 landing = Pods list; NSF-1 first open may send one 403 list in parallel with the SSAR.
-2. kind v0.33.0 installed to ~/.local/bin (human approved 2026-11-25).
-3. Backlog: T-0367, T-0349, T-0350; CP6 follow-ups T-0107, T-0108, T-0130, T-0134, T-0128.
+1. When the human has re-logged in (`oc login`): deploy cp-5.5b to consolinho from a clean worktree at the tag
+   (`git worktree add ../cp55-deploy cp-5.5b && cd ../cp55-deploy/web && npm ci && cd .. && scripts/deploy-dev.sh --yes`),
+   then `git worktree remove --force`. Update ROADMAP/HANDOVER "deployed".
+2. CP6 (Hardening, observability & polish): no spec yet → SPEC step (ocp-product-owner). Schedule T-0390 (discovery
+   recovery) before Kubernetes clusters go to production (PO).
+3. Backlog: T-0390, T-0380, T-0367, T-0349, T-0350; CP6 follow-ups T-0107, T-0108, T-0130, T-0134, T-0128.
 
 ## How the human can test (current state)
-- Live: the `consolinho` Route in ns `consolinho` (current `oc` login).
+- Live: the `consolinho` Route in ns `consolinho` (cp-5b until redeploy). Kubernetes: `scripts/kind-dev.sh` + add the kind cluster in admin.
 - Local: `aspire start --launch-profile http && aspire wait web` → login via DevOAuth (admin/alice/bob/ines;
   e2e-user/e2e-admin for e2e); `aspire stop`. Mock UI: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`).
 - e2e: with Aspire running, `cd web && npm run e2e`.
 
 ## Needs human
+- **`oc` login expired** (2026-11-26) — re-login so cp-5.5b can be deployed to consolinho.
 - 2026-11-25 T-0377 testing: kind briefly set a kind context as current in `~/.kube/config`; restored to
   `default/api-acm-bri-poc-sandbox…:6443/kube:admin` (best guess from shell history), kind entries removed, no real-cluster
   calls. Confirm with `oc config current-context`. Backup copy (may hold credentials) in the session scratchpad:
