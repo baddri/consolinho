@@ -20,6 +20,7 @@ export { ChipInputField, type ChipInputFieldProps } from './ChipInputField';
 export { ConflictAlert, type ConflictAlertProps } from './ConflictAlert';
 export { dnsLabel, type DnsLabelOptions } from './dnsLabel';
 export { fieldA11y, fieldIdFor, FieldHelperText, type FieldA11y } from './fieldA11y';
+export { FieldLevelHelp, type FieldLevelHelpProps } from './FieldLevelHelp';
 export { FileUploadField, type FileUploadAccept, type FileUploadFieldProps } from './FileUploadField';
 export { FormProblemAlert, type FormProblemAlertProps } from './FormProblemAlert';
 export { RadioGroupField, type RadioGroupFieldOption, type RadioGroupFieldProps } from './RadioGroupField';

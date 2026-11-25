@@ -143,13 +143,14 @@ export function ExpandPVCModal({ cluster, pvc, onClose }: ExpandPVCModalProps) {
       onClose={onClose}
       elementToFocus={`#${INPUT_ID}`}
       isSaveDisabled={Object.keys(formState.errors).length > 0}
+      intro={
+        // In the body as OCP's `Content` paragraph, not the header description.
+        <Content component="p">
+          Increase the capacity of PVC <strong>{name}.</strong> Note that capacity must be at least the
+          current PVC size. This expansion might take some time to complete.
+        </Content>
+      }
     >
-      {/* In the body as OCP's `Content` paragraph, not the header description. */}
-      {/* `mb-0`: the form's 24px row gap alone separates it from Total size, as OCP's. */}
-      <Content component="p" className="pf-v6-u-mb-0">
-        Increase the capacity of PVC <strong>{name}.</strong> Note that capacity must be at least the current PVC
-        size. This expansion might take some time to complete.
-      </Content>
       <FormGroup label="Total size" isRequired fieldId={INPUT_ID}>
         <InputGroup>
           <InputGroupItem>

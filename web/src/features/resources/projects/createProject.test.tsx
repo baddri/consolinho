@@ -5,7 +5,7 @@ import { mockK8s, setMockUser } from '@/test/handlers';
 import { renderApp, renderWithProviders } from '@/test/render';
 import { resourceRoutes } from '../routes';
 import { CreateProjectButton } from './CreateProjectButton';
-import { PROJECT_NAME_HELP } from './createProjectSchema';
+import { PROJECT_NAME_HELP, PROJECT_NAME_PREFIX_HELP } from './createProjectSchema';
 
 const PROJECTS = '/c/dev-1/k8s/cluster/projects';
 
@@ -19,7 +19,11 @@ beforeEach(() => {
 /** Opens the Create Project modal from the Projects list once the button is enabled. */
 async function openModal() {
   const rendered = renderApp(PROJECTS);
-  const button = await screen.findByRole('button', { name: 'Create Project' }, { timeout: COLD_START_TIMEOUT_MS });
+  const button = await screen.findByRole(
+    'button',
+    { name: 'Create Project' },
+    { timeout: COLD_START_TIMEOUT_MS },
+  );
   await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled', 'true'));
   await rendered.user.click(button);
   const dialog = await screen.findByRole('dialog', { name: 'Create Project' });
@@ -36,7 +40,8 @@ describe('Create Project (T-0309, PRJ-2)', () => {
       expect(dialog).toHaveTextContent(
         'An OpenShift project is an alternative representation of a Kubernetes namespace.',
       );
-      expect(dialog).toHaveTextContent(PROJECT_NAME_HELP);
+      // OCP: the Name rules are in the label's Help popover, not helper text under the field.
+      expect(dialog).not.toHaveTextContent(PROJECT_NAME_HELP);
       await user.type(name, 'team-new');
       await user.type(within(dialog).getByRole('textbox', { name: 'Display name' }), 'Team New');
       await user.type(within(dialog).getByRole('textbox', { name: 'Description' }), 'New team apps');
@@ -55,6 +60,18 @@ describe('Create Project (T-0309, PRJ-2)', () => {
   );
 
   it(
+    "the Name label Help popover shows OCP's two rules",
+    async () => {
+      const { user, dialog } = await openModal();
+      await user.click(within(dialog).getByRole('button', { name: 'Help' }));
+      const help = await screen.findByRole('dialog', { name: 'Help' });
+      expect(help).toHaveTextContent(PROJECT_NAME_HELP);
+      expect(help).toHaveTextContent(PROJECT_NAME_PREFIX_HELP);
+    },
+    COLD_START_TEST_TIMEOUT_MS,
+  );
+
+  it(
     'a taken name (409) shows the server message inline and keeps the modal open',
     async () => {
       const { user, dialog } = await openModal();
@@ -62,7 +79,9 @@ describe('Create Project (T-0309, PRJ-2)', () => {
       await user.click(within(dialog).getByRole('button', { name: 'Create' }));
 
       expect(await within(dialog).findByText('An error occurred')).toBeInTheDocument();
-      expect(within(dialog).getByText('project.project.openshift.io "shop" already exists')).toBeInTheDocument();
+      expect(
+        within(dialog).getByText('project.project.openshift.io "shop" already exists'),
+      ).toBeInTheDocument();
       expect(screen.getByRole('dialog', { name: 'Create Project' })).toBeInTheDocument();
     },
     COLD_START_TEST_TIMEOUT_MS,
