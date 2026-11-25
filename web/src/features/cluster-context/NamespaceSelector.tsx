@@ -238,7 +238,10 @@ export function NamespaceSelector({ cluster, namespace, onSelect }: NamespaceSel
         {isFallbackMode ? (
           <HelperText>
             <HelperTextItem>
-              {`You can't list ${lower}s on this cluster. Showing the ${lower}s configured for your access.`}
+              {/* With none configured the list is empty: point at typing a name instead (T-0388). */}
+              {namespaces.length > 0
+                ? `You can't list ${lower}s on this cluster. Showing the ${lower}s configured for your access.`
+                : `You can't list ${lower}s on this cluster. Enter a ${lower} name.`}
             </HelperTextItem>
           </HelperText>
         ) : (

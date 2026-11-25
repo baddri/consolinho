@@ -1,7 +1,7 @@
 ---
 id: T-0388
 title: Fallback selector footer and empty list when no namespaces are configured (NSF-4 copy)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: [T-0382, T-0383]
@@ -30,11 +30,19 @@ That's wrong, because nothing is shown. Make the copy match what the user sees.
 - No OCP counterpart (fleet invention). Copy style per UX.md §11.
 
 ## Acceptance criteria
-- [ ] Footer text depends on whether any namespaces are configured; a test covers both cases.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] Footer text depends on whether any namespaces are configured; a test covers both cases.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-26 frontend-engineer: footer copy branches on `namespaces.length`; NamespaceSelector.test asserts the empty
+  case's text (and absence of the NSF-1 text), the NSF-1 tests keep the configured case.
 
 ## Review
+- 2026-11-26 frontend-architect, round 1: **APPROVE**
+  - The footer branches on `namespaces.length`, matching the contract, and the test covers both copies.
+  - Edge case accepted: when no namespaces are configured, the URL's namespace can be the only item and the footer
+    still says "Enter a namespace name." That copy stays true, since typing is the only way to reach any other
+    namespace. The "configured" copy would be false there, because that namespace isn't configured. No change needed.
 
 ## Handover notes
+- Only `namespaces` (configured) decides the copy; a selected namespace shown as the only item still gets the "Enter …" text.

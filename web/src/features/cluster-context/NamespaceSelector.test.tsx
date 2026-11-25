@@ -9,6 +9,8 @@ import { server } from '@/test/server';
 import { mockViewportWidth } from '@/test/viewport';
 
 const HELPER = "You can't list namespaces on this cluster. Showing the namespaces configured for your access.";
+/** Footer when no namespaces are configured: nothing is shown, so it points at typing a name (T-0388). */
+const EMPTY_HELPER = "You can't list namespaces on this cluster. Enter a namespace name.";
 
 beforeEach(() => {
   mockViewportWidth(1440);
@@ -143,7 +145,8 @@ describe('namespace selector fallback (NSF-1/2/5)', () => {
     const { user } = renderApp('/c/dev-k8s-ns/k8s/all-namespaces/pods');
 
     const list = await openSelector(user, 'Namespace: All namespaces');
-    expect(await screen.findByText(HELPER)).toBeInTheDocument();
+    expect(await screen.findByText(EMPTY_HELPER)).toBeInTheDocument();
+    expect(screen.queryByText(HELPER)).not.toBeInTheDocument();
     expect(optionNames(list)).toEqual([]);
 
     await user.type(searchBox(), 'team-b');
