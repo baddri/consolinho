@@ -27,9 +27,13 @@ const CHECKS: readonly Omit<CapabilityCheckResult, 'allowed'>[] = [
   { id: 'update-configmaps', label: 'Update config maps', category: 'write' },
 ];
 
-/** Capability checks as a credential with the given headline would see them. */
-function checksFor(level: CapabilityLevel): CapabilityCheckResult[] {
-  return CHECKS.map((check) => ({
+/**
+ * Capability checks as a credential with the given headline would see them. A cluster that serves no OpenShift APIs
+ * gets no `list-clusteroperators` check (CT-1, mirrors the server: checks of unserved API groups are omitted).
+ */
+function checksFor(level: CapabilityLevel, servesOpenShift: boolean): CapabilityCheckResult[] {
+  const served = servesOpenShift ? CHECKS : CHECKS.filter((check) => check.id !== 'list-clusteroperators');
+  return served.map((check) => ({
     ...check,
     allowed:
       level === 'clusterAdmin' ||
@@ -199,7 +203,7 @@ function passedResult(
     },
     detectedDistribution: context.servesOpenShift ? 'openShift' : 'kubernetes',
     openShiftVersion: versionStep.status === 'passed' ? { version: '4.18.12', updateProgressing: false } : null,
-    capabilities: { headline: level, checks: checksFor(level) },
+    capabilities: { headline: level, checks: checksFor(level, context.servesOpenShift) },
     namespaceRules,
     hints: [],
   };

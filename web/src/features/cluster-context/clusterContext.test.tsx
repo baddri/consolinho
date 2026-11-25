@@ -22,6 +22,7 @@ function grantAllClusters() {
       distribution,
       accessMode: 'readWrite',
       webConsoleUrl: null,
+      fallbackNamespaces: [],
     }),
   );
   server.use(http.get('*/api/clusters', () => HttpResponse.json(all)));
@@ -309,6 +310,7 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
             distribution: 'openShift',
             accessMode: 'readWrite',
             webConsoleUrl: null,
+            fallbackNamespaces: [],
           } satisfies AccessibleCluster,
         ]),
       ),
@@ -332,6 +334,7 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
             distribution: 'kubernetes',
             accessMode: 'readWrite',
             webConsoleUrl: null,
+            fallbackNamespaces: [],
           } satisfies AccessibleCluster,
         ]),
       ),
@@ -361,6 +364,7 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
             distribution: 'kubernetes',
             accessMode: 'readOnly',
             webConsoleUrl: null,
+            fallbackNamespaces: [],
           } satisfies AccessibleCluster,
         ]),
       ),

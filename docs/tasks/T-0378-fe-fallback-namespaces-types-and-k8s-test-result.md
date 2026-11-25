@@ -1,7 +1,7 @@
 ---
 id: T-0378
 title: Regenerate API types for fallbackNamespaces (mocks too); hide OpenShift-only facts in Kubernetes connection-test results
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: [T-0375, T-0376]
@@ -57,14 +57,25 @@ Kubernetes (CT-2, CT-3): no OpenShift-only rows when the test **detected** Kuber
   `useFleetStatus.test.tsx`, `GrantsTab.test.tsx`); add `fallbackNamespaces: []` there.
 
 ## Acceptance criteria
-- [ ] `schema.gen.ts` regenerated from the running Api; `AccessibleCluster.fallbackNamespaces: string[]` required.
-- [ ] MSW `/api/clusters` and fleet status return `fallbackNamespaces` from the winning grant's credential.
-- [ ] CT-2: detected Kubernetes hides the OpenShift version fact and step row in both dialogs; mismatch still shows them.
-- [ ] CT-3: test pins that a Kubernetes stored summary shows no OpenShift-only item.
-- [ ] Build, lint and tests green (`scripts/check-fe.sh`)
+- [x] `schema.gen.ts` regenerated from the running Api; `AccessibleCluster.fallbackNamespaces: string[]` required.
+- [x] MSW `/api/clusters` and fleet status return `fallbackNamespaces` from the winning grant's credential.
+- [x] CT-2: detected Kubernetes hides the OpenShift version fact and step row in both dialogs; mismatch still shows them.
+- [x] CT-3: test pins that a Kubernetes stored summary shows no OpenShift-only item.
+- [x] Build, lint and tests green (`scripts/check-fe.sh`)
 
 ## Work log
+- 2026-11-25 frontend-engineer: gen:api against the Api alone (Development, throwaway podman Postgres, port 5899; both
+  stopped) — adds required `AccessibleCluster.fallbackNamespaces` + CT-1 doc on `CapabilitySummary.checks`. MSW:
+  `toAccessibleCluster` takes the winning credential's inspect namespaces (fleet status reuses `accessibleClustersOf`);
+  `checksFor` drops `list-clusteroperators` without OpenShift APIs. CT-2 in `ConnectionTestResultView`. CT-3: the
+  summary has no distribution/OpenShift field, so no other OpenShift-only item exists; pinned by `LastTestLabel.test.tsx`.
 
 ## Review
 
 ## Handover notes
+- `ConnectionTestResultView` hides the "OpenShift version" step + fact only when `detectedDistribution === 'kubernetes'`
+  (`isDetectedKubernetes`); `null`/`openShift` (incl. declared-Kubernetes mismatch) render unchanged. No N/A placeholder.
+- `toAccessibleCluster(cluster, accessMode, fallbackNamespaces)` — new required arg; callers pass the winner's
+  credential `inspectNamespaces` (`clusters.ts:accessibleClustersOf`). CP5.5b NSF can consume `fallbackNamespaces`.
+- Hand-built `AccessibleCluster`s in 4 tests outside `paths` got `fallbackNamespaces: []` (typecheck-only).
+- No visual change on OpenShift; probe not run (pure row omission, no new styles).

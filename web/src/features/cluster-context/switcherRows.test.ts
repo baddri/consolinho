@@ -16,6 +16,7 @@ const cluster = (name: string, environment: AccessibleCluster['environment'] = '
   distribution: 'openShift',
   accessMode: 'readWrite',
   webConsoleUrl: null,
+  fallbackNamespaces: [],
 });
 
 const a = cluster('dev-a');

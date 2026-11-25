@@ -20,6 +20,7 @@ const cluster = (name: string): AccessibleCluster => ({
   distribution: 'kubernetes',
   accessMode: 'readOnly',
   webConsoleUrl: null,
+  fallbackNamespaces: [],
 });
 
 const line = (name: string, checkedAt = '2026-11-25T10:00:00Z'): FleetClusterStatus => ({

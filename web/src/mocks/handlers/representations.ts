@@ -253,8 +253,15 @@ export function toClusterDetail(cluster: MockCluster): ClusterDetail {
   };
 }
 
-/** Switcher entry with the effective access mode `accessMode` (resolved, incl. the user's read-only flag, §6). */
-export function toAccessibleCluster(cluster: MockCluster, accessMode: AccessMode): AccessibleCluster {
+/**
+ * Switcher entry with the effective access mode `accessMode` (resolved, incl. the user's read-only flag, §6) and the
+ * `fallbackNamespaces` of the credential behind the winning grant (NSA-3; `[]` when it has none).
+ */
+export function toAccessibleCluster(
+  cluster: MockCluster,
+  accessMode: AccessMode,
+  fallbackNamespaces: readonly string[],
+): AccessibleCluster {
   return {
     name: cluster.name,
     displayName: cluster.displayName,
@@ -262,6 +269,7 @@ export function toAccessibleCluster(cluster: MockCluster, accessMode: AccessMode
     distribution: cluster.distribution,
     accessMode,
     webConsoleUrl: cluster.webConsoleUrl,
+    fallbackNamespaces: [...fallbackNamespaces],
   };
 }
 

@@ -15,6 +15,7 @@ const cluster = (name: string, overrides: Partial<AccessibleCluster> = {}): Acce
   distribution: (name.includes('k8s') ? 'kubernetes' : 'openShift') satisfies ClusterDistribution,
   accessMode: 'readWrite',
   webConsoleUrl: null,
+  fallbackNamespaces: [],
   ...overrides,
 });
 
