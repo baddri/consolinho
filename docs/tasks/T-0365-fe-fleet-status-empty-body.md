@@ -1,11 +1,11 @@
 ---
 id: T-0365
 title: Fleet overview shows an error for a user with no clusters (empty 200 from /api/fleet/status)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5c
 depends_on: [T-0361]
-paths: [web/src/features/fleet/api/fleetStatus.ts, web/src/features/fleet/api/fleetStatus.test.ts]
+paths: [web/src/features/fleet/api/fleetStatus.ts, web/src/features/fleet/api/useFleetStatus.test.tsx]
 review_rounds: 0
 ---
 
@@ -21,8 +21,18 @@ which throws "Empty response" when `data === undefined`, so the `if (!body) retu
 - Out: Api changes.
 
 ## Acceptance criteria
-1. Empty 200 → the generator yields nothing and doesn't throw; the overview shows its empty state with no danger alert.
-2. Non-2xx still throws an `ApiError` (existing tests stay green).
-3. `scripts/check-fe.sh src/features/fleet` passes.
+1. [x] Empty 200 → the generator yields nothing and doesn't throw; the overview shows its empty state with no danger alert.
+2. [x] Non-2xx still throws an `ApiError` (existing tests stay green).
+3. [x] `scripts/check-fe.sh src/features/fleet` passes.
 
 ## Work log
+- 2026-11-25 frontend-engineer: `fetchFleetStatus` no longer uses `unwrap`; it maps rejections via `apiErrorFromRejection`,
+  non-2xx via `apiErrorFromProblemBody`, and returns early on a 2xx without body. Tests added to the existing
+  `useFleetStatus.test.tsx` (null body + `Content-Length: 0`); 503 test still green. `check-fe.sh src/features/fleet
+  src/shared/api` passes. `fleetStatus.test.ts` not created (existing file was the better home).
+
+## Review
+- Round 1 (frontend-architect, 2026-11-25): **APPROVE**. `fetchFleetStatus` follows `unwrap` step for step (rejection
+  mapping, non-2xx → `apiErrorFromProblemBody`, which keeps `Fleet.Busy`), minus the empty-2xx rejection. The TSDoc says why.
+  The `it.each` (no body, zero-length body) in `useFleetStatus.test.tsx` is the right place. Targeted test is green (7/7).
+  Note: the task file had no Review section; I added it after the Work log.

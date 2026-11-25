@@ -1,4 +1,4 @@
-import { apiClient, apiErrorFromRejection, unwrap, type FleetClusterStatus } from '@/shared/api';
+import { apiClient, apiErrorFromProblemBody, apiErrorFromRejection, type FleetClusterStatus } from '@/shared/api';
 import { ndjsonLines } from '@/shared/k8s/ndjson';
 
 /**
@@ -6,11 +6,15 @@ import { ndjsonLines } from '@/shared/k8s/ndjson';
  * the server flushes it (completion order). A non-2xx answer throws the shared `ApiError` before anything is
  * yielded, so a 503 `Fleet.Busy` keeps its `code`; a read failure mid-stream or a malformed line is an unreadable
  * response (`ApiError`, status 0) — a malformed line is a server bug, not a cluster state. Aborting `signal` cancels
- * the request and with it every probe on the server.
+ * the request and with it every probe on the server. A 2xx without a body (a user with no granted clusters) yields
+ * nothing — which is why this does not use `unwrap`, which rejects an empty 2xx.
  */
 export async function* fetchFleetStatus(signal: AbortSignal): AsyncGenerator<FleetClusterStatus> {
-  const body = await unwrap(apiClient.GET('/api/fleet/status', { parseAs: 'stream', signal }));
-  // A user without access gets 200 with an empty body, which may come without a stream at all.
+  const { data: body, error, response } = await apiClient
+    .GET('/api/fleet/status', { parseAs: 'stream', signal })
+    .catch(apiErrorFromRejection);
+  if (!response.ok) throw apiErrorFromProblemBody(response, error);
+  // A user without clusters gets 200 with an empty body, which may come without a stream at all: zero clusters.
   if (!body) return;
   const reader = body.pipeThrough(new TextDecoderStream()).pipeThrough(ndjsonLines()).getReader();
   try {

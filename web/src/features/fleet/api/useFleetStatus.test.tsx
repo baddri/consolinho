@@ -156,6 +156,18 @@ describe('useFleetStatus against the mock backend', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it.each([
+    ['no body', () => new HttpResponse(null, { status: 200 })],
+    ['a zero-length body', () => new HttpResponse('', { status: 200, headers: { 'Content-Length': '0' } })],
+  ])('treats a 200 with %s as zero clusters, not an error', async (_, respond) => {
+    server.use(http.untyped.get('*/api/fleet/status', respond));
+    const { result } = renderHook(() => useFleetStatus(), { wrapper });
+
+    await waitFor(() => expect(result.current.hasCompleted).toBe(true));
+    expect(result.current.error).toBeNull();
+    expect(result.current.byName).toEqual({});
+  });
+
   it('surfaces 503 Fleet.Busy as an ApiError with that code', async () => {
     globalThis.history.replaceState(null, '', '/fleet/overview?mockFleet=busy');
     const { result } = renderHook(() => useFleetStatus(), { wrapper });
