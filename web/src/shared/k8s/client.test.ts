@@ -6,7 +6,18 @@ import { ApiError } from '@/shared/api';
 import { mockK8s, problem, setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
 import { useCanI } from './access';
-import { k8sDelete, k8sGet, k8sGetPath, k8sListAll, k8sPatch, k8sUpdate, type JsonPatchOp } from './client';
+import {
+  INVENTORY_LIMIT,
+  k8sDelete,
+  k8sGet,
+  k8sGetPath,
+  k8sListAll,
+  k8sListPage,
+  k8sPatch,
+  k8sUpdate,
+  pageCount,
+  type JsonPatchOp,
+} from './client';
 import { useK8sList } from './hooks';
 import { ConfigMapModel, DeploymentModel, NamespaceModel, PodModel } from './models';
 import { k8sQueryKeys } from './queryKeys';
@@ -125,6 +136,54 @@ describe('k8sListAll', () => {
 
     expect(list.items).toHaveLength(300);
     expect(gets).toHaveLength(4);
+  });
+});
+
+describe('k8sListPage and pageCount (OVW-4)', () => {
+  /** Answers every proxy list with two pods and the given list metadata. */
+  function answerPage(metadata: { continue?: string; remainingItemCount?: number }) {
+    server.use(
+      http.get(PROXY, () =>
+        HttpResponse.json({
+          apiVersion: 'v1',
+          kind: 'PodList',
+          metadata: { resourceVersion: '7', ...metadata },
+          items: [{ metadata: { name: 'a' } }, { metadata: { name: 'b' } }],
+        }),
+      ),
+    );
+  }
+
+  it('reads exactly one page with limit and selectors and adds type meta', async () => {
+    answerPage({ continue: 'next', remainingItemCount: 998 });
+    const gets = recordGets();
+
+    const page = await k8sListPage<Pod>('dev-1', PodModel, {
+      namespace: 'shop',
+      labelSelector: 'app=web',
+      limit: INVENTORY_LIMIT,
+    });
+
+    expect(gets).toHaveLength(1);
+    expect(gets[0]?.pathname).toBe('/api/clusters/dev-1/k8s/api/v1/namespaces/shop/pods');
+    expect(gets[0]?.searchParams.get('limit')).toBe('500');
+    expect(gets[0]?.searchParams.get('labelSelector')).toBe('app=web');
+    expect(page.items[0]).toMatchObject({ apiVersion: 'v1', kind: 'Pod' });
+    expect(page).toMatchObject({ continue: 'next', remainingItemCount: 998 });
+  });
+
+  it.each([
+    [
+      'exact with remainingItemCount',
+      { continue: 'next', remainingItemCount: 998 },
+      { count: 1000, exact: true },
+    ],
+    ['a lower bound with only continue', { continue: 'next' }, { count: 2, exact: false }],
+    ['exact without either (last page)', { continue: '' }, { count: 2, exact: true }],
+  ])('counts %s', async (_name, metadata, expected) => {
+    answerPage(metadata);
+    const page = await k8sListPage<Pod>('dev-1', PodModel, { limit: INVENTORY_LIMIT });
+    expect(pageCount(page)).toEqual(expected);
   });
 });
 

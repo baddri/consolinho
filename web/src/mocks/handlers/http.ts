@@ -16,6 +16,15 @@ const ANONYMOUS_PATHS = new Set(['/api/system/info', '/api/auth/logout']);
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
+ * Whether `request` targets the Api (its path **starts** with `/api/`). The catch-all `/api/` wildcard pattern alone also matches
+ * same-origin Vite module requests such as `/src/features/fleet/api/useFleetRows.ts` (T-0361); those must reach the
+ * dev server untouched, so the handlers below fall through for them.
+ */
+export function isApiRequest(request: Request): boolean {
+  return new URL(request.url).pathname.startsWith('/api/');
+}
+
+/**
  * The mock's request pipeline, mirroring the Api's middleware order (contract §1, ADR-0012, ADR-0014): CSRF header
  * on non-GET → 403 `Auth.CsrfHeaderMissing` (before anything else); no session → 401 `Auth.Unauthenticated`;
  * non-admin on `/api/admin/**` → 403 `Auth.Forbidden`; read-only admin on an admin command (any non-GET, including
@@ -25,6 +34,7 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
  * Registered first in `handlers/index.ts`; `server.use(...)` overrides in tests take precedence over it.
  */
 export const accessGuard = http.untyped.all('*/api/*', ({ request }) => {
+  if (!isApiRequest(request)) return undefined;
   const path = new URL(request.url).pathname;
   const isCommand = !SAFE_METHODS.has(request.method.toUpperCase());
 
@@ -56,6 +66,8 @@ export const accessGuard = http.untyped.all('*/api/*', ({ request }) => {
  * a real response).
  */
 export const unhandledApiRoute = http.untyped.all('*/api/*', ({ request }) => {
+  // Not an Api call (e.g. a Vite module under an `api/` folder): fall through so MSW passes it to the network.
+  if (!isApiRequest(request)) return undefined;
   console.error(
     `[mocks] No mock handler for ${request.method} ${new URL(request.url).pathname}. ` +
       'Add one to src/mocks/handlers or override it with server.use(...) in the test.',

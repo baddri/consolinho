@@ -35,7 +35,6 @@ export interface SwitcherSection {
 
 /** Inputs of {@link buildSwitcherSections}; all already resolved by the component's hooks. */
 export interface SwitcherSectionsInput {
-  isAdmin: boolean;
   /** The accessible clusters; `undefined` while loading or after a failed first load. */
   clusters: readonly AccessibleCluster[] | undefined;
   hasError: boolean;
@@ -82,11 +81,11 @@ const clusterRow = (sectionId: SwitcherSection['id'], cluster: AccessibleCluster
 });
 
 /**
- * The switcher menu's sections in render order — Fleet (admins), Recent, All clusters. The single source for both
- * what the menu renders and the keyboard focus order ({@link focusOrder}), so the two can't drift apart (T-0153).
+ * The switcher menu's sections in render order — Fleet (every user, FLT-1), Recent, All clusters. The single source
+ * for both what the menu renders and the keyboard focus order ({@link focusOrder}), so the two can't drift apart (T-0153).
  */
 export function buildSwitcherSections(input: SwitcherSectionsInput): SwitcherSection[] {
-  const { isAdmin, clusters, hasError, recent, shownName, searchText } = input;
+  const { clusters, hasError, recent, shownName, searchText } = input;
   const all = clusters ?? [];
   const needle = searchText.trim().toLowerCase();
   const matches = needle ? all.filter((cluster) => matchesSearch(cluster, needle)) : all;
@@ -96,15 +95,10 @@ export function buildSwitcherSections(input: SwitcherSectionsInput): SwitcherSec
     !needle && recent.length < all.length && recent.some((cluster) => cluster.name !== shownName);
   const showRetry = !clusters && hasError;
 
-  const sections: SwitcherSection[] = [];
   // Independent of the search: the perspective entry stays while filtering clusters (FLEET-1).
-  if (isAdmin) {
-    sections.push({
-      id: 'fleet',
-      ariaLabel: 'Fleet',
-      rows: [{ kind: 'fleet', key: 'fleet:management', itemId: FLEET_ITEM_ID }],
-    });
-  }
+  const sections: SwitcherSection[] = [
+    { id: 'fleet', ariaLabel: 'Fleet', rows: [{ kind: 'fleet', key: 'fleet:management', itemId: FLEET_ITEM_ID }] },
+  ];
   if (showRecent) {
     sections.push({
       id: 'recent',

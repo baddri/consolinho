@@ -7,20 +7,25 @@ import {
   type TextInputProps,
 } from '@patternfly/react-core';
 import { EyeIcon, EyeSlashIcon } from '@patternfly/react-icons';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { useController, type FieldPathByValue, type FieldValues } from 'react-hook-form';
 import { fieldA11y, FieldHelperText } from './fieldA11y';
 import type { FieldBaseProps } from './types';
 
 /** TextInput props the adapter owns (value binding, id, validation state). */
-type OwnedTextInputProps = 'value' | 'onChange' | 'onBlur' | 'name' | 'id' | 'validated' | 'isRequired' | 'label';
+type OwnedTextInputProps =
+  'value' | 'onChange' | 'onBlur' | 'name' | 'id' | 'validated' | 'isRequired' | 'label';
 
 /** Props for {@link TextField}: the common field props plus any other `TextInput` prop (`type`, `placeholder`, …). */
 export type TextFieldProps<
   T extends FieldValues,
   N extends FieldPathByValue<T, string | null | undefined>,
   TTransformed = T,
-> = FieldBaseProps<T, N, TTransformed> & Omit<TextInputProps, OwnedTextInputProps>;
+> = FieldBaseProps<T, N, TTransformed> &
+  Omit<TextInputProps, OwnedTextInputProps> & {
+    /** Help next to the label (PF `FormGroup labelHelp`), e.g. a `FieldLevelHelp` popover as OCP's Name rules. */
+    labelHelp?: ReactElement;
+  };
 
 /**
  * Single-line text input bound to react-hook-form (ADR-0015 §2). `type="password"` (tokens, secrets) adds a
@@ -32,7 +37,16 @@ export function TextField<
   T extends FieldValues,
   N extends FieldPathByValue<T, string | null | undefined>,
   TTransformed = T,
->({ control, name, label, isRequired = false, helperText, type, ...inputProps }: TextFieldProps<T, N, TTransformed>) {
+>({
+  control,
+  name,
+  label,
+  isRequired = false,
+  helperText,
+  labelHelp,
+  type,
+  ...inputProps
+}: TextFieldProps<T, N, TTransformed>) {
   // Destructured so the React compiler lint sees `ref` as the only ref (it treats a whole object passed via `ref` as one).
   const {
     field: { ref, value, onChange, onBlur, name: fieldName, disabled },
@@ -62,7 +76,7 @@ export function TextField<
   );
 
   return (
-    <FormGroup label={label} isRequired={isRequired} fieldId={a11y.fieldId}>
+    <FormGroup label={label} labelHelp={labelHelp} isRequired={isRequired} fieldId={a11y.fieldId}>
       {isPassword ? (
         <InputGroup>
           <InputGroupItem isFill>{input}</InputGroupItem>

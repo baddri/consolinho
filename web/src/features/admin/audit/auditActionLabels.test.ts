@@ -52,6 +52,7 @@ describe('auditEntryLabel (POL-3)', () => {
     ],
     ['status', 'proxy.update', target('batch', 'jobs', 'status'), 'Update Job status'],
     ['Job create', 'proxy.create', target('batch', 'jobs'), 'Create Job'],
+    ['project request (PRJ-2)', 'proxy.create', target('project.openshift.io', 'projectrequests'), 'Create Project'],
     ['Pod delete', 'proxy.delete', target('', 'pods'), 'Delete Pod'],
     ['ConfigMap update', 'proxy.update', target('', 'configmaps'), 'Update ConfigMap'],
     ['Deployment patch (restart)', 'proxy.patch', target('apps', 'deployments'), 'Patch Deployment'],

@@ -1,0 +1,4 @@
+/* OCP `.request-size-input__unit` (`_request-size-input.scss`): space between the size spinner and the unit select. */
+.unit {
+  padding-left: 20px;
+}

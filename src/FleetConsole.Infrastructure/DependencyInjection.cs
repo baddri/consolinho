@@ -8,6 +8,7 @@ using FleetConsole.Infrastructure.Caching;
 using FleetConsole.Infrastructure.Crypto;
 using FleetConsole.Infrastructure.Events;
 using FleetConsole.Infrastructure.Kubernetes;
+using FleetConsole.Infrastructure.Kubernetes.Health;
 using FleetConsole.Infrastructure.Persistence;
 using FleetConsole.Infrastructure.Persistence.Repositories;
 using FleetConsole.Infrastructure.Time;
@@ -140,6 +141,8 @@ public static class DependencyInjection
             RetiredHandlerGracePeriod = ClusterForwardingClientPool.GracePeriodFor(
                 services.GetRequiredService<IOptions<ProxyOptions>>().Value),
         });
+        // The fleet overview reads cluster health through the same pooled invokers as the proxy (ADR-0041 §2).
+        builder.Services.AddSingleton<IClusterHealthReader, ClusterHealthReader>();
 
         builder.AddQueryCache();
 

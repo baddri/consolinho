@@ -21,7 +21,6 @@ import {
 import { ClusterIcon, GlobeIcon } from '@patternfly/react-icons';
 import { Fragment, type KeyboardEvent, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { useCurrentUser } from '@/features/auth';
 import type { AccessibleCluster } from '@/shared/api';
 import { FLEET_PATH, usePerspective } from '@/shared/routing';
 import {
@@ -186,19 +185,19 @@ function ClusterItem({
  * - a "Recent" group from {@link useRecentClusters} above "All clusters" (contract order), hidden while searching,
  *   when empty (SW-8), when it would list every cluster again or only the shown cluster.
  *
- * Like OCP's `NavHeader` it is also the perspective switcher (ADR-0033 §6): admins (read-only admins too) get a
- * "Fleet management" entry first, above a divider and independent of the search, which leads to `/fleet` (FLEET-1/2).
+ * Like OCP's `NavHeader` it is also the perspective switcher (ADR-0033 §6): every user gets a "Fleet management"
+ * entry first (FLT-1), above a divider and independent of the search, which leads to `/fleet` (FLEET-1/2).
  * In the fleet perspective (`/fleet/...`, for everyone) the toggle shows the globe icon and "Fleet management" and
  * that entry is selected; choosing a cluster goes to its root via {@link clusterSwitchPath} (FLEET-5).
  *
- * In the cluster perspective the toggle shows the active cluster (its type icon in PF's `icon` slot); outside a cluster (e.g. Preferences) it shows
- * {@link usePreferredCluster} — the cluster the sidebar links target — and that cluster is marked selected; both via
- * {@link useShownCluster}, which the Kubernetes shell theme follows too (THEME-1), so toggle and theme agree.
+ * In the cluster perspective the toggle shows the active cluster (its type icon in PF's `icon` slot); outside a
+ * cluster (e.g. Preferences) it shows {@link usePreferredCluster} — the cluster the sidebar links target — and that
+ * cluster is marked selected; both via {@link useShownCluster}, which the Kubernetes shell theme follows too (THEME-1), so toggle and theme agree.
  *
- * States (cluster perspective): loading → skeleton in a disabled toggle; error without cached data → "Clusters
- * unavailable — retry" toggle whose click refetches; empty → disabled "No clusters" toggle (SW-4). Admins skip the
- * error and empty toggles ("Select a cluster" instead), so Fleet management stays reachable; in the fleet perspective
- * the toggle never waits for the list. Then the menu says why it lists no clusters and offers a retry row.
+ * States (cluster perspective): loading → skeleton in a disabled toggle. After a failed load or with no grants the
+ * toggle reads "Select a cluster" and still opens, so Fleet management stays reachable for everyone (FLT-1); in the
+ * fleet perspective the toggle never waits for the list. Then the menu says why it lists no clusters ("No clusters")
+ * and offers a retry row; the search box only appears once there are clusters to search.
  */
 export function ClusterSwitcher() {
   const [isOpen, setIsOpen] = useState(false);
@@ -215,7 +214,6 @@ export function ClusterSwitcher() {
   const { data: clusters, error, refetch } = useAccessibleClusters();
   const { recent } = useRecentClusters();
   const isFleet = usePerspective() === 'fleet';
-  const isAdmin = useCurrentUser().data?.role === 'admin';
 
   // "Select a cluster" on the not-available page opens this menu (T-0097).
   useClusterSwitcherOpenRequest(useCallback(() => setIsOpen(true), []));
@@ -227,9 +225,7 @@ export function ClusterSwitcher() {
     return () => clearTimeout(timer);
   }, [isOpen]);
 
-  // Admins and the fleet perspective always get the menu: it holds the way into the fleet area (FLEET-1).
-  const needsClusters = !isFleet && !isAdmin;
-  // First load only: while the menu is open (an admin's retry refetches with `error` reset and `data` still empty,
+  // First load only: while the menu is open (a retry refetches with `error` reset and `data` still empty,
   // TanStack v5 `pending`) the menu stays mounted and its row reads "Loading clusters".
   if (!isFleet && !clusters && !error && !isOpen) {
     // The skeleton's screen-reader text is the toggle's accessible name.
@@ -239,24 +235,10 @@ export function ClusterSwitcher() {
       </MenuToggle>
     );
   }
-  if (needsClusters && !clusters) {
-    return (
-      <MenuToggle isFullWidth status="danger" onClick={() => void refetch()}>
-        Clusters unavailable — retry
-      </MenuToggle>
-    );
-  }
-  if (needsClusters && clusters?.length === 0) {
-    return (
-      <MenuToggle isFullWidth isDisabled icon={<ClusterIcon />}>
-        No clusters
-      </MenuToggle>
-    );
-  }
-
+  // From here on everyone gets the menu: it holds the way into the fleet perspective (FLT-1).
   const needle = searchText.trim().toLowerCase();
+  const hasClusters = (clusters?.length ?? 0) > 0;
   const sections = buildSwitcherSections({
-    isAdmin,
     clusters,
     hasError: error !== null,
     recent,
@@ -362,34 +344,37 @@ export function ClusterSwitcher() {
       }}
       isScrollable
     >
-      <MenuSearch>
-        <MenuSearchInput>
-          <SearchInput
-            ref={searchRef}
-            aria-label="Search clusters"
-            placeholder="Search clusters"
-            value={searchText}
-            onChange={(_event, value) => changeSearch(value)}
-            onClear={() => changeSearch('')}
-            // Combobox semantics go on the <input> itself; SearchInput's top-level aria-* land on its wrapper.
-            inputProps={{
-              role: 'combobox',
-              // The input only exists while the menu is open.
-              'aria-expanded': true,
-              'aria-autocomplete': 'list',
-              'aria-controls': sections.map(listId).join(' '),
-              'aria-activedescendant': focused ? rowId(focused) : undefined,
-            }}
-            // No `onSearch`: it would add a submit ("→") button that OCP's menu search doesn't have. Enter opens the
-            // focused row, else the first match (SW-7); the key event bubbles from the input to the wrapper.
-            onKeyDown={onSearchKeyDown}
+      {/* Nothing to search without clusters (no grants, failed load): the menu holds only Fleet and the status row. */}
+      {hasClusters && (
+        <MenuSearch>
+          <MenuSearchInput>
+            <SearchInput
+              ref={searchRef}
+              aria-label="Search clusters"
+              placeholder="Search clusters"
+              value={searchText}
+              onChange={(_event, value) => changeSearch(value)}
+              onClear={() => changeSearch('')}
+              // Combobox semantics go on the <input> itself; SearchInput's top-level aria-* land on its wrapper.
+              inputProps={{
+                role: 'combobox',
+                // The input only exists while the menu is open.
+                'aria-expanded': true,
+                'aria-autocomplete': 'list',
+                'aria-controls': sections.map(listId).join(' '),
+                'aria-activedescendant': focused ? rowId(focused) : undefined,
+              }}
+              // No `onSearch`: it would add a submit ("→") button that OCP's menu search doesn't have. Enter opens the
+              // focused row, else the first match (SW-7); the key event bubbles from the input to the wrapper.
+              onKeyDown={onSearchKeyDown}
+            />
+          </MenuSearchInput>
+          <NoMatchStatus
+            text={needle && matches.length === 0 ? `No clusters match "${searchText.trim()}"` : undefined}
           />
-        </MenuSearchInput>
-        <NoMatchStatus
-          text={needle && matches.length === 0 ? `No clusters match "${searchText.trim()}"` : undefined}
-        />
-      </MenuSearch>
-      <Divider />
+        </MenuSearch>
+      )}
+      {hasClusters && <Divider />}
       <MenuContent maxMenuHeight="60vh">
         {sections.map((section, index) => (
           <Fragment key={section.id}>
@@ -446,7 +431,9 @@ export function ClusterSwitcher() {
             ) : shown ? (
               <ToggleContent cluster={shown} />
             ) : (
-              'Select a cluster'
+              <Title headingLevel="h2" size="md">
+                Select a cluster
+              </Title>
             )}
           </MenuToggle>
         }

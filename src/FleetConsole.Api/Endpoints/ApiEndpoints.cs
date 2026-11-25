@@ -43,6 +43,7 @@ public static class ApiEndpoints
         api.MapAuthEndpoints();
         api.MapSystemEndpoints();
         api.MapClustersEndpoints();
+        api.MapFleetEndpoints();
         api.MapKubernetesProxy();
         api.MapAdminEndpoints();
 

@@ -4,13 +4,17 @@ import type { K8sModel } from '@/shared/k8s';
 export const ALL_NAMESPACES = 'all';
 
 /**
- * Details tab segments; the Details tab itself has none. `replicasets`, `replicationcontrollers`, `jobs`, `logs` and
- * `terminal` exist only for kinds that opt in (`ResourceDescriptor.extraTabs`, ADR-0037 §2).
+ * Details tab segments; the Details tab itself has none. `replicasets`, `replicationcontrollers`, `machines`,
+ * `subscription`, `related-objects`, `jobs`, `logs` and `terminal` exist only for kinds that opt in
+ * (`ResourceDescriptor.extraTabs`, ADR-0037 §2).
  */
 export type DetailsTab =
   | 'yaml'
   | 'replicasets'
   | 'replicationcontrollers'
+  | 'machines'
+  | 'subscription'
+  | 'related-objects'
   | 'pods'
   | 'jobs'
   | 'logs'
@@ -73,4 +77,18 @@ export function resourcePath(
 function objectSuffix(name: string | undefined, tab: DetailsTab | 'form' | undefined): string {
   if (name === undefined) return '';
   return tab === undefined ? `/${enc(name)}` : `/${enc(name)}/${tab}`;
+}
+
+/** Home → Overview of `cluster` (OCP `/dashboards`, T-0335): `/c/<cluster>/overview`. */
+export function clusterOverviewPath(cluster: string): string {
+  return `/c/${enc(cluster)}/overview`;
+}
+
+/**
+ * Administration → Cluster Settings of `cluster` (OCP `/settings/cluster`, T-0336): `/c/<cluster>/settings/cluster`,
+ * or its ClusterOperators tab.
+ */
+export function clusterSettingsPath(cluster: string, tab?: 'clusteroperators'): string {
+  const path = `/c/${enc(cluster)}/settings/cluster`;
+  return tab === undefined ? path : `${path}/${tab}`;
 }

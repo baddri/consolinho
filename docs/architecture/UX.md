@@ -40,15 +40,20 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   of the `Nav` is the header switcher, then the `NavExpandable` sections.
   Content follows the perspective like OCP `PerspectiveNav.tsx`: cluster pages show, like OCP "Core platform", Home,
   Favorites (starred pages, `packages/console-app/src/components/favorite/`), then the cluster sections; fleet pages
-  (`/fleet/...`) show only the fleet sections (Fleet administration), never mixed (ADR-0033 §5). Every section starts collapsed, also the one holding the
+  (`/fleet/...`) show only the fleet sections, never mixed (ADR-0033 §5): **Fleet** › **Overview** (`/fleet/overview`)
+  first for every user, like OCP's Administrator "Home › Overview" (`console-app/console-extensions.json` id
+  `dashboards`), then **Fleet administration** for admins only (non-admins never see it; direct URLs show the "You
+  don't have access to Fleet administration" page with the Fleet section only). `/fleet` redirects to `/fleet/overview`. Every section starts collapsed, also the one holding the
   active page (marked current), like OCP `NavSection.tsx` (`useState(false)`).
 - **Cluster switcher = OCP's perspective switcher** (`packages/console-app/src/components/nav/NavHeader.tsx`): a
   full-width `MenuToggle` (`isFullWidth`, an icon, the name as `Title h2 size="md"`) at the top of the sidebar, menu
   opening under it. One line, same height as OCP's toggle (labels inline after the name), no divider under it. Fleet additions: search box, Recent / All clusters groups, environment and Read only labels.
-  Perspective entry (fleet invention, like OCP's perspective menu items): admins get "Fleet management" (`GlobeIcon`)
-  as the first menu entry, in its own list under the search divider with a divider below, never filtered by the
+  Perspective entry (fleet invention, like OCP's perspective menu items): every signed-in user (CP5c FLT-1; admins only
+  before) gets "Fleet management" (`GlobeIcon`) as the first menu entry, also when they have no cluster (the menu then
+  shows it plus "No clusters"), in its own list under the search divider with a divider below, never filtered by the
   search. On fleet pages the toggle shows the globe + "Fleet management" (`Title h2 md`, no labels) and that entry is
-  selected. On other non-cluster pages (Preferences) it shows the cluster the cluster nav links point to.
+  selected, and the masthead and nav header are neutral (§2a OpenShift values) even right after a Kubernetes cluster
+  page. On other non-cluster pages (Preferences) it shows the cluster the cluster nav links point to.
 - Project selector = OCP namespace bar (`public/components/namespace-bar.tsx`): first row of the main area, above the
   page heading, on namespaced list **and** details pages; `Project: <name>` toggle, then a divider. The toggle has no
   hover/pressed background and no border (OCP `NamespaceDropdown.scss` `.co-namespace-dropdown__menu-toggle`).
@@ -91,7 +96,7 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   under `.pf-v6-theme-glass` the masthead `background-color`, `border-block-end` and drop shadow are set directly
   (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); the menu toggle's resolved `--BackgroundColor` is
   pinned transparent, so `:hover/:focus` and expanded rules restore it from the hover/expanded variables; the navy
-  masthead uses the dark-theme logo (`LOGO_SRC.dark`); the nav header frame is sm padding cancelled by negative margins
+  masthead uses the dark-surface mark and white wordmark text (`MARK_SRC.dark`, T-0360); the nav header frame is sm padding cancelled by negative margins
   (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
 - Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
   the theme uses no red/orange; the band stays the dominant cue. It is not flush under the masthead: with the glass/felt page it is the first row
@@ -126,6 +131,8 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - `public/components/utils/horizontal-nav.tsx`: `Tabs component="nav" usePageInsets` directly under the heading, tab
   titles left-aligned with the heading text. Tabs are URL segments. No `PageSection` padding around the tab bar.
 - Tab content in a padded `PageSection` (OCP `PaneBody`).
+- Tab set per kind = OCP's for that kind (its `navFactory` pages / plugin `use<Kind>Tabs`); no Events tab where OCP
+  has none (Route, Ingress, NetworkPolicy, PersistentVolume, StorageClass; T-0310).
 
 ## 5. List pages
 - OCP lists are `ConsoleDataView` (`packages/console-app/src/components/data-view/ConsoleDataView.tsx`, PF
@@ -190,6 +197,9 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 ## 9. Modals and wizards
 - `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`. Exactly **one** close control (the header X).
 - Sizes: confirm/delete `small`; short forms `small`/`medium`; wizards `large` (or `medium`).
+- Explanatory paragraphs (fleet cluster-context line, OCP intro text) are `Content p` children of `ModalBody` **before**
+  the `<Form>`, 16px apart (p margin), never inside the Form (24px row gap + margin = 40px). OCP
+  `expand-pvc-modal.tsx` L72-84, `CreateProjectModal.tsx` L121-131 (T-0310, T-0345).
 - Delete confirm (OCP `public/components/modals/delete-modal.tsx`): title "Delete <kind>?" with a warning icon
   (`titleIconVariant="warning"`), body "Are you sure you want to delete **name** in namespace **ns**?", footer danger
   "Delete" + link "Cancel". Type-to-confirm only for fleet-destructive actions (delete cluster).

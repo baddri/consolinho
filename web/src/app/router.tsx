@@ -3,6 +3,7 @@ import { RedirectKeepingQuery } from '@/shared/routing';
 import { adminRoute, legacyAdminRoute } from '@/features/admin';
 import { LoginPage, RequireSession } from '@/features/auth';
 import { ClusterGate, LandingRedirect } from '@/features/cluster-context';
+import { fleetRoute } from '@/features/fleet';
 import { OverviewPage } from '@/features/home';
 import { preferencesRoute } from '@/features/preferences';
 import { resourceRoutes } from '@/features/resources';
@@ -39,11 +40,12 @@ export const routes: RouteObject[] = [
             ],
           },
           {
-            // Fleet perspective (ADR-0033 §1): admin pages are lazy route modules in their own chunks, gated by
-            // RequireAdmin (ADM-3) at `/fleet/admin/*`. CP5's fleet overview slots in as another child.
+            // Fleet perspective (ADR-0033 §1): `/fleet` lands on the overview, open to everyone (FLT-1, Q10); admin
+            // pages are lazy route modules in their own chunks, gated by RequireAdmin (ADM-3) at `/fleet/admin/*`.
             path: 'fleet',
             children: [
-              { index: true, element: <RedirectKeepingQuery to="admin/users" /> },
+              { index: true, element: <RedirectKeepingQuery to="overview" /> },
+              fleetRoute,
               adminRoute,
               { path: '*', element: <NotFoundPage /> },
             ],

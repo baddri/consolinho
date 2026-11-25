@@ -145,6 +145,10 @@ export default defineConfig(({ command, mode }) => {
     // `public/` (pre-paint theme script, favicon) is served in every mode and copied into `dist/`. The MSW worker
     // lives in `msw/` instead and is added only by `serveMswWorker` in mock mode, so it never lands in `dist/`.
     publicDir: 'public',
+    // Vite's dependency scan starts from index.html and doesn't follow `?worker` imports, so `monaco-yaml`'s worker
+    // entry (imported only by `yaml.worker.ts`) was found when the YAML tab first opened. Vite then re-optimized and
+    // reloaded the page, and the reloaded editor had no YAML hover or completion (T-0363). Dev server only.
+    optimizeDeps: { include: ['monaco-yaml/yaml.worker.js'] },
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },

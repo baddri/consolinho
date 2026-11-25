@@ -375,6 +375,13 @@ describe('resource list filters and sorting (UI-3)', () => {
     expect(within(dialog).getByRole('button', { name: 'Restore default columns' })).toBeInTheDocument();
   });
 
+  it('has no Actions column for a read-only kind without kind actions (T-0335)', async () => {
+    renderApp('/c/dev-1/k8s/cluster/clusteroperators');
+    const table = await findTable('ClusterOperators');
+    await within(table).findByRole('link', { name: 'ingress' });
+    expect(columnHeaders(table)).toEqual(['Name', 'Status', 'Version', 'Message']);
+  });
+
   it('has no Namespace column in one namespace', async () => {
     renderApp('/c/dev-1/k8s/ns/shop/pods?label=app%3Dweb');
     const table = await findTable('Pods');

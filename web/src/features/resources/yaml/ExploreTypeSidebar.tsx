@@ -4,8 +4,6 @@ import {
   Button,
   Content,
   ContentVariants,
-  EmptyState,
-  EmptyStateBody,
   Flex,
   FlexItem,
   List,
@@ -20,6 +18,7 @@ import { CloseButton } from '@patternfly/react-component-groups';
 import { css } from '@patternfly/react-styles';
 import { Fragment, useState } from 'react';
 import { resolveSchemaPath, type OpenApiSchema } from '@/shared/k8s';
+import { ConsoleEmptyState } from '@/shared/ui';
 import styles from './ExploreTypeSidebar.module.css';
 
 /** Props for {@link ExploreTypeSidebar}. */
@@ -96,9 +95,7 @@ function ExploreType({ schema, kindLabel, path, onPathChange }: ExploreTypeProps
       <Content>
         {field?.description && <p className={styles.preWrap}>{field.description}</p>}
         {properties.length === 0 ? (
-          <EmptyState variant="sm" className="pf-v6-u-pt-xl-on-md">
-            <EmptyStateBody>No Properties found</EmptyStateBody>
-          </EmptyState>
+          <ConsoleEmptyState>No Properties found</ConsoleEmptyState>
         ) : (
           <List isPlain isBordered>
             {properties.map(([name, ref]) => (

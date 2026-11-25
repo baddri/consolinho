@@ -12,6 +12,9 @@ import type {
 } from '@/shared/k8s';
 import { fingerprintOf } from '../fixtures/ids';
 import { FIXTURE_NOW } from '../fixtures/time';
+import { clusterObjects } from './clusterFixtures';
+import { computeObjects } from './computeFixtures';
+import { networkingStorageObjects } from './networkingStorageFixtures';
 import { workloadObjects } from './workloadFixtures';
 
 /**
@@ -535,5 +538,8 @@ export function seedClusterObjects(cluster: string): K8sResource[] {
     ...shopObjects(cluster, nextUid),
     ...paymentsObjects(cluster, nextUid),
     ...workloadObjects(nextUid, servesProjects(cluster)),
+    ...networkingStorageObjects(cluster, nextUid, servesProjects(cluster)),
+    ...computeObjects(cluster, nextUid, servesProjects(cluster)),
+    ...clusterObjects(cluster, nextUid, servesProjects(cluster)),
   ];
 }

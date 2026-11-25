@@ -1,8 +1,12 @@
 import {
   ConfigMapModel,
   NamespaceModel,
+  PersistentVolumeClaimModel,
   PodModel,
+  ProjectModel,
   type ConfigMap,
+  type PersistentVolumeClaim,
+  type Project,
   type K8sList,
   type K8sResource,
   type SelfSubjectAccessReview,
@@ -187,8 +191,16 @@ describe('mock k8s API server: reads', () => {
     mockDb.grants.push({ ...grant, credentialId: 'lab' } as (typeof mockDb.grants)[number]);
 
     const groups = await groupsOf('lab-1');
-    expect(groups).toEqual(['apps', 'authorization.k8s.io', 'batch', 'autoscaling']);
+    expect(groups).toEqual([
+      'apps',
+      'authorization.k8s.io',
+      'batch',
+      'autoscaling',
+      'networking.k8s.io',
+      'storage.k8s.io',
+    ]);
     expect((await get('lab-1', '/apis/project.openshift.io/v1/projects')).status).toBe(404);
+    expect((await get('lab-1', '/apis/route.openshift.io/v1/namespaces/shop/routes')).status).toBe(404);
     expect((await get('lab-1', '/apis/apps.openshift.io/v1/namespaces/shop/deploymentconfigs')).status).toBe(
       404,
     );
@@ -384,5 +396,64 @@ describe('mock k8s proxy: audit (PAUD-4, CP2 contract §5)', () => {
       details: { statusCode: 403, outcome: 'denied', reason: 'readOnlyGrant' },
     });
     expect(mockDb.audit).toHaveLength(before + 2);
+  });
+});
+
+describe('mock k8s API server: CP5a project requests and PVC resize (T-0300)', () => {
+  const PROJECT_REQUESTS = '/apis/project.openshift.io/v1/projectrequests';
+  const request = { apiVersion: 'project.openshift.io/v1', kind: 'ProjectRequest' };
+
+  it('creates the Project and its Namespace (201), 409 on a taken name', async () => {
+    const created = await send('dev-1', 'POST', PROJECT_REQUESTS, {
+      ...request,
+      metadata: { name: 'team-a' },
+      displayName: 'Team A',
+      description: 'Team A apps',
+    });
+    expect(created.status).toBe(201);
+    expect(await json<Project>(created)).toMatchObject({
+      kind: 'Project',
+      metadata: {
+        name: 'team-a',
+        annotations: {
+          'openshift.io/display-name': 'Team A',
+          'openshift.io/description': 'Team A apps',
+          'openshift.io/requester': 'system:serviceaccount:fleetconsole:fleet-edit',
+        },
+      },
+    });
+    expect(mockK8s.get('dev-1', NamespaceModel, undefined, 'team-a')).toBeDefined();
+    expect(mockK8s.get('dev-1', ProjectModel, undefined, 'team-a')?.metadata.uid).toBe(
+      mockK8s.get('dev-1', NamespaceModel, undefined, 'team-a')?.metadata.uid,
+    );
+
+    const clash = await send('dev-1', 'POST', PROJECT_REQUESTS, { ...request, metadata: { name: 'shop' } });
+    expect(clash.status).toBe(409);
+    expect(await json<Status>(clash)).toMatchObject({ reason: 'AlreadyExists' });
+  });
+
+  it('403s a read-only credential', async () => {
+    setMockUser('pending-paul');
+    const denied = await send('prod-eu-1', 'POST', PROJECT_REQUESTS, { ...request, metadata: { name: 'x' } });
+    expect(denied.status).toBe(403);
+    expect(await json<Status>(denied)).toMatchObject({ reason: 'Forbidden' });
+    expect(mockK8s.get('prod-eu-1', NamespaceModel, undefined, 'x')).toBeUndefined();
+  });
+
+  it('grows status.capacity after a PVC request patch, never shrinks it', async () => {
+    const patchStorage = (storage: string) =>
+      fetch(proxyUrl('dev-1', `${SHOP}/persistentvolumeclaims/db-data`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json-patch+json', 'X-Console-Request': '1' },
+        body: JSON.stringify([{ op: 'replace', path: '/spec/resources/requests/storage', value: storage }]),
+      });
+    const capacity = () =>
+      (mockK8s.get('dev-1', PersistentVolumeClaimModel, 'shop', 'db-data') as PersistentVolumeClaim | undefined)
+        ?.status?.capacity?.storage;
+
+    expect((await patchStorage('20Gi')).status).toBe(200);
+    expect(capacity()).toBe('20Gi');
+    expect((await patchStorage('5Gi')).status).toBe(200);
+    expect(capacity()).toBe('20Gi');
   });
 });

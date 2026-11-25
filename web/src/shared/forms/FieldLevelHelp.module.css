@@ -1,0 +1,8 @@
+/* OCP `_field-level-help.scss` `.co-field-level-help`: 5px after the label, 12px icon. */
+.help {
+  margin-left: 5px;
+}
+
+.icon {
+  font-size: 12px;
+}

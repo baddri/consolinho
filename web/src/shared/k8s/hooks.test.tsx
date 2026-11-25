@@ -16,7 +16,9 @@ import { setWatchTimingForTests } from './watchManager';
 const PROXY = '*/api/clusters/:cluster/k8s/*';
 
 beforeEach(() => {
-  onTestFinished(setWatchTimingForTests({ flushMs: 10, initialBackoffMs: 20, maxBackoffMs: 40, minStreamMs: 100 }));
+  onTestFinished(
+    setWatchTimingForTests({ flushMs: 10, initialBackoffMs: 20, maxBackoffMs: 40, minStreamMs: 100 }),
+  );
 });
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -44,7 +46,8 @@ function recordTraffic(): Traffic {
     http.all(PROXY, ({ request }) => {
       const url = new URL(request.url);
       if (request.method === 'POST') traffic.reviews++;
-      else if (url.searchParams.has('watch')) traffic.watches.push({ url, aborted: () => request.signal.aborted });
+      else if (url.searchParams.has('watch'))
+        traffic.watches.push({ url, aborted: () => request.signal.aborted });
       else traffic.lists.push(url);
       return undefined;
     }),
@@ -57,7 +60,11 @@ const configMap = (name: string, data: Record<string, string>): K8sResource =>
 
 /** Answers every watch request with `respond()` (other proxy requests reach the stateful mock). */
 function answerWatches(respond: () => Response): void {
-  server.use(http.get(PROXY, ({ request }) => (new URL(request.url).searchParams.has('watch') ? respond() : undefined)));
+  server.use(
+    http.get(PROXY, ({ request }) =>
+      new URL(request.url).searchParams.has('watch') ? respond() : undefined,
+    ),
+  );
 }
 
 /** Watch timing that makes a hot reconnect loop obvious: 50 ms fixed backoff, streams must last 1 s. */
@@ -74,9 +81,12 @@ const names = (items: readonly ConfigMap[] | undefined) => items?.map((item) => 
 describe('useK8sList', () => {
   it('applies watched add / modify / delete without refetching', async () => {
     const traffic = recordTraffic();
-    const { result } = renderHook(() => useK8sList<ConfigMap>('dev-1', ConfigMapModel, { namespace: 'shop' }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useK8sList<ConfigMap>('dev-1', ConfigMapModel, { namespace: 'shop' }),
+      {
+        wrapper,
+      },
+    );
     await waitFor(() => expect(result.current.liveStatus).toBe('live'));
     expect(names(result.current.data)).toContain('web-config');
 
@@ -106,9 +116,12 @@ describe('useK8sList', () => {
       }),
     );
     const traffic = recordTraffic();
-    const { result } = renderHook(() => useK8sList<ConfigMap>('dev-1', ConfigMapModel, { namespace: 'shop' }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useK8sList<ConfigMap>('dev-1', ConfigMapModel, { namespace: 'shop' }),
+      {
+        wrapper,
+      },
+    );
 
     await waitFor(() => expect(traffic.lists).toHaveLength(2));
     await waitFor(() => expect(result.current.liveStatus).toBe('live'));
@@ -191,7 +204,10 @@ describe('watch backoff floor', () => {
 
   it('backs off when an object watch from the current state gets 410', async () => {
     setWatchTimingForTests(SLOW_RETRY);
-    const expired = { type: 'ERROR', object: { kind: 'Status', code: 410, reason: 'Expired', message: 'too old' } };
+    const expired = {
+      type: 'ERROR',
+      object: { kind: 'Status', code: 410, reason: 'Expired', message: 'too old' },
+    };
     answerWatches(() => HttpResponse.text(`${JSON.stringify(expired)}\n`));
     const traffic = recordTraffic();
     const { result } = renderHook(() => useK8sGet<ConfigMap>('dev-1', ConfigMapModel, 'shop', 'web-config'), {
@@ -226,7 +242,12 @@ describe('useK8sGet', () => {
 
 describe('useK8sDiscovery', () => {
   it('assumes the baseline while pending and hides projects on vanilla lab-1', async () => {
-    const credential = { ...structuredClone(mockDb.credentials[0]), id: 'lab', name: 'fleet-admin', clusterName: 'lab-1' };
+    const credential = {
+      ...structuredClone(mockDb.credentials[0]),
+      id: 'lab',
+      name: 'fleet-admin',
+      clusterName: 'lab-1',
+    };
     mockDb.credentials.push(credential as (typeof mockDb.credentials)[number]);
     mockDb.grants.push({
       ...structuredClone(mockDb.grants[0]),
@@ -254,7 +275,9 @@ describe('useCanI', () => {
     setMockUser('pending-paul');
     const traffic = recordTraffic();
     const review = { verb: 'delete', model: PodModel, namespace: 'shop' } as const;
-    const { result } = renderHook(() => [useCanI('prod-eu-1', review), useCanI('prod-eu-1', review)], { wrapper });
+    const { result } = renderHook(() => [useCanI('prod-eu-1', review), useCanI('prod-eu-1', review)], {
+      wrapper,
+    });
     expect(result.current[0]?.allowed).toBeUndefined();
 
     await waitFor(() => expect(result.current[0]?.isPending).toBe(false));
@@ -263,7 +286,11 @@ describe('useCanI', () => {
   });
 
   it('resolves to allowed when the check itself fails', async () => {
-    server.use(http.post(PROXY, () => problem(502, { code: 'Proxy.UpstreamUnavailable', detail: 'dev-1 is not reachable.' })));
+    server.use(
+      http.post(PROXY, () =>
+        problem(502, { code: 'Proxy.UpstreamUnavailable', detail: 'dev-1 is not reachable.' }),
+      ),
+    );
     const { result } = renderHook(() => useCanI('dev-1', { verb: 'delete', model: PodModel }), { wrapper });
     await waitFor(() => expect(result.current.allowed).toBe(true));
   });
@@ -280,7 +307,17 @@ describe('session handling', () => {
   it(
     'sends a proxy 401 to the global handler (→ /login) but not a 502',
     async () => {
-      server.use(http.get(PROXY, () => problem(502, { code: 'Proxy.CredentialRejected', detail: 'The cluster rejected the credential.' }), { once: true }));
+      server.use(
+        http.get(
+          PROXY,
+          () =>
+            problem(502, {
+              code: 'Proxy.CredentialRejected',
+              detail: 'The cluster rejected the credential.',
+            }),
+          { once: true },
+        ),
+      );
       const credentialRejected = renderWithProviders(<ConfigMapCount />);
       expect(
         await screen.findByText('Proxy.CredentialRejected', undefined, { timeout: COLD_START_TIMEOUT_MS }),

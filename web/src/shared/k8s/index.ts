@@ -5,6 +5,9 @@ export { PROJECT_ANNOTATIONS } from './types';
 export { resourceApiPath, proxyBasePath, type ResourceApiPathOptions } from './url';
 export {
   k8sListAll,
+  k8sListPage,
+  pageCount,
+  INVENTORY_LIMIT,
   k8sGet,
   k8sUpdate,
   k8sPatch,
@@ -14,11 +17,14 @@ export {
   LIST_PAGE_SIZE,
   type ListOptions,
   type K8sListData,
+  type K8sListPage,
+  type ListPageOptions,
   type JsonPatchOp,
   type PatchTarget,
 } from './client';
 export { k8sErrorFromResponse } from './errors';
 export { labelSelectorString, type LabelSelector, type LabelSelectorRequirement } from './labelSelector';
+export { parseQuantity, formatBinaryBytes } from './quantity';
 export { k8sQueryKeys, type AccessReview, type AccessVerb } from './queryKeys';
 export { useK8sList, useK8sGet, type K8sLiveResult } from './hooks';
 export { useK8sDiscovery } from './discovery';

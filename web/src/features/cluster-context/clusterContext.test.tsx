@@ -141,21 +141,42 @@ describe('ClusterSwitcher (SW-1/SW-2)', () => {
     );
     const { user } = renderApp('/user-preferences/general');
 
-    await user.click(await findSwitcher(user, 'Clusters unavailable — retry'));
+    // The toggle still opens (Fleet management stays reachable, FLT-1); the menu offers the retry row and, with
+    // nothing to search, no search box.
+    await user.click(await findSwitcher(user, 'Select a cluster'));
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Search clusters' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Clusters unavailable — retry' }));
 
+    // The search box appears with the clusters.
+    expect(await screen.findByRole('combobox', { name: 'Search clusters' })).toBeInTheDocument();
+    const list = screen.getByRole('listbox', { name: 'All clusters' });
+    expect(optionNames(within(list).getAllByRole('option'))).toEqual([
+      'prod-eu-1',
+      'prod-k8s-1',
+      'staging-eu-1',
+      'lab-1',
+    ]);
     // Outside a cluster the toggle names the preferred cluster (the one the sidebar links target), never a blank.
-    const options = await openSwitcher(
-      user,
-      'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster',
-    );
-    expect(optionNames(options)).toEqual(['prod-eu-1', 'prod-k8s-1', 'staging-eu-1', 'lab-1']);
+    expect(
+      await findSwitcher(user, 'Cluster Production EU 1 (prod-eu-1, OCP, prod, read only), switch cluster'),
+    ).toBeInTheDocument();
   });
 
-  it('shows a disabled "No clusters" toggle to a user without grants', async () => {
+  it('still offers Fleet management to a user without grants (FLT-1)', async () => {
     setMockUser('bob');
     const { user } = renderApp('/');
 
-    expect(await findSwitcher(user, 'No clusters')).toBeDisabled();
+    const toggle = await findSwitcher(user, 'Select a cluster');
+    // Same h2 title as the other toggle states (OCP NavHeader).
+    expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Select a cluster');
+    await user.click(toggle);
+    expect(await screen.findByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole('listbox', { name: 'All clusters' })).getByText('No clusters'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Search clusters' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
     // Nothing follows the switcher, so there is no divider under it.
     expect(within(await openSidebar(user)).queryByRole('separator')).not.toBeInTheDocument();
     expect(
@@ -455,7 +476,7 @@ describe('ClusterSwitcher keyboard (T-0153)', () => {
 
     await user.keyboard('{ArrowDown}{Enter}');
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/overview'));
   });
 
   it('resets the focused row when typing, and Escape returns to the toggle', async () => {
@@ -623,21 +644,21 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
     },
   );
 
-  it('does not offer it to a non-admin', async () => {
+  it('offers it to a non-admin too (FLT-1)', async () => {
     setMockUser('alice');
     const { user } = renderApp('/c/prod-eu-1/overview');
 
-    expect(await openFleetList(user, /switch cluster$/)).toBeNull();
-    expect(screen.queryByRole('option', { name: 'Fleet management' })).not.toBeInTheDocument();
+    expect(await openFleetList(user, /switch cluster$/)).not.toBeNull();
+    expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
   });
 
-  it('goes to /fleet/admin/users and shows the fleet toggle there, with the entry selected', async () => {
+  it('goes to /fleet/overview and shows the fleet toggle there, with the entry selected', async () => {
     const { user, router } = renderApp('/c/dev-1/overview');
 
     await openFleetList(user, 'Cluster Development 1 (dev-1, OCP, dev), switch cluster');
     await user.click(screen.getByRole('option', { name: 'Fleet management' }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/overview'));
     const toggle = await screen.findByRole('button', { name: 'Fleet management, switch cluster' });
     expect(within(toggle).getByRole('heading', { level: 2 })).toHaveTextContent('Fleet management');
     // No environment or read-only labels on the fleet toggle.
@@ -690,7 +711,7 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
     expect(await screen.findByRole('option', { name: /dev-1/ })).toBeInTheDocument();
 
     await user.click(screen.getByRole('option', { name: 'Fleet management' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/admin/users'));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/fleet/overview'));
   });
 
   it('keeps Fleet management reachable for an admin without grants outside a fleet page', async () => {
@@ -730,11 +751,13 @@ describe('ClusterSwitcher fleet perspective (FLEET-1/2/5)', () => {
       const all = screen.getByRole('listbox', { name: 'All clusters' });
       expect(await within(all).findByText('Loading clusters')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Loading clusters' })).not.toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: 'Search clusters' })).toHaveFocus();
+      // Nothing to search yet (F2): the search box comes back with the clusters.
+      expect(screen.queryByRole('combobox', { name: 'Search clusters' })).not.toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Fleet management' })).toBeInTheDocument();
 
       release();
       expect(await screen.findByRole('option', { name: /dev-1/ })).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'Search clusters' })).toBeInTheDocument();
     },
   );
 

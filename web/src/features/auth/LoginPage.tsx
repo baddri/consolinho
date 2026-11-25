@@ -10,7 +10,7 @@ import {
 import { useSearchParams } from 'react-router';
 import { useSystemInfo } from '@/shared/api';
 import { buildLoginUrl } from '@/shared/auth';
-import { PRODUCT_NAME, useLogoSrc } from '@/shared/branding';
+import { PRODUCT_NAME, useMarkSrc } from '@/shared/branding';
 import { loginMessage } from './loginMessage';
 
 /** Footer line with the deployed version (anonymous `GET /api/system/info`); omitted while loading or on failure. */
@@ -34,11 +34,11 @@ function VersionFooterItem() {
 export function LoginPage() {
   const [searchParams] = useSearchParams();
   const message = loginMessage(searchParams);
-  const logoSrc = useLogoSrc();
+  const markSrc = useMarkSrc();
 
   return (
     <PfLoginPage
-      brandImgSrc={logoSrc}
+      brandImgSrc={markSrc}
       brandImgAlt={PRODUCT_NAME}
       loginTitle={`Log in to ${PRODUCT_NAME}`}
       loginSubtitle="Use your OpenShift account of the host cluster."

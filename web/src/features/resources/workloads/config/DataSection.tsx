@@ -1,6 +1,6 @@
-import { DescriptionList, EmptyState, EmptyStateBody } from '@patternfly/react-core';
+import { DescriptionList } from '@patternfly/react-core';
 import type { ReactNode } from 'react';
-import { DetailsItem, DetailsSubsection } from '@/shared/ui';
+import { ConsoleEmptyState, DetailsItem, DetailsSubsection } from '@/shared/ui';
 import { CopyableValue } from './CopyableValue';
 import { formatBytes, type DataValue } from './dataValues';
 
@@ -46,9 +46,7 @@ export function DataSection({ title, data, masked = false, emptyLabel = title, a
   return (
     <DetailsSubsection title={title} actions={actions}>
       {keys.length === 0 ? (
-        <EmptyState variant="sm" className="pf-v6-u-pt-xl-on-md">
-          <EmptyStateBody>No {emptyLabel} found</EmptyStateBody>
-        </EmptyState>
+        <ConsoleEmptyState>No {emptyLabel} found</ConsoleEmptyState>
       ) : (
         <DescriptionList aria-label={title}>
           {keys.map((key) => (

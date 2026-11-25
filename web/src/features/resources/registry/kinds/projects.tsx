@@ -1,4 +1,5 @@
 import { PROJECT_ANNOTATIONS, ProjectModel, type Project } from '@/shared/k8s';
+import { CreateProjectButton } from '../../projects/CreateProjectButton';
 import { ageColumn, nameColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 import { NamespaceDetails } from './NamespaceDetails';
@@ -9,8 +10,8 @@ function requester(project: Project): string | undefined {
 }
 
 /**
- * Projects (UI-3, Home, first): Name, Display name, Status, Requester, Created; delete asks for the name. OpenShift
- * only — discovery hides the nav item where `project.openshift.io` isn't served.
+ * Projects (UI-3, Home, first): Name, Display name, Status, Requester, Created; delete asks for the name; "Create
+ * Project" in the heading (PRJ-2). No Events tab, as OCP's project details (PRJ-1). OpenShift only — discovery hides the nav item where `project.openshift.io` isn't served.
  */
 export const projectDescriptor: ResourceDescriptor<Project> = {
   model: ProjectModel,
@@ -18,6 +19,8 @@ export const projectDescriptor: ResourceDescriptor<Project> = {
   status: phaseStatus,
   DetailsSection: NamespaceDetails,
   deleteRequiresName: true,
+  hasEventsTab: false,
+  ListActions: CreateProjectButton,
   columns: [
     nameColumn(ProjectModel),
     ...namespaceLikeColumns<Project>(),

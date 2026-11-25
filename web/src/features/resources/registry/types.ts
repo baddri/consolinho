@@ -13,7 +13,8 @@ import type { DataViewColumn, DisabledActionProps } from '@/shared/ui';
  */
 
 /** Sidebar section a kind is listed in (spec UI-2). */
-export type NavSectionId = 'home' | 'workloads' | 'networking' | 'administration';
+export type NavSectionId =
+  'home' | 'operators' | 'workloads' | 'networking' | 'storage' | 'compute' | 'administration';
 
 /**
  * Status of an object: a Kubernetes status word (`Running`, `Active`) or a phrase (`1 of 3 pods`).
@@ -59,7 +60,28 @@ export interface SummaryFields<T> {
 }
 
 /** A details tab only some kinds have, opted in by {@link ResourceDescriptor.extraTabs}. */
-export type KindTab = 'replicasets' | 'replicationcontrollers' | 'jobs' | 'logs' | 'terminal';
+export type KindTab =
+  | 'replicasets'
+  | 'replicationcontrollers'
+  | 'machines'
+  | 'subscription'
+  | 'related-objects'
+  | 'jobs'
+  | 'logs'
+  | 'terminal';
+
+/** Kind tabs whose body is the descriptor's own component ({@link ResourceDescriptor.KindTabs}), no shared module. */
+export type DescriptorTab = 'machines' | 'subscription' | 'related-objects';
+
+/**
+ * Components of the {@link DescriptorTab}s, keyed by tab. Method syntax keeps them bivariant like the descriptor's
+ * other callbacks (a property of function type would not let a `ResourceDescriptor<MachineSet>` sit in the registry).
+ */
+export interface KindTabComponents<T> {
+  machines?(props: { cluster: string; obj: T }): ReactNode;
+  subscription?(props: { cluster: string; obj: T }): ReactNode;
+  'related-objects'?(props: { cluster: string; obj: T }): ReactNode;
+}
 
 /**
  * One resource action (ADR-0037 §3). Assignable to PatternFly's `IAction` as is (row `ActionsColumn`); the details
@@ -93,7 +115,18 @@ export interface KindActions {
 /** Everything the generic pages need to render one kind. */
 export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
   model: K8sModel;
-  nav?: { section: NavSectionId; order: number };
+  /** Sidebar entry; `label` overrides `model.labelPlural` (CSVs are OCP's "Installed Operators"). */
+  nav?: { section: NavSectionId; order: number; label?: string };
+  /**
+   * OCP shows the kind without edit actions (MS-3, OLM-5, `UX.md` §5 "Read-only kinds"): only the kind's own actions,
+   * no Edit labels/annotations/<Kind> or Delete, and a read-only YAML tab with a notice, whatever the user's access.
+   */
+  readOnly?: true;
+  /**
+   * Label selector ANDed with the user's `?label=` filter on the all-namespaces list only (OLM-1: `!olm.copiedFrom`
+   * hides the CSV copies OLM places in every target namespace). A `LabelSelector` so `matchExpressions` express it.
+   */
+  allNamespacesLabelSelector?: LabelSelector;
   columns: ColumnDef<T>[];
   filters?: RowFilter<T>[];
   /** Initial sort; defaults to the `name` column ascending. */
@@ -112,6 +145,13 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * bivariant like the other callbacks.
    */
   DetailsSection?(props: { obj: T }): ReactNode;
+  /**
+   * Replaces the whole two-column grid under "<Kind> details" (common metadata column and {@link DetailsSection})
+   * for kinds whose OCP overview interleaves metadata with kind fields in its own order, e.g. OCP
+   * `NodeDetailsOverview`. The component renders its own `DetailsGrid` and, if it shows Labels/Annotations, their
+   * edit affordances. Same component shape as {@link DetailsSection}; `DetailsTop` and `ExtraSections` still render.
+   */
+  DetailsOverview?(props: { obj: T }): ReactNode;
   /** Heading over the {@link DetailsSection} column, e.g. OCP's "Job status"; none when unset. */
   detailsTitle?: string;
   /**
@@ -137,6 +177,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    */
   PodsTab?(props: { cluster: string; obj: T }): ReactNode;
   /**
+   * Bodies of the descriptor-owned kind tabs (MachineSet Machines, CSV Subscription, ClusterOperator Related objects):
+   * a tab shows only when listed in {@link extraTabs} **and** given a component here. Same shape as {@link PodsTab}.
+   */
+  KindTabs?: KindTabComponents<T>;
+  /**
    * How the list page renders: `table` (default, `ConsoleDataView`) or `eventStream`, OCP's live stream of event cards
    * with its own toolbar (Event only, `UX.md` §6a).
    */
@@ -159,6 +204,11 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * Every mutating item gates itself with `useActionAccess`.
    */
   useKindActions?(args: KindActionArgs<T>): KindActions;
+  /**
+   * Where the details breadcrumb's list link goes when the kind's list isn't the generic list page (OCP
+   * `breadcrumbsFor`): ClusterOperators lead back to the Cluster Settings tab. Unset: the generic list.
+   */
+  listPath?(cluster: string): string;
   /** Delete asks to type the name (Namespace, Project). */
   deleteRequiresName?: boolean;
   /**
@@ -166,4 +216,9 @@ export interface ResourceDescriptor<T extends K8sResource = K8sResource> {
    * DeploymentConfig's deprecation notice. Same component shape as {@link DetailsSection}.
    */
   HeadingAlert?(props: { cluster: string }): ReactNode;
+  /**
+   * Buttons in the list page heading (OCP `ListPage` `createButtonText` / `createProps`), e.g. Projects' Create
+   * Project (T-0309). Same component shape as {@link HeadingAlert}; each button gates itself on access.
+   */
+  ListActions?(props: { cluster: string }): ReactNode;
 }

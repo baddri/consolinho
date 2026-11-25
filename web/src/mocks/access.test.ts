@@ -1,4 +1,6 @@
+import { getResponse } from 'msw';
 import { apiClient, CSRF_HEADER, unwrap, unwrapNoContent } from '@/shared/api';
+import { accessGuard, unhandledApiRoute } from './handlers/http';
 import { expectApiError } from '@/test/apiError';
 import {
   credentialIds,
@@ -103,6 +105,19 @@ describe('mock access guard (contract §1, §2)', () => {
     expect(log).toHaveBeenCalledWith(
       expect.stringContaining('No mock handler for GET /api/admin/not-a-route'),
     );
+  });
+
+  it('leaves non-Api paths that contain /api/ (Vite modules) to the network (T-0361)', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    // The two catch-all handlers that match every `/api/` segment; neither may answer a module request.
+    const response = await getResponse(
+      [accessGuard, unhandledApiRoute],
+      new Request(url('/src/features/fleet/api/useFleetRows.ts')),
+    );
+
+    expect(response).toBeUndefined();
+    expect(log).not.toHaveBeenCalled();
   });
 });
 

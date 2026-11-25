@@ -31,6 +31,22 @@ export function isAllowed(profile: RbacProfile, verb: string, resource: string):
   return profile === 'edit' && !CLUSTER_SCOPED.has(plural);
 }
 
+/**
+ * Clusters whose `view` ServiceAccount may not even read some resources (T-0331 scenarios, mirroring the MSW fleet
+ * table): on `prod-us-1` ClusterOperators are forbidden, so Cluster Settings shows its no-access state.
+ */
+const VIEW_DENIED: Readonly<Record<string, ReadonlySet<string>>> = {
+  'prod-us-1': new Set(['clusteroperators']),
+};
+
+/** {@link isAllowed} for `credential`'s profile, plus the per-cluster read denials of {@link VIEW_DENIED}. */
+export function credentialAllows(credential: MockCredential, verb: string, resource: string): boolean {
+  const profile = profileOf(credential);
+  const [plural = ''] = resource.split('/');
+  if (profile === 'view' && VIEW_DENIED[credential.clusterName]?.has(plural)) return false;
+  return isAllowed(profile, verb, resource);
+}
+
 /** The RBAC resource name of `plural` with an optional subresource, e.g. `deployments/scale`. */
 export function rbacResource(plural: string, subresource: string | undefined): string {
   return subresource ? `${plural}/${subresource}` : plural;

@@ -76,6 +76,8 @@ interface PodSpecInput {
   status: PodStatus;
   nodeName?: string;
   restartPolicy?: 'Always' | 'OnFailure' | 'Never';
+  /** PVCs the pod mounts, by claim name (volume name = claim name). */
+  claims?: string[];
   createdMinutesAgo: number;
 }
 
@@ -97,6 +99,9 @@ function pod(input: PodSpecInput): Pod {
       restartPolicy: input.restartPolicy ?? 'Always',
       serviceAccountName: 'default',
       containers: [{ name: input.container, image: input.image }],
+      ...(input.claims
+        ? { volumes: input.claims.map((claimName) => ({ name: claimName, persistentVolumeClaim: { claimName } })) }
+        : {}),
     },
     status: {
       ...input.status,
@@ -156,6 +161,7 @@ function statefulSetObjects(nextUid: () => string): K8sResource[] {
       owner: ownedBy('apps/v1', 'StatefulSet', 'db', uid),
       container: 'postgres',
       image,
+      claims: ['db-data'],
       status: runningPodStatus(0, 600 - index * 5),
       createdMinutesAgo: 600 - index * 5,
     }),

@@ -1,3 +1,4 @@
+using FleetConsole.Application.Access;
 using FleetConsole.Domain.Access;
 using FleetConsole.Domain.Clusters;
 
@@ -19,4 +20,23 @@ public sealed record AccessibleClusterDto(
     ClusterEnvironment Environment,
     ClusterDistribution Distribution,
     AccessMode AccessMode,
-    string? WebConsoleUrl);
+    string? WebConsoleUrl)
+{
+    /// <summary>
+    /// Projects a resolved access to what the user sees: the one mapping shared by the cluster switcher and the fleet
+    /// status lines (T-0321), so both always agree on identity and effective access mode.
+    /// </summary>
+    /// <param name="access">The user's resolved access to the cluster (from the current resolution, never a cache).</param>
+    /// <returns>The DTO, with the resolver's effective mode.</returns>
+    internal static AccessibleClusterDto From(ResolvedClusterAccess access)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        return new AccessibleClusterDto(
+            access.ClusterName.Value,
+            access.ClusterDisplayName,
+            access.Environment,
+            access.Distribution,
+            access.Resolution.EffectiveMode,
+            access.WebConsoleUrl);
+    }
+}

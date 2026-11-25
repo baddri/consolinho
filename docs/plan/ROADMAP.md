@@ -184,3 +184,11 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP4c ACCEPT) DatabaseMigrator: shared hardened advisory-lock helper (same half-open-connection risk as T-0231).
 - (CP4c ACCEPT) Keyring health check logs at Error once per cold start ("Key ring not loaded yet") → Warning/Degraded to cut alert noise.
 - (CP4c ACCEPT) Edit Deployment form: ImageStream tag source + auto-deploy triggers once ImageStream pages exist.
+- (CP5 spec) Node drain: evict pods with PDB awareness, progress per pod, cluster-named confirmation (OCP has none; fleet invention).
+- (CP5 spec) Prometheus/Thanos query proxy → Utilization card, alerts, node CPU/memory/filesystem, PVC Used, Node Overview/Health tabs.
+- (CP5 spec) MachineSet "Edit Machine count"; MachineAutoscalers, MachineHealthChecks, MachineConfigPools pages.
+- (CP5 spec) Fleet health history: scheduled status checks, last-change timestamps, notifications on cluster degradation.
+- (CP5 spec) Operator actions: approve InstallPlan, change channel, uninstall; OperatorHub read.
+- (CP5 spec) Create forms: Route, Ingress, NetworkPolicy, StorageClass; "Set as default" StorageClass; VolumeSnapshots.
+- (CP5 spec) Project details Workloads and RoleBindings tabs.
+- (CP5a ACCEPT) Route list "Backend health" column (OCP networking-plugin): derive from Service + Endpoints, no per-row requests.

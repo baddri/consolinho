@@ -86,7 +86,14 @@ interface ResourceListProps {
 /** Project bar, heading and the live {@link useResourceDataView} of one kind's list page. */
 function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListProps) {
   const { model } = descriptor;
-  const { liveStatus, dataView } = useResourceDataView({ descriptor, cluster, scope, namespace });
+  const { liveStatus, dataView } = useResourceDataView({
+    descriptor,
+    cluster,
+    scope,
+    namespace,
+    // OLM-1: e.g. `!olm.copiedFrom`, so each operator is listed once across namespaces.
+    fixedSelector: scope === 'all' ? descriptor.allNamespacesLabelSelector : undefined,
+  });
   return (
     <>
       {model.namespaced && <ProjectBar descriptor={descriptor} cluster={cluster} namespace={namespace} />}
@@ -94,6 +101,7 @@ function ResourceList({ descriptor, cluster, scope, namespace }: ResourceListPro
         title={model.labelPlural}
         status={liveStatus === 'paused' ? <LiveIndicator status={liveStatus} /> : undefined}
         alert={descriptor.HeadingAlert && <descriptor.HeadingAlert cluster={cluster} />}
+        actions={descriptor.ListActions && <descriptor.ListActions cluster={cluster} />}
       />
       <PageBody>{dataView}</PageBody>
     </>

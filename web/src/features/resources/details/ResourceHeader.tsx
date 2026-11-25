@@ -20,18 +20,29 @@ export interface ResourceHeaderProps {
   actions?: ReactNode;
   /** The descriptor's heading alert (OCP `DetailsPage` `helpAlert`), shown on every tab. */
   alert?: ReactNode;
+  /** The breadcrumb's list link when it isn't the generic list page (descriptor `listPath`). */
+  listTo?: string;
 }
 
 /**
  * Heading of a resource details page (`UX.md` §3, OCP `breadcrumbsForDetailsPage`): breadcrumb `<Kinds> › <Kind>
- * details` (the list in the object's namespace, or the cluster-scoped list), kind badge + name as `h1`, the status as
+ * details` (the list in the object's namespace, the cluster-scoped list, or the descriptor's `listPath`), kind badge + name as `h1`, the status as
  * an outlined label and the actions on the right. Rendered in every state of the page (loading, not found, errors).
  */
-export function ResourceHeader({ cluster, model, namespace, name, status, actions, alert }: ResourceHeaderProps) {
+export function ResourceHeader({
+  cluster,
+  model,
+  namespace,
+  name,
+  status,
+  actions,
+  alert,
+  listTo,
+}: ResourceHeaderProps) {
   return (
     <PageHeading
       breadcrumbs={[
-        { label: model.labelPlural, to: resourcePath(cluster, model, { namespace }) },
+        { label: model.labelPlural, to: listTo ?? resourcePath(cluster, model, { namespace }) },
         { label: `${model.label} details` },
       ]}
       icon={<KindBadge model={model} size="lg" />}

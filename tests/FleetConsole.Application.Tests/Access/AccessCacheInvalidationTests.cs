@@ -123,6 +123,10 @@ public sealed class AccessCacheInvalidationTests
             string key, Func<CancellationToken, Task<TValue>> load, Func<TValue, IReadOnlyCollection<string>> tagsFor, CancellationToken cancellationToken) =>
             await load(cancellationToken);
 
+        public async ValueTask<TValue> GetOrLoadAsync<TValue>(
+            string key, Func<CancellationToken, Task<TValue>> load, Func<TValue, IReadOnlyCollection<string>> tagsFor, TimeSpan duration, CancellationToken cancellationToken) =>
+            await load(cancellationToken);
+
         public ValueTask RemoveByTagsAsync(IReadOnlyCollection<string> tags, CancellationToken cancellationToken)
         {
             Removed.Add(tags);

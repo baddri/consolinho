@@ -1,7 +1,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import { delay, http, HttpResponse } from 'msw';
-import { LOGO_SRC } from '@/shared/branding';
+import { MARK_SRC } from '@/shared/branding';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS } from '@/test/coldStart';
 import { setMockUser } from '@/test/handlers';
 import { server } from '@/test/server';
@@ -39,6 +39,13 @@ async function openAbout(user: UserEvent) {
   await user.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Help menu' }));
   await user.click(await screen.findByRole('menuitem', { name: 'About' }));
   return screen.findByRole('dialog', { name: 'Consolinho' });
+}
+
+/** Returns the decorative mark inside the masthead home link, which is named by the product name (T-0360). */
+async function findBrandMark() {
+  const home = await within(await screen.findByRole('banner')).findByRole('link', { name: 'Consolinho' });
+  expect(home).toHaveTextContent('Consolinho');
+  return within(home).getByRole('presentation');
 }
 
 describe('AppShell', () => {
@@ -85,7 +92,7 @@ describe('AppShell', () => {
       .getAllByRole('button')
       .filter((button) => !button.getAttribute('aria-label')?.endsWith('switch cluster'))
       .map((button) => button.textContent);
-    expect(sections).toEqual(['Home', 'Favorites', 'Workloads', 'Networking', 'Administration']);
+    expect(sections).toEqual(['Home', 'Favorites', 'Operators', 'Workloads', 'Networking', 'Storage', 'Compute', 'Administration']);
     await expandSection(user, nav, 'Home');
     const events = within(nav).getByRole('link', { name: 'Events' });
     expect(events).toHaveAttribute('href', '/c/dev-1/k8s/events');
@@ -97,7 +104,7 @@ describe('AppShell', () => {
     const { user } = renderApp('/c/dev-1/k8s/ns/default/pods');
 
     const nav = await openSidebar(user);
-    for (const title of ['Home', 'Favorites', 'Workloads', 'Networking', 'Administration']) {
+    for (const title of ['Home', 'Favorites', 'Operators', 'Workloads', 'Networking', 'Storage', 'Compute', 'Administration']) {
       expect(within(nav).getByRole('button', { name: title })).toHaveAttribute('aria-expanded', 'false');
     }
     expect(within(nav).getByRole('button', { name: 'Workloads' }).closest('li')).toHaveClass('pf-m-current');
@@ -109,7 +116,7 @@ describe('AppShell', () => {
 
   // ADR-0033 §5: the fleet perspective shows only its own sections, in the same Nav frame under the switcher.
   it.each(['admin', 'ines'])(
-    'shows only Fleet administration on fleet pages to %s (FLEET-3)',
+    'shows Fleet then Fleet administration on fleet pages to %s (FLT-1, FLEET-3)',
     async (username) => {
       setMockUser(username);
       const { user } = renderApp('/fleet/admin/users');
@@ -118,17 +125,36 @@ describe('AppShell', () => {
       const toggle = await within(nav).findByRole('button', { name: 'Fleet management, switch cluster' });
       const buttons = within(nav).getAllByRole('button');
       expect(buttons[0]).toBe(toggle);
-      expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet administration']);
+      expect(buttons.slice(1).map((button) => button.textContent)).toEqual(['Fleet', 'Fleet administration']);
+      await expandSection(user, nav, 'Fleet');
       await expandSection(user, nav, 'Fleet administration');
       expect(
         within(nav)
           .getAllByRole('link')
           .map((link) => link.textContent),
-      ).toEqual(['Users', 'Groups', 'Clusters', 'Credentials', 'Audit log']);
+      ).toEqual(['Overview', 'Users', 'Groups', 'Clusters', 'Credentials', 'Audit log']);
     },
   );
 
-  it('shows no sections on fleet pages to a non-admin (FLEET-8)', async () => {
+  it('shows only Fleet > Overview, marked current, on the fleet overview to a non-admin (FLT-1)', async () => {
+    setMockUser('alice');
+    const { user } = renderApp('/fleet/overview');
+
+    expect(await screen.findByRole('heading', { name: 'Fleet overview', level: 1 })).toBeInTheDocument();
+    const nav = await openSidebar(user);
+    expect(
+      within(nav)
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual(['Fleet management', 'Fleet']);
+    expect(within(nav).getByRole('button', { name: 'Fleet' }).closest('li')).toHaveClass('pf-m-current');
+    await expandSection(user, nav, 'Fleet');
+    const overview = within(nav).getByRole('link', { name: 'Overview' });
+    expect(overview).toHaveAttribute('href', '/fleet/overview');
+    expect(overview).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('shows no Fleet administration on fleet pages to a non-admin (FLEET-8)', async () => {
     setMockUser('alice');
     const { user } = renderApp('/fleet/admin/users');
 
@@ -139,8 +165,8 @@ describe('AppShell', () => {
     expect(
       within(nav)
         .getAllByRole('button')
-        .map((button) => button.getAttribute('aria-label')),
-    ).toEqual(['Fleet management, switch cluster']);
+        .map((button) => button.textContent),
+    ).toEqual(['Fleet management', 'Fleet']);
   });
 
   it('switches cluster while keeping the current page', async () => {
@@ -194,10 +220,10 @@ describe('AppShell', () => {
       document.documentElement.className = '';
     });
 
-    it('uses the glass and felt themes and the light logo by default', async () => {
+    it('uses the glass and felt themes and the light mark by default', async () => {
       renderApp('/c/dev-1/overview');
 
-      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.light);
       expect(document.documentElement).toHaveClass('pf-v6-theme-glass', 'pf-v6-theme-felt');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-dark');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-high-contrast');
@@ -210,7 +236,7 @@ describe('AppShell', () => {
       localStorage.setItem('fleetconsole.theme', 'dark');
       renderApp('/c/dev-1/overview');
 
-      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);
       expect(document.documentElement).toHaveClass('pf-v6-theme-dark');
     });
 
@@ -218,19 +244,19 @@ describe('AppShell', () => {
       const os = mockOsMedia({ dark: false });
       localStorage.setItem('fleetconsole.theme', 'system');
       renderApp('/c/dev-1/overview');
-      expect(await screen.findByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.light);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.light);
 
       os.setDark(true);
 
       await waitFor(() => expect(document.documentElement).toHaveClass('pf-v6-theme-dark'));
-      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);
       expect(localStorage.getItem('fleetconsole.theme')).toBe('system');
     });
 
     it('switches glass to high contrast under prefers-contrast: more, live', async () => {
       const os = mockOsMedia({ moreContrast: true });
       renderApp('/c/dev-1/overview');
-      await screen.findByRole('img', { name: 'Consolinho' });
+      await findBrandMark();
 
       expect(document.documentElement).toHaveClass('pf-v6-theme-high-contrast', 'pf-v6-theme-felt');
       expect(document.documentElement).not.toHaveClass('pf-v6-theme-glass');
@@ -287,8 +313,8 @@ describe('AppShell', () => {
       });
       expect(within(toggle).getByText('K8s')).toBeInTheDocument();
       expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes');
-      // The navy masthead is dark in both themes, so it shows the dark-theme logo (light theme by default here).
-      expect(screen.getByRole('img', { name: 'Consolinho' })).toHaveAttribute('src', LOGO_SRC.dark);
+      // The navy masthead is dark in both themes, so it shows the dark-surface mark (light theme by default here).
+      expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);
     });
 
     it.each([

@@ -1,0 +1,4 @@
+/* OCP `_resource.scss` `.co-resource-item__resource-name`: the name may shrink below its content so it can wrap. */
+.resourceItem > :last-child {
+  min-width: 0;
+}

@@ -7,6 +7,7 @@ using FleetConsole.Application.Access.LoadAccessSnapshot;
 using FleetConsole.Application.Audit;
 using FleetConsole.Application.Behaviors;
 using FleetConsole.Application.Credentials.ConnectionTesting;
+using FleetConsole.Application.Fleet;
 using FleetConsole.Application.Proxy;
 using FleetConsole.Application.Proxy.Policies;
 using FleetConsole.Domain.Common;
@@ -64,6 +65,13 @@ public static class DependencyInjection
         // Grant resolution (ADR-0034): the cached access snapshot (ADR-0040 §4) + AccessResolver per request, shared by
         // the proxy and the switcher (PREC-8).
         services.AddScoped<ClusterAccessReader>();
+
+        // Fleet overview (ADR-0041): settings (bound and validated on start by the Api, T-0323), the probe metric and
+        // the probe. Scoped and concurrency-safe: the fleet stream (T-0321) shares one instance across its parallel loop;
+        // its IClusterHealthReader comes from Infrastructure (T-0322).
+        services.AddOptions<FleetOptions>();
+        services.AddSingleton<FleetMetrics>();
+        services.AddScoped<IClusterHealthProbe, ClusterHealthProbe>();
 
         // Proxy policies (ADR-0019 §7) run in registration order, first refusal wins. The order is contract (CP2 §4):
         // user read-only before read-only grant (both in MutationGuardPolicy), then 413 last, so a read-only user

@@ -46,3 +46,4 @@ Never edit an accepted ADR's decision — supersede it.
 | 0038 | Frontend: cluster OpenAPI v3 schema (lazy per group-version, per-cluster cache, monaco-yaml, field help) | Accepted |
 | 0039 | Host group membership via FleetConsole host SA snapshot; revalidation fails closed (refines 0034, extends 0009; CP4.5) | Accepted |
 | 0040 | Access cache implementation: post-commit event stage, `IQueryCache` port, per-user access snapshot, Redis deploy (amends 0035, implements 0008 §6; CP4.5b) | Accepted |
+| 0041 | Fleet status: on-demand probes with the grant credential, NDJSON stream `GET /api/fleet/status`, per-(cluster, credential) cache (CP5c) | Accepted |

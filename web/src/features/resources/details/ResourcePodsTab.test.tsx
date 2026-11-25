@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { http } from 'msw';
-import type { Deployment, K8sResource, Pod } from '@/shared/k8s';
+import type { Deployment, K8sResource, Pod, Service } from '@/shared/k8s';
 import { COLD_START_TEST_TIMEOUT_MS, COLD_START_TIMEOUT_MS, preloadLazyRoutes } from '@/test/coldStart';
 import { mockK8s } from '@/test/handlers';
 import { renderApp } from '@/test/render';
@@ -140,6 +140,39 @@ describe('matchExpressions pod selectors (OCP selectorToString)', () => {
         `/c/dev-1/k8s/ns/shop/pods?${new URLSearchParams({ label: EXPRESSION_SELECTOR })}`,
       );
       await waitFor(() => expect(selectors).toContain(EXPRESSION_SELECTOR));
+    },
+  );
+});
+
+describe('Service Pods tab (SVC-1)', () => {
+  it('lists exactly the pods matching the selector', { timeout: COLD_START_TEST_TIMEOUT_MS }, async () => {
+    const selectors = recordPodSelectors();
+
+    await openPodsTab('services/web', /web-7d4b9c8f6d-tq5wn/);
+
+    expect(selectors).toContain('app=web');
+    expect(screen.queryByRole('row', { name: /db-0/ })).not.toBeInTheDocument();
+  });
+
+  it(
+    'shows the empty state for a selector-less service, never all pods',
+    { timeout: COLD_START_TEST_TIMEOUT_MS },
+    async () => {
+      const service: Service & K8sResource = {
+        apiVersion: 'v1',
+        kind: 'Service',
+        metadata: { name: 'external-db', namespace: 'shop', uid: 'uid-external-db' },
+        spec: { type: 'ClusterIP', ports: [{ port: 5432 }] },
+      };
+      mockK8s.upsert('dev-1', service);
+      const selectors = recordPodSelectors();
+
+      renderApp('/c/dev-1/k8s/ns/shop/services/external-db/pods');
+
+      expect(
+        await screen.findByRole('heading', { name: 'No Pods found' }, { timeout: COLD_START_TIMEOUT_MS }),
+      ).toBeInTheDocument();
+      expect(selectors).toEqual([]);
     },
   );
 });

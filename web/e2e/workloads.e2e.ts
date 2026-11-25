@@ -84,12 +84,29 @@ async function findInEditor(page: Page, text: string) {
   };
 }
 
-/** Puts the caret after the first `text` (from the top) and opens a new line below it (Monaco keeps the indentation). */
-async function newLineAfter(page: Page, text: string): Promise<void> {
-  await findInEditor(page, text);
+/** Closes the Find widget (Escape) and waits until it is hidden and the editor has the focus again. */
+async function closeFind(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
-  await page.keyboard.press('End');
-  await page.keyboard.press('Enter');
+  await expect(page.locator('.find-widget.visible')).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: 'YAML editor' })).toBeFocused();
+}
+
+/**
+ * Puts the caret after the first `text` (from the top) and opens a new line below it (Monaco keeps the indentation).
+ * Retried as a whole (T-0363): Monaco clears its "Find input focused" context in a 0 ms timer after the input blurs,
+ * and Chrome runs input events before timers. On a busy page the Enter can still count as Find's "next match": the
+ * widget opens again, the caret moves to the next match (`status.replicas`) and no line is added. Completion then
+ * runs on that value and shows "No suggestions". A reopened widget means nothing was typed, so starting over is safe.
+ */
+async function newLineAfter(page: Page, text: string): Promise<void> {
+  await expect(async () => {
+    await findInEditor(page, text);
+    await closeFind(page);
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.find-widget.visible')).toHaveCount(0, { timeout: 500 });
+    await expect(page.getByRole('textbox', { name: 'YAML editor' })).toBeFocused({ timeout: 500 });
+  }).toPass({ timeout: 15_000 });
 }
 
 /** Waits until the editor shows the object (its first line is rendered). */
@@ -505,7 +522,7 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     await page.getByRole('radio', { name: 'YAML view' }).click();
     await editorReady(page);
     expect((await findInEditor(page, `image: ${NEW_IMAGE}`)).count).toBe('1 of 1');
-    await page.keyboard.press('Escape');
+    await closeFind(page);
     expect(mutations()).toEqual([]);
     await page.getByRole('button', { name: 'Save' }).click();
 
@@ -528,7 +545,7 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     await editorReady(page);
 
     const { box } = await findInEditor(page, 'replicas: 1');
-    await page.keyboard.press('Escape');
+    await closeFind(page);
     expect(box).not.toBeNull();
     const hover = page.locator('.monaco-hover:not(.hidden)');
     await expect(async () => {
@@ -564,11 +581,11 @@ test.describe('read-write user: CP4c forms, schema and carried CP4b flows', () =
     await newLineAfter(page, 'replicas: 1');
     await page.keyboard.type('minReadySeconds: 5');
     expect((await findInEditor(page, 'minReadySeconds: 5')).count).toBe('1 of 1');
-    await page.keyboard.press('Escape');
+    await closeFind(page);
 
     await page.getByRole('button', { name: 'Reload' }).click();
     await expect.poll(async () => (await findInEditor(page, 'minReadySeconds')).count).toBe('No results');
-    await page.keyboard.press('Escape');
+    await closeFind(page);
 
     await newLineAfter(page, 'replicas: 1');
     await page.keyboard.type('minReadySeconds: 5');

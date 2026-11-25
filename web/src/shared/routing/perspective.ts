@@ -6,6 +6,11 @@ export type Perspective = 'cluster' | 'fleet';
 /** Prefix of the fleet perspective; the admin area lives under it (ADR-0033 §1). */
 export const FLEET_PATH = '/fleet';
 
+/** The fleet overview (`/fleet/overview`, FLT-2): the fleet perspective's landing page, open to every user. */
+export function fleetOverviewPath(): string {
+  return `${FLEET_PATH}/overview`;
+}
+
 /**
  * Path of an admin page: `/fleet/admin/<rest>`. `rest` is already encoded by the caller and has no leading slash; it
  * may carry a query (`'audit?user=alice'`). `''` gives the admin root `/fleet/admin`.

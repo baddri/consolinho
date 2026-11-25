@@ -23,7 +23,6 @@ const b = cluster('prod-b', 'production');
 const c = cluster('stage-c', 'staging');
 
 const input = (overrides: Partial<SwitcherSectionsInput> = {}): SwitcherSectionsInput => ({
-  isAdmin: true,
   clusters: [a, b, c],
   hasError: false,
   recent: [b, a],
@@ -40,7 +39,8 @@ describe('buildSwitcherSections', () => {
       ['recent', 'Recent'],
       ['all', 'All clusters'],
     ]);
-    expect(buildSwitcherSections(input({ isAdmin: false, recent: [] })).map((s) => [s.id, s.groupLabel])).toEqual([
+    expect(buildSwitcherSections(input({ recent: [] })).map((s) => [s.id, s.groupLabel])).toEqual([
+      ['fleet', undefined],
       ['all', undefined],
     ]);
   });
@@ -58,9 +58,9 @@ describe('buildSwitcherSections', () => {
   });
 
   it('keeps status rows out of the focus order', () => {
-    const sections = buildSwitcherSections(input({ isAdmin: false, searchText: 'zzz' }));
-    expect(sections[0]?.rows).toEqual([{ kind: 'status', key: 'all:status', text: 'No clusters match "zzz"' }]);
-    expect(focusOrder(sections)).toEqual([]);
+    const sections = buildSwitcherSections(input({ searchText: 'zzz' }));
+    expect(sections[1]?.rows).toEqual([{ kind: 'status', key: 'all:status', text: 'No clusters match "zzz"' }]);
+    expect(focusOrder(sections)).toEqual([expect.objectContaining({ itemId: FLEET_ITEM_ID })]);
     expect(focusOrder(buildSwitcherSections(input({ clusters: undefined })))).toEqual([
       expect.objectContaining({ itemId: FLEET_ITEM_ID }),
     ]);

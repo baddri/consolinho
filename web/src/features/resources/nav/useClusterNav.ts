@@ -1,5 +1,5 @@
-import { useK8sDiscovery } from '@/shared/k8s';
-import { resourcePath } from '../paths';
+import { ClusterVersionModel, useK8sDiscovery, type K8sModel } from '@/shared/k8s';
+import { clusterOverviewPath, clusterSettingsPath, resourcePath } from '../paths';
 import { searchPath } from '../search/searchPath';
 import { resourceDescriptors } from '../registry/registry';
 import type { NavSectionId } from '../registry/types';
@@ -19,11 +19,14 @@ export interface NavSection {
   items: NavLinkItem[];
 }
 
-/** Section order and titles of the cluster navigation (spec UI-2). */
+/** Section order and titles of the cluster navigation (spec UI-2, NAV-1, OCP `console-extensions.json` order). */
 const SECTIONS: readonly { id: NavSectionId; title: string }[] = [
   { id: 'home', title: 'Home' },
+  { id: 'operators', title: 'Operators' },
   { id: 'workloads', title: 'Workloads' },
   { id: 'networking', title: 'Networking' },
+  { id: 'storage', title: 'Storage' },
+  { id: 'compute', title: 'Compute' },
   { id: 'administration', title: 'Administration' },
 ];
 
@@ -34,10 +37,32 @@ interface StaticNavItem {
   label: string;
   path: (cluster: string) => string;
   isActive: (pathname: string) => boolean;
+  /** Shown only when discovery serves this model (OCP `flags.required`, e.g. Cluster Settings needs ClusterVersion). */
+  requires?: K8sModel;
 }
 
-/** OCP Home: Overview, Projects, Search, API Explorer, Events — Search sits between Projects (10) and Events (20). */
+/**
+ * OCP Home: Overview, Projects, Search, API Explorer, Events — Overview first, Search between Projects (10) and Events
+ * (20). Administration: Cluster Settings before Namespaces (10).
+ */
 const STATIC_ITEMS: readonly StaticNavItem[] = [
+  {
+    section: 'home',
+    order: 0,
+    label: 'Overview',
+    path: (cluster) => clusterOverviewPath(cluster),
+    isActive: (pathname) => /^\/c\/[^/]+\/overview(?:\/|$)/.test(pathname),
+  },
+  {
+    section: 'administration',
+    order: 5,
+    label: 'Cluster Settings',
+    path: (cluster) => clusterSettingsPath(cluster),
+    // OCP `startsWith: config.openshift.io`: ClusterOperator details stay under Cluster Settings.
+    isActive: (pathname) =>
+      /^\/c\/[^/]+\/settings\/cluster(?:\/|$)/.test(pathname) || kindMatcher('clusteroperators')(pathname),
+    requires: ClusterVersionModel,
+  },
   {
     section: 'home',
     order: 15,
@@ -59,9 +84,10 @@ function kindMatcher(plural: string): (pathname: string) => boolean {
 /**
  * The cluster's sidebar sections, derived from the registry and discovery (ADR-0023 §5, UI-2/DATA-2): each
  * descriptor with `nav` becomes an item in its section (by `order`), kinds the cluster doesn't serve are hidden (e.g.
- * Projects on vanilla Kubernetes) and empty sections are dropped. Pages that aren't a kind's list (Search) are
- * {@link STATIC_ITEMS} slotted in by order. Namespaced kinds link to `k8s/<plural>` (the
- * namespace redirect), cluster-scoped ones to `k8s/cluster/<plural>`.
+ * Projects on vanilla Kubernetes) and empty sections are dropped. Pages that aren't a kind's list (Overview, Search,
+ * Cluster Settings) are {@link STATIC_ITEMS} slotted in by order, hidden like kinds when their `requires` model isn't
+ * served. Namespaced kinds link to `k8s/<plural>` (the namespace redirect), cluster-scoped ones to
+ * `k8s/cluster/<plural>`.
  */
 export function useClusterNav(cluster: string): NavSection[] {
   const discovery = useK8sDiscovery(cluster);
@@ -76,11 +102,13 @@ export function useClusterNav(cluster: string): NavSection[] {
         .filter((descriptor) => descriptor.nav?.section === section.id)
         .map(({ model, nav }) => ({
           order: nav?.order ?? 0,
-          label: model.labelPlural,
+          label: nav?.label ?? model.labelPlural,
           to: resourcePath(cluster, model),
           isActive: kindMatcher(model.plural),
         })),
-      ...STATIC_ITEMS.filter((item) => item.section === section.id).map((item) => ({
+      ...STATIC_ITEMS.filter(
+        (item) => item.section === section.id && (!item.requires || discovery.isServed(item.requires)),
+      ).map((item) => ({
         order: item.order,
         label: item.label,
         to: item.path(cluster),

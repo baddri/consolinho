@@ -1,5 +1,6 @@
 using FleetConsole.Api.Auth;
 using FleetConsole.Api.Endpoints;
+using FleetConsole.Api.Fleet;
 using FleetConsole.Api.Hosting;
 using FleetConsole.Api.Http;
 using FleetConsole.Api.OpenApi;
@@ -8,6 +9,7 @@ using FleetConsole.Application;
 using FleetConsole.Application.Abstractions;
 using FleetConsole.Infrastructure;
 using FleetConsole.Infrastructure.Identity;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
 // Composition root for the FleetConsole backend: wires Aspire service defaults (telemetry, health, resilience), the
@@ -49,8 +51,14 @@ builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 // Kubernetes proxy (ADR-0019/0020): YARP's IHttpForwarder and the validated Proxy:* settings.
 builder.AddKubernetesProxy();
 
-// Export the per-request spans created by the Application layer's LoggingBehavior alongside ASP.NET Core's.
-builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddSource(ApplicationDiagnostics.ActivitySourceName));
+// Fleet overview (ADR-0041): the validated Fleet:* settings and the pod-wide fleet-status concurrency limiter.
+builder.AddFleetStatus();
+
+// Export the per-request spans created by the Application layer's LoggingBehavior alongside ASP.NET Core's, and the
+// Application's meter (fleet probe outcomes and durations, ADR-0041 §6).
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddSource(ApplicationDiagnostics.ActivitySourceName))
+    .WithMetrics(metrics => metrics.AddMeter(ApplicationDiagnostics.MeterName));
 
 // Last before Build: no service registered after this may re-add Data Protection's start-time key-ring load (T-0106),
 // which would block Kestrel for ~60 s when the database is down at container start.
@@ -84,6 +92,10 @@ app.UseSpaStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Endpoint concurrency limits (fleet-status, ADR-0041 §5) after authorization, so an anonymous request is a 401 even
+// while the limiter is saturated, and only signed-in users take a slot.
+app.UseRateLimiter();
 
 // /health (readiness) and /alive (liveness) in every environment, anonymous and outside /api (ADR-0028 §2).
 app.MapDefaultEndpoints();

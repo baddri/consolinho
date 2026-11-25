@@ -22,6 +22,8 @@ export function ResourceRowActions(props: ResourceRowActionsProps) {
 
 function RowActions({ cluster, descriptor, obj }: ResourceRowActionsProps) {
   const { items, dialog } = useResourceActions({ cluster, descriptor, obj, reviewByName: false });
+  // No kebab without actions (OCP lists read-only kinds like ClusterOperators without one); the cell stays empty.
+  if (items.length === 0) return dialog;
   return (
     <>
       <ActionsColumn items={items} />

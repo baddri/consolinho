@@ -81,6 +81,25 @@ public sealed class QueryCacheTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task DurationOverload_ExpiresTheEntryAfterTheGivenDuration_NotTheDefault()
+    {
+        // Default 30 s; the per-call duration (Fleet:CacheDuration, ADR-0041 §3) must win in L1 and in Redis.
+        using var pod = CacheHost(factory.Redis.ConnectionString);
+        var key = NewKey();
+        var loads = 0;
+        Task<int> Load(CancellationToken _) => Task.FromResult(Interlocked.Increment(ref loads));
+        var duration = TimeSpan.FromSeconds(1);
+
+        (await Cache(pod).GetOrLoadAsync(key, Load, _ => [], duration, Ct)).ShouldBe(1);
+        (await Cache(pod).GetOrLoadAsync(key, Load, _ => [], duration, Ct)).ShouldBe(1);
+
+        await Task.Delay(TimeSpan.FromMilliseconds(1500), Ct);
+
+        // Gone from L1 and from Redis (with the 30 s default either would still serve 1).
+        (await Cache(pod).GetOrLoadAsync(key, Load, _ => [], duration, Ct)).ShouldBe(2);
+    }
+
+    [Fact]
     public async Task RedisDown_StillLoads_ServesFromL1_LogsAWarning_AndReportsDegraded()
     {
         var logs = new CapturedLogs();

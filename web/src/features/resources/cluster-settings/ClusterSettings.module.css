@@ -1,0 +1,67 @@
+/* OCP `.co-m-pane__body` (`public/style/_common.scss`): no row gap inside a pane, a divider between consecutive panes. */
+.pane {
+  --pf-v6-c-page__main-section--RowGap: 0;
+}
+
+.pane + .pane {
+  border-top: 1px solid var(--pf-t--global--border--color--default);
+}
+
+/* OCP `.co-cluster-settings` (`cluster-settings/_cluster-settings.scss`): the bordered version / status / channel box. */
+.settings {
+  border: 1px solid var(--pf-t--global--border--color--default);
+  max-width: 800px;
+  margin-bottom: var(--pf-t--global--spacer--md);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+}
+
+@media (max-width: 992px) {
+  .row {
+    flex-wrap: wrap;
+  }
+}
+
+.section {
+  align-items: center;
+  border-color: var(--pf-t--global--border--color--default);
+  border-style: solid;
+  border-width: 1px 0 0 1px;
+  flex: 1 1 auto;
+  padding: var(--pf-t--global--spacer--lg) 0 var(--pf-t--global--spacer--lg) var(--pf-t--global--spacer--lg);
+  margin-left: -1px;
+  margin-top: -1px;
+}
+
+.current {
+  flex-grow: 0;
+}
+
+.details {
+  padding-right: var(--pf-t--global--spacer--lg);
+}
+
+@media (min-width: 576px) {
+  .status {
+    max-width: 50%;
+  }
+}
+
+/* OCP `.co-line-clamp` + `.co-pre-line`: a ClusterOperator message keeps its line breaks, three lines at most. */
+.message {
+  -webkit-box-orient: vertical;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  white-space: pre-line;
+}
+
+/* OCP `.co-pre-line`. */
+.preLine {
+  white-space: pre-line;
+}

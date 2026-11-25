@@ -36,7 +36,8 @@ const yamlDataUrl = (text: string) => `data:text/yaml;charset=utf-8,${encodeURIC
  * full screen); without one (loading, 403) it works as before, with no toggle.
  *
  * - **Read-only** (UI-9 reason from `useResourceAccess`): info alert with the reason, read-only editor, no Save. While
- *   the access check runs the editor is read-only too.
+ *   the access check runs the editor is read-only too. A `readOnly` kind (MS-3, OLM-5) is always read-only, with an
+ *   info notice and no access review.
  * - **Clean** editor follows the live object (watch). **Dirty** editor keeps the user's text; when the object changes on
  *   the cluster (or a save answered 409) OCP's "This object has been updated." alert asks to reload (discarding edits).
  * - **Save** (also Ctrl/Cmd+S) parses and checks the text client-side (no request on invalid YAML or a changed
@@ -50,12 +51,12 @@ export function ResourceYamlTab() {
   const { cluster, descriptor, obj } = useResourceDetails();
   const { model } = descriptor;
   const name = obj.metadata.name ?? '';
-  const access = useResourceAccess(cluster, {
-    verb: 'update',
-    model,
-    namespace: obj.metadata.namespace,
-    name,
-  });
+  // Read-only kinds need no access review (OCP `checkEditAccess` skips it for `readOnly`).
+  const access = useResourceAccess(
+    cluster,
+    { verb: 'update', model, namespace: obj.metadata.namespace, name },
+    { enabled: !descriptor.readOnly },
+  );
   const environment = useAccessibleClusters().data?.find((entry) => entry.name === cluster)?.environment;
   const update = useUpdateResource(cluster, model);
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ export function ResourceYamlTab() {
 
   const liveText = useMemo(() => toEditorText(obj), [obj]);
   const baseText = useMemo(() => (edit ? toEditorText(edit.base) : liveText), [edit, liveText]);
-  const isReadOnly = access.disabledReason !== undefined;
+  const isReadOnly = descriptor.readOnly === true || access.disabledReason !== undefined;
   const isEditable = !isReadOnly && !access.isChecking;
   const isDirty = edit !== null && isEditable;
   const text = isDirty ? edit.text : liveText;
@@ -149,6 +150,14 @@ export function ResourceYamlTab() {
           }
         />
         <div className={styles.buttons}>
+          {descriptor.readOnly && (
+            <Alert
+              className={styles.alert}
+              variant="info"
+              isInline
+              title={`${model.labelPlural} are read-only in the console.`}
+            />
+          )}
           {access.disabledReason !== undefined && (
             <Alert className={styles.alert} variant="info" isInline title={access.disabledReason} />
           )}
