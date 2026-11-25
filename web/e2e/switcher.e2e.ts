@@ -33,8 +33,9 @@ test('H3: switcher shows the cluster with dev and Read only labels', async ({ pa
 });
 
 /**
- * H4 (SW-4): users without grants land on the "no clusters" page with a disabled "No clusters" switcher in the
- * sidebar (none in the masthead); only admins get the administration way out (and an enabled switcher).
+ * H4 (SW-4, FLT-1): users without grants land on the "no clusters" page. The sidebar switcher (none in the masthead)
+ * reads "Select a cluster" and still opens, because its menu holds Fleet management for everyone (CP5c); only admins
+ * get the administration way out on the page.
  */
 test('H4: grantless users see the no-clusters landing', async ({ browser }) => {
   const user = await browser.newPage();
@@ -42,9 +43,11 @@ test('H4: grantless users see the no-clusters landing', async ({ browser }) => {
   await loginAs(user, 'e2e-user');
   await expect(user.getByRole('heading', { name: 'No clusters assigned yet' })).toBeVisible();
   await expect(user.getByText(/You are logged in as\s*e2e-user/)).toBeVisible();
-  await expect(sidebar(user).getByRole('button', { name: 'No clusters' })).toBeDisabled();
-  await expect(user.getByRole('banner').getByRole('button', { name: 'No clusters' })).toHaveCount(0);
+  await expect(user.getByRole('banner').getByRole('button', { name: /cluster/i })).toHaveCount(0);
   await expect(user.getByRole('link', { name: /administration/i })).toHaveCount(0);
+  await sidebar(user).getByRole('button', { name: 'Select a cluster' }).click();
+  await expect(user.getByRole('option', { name: 'Fleet management' })).toBeVisible();
+  await expect(user.getByText('No clusters', { exact: true })).toBeVisible();
   await user.context().close();
 
   // A separate context = a private window: no session shared with user.
@@ -52,7 +55,6 @@ test('H4: grantless users see the no-clusters landing', async ({ browser }) => {
   await admin.goto('/');
   await loginAs(admin, 'e2e-admin');
   await expect(admin.getByRole('heading', { name: 'No clusters assigned yet' })).toBeVisible();
-  // Admins keep an enabled switcher: its menu holds Fleet management (FLEET-1).
   await expect(sidebar(admin).getByRole('button', { name: 'Select a cluster' })).toBeEnabled();
   await expect(admin.getByRole('link', { name: 'Go to Fleet administration' })).toBeVisible();
   await expect(admin.getByRole('link', { name: 'grant yourself access from your user page' })).toBeVisible();
@@ -60,16 +62,19 @@ test('H4: grantless users see the no-clusters landing', async ({ browser }) => {
 });
 
 /**
- * H5 (FLEET-1..3): an admin reaches the fleet perspective from the switcher; there the toggle reads "Fleet management"
- * and the sidebar holds only Fleet administration. alice (no admin) gets no such entry.
+ * H5 (FLEET-1..3, FLT-1/FLT-2): `/fleet` opens the Fleet overview; there the toggle reads "Fleet management" and the
+ * sidebar holds the Fleet section, plus Fleet administration for admins only. alice (no admin) reaches the overview
+ * from the switcher's "Fleet management" entry on a cluster page, which also loads the lazy overview chunk (T-0361).
  */
-test('H5: admins switch to the fleet perspective', async ({ browser }) => {
+test('H5: users switch to the fleet perspective', async ({ browser }) => {
   const admin = await browser.newPage();
   await admin.goto('/fleet');
   await loginAs(admin, 'e2e-admin');
-  await expect(admin).toHaveURL(/\/fleet\/admin\/users$/);
+  await expect(admin).toHaveURL(/\/fleet\/overview$/);
+  await expect(admin.getByRole('heading', { level: 1, name: 'Fleet overview' })).toBeVisible();
   const toggle = sidebar(admin).getByRole('button', { name: 'Fleet management, switch cluster' });
   await expect(toggle).toBeVisible();
+  await expect(sidebar(admin).getByRole('button', { name: 'Fleet', exact: true })).toBeVisible();
   await expect(sidebar(admin).getByRole('button', { name: 'Fleet administration' })).toBeVisible();
   await expect(sidebar(admin).getByRole('button', { name: 'Home' })).toHaveCount(0);
   await toggle.click();
@@ -86,6 +91,12 @@ test('H5: admins switch to the fleet perspective', async ({ browser }) => {
     .getByRole('button', { name: /switch cluster$/ })
     .click();
   await expect(user.getByRole('listbox', { name: 'All clusters' })).toBeVisible();
-  await expect(user.getByRole('option', { name: 'Fleet management' })).toHaveCount(0);
+  await user.getByRole('option', { name: 'Fleet management' }).click();
+  await expect(user).toHaveURL(/\/fleet\/overview$/);
+  await expect(user.getByRole('heading', { level: 1, name: 'Fleet overview' })).toBeVisible();
+  // alice's one cluster gets its row from the fleet status stream (the fake's health answers, T-0341).
+  await expect(user.getByRole('row').filter({ hasText: cluster() })).toBeVisible();
+  await expect(sidebar(user).getByRole('button', { name: 'Fleet', exact: true })).toBeVisible();
+  await expect(sidebar(user).getByRole('button', { name: 'Fleet administration' })).toHaveCount(0);
   await user.context().close();
 });
