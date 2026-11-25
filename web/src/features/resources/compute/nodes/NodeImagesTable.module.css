@@ -1,0 +1,5 @@
+/* OCP `.co-select-to-copy`: one click selects the whole image name. */
+.selectToCopy {
+  cursor: copy;
+  user-select: all;
+}

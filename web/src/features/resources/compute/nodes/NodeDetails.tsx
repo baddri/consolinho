@@ -3,6 +3,7 @@ import type { K8sResource, Node } from '@/shared/k8s';
 import { DASH, DetailsSubsection } from '@/shared/ui';
 import { nodeResourceRows } from './node';
 import { NodeConditionsTable } from './NodeConditionsTable';
+import { NodeImagesTable } from './NodeImagesTable';
 
 /** A listed Node (`metadata` always present). */
 export type NodeResource = Node & K8sResource;
@@ -31,7 +32,10 @@ function CapacityTable({ node }: { node: Node }) {
   );
 }
 
-/** Full-width sections under the Node details grid: Node conditions (OCP `NodeDetailsConditions`), Capacity and allocatable. */
+/**
+ * Full-width sections under the Node details grid: Node conditions (OCP `NodeDetailsConditions`), Capacity and
+ * allocatable *(fleet)*, then Images (OCP `NodeDetailsImages`, last as in OCP).
+ */
 export function NodeSections({ obj }: { obj: NodeResource }) {
   return (
     <>
@@ -40,6 +44,9 @@ export function NodeSections({ obj }: { obj: NodeResource }) {
       </DetailsSubsection>
       <DetailsSubsection title="Capacity and allocatable">
         <CapacityTable node={obj} />
+      </DetailsSubsection>
+      <DetailsSubsection title="Images">
+        <NodeImagesTable images={obj.status?.images} />
       </DetailsSubsection>
     </>
   );

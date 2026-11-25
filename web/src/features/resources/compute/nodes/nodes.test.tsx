@@ -5,6 +5,7 @@ import { mockDb } from '@/test/handlers';
 import { renderApp } from '@/test/render';
 import { resourceRoutes } from '../../routes';
 import { nodeAddresses, nodeUptime, nodeMachine, nodeProvider, nodeResourceRows, nodeRoles } from './node';
+import { nodeImageName, NodeImagesTable } from './NodeImagesTable';
 import { NodeStatus } from './NodeStatus';
 
 beforeAll(() => preloadLazyRoutes(resourceRoutes));
@@ -113,6 +114,19 @@ describe('node helpers', () => {
       { type: 'Hostname', address: 'n' },
       { type: 'Internal IP', address: '10.0.0.1' },
     ]);
+  });
+
+  it('nodeImageName prefers a tag name over digest and <none> names, else the first (OCP NodeDetailsImages)', () => {
+    expect(nodeImageName(['reg/a@sha256:1', 'reg/a:v1'])).toBe('reg/a:v1');
+    expect(nodeImageName(['reg/a@sha256:1', 'reg/a:<none>'])).toBe('reg/a@sha256:1');
+    expect(nodeImageName(['reg/a@sha256:1'])).toBe('reg/a@sha256:1');
+  });
+
+  it('NodeImagesTable skips entries without names and shows "-" for a missing size', () => {
+    render(<NodeImagesTable images={[{ names: ['reg/a:v1'] }, { sizeBytes: 5 }]} />);
+    const rows = screen.getAllByRole('row');
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toHaveTextContent('reg/a:v1-');
   });
 
   it('nodeResourceRows humanises CPU, memory and storage', () => {
@@ -234,6 +248,16 @@ describe('Nodes (T-0332)', () => {
       const capacity = screen.getByRole('grid', { name: 'Capacity and allocatable' });
       const cpu = within(capacity).getByText('CPU').closest('tr');
       expect(cpu).toHaveTextContent('8 cores7.5 cores');
+
+      // OCP NodeDetailsImages: last section, Name | Size; tag names preferred, digest-only names fall back.
+      const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
+      expect(headings.at(-1)).toBe('Images');
+      const images = screen.getByRole('grid', { name: 'Images' });
+      expect(within(images).getByText('quay.example.com/fleet/ose-cli:v4.18').closest('tr')).toHaveTextContent(
+        '1.25 GiB',
+      );
+      expect(within(images).getByText(/ovn-kubernetes@sha256:/)).toBeInTheDocument();
+      expect(within(images).getAllByRole('row')).toHaveLength(5);
     },
     COLD_START_TEST_TIMEOUT_MS,
   );

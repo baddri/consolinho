@@ -1,4 +1,4 @@
-import type { NodeCondition, PodStatus, Taint } from 'kubernetes-types/core/v1';
+import type { ContainerImage, NodeCondition, PodStatus, Taint } from 'kubernetes-types/core/v1';
 import type {
   DaemonSet,
   K8sResource,
@@ -118,6 +118,33 @@ function nodeConditions(ready: boolean): NodeCondition[] {
   ];
 }
 
+/**
+ * Images cached on every node (`status.images`, Node details Images section): tag + digest names, a digest-only one
+ * (falls back to its digest name), a `<none>` tag, and an entry without names (not listed).
+ */
+const NODE_IMAGES: ContainerImage[] = [
+  {
+    names: [
+      'quay.example.com/fleet/ose-cli@sha256:1111111111111111111111111111111111111111111111111111111111111111',
+      'quay.example.com/fleet/ose-cli:v4.18',
+    ],
+    sizeBytes: 1342177280,
+  },
+  {
+    names: ['quay.example.com/fleet/ovn-kubernetes@sha256:2222222222222222222222222222222222222222222222222222222222222222'],
+    sizeBytes: 1610612736,
+  },
+  {
+    names: [
+      'registry.example.com/apps/web@sha256:3333333333333333333333333333333333333333333333333333333333333333',
+      'registry.example.com/apps/web:<none>',
+    ],
+    sizeBytes: 524288000,
+  },
+  { names: ['registry.example.com/library/pause:3.9'], sizeBytes: 761856 },
+  { sizeBytes: 1024 },
+];
+
 function nodeObject(cluster: string, plan: NodePlan, uid: string, openShift: boolean): Node {
   const ready = !NOT_READY.has(`${cluster}/${plan.name}`);
   const cordoned = CORDONED.has(`${cluster}/${plan.name}`);
@@ -186,6 +213,7 @@ function nodeObject(cluster: string, plan: NodePlan, uid: string, openShift: boo
         { type: 'InternalDNS', address: `ip-${plan.ip.replaceAll('.', '-')}.ec2.internal` },
       ],
       conditions: nodeConditions(ready),
+      images: NODE_IMAGES,
       nodeInfo: {
         architecture: 'amd64',
         bootID: `${uid}-boot`,
