@@ -40,14 +40,20 @@ describe('StorageClasses (T-0306)', () => {
     async () => {
       renderApp('/c/dev-1/k8s/cluster/storageclasses');
 
-      const table = await screen.findByRole('grid', { name: 'StorageClasses' }, { timeout: COLD_START_TIMEOUT_MS });
+      const table = await screen.findByRole(
+        'grid',
+        { name: 'StorageClasses' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
       const headers = within(table)
         .getAllByRole('columnheader')
         .map((header) => header.textContent.replace(/Column \d+ pixels$/, ''));
-      expect(headers).toEqual(['Name', 'Provisioner', 'Reclaim policy', 'Created', 'Actions']);
+      expect(headers).toEqual(['Name', 'Provisioner', 'Reclaim policy', 'Actions']);
       const row = (await within(table).findByRole('link', { name: 'standard-csi' })).closest('tr');
       if (!row) throw new Error('no standard-csi row');
-      const cells = within(row).getAllByRole('cell').map((cell) => cell.textContent);
+      const cells = within(row)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent);
       expect(cells[0]).toContain('standard-csi– Default');
       expect(cells.slice(1, 3)).toEqual(['csi.example.com', 'Delete']);
       const nfsRow = within(table).getByRole('link', { name: 'slow-nfs' }).closest('tr');
@@ -63,7 +69,11 @@ describe('StorageClasses (T-0306)', () => {
     async () => {
       renderApp('/c/dev-1/k8s/cluster/storageclasses/standard-csi');
 
-      await screen.findByRole('heading', { name: 'StorageClass details' }, { timeout: COLD_START_TIMEOUT_MS });
+      await screen.findByRole(
+        'heading',
+        { name: 'StorageClass details' },
+        { timeout: COLD_START_TIMEOUT_MS },
+      );
       expect(detailsRow('Provisioner')).toHaveTextContent('csi.example.com');
       expect(detailsRow('Reclaim policy')).toHaveTextContent('Delete');
       expect(detailsRow('Default class')).toHaveTextContent('True');
@@ -71,7 +81,9 @@ describe('StorageClasses (T-0306)', () => {
       expect(detailsRow('Allow volume expansion')).toHaveTextContent('true');
       expect(screen.getByRole('heading', { name: 'Parameters' })).toBeInTheDocument();
       const parameters = screen.getByRole('grid', { name: 'Parameters' });
-      expect(within(parameters).getByRole('row', { name: /csi\.storage\.k8s\.io\/fstype xfs/ })).toBeInTheDocument();
+      expect(
+        within(parameters).getByRole('row', { name: /csi\.storage\.k8s\.io\/fstype xfs/ }),
+      ).toBeInTheDocument();
       expect(within(parameters).getByRole('row', { name: /type ssd/ })).toBeInTheDocument();
     },
     COLD_START_TEST_TIMEOUT_MS,

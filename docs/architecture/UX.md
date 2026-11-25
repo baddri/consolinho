@@ -126,6 +126,8 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 - `public/components/utils/horizontal-nav.tsx`: `Tabs component="nav" usePageInsets` directly under the heading, tab
   titles left-aligned with the heading text. Tabs are URL segments. No `PageSection` padding around the tab bar.
 - Tab content in a padded `PageSection` (OCP `PaneBody`).
+- Tab set per kind = OCP's for that kind (its `navFactory` pages / plugin `use<Kind>Tabs`); no Events tab where OCP
+  has none (Route, Ingress, NetworkPolicy, PersistentVolume, StorageClass; T-0310).
 
 ## 5. List pages
 - OCP lists are `ConsoleDataView` (`packages/console-app/src/components/data-view/ConsoleDataView.tsx`, PF
@@ -190,6 +192,9 @@ OCP `packages/console-shared/src/components/heading/PageHeading.tsx` (wraps comp
 ## 9. Modals and wizards
 - `Modal` + `ModalHeader` + `ModalBody` + `ModalFooter`. Exactly **one** close control (the header X).
 - Sizes: confirm/delete `small`; short forms `small`/`medium`; wizards `large` (or `medium`).
+- Explanatory paragraphs (fleet cluster-context line, OCP intro text) are `Content p` children of `ModalBody` **before**
+  the `<Form>`, 16px apart (p margin), never inside the Form (24px row gap + margin = 40px). OCP
+  `expand-pvc-modal.tsx` L72-84, `CreateProjectModal.tsx` L121-131 (T-0310, T-0345).
 - Delete confirm (OCP `public/components/modals/delete-modal.tsx`): title "Delete <kind>?" with a warning icon
   (`titleIconVariant="warning"`), body "Are you sure you want to delete **name** in namespace **ns**?", footer danger
   "Delete" + link "Cancel". Type-to-confirm only for fleet-destructive actions (delete cluster).

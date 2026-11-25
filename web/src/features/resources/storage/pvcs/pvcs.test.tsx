@@ -43,16 +43,21 @@ function rowsByName(table: HTMLElement): Map<string, HTMLElement[]> {
 
 describe('persistentVolumeClaim helpers', () => {
   it('podsMountingClaim keeps only pods with a volume for the claim', () => {
-    const pods = [pod('db-0', ['db-data']), pod('web', []), pod('both', ['uploads', 'db-data']), pod('up', ['uploads'])];
+    const pods = [
+      pod('db-0', ['db-data']),
+      pod('web', []),
+      pod('both', ['uploads', 'db-data']),
+      pod('up', ['uploads']),
+    ];
     expect(podsMountingClaim(pods, 'db-data').map((p) => p.metadata?.name)).toEqual(['db-0', 'both']);
     expect(podsMountingClaim(pods, 'missing')).toEqual([]);
     expect(podsMountingClaim([{ metadata: { name: 'bare' } }], 'db-data')).toEqual([]);
   });
 
   it('pvcPhase is Terminating while deleted, else the phase', () => {
-    expect(pvcPhase({ metadata: { deletionTimestamp: '2026-01-01T00:00:00Z' }, status: { phase: 'Bound' } })).toBe(
-      'Terminating',
-    );
+    expect(
+      pvcPhase({ metadata: { deletionTimestamp: '2026-01-01T00:00:00Z' }, status: { phase: 'Bound' } }),
+    ).toBe('Terminating');
     expect(pvcPhase({ status: { phase: 'Pending' } })).toBe('Pending');
     expect(pvcPhase({})).toBe('Unknown');
   });
@@ -74,15 +79,7 @@ describe('PersistentVolumeClaims (T-0307)', () => {
       const headers = within(table)
         .getAllByRole('columnheader')
         .map((header) => header.textContent.replace(/Column \d+ pixels$/, ''));
-      expect(headers).toEqual([
-        'Name',
-        'Status',
-        'PersistentVolume',
-        'Capacity',
-        'StorageClass',
-        'Created',
-        'Actions',
-      ]);
+      expect(headers).toEqual(['Name', 'Status', 'PersistentVolume', 'Capacity', 'StorageClass', 'Actions']);
       const rows = rowsByName(table);
       expect([...rows.keys()].sort()).toEqual(['db-data', 'resizing', 'scratch', 'uploads']);
       const cell = (name: string, index: number): HTMLElement => {
@@ -138,8 +135,12 @@ describe('PersistentVolumeClaims (T-0307)', () => {
       expect(detailsRow('Capacity')).toHaveTextContent('10 GiB');
       expect(detailsRow('Access modes')).toHaveTextContent('ReadWriteOnce');
       expect(detailsRow('Volume mode')).toHaveTextContent('Filesystem');
-      expect(within(detailsRow('StorageClasses')).getByRole('link', { name: 'standard-csi' })).toBeInTheDocument();
-      expect(within(detailsRow('PersistentVolumes')).getByRole('link', { name: 'pv-db-data' })).toBeInTheDocument();
+      expect(
+        within(detailsRow('StorageClasses')).getByRole('link', { name: 'standard-csi' }),
+      ).toBeInTheDocument();
+      expect(
+        within(detailsRow('PersistentVolumes')).getByRole('link', { name: 'pv-db-data' }),
+      ).toBeInTheDocument();
       await within(detailsRow('Pods')).findByRole('link', { name: 'db-0' });
       const pods = within(detailsRow('Pods'))
         .getAllByRole('link')

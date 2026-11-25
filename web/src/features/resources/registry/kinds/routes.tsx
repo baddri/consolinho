@@ -20,6 +20,8 @@ export type RouteResource = Route & K8sResource;
 export const routeDescriptor: ResourceDescriptor<RouteResource> = {
   model: RouteModel,
   nav: { section: 'networking', order: 20 },
+  // OCP has no Events tab on this kind (T-0310 F1).
+  hasEventsTab: false,
   status: (route) => ({ title: routeStatus(route) }),
   summary: { Extra: RouteSummaryExtra },
   DetailsSection: RouteDetails,

@@ -10,8 +10,13 @@ import {
   type PersistentVolumeClaimResource,
 } from '../../storage/pvcs/PersistentVolumeClaimDetails';
 import { usePVCActions } from '../../storage/pvcs/useExpandPVCAction';
-import { formatBytes, pvcCapacityBytes, pvcPhase, pvcRequestBytes } from '../../storage/pvcs/persistentVolumeClaim';
-import { ageColumn, nameColumn, namespaceColumn } from '../columns';
+import {
+  formatBytes,
+  pvcCapacityBytes,
+  pvcPhase,
+  pvcRequestBytes,
+} from '../../storage/pvcs/persistentVolumeClaim';
+import { nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 
 export type { PersistentVolumeClaimResource };
@@ -26,7 +31,7 @@ function listedCapacityBytes(pvc: PersistentVolumeClaimResource): number | undef
 
 /**
  * PersistentVolumeClaims (PVC-1/PVC-2, OCP `persistent-volume-claim.tsx`). List: Name, Namespace, Status,
- * PersistentVolume, Capacity (OCP binary bytes), StorageClass, Created; Status filter Pending / Bound / Lost. Details:
+ * PersistentVolume, Capacity (OCP binary bytes), StorageClass (no Created, as OCP); Status filter Pending / Bound / Lost. Details:
  * Label selector in the metadata column, OCP's right column plus a "Pods" item, and Conditions. Used / donut need
  * Prometheus (parity gap). Actions: Expand PVC (T-0308).
  */
@@ -71,7 +76,6 @@ export const persistentVolumeClaimDescriptor: ResourceDescriptor<PersistentVolum
         ),
       sortValue: (pvc) => pvc.spec?.storageClassName ?? null,
     },
-    ageColumn(),
   ],
   filters: [
     {

@@ -20,6 +20,8 @@ export type { PersistentVolumeResource };
 export const persistentVolumeDescriptor: ResourceDescriptor<PersistentVolumeResource> = {
   model: PersistentVolumeModel,
   nav: { section: 'storage', order: 10 },
+  // OCP has no Events tab on this kind (T-0310 F1).
+  hasEventsTab: false,
   status: (pv) => ({ title: pvPhase(pv) }),
   summary: { Extra: PersistentVolumeSummaryExtra },
   DetailsSection: PersistentVolumeDetails,

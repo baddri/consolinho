@@ -18,9 +18,15 @@ function detailsRow(scope: HTMLElement, label: string): HTMLElement {
 }
 
 /** Opens route `name` and waits for its "Route details" section. */
-async function openRoute(name: string): Promise<{ details: HTMLElement; user: ReturnType<typeof renderApp>['user'] }> {
+async function openRoute(
+  name: string,
+): Promise<{ details: HTMLElement; user: ReturnType<typeof renderApp>['user'] }> {
   const { user } = renderApp(`${ROUTES_URL}/${name}`);
-  const details = await screen.findByRole('region', { name: 'Route details' }, { timeout: COLD_START_TIMEOUT_MS });
+  const details = await screen.findByRole(
+    'region',
+    { name: 'Route details' },
+    { timeout: COLD_START_TIMEOUT_MS },
+  );
   return { details, user };
 }
 
@@ -58,7 +64,10 @@ describe('route details helpers', () => {
     const ingress = primaryIngress(route);
     expect(ingress?.routerName).toBe('default');
     expect(needsCustomDnsHelp(route, ingress)).toBe(true);
-    const generated = { ...route, metadata: { ...route.metadata, annotations: { 'openshift.io/host.generated': 'true' } } };
+    const generated = {
+      ...route,
+      metadata: { ...route.metadata, annotations: { 'openshift.io/host.generated': 'true' } },
+    };
     expect(needsCustomDnsHelp(generated, ingress)).toBe(false);
     expect(needsCustomDnsHelp(route, route.status?.ingress?.[0])).toBe(false);
   });
@@ -82,7 +91,9 @@ describe('Route details (RT-3, RT-4)', () => {
       expect(detailsRow(details, 'Target port')).toHaveTextContent('http');
       const canonical = detailsRow(details, 'Router canonical hostname');
       expect(canonical).toHaveTextContent(CANONICAL);
-      expect(within(canonical).getByRole('button', { name: 'Do you need to set up custom DNS?' })).toBeInTheDocument();
+      expect(
+        within(canonical).getByRole('button', { name: 'Do you need to set up custom DNS?' }),
+      ).toBeInTheDocument();
 
       const tls = screen.getByRole('region', { name: 'TLS Settings' });
       expect(detailsRow(tls, 'Termination type')).toHaveTextContent('edge');
@@ -109,11 +120,11 @@ describe('Route details (RT-3, RT-4)', () => {
   );
 
   it(
-    'RT-4: tabs Details, YAML, Events; actions are the common four',
+    'RT-4: tabs Details and YAML (no Events, as OCP); actions are the common four',
     async () => {
       const { user } = await openRoute('web');
 
-      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Details', 'YAML', 'Events']);
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Details', 'YAML']);
       await user.click(screen.getByRole('button', { name: 'Actions' }));
       expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
         'Edit labels',
@@ -175,7 +186,9 @@ describe('Route details (RT-3, RT-4)', () => {
       });
       expect(within(conditions).getByText('HostAlreadyClaimed')).toBeInTheDocument();
       expect(
-        within(conditions).getByText('route web-shop.apps.dev-1.example.com already claimed by another namespace'),
+        within(conditions).getByText(
+          'route web-shop.apps.dev-1.example.com already claimed by another namespace',
+        ),
       ).toBeInTheDocument();
     },
     COLD_START_TEST_TIMEOUT_MS,

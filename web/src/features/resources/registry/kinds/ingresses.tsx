@@ -1,5 +1,9 @@
 import { IngressModel, type K8sResource, type Ingress } from '@/shared/k8s';
-import { IngressDetails, IngressSections, IngressSummaryExtra } from '../../networking/ingresses/IngressDetails';
+import {
+  IngressDetails,
+  IngressSections,
+  IngressSummaryExtra,
+} from '../../networking/ingresses/IngressDetails';
 import { ingressHosts } from '../../networking/ingresses/ingressRules';
 import { labelsColumn, nameColumn, namespaceColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
@@ -30,6 +34,8 @@ function IngressHosts({ ingress }: { ingress: Ingress }) {
 export const ingressDescriptor: ResourceDescriptor<IngressResource> = {
   model: IngressModel,
   nav: { section: 'networking', order: 30 },
+  // OCP has no Events tab on this kind (T-0310 F1).
+  hasEventsTab: false,
   summary: { Extra: IngressSummaryExtra },
   DetailsSection: IngressDetails,
   ExtraSections: IngressSections,

@@ -6,18 +6,21 @@ import {
   StorageClassSummaryExtra,
   type StorageClassResource,
 } from '../../storage/storageclasses/StorageClassDetails';
-import { ageColumn, nameColumn } from '../columns';
+import { nameColumn } from '../columns';
 import type { ResourceDescriptor } from '../types';
 
 export type { StorageClassResource };
 
 /**
  * StorageClasses (SC-1, OCP `storage-class.tsx`), cluster-scoped: Name with the "– Default" marker, Provisioner,
- * Reclaim policy, Created. Details add binding mode, expansion and the Parameters table. No create form (backlog).
+ * Reclaim policy (no Created column, as OCP). Details add binding mode, expansion and the Parameters table. No
+ * Events tab, no create form (backlog).
  */
 export const storageClassDescriptor: ResourceDescriptor<StorageClassResource> = {
   model: StorageClassModel,
   nav: { section: 'storage', order: 30 },
+  // OCP has no Events tab on this kind (T-0310 F1).
+  hasEventsTab: false,
   summary: { Extra: StorageClassSummaryExtra },
   DetailsSection: StorageClassDetails,
   ExtraSections: StorageClassParameters,
@@ -35,6 +38,5 @@ export const storageClassDescriptor: ResourceDescriptor<StorageClassResource> = 
       cell: (obj) => obj.reclaimPolicy ?? 'Delete',
       sortValue: (obj) => obj.reclaimPolicy ?? 'Delete',
     },
-    ageColumn(),
   ],
 };

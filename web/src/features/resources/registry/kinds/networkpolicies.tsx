@@ -19,6 +19,8 @@ export type NetworkPolicyResource = NetworkPolicy & K8sResource;
 export const networkPolicyDescriptor: ResourceDescriptor<NetworkPolicyResource> = {
   model: NetworkPolicyModel,
   nav: { section: 'networking', order: 40 },
+  // OCP has no Events tab on this kind (T-0310 F1).
+  hasEventsTab: false,
   DetailsSection: NetworkPolicyDetails,
   ExtraSections: NetworkPolicySections,
   columns: [
