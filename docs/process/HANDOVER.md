@@ -2,7 +2,7 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-25 (CP5.5 BUILD mid-5.5a) · **Current checkpoint:** CP5.5 BUILD (5.5a) ·
+**Last updated:** 2026-11-26 (CP5.5 VERIFY) · **Current checkpoint:** CP5.5 BUILD (5.5a) ·
 **Branch:** `cp/5.5-kubernetes-clusters`
 
 ## Where we are
@@ -19,11 +19,11 @@
 
 ## Next actions (resume here)
 1. CP5.5 spec `docs/specs/CP5.5-kubernetes-clusters.md` (5.5a backend+kind+CT, 5.5b K8s UI). In flight:
-   5.5b build lanes done; T-0379 done (kind smoke all green). T-0386 done aa51090 (kind e2e 4/4, E2E_KIND=1). Blocking bug T-0389 (landing stuck + discovery refetch loop on 404, fails browse QG-4 x2 + csp HOST-3) in progress, then VERIFY.
+   5.5b build lanes done; T-0379 done (kind smoke all green). T-0386 done aa51090 (kind e2e 4/4, E2E_KIND=1). T-0389 done 1135049 (discovery refetch loop; check-fe 1676). Next: VERIFY (qa-engineer: check-be, check-fe, default e2e, all spec ACs), then ACCEPT, CLOSE. Follow-up T-0390 (discovery recovery, backlog).
    Done: T-0376 aa5b50b, T-0372 6aa623f+97647a2, T-0377 879c48d (kind API port 16443), T-0378 274c6b1, T-0385 367df0b, T-0384 9a66c11, T-0381 c954355, T-0382 b5a79bf+b4ea1ed, T-0383 a80475c, T-0387 ux APPROVE 4c1fc3c, T-0388 c990cb5 (check-fe 1675). PO to confirm NSC-2 = disabled-with-reason (ux recommends; spec says hidden).
-   Follow-up T-0380 Login lockup (backlog). Next: T-0379 QA kind smoke (needs a free heavy slot), then T-0386, T-0387
-   (PO to confirm NSC-2 disabled-vs-hidden).
-   At ACCEPT tell PO: T-0375 also added fallbackNamespaces to fleet status lines (accepted deviation).
+   Follow-up T-0380 Login lockup (backlog).
+   At ACCEPT tell PO (accepted deviations): T-0375 fallbackNamespaces on fleet status lines; NSC-2 disabled-with-reason
+   (spec: hidden); NSF-3 landing = Pods list; NSF-1 first open may send one 403 list in parallel with the SSAR.
 2. kind v0.33.0 installed to ~/.local/bin (human approved 2026-11-25).
 3. Backlog: T-0367, T-0349, T-0350; CP6 follow-ups T-0107, T-0108, T-0130, T-0134, T-0128.
 
