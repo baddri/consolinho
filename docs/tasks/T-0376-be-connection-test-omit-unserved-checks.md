@@ -1,7 +1,7 @@
 ---
 id: T-0376
 title: Connection test omits capability checks whose API group the cluster doesn't serve
-status: todo
+status: done
 owner: backend-engineer
 checkpoint: 5.5
 depends_on: []
@@ -55,13 +55,32 @@ step (DIST-7). Spec CP5.5 CT-1 (CP3.7 ACCEPT item). Headline rules (ADR-0011) un
   - Optional API assertion: extend `tests/FleetConsole.Api.Tests/Integration/Admin/ConnectionTests/ConnectionTestEndpointsTests.cs:TestCredential_OnKubernetesCluster_WithoutOpenShiftApis_SkipsClusterVersion` (L163) to assert no `list-clusteroperators` id.
 
 ## Acceptance criteria
-- [ ] CT-1: Kubernetes (detected) ⇒ `capabilities.checks` has no `list-clusteroperators`, and no review is sent for it.
-- [ ] OpenShift ⇒ list identical to `CapabilityCheckSet.Checks`; discovery unreadable ⇒ all checks.
-- [ ] Headline unchanged in both distributions; guard test for headline ids.
-- [ ] Build, lint and tests green (CLAUDE.md rule 4)
+- [x] CT-1: Kubernetes (detected) ⇒ `capabilities.checks` has no `list-clusteroperators`, and no review is sent for it.
+- [x] OpenShift ⇒ list identical to `CapabilityCheckSet.Checks`; discovery unreadable ⇒ all checks.
+- [x] Headline unchanged in both distributions; guard test for headline ids.
+- [x] Build, lint and tests green (CLAUDE.md rule 4)
 
 ## Work log
+- 2026-11-25 backend-engineer: `CapabilityCheckSet.ApplicableTo` (core always, null ⇒ all); `TestRun.ServedApiGroups` set
+  in Distribution; Capabilities step reviews only applicable checks. DTO doc updated. Tests: new `CapabilityCheckSetTests`
+  (incl. headline guard via `Evaluate`, no new public headline-id API), tester asserts for K8s/mismatch/unreadable, API
+  assertion in the K8s endpoint test. `scripts/check-be.sh` green.
 
 ## Review
+- 2026-11-25 backend-architect, round 1: **APPROVE**. Contract met: `ApplicableTo` is the one place (core always, null ⇒ all,
+  order preserved); served groups come from detection; omitted checks send no review (asserted); headline guard pins
+  core/apps ids via `Evaluate`; Distribution always runs before Capabilities (L200/L207), so null only means unreadable.
+  Layering, XML docs and tests fine; engineer's check-be.sh green, not re-run.
+  - Optional: `CapabilityCheckSet.cs:29` — `Checks` doc says "in the order they are reported"; could add "(reported
+    subset: `ApplicableTo`)" so readers find the filter.
+  - Optional: `ConnectionTesterTests.cs:231` — `ReviewedAttributes.Count.ShouldBe(CapabilityCheckSet.Checks.Count)` relies
+    on 1 admin + (N-1) checks; a short comment would make that arithmetic obvious.
 
 ## Handover notes
+- One place: `CapabilityCheckSet.ApplicableTo(servedGroups)`; `ConnectionTester.CheckCapabilitiesAsync` uses it with the
+  served groups from discovery (detection, not declaration). Unreadable discovery ⇒ every check, never guesses.
+- Omitted checks get no SelfSubjectAccessReview; the step summary "N of M checks allowed" counts applicable checks only
+  (K8s: "of 11").
+- Headline guard (`Headline_checks_are_all_applicable_to_a_core_and_apps_cluster`) pins that View/Edit ids are core/apps;
+  it tests behaviour via `Evaluate` so `EditChecks`/`ViewChecks` stay private.
+- Schema and stored summary unchanged; SPA rendering of the shorter list is T-0378.
