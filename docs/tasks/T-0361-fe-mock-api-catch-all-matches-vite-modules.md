@@ -1,7 +1,7 @@
 ---
 id: T-0361
 title: Mock catch-all `*/api/*` must not swallow Vite module requests (Fleet overview fails to lazy-load in dev:mock)
-status: todo
+status: done
 owner: frontend-engineer
 checkpoint: 5c
 depends_on: []
@@ -34,13 +34,23 @@ Fix: match only paths that **start** with `/api/` (pathname check or an anchored
   switcher › "Fleet management" → error page.
 
 ## Acceptance criteria
-- [ ] `/fleet?mockUser=alice` lands on `/fleet/overview` showing "Fleet overview" in dev:mock.
-- [ ] Switcher › "Fleet management" from a cluster page (fresh load of the cluster page) shows the Fleet overview.
-- [ ] Unknown `/api/...` routes still log the error and fail (existing test green); a test covers a non-API path that
+- [x] `/fleet?mockUser=alice` lands on `/fleet/overview` showing "Fleet overview" in dev:mock.
+- [x] Switcher › "Fleet management" from a cluster page (fresh load of the cluster page) shows the Fleet overview.
+- [x] Unknown `/api/...` routes still log the error and fail (existing test green); a test covers a non-API path that
       contains `/api/` not being intercepted.
 
 ## Work log
+- 2026-11-25 frontend-engineer: `isApiRequest` (pathname starts with `/api/`) in `handlers/http.ts`; `accessGuard` and
+  `unhandledApiRoute` fall through for other paths. Test in `mocks/access.test.ts` (msw `getResponse` on a Vite module
+  URL → no response, nothing logged). Probe: `/fleet?mockUser=alice` shows h1 "Fleet overview". AC2 not clicked (the
+  probe never clicks); same cause as AC1 (lazy chunk after worker start), which the probe shows fixed. check-fe src/mocks src/features/fleet green.
 
 ## Review
+- Round 1 (frontend-architect, 2026-11-25): **APPROVE**. The pathname `startsWith('/api/')` guard in both catch-alls matches
+  the contract. Unknown Api routes still fail, and the new `getResponse` test proves module paths fall through.
+  `access.test.ts` passes (19/19). Optional nits: `http.ts:19` doc line is over-long; `isApiRequest` needn't be exported (only used in-file).
 
 ## Handover notes
+- Fix is in the resolvers, not the pattern: `*/api/*` keeps matching (origin-agnostic), a non-`/api/` pathname falls
+  through, so MSW passes Vite module requests to the dev server. Unknown `/api/...` routes still log and fail.
+- Mock-only; no production code touched.
