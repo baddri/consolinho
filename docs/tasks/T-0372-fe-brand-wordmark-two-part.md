@@ -1,7 +1,7 @@
 ---
 id: T-0372
 title: Branding — two-part stacked wordmark (brand over product) and an abstract fleet mark
-status: in_review
+status: done
 owner: frontend-engineer
 checkpoint: 5.5
 depends_on: []
@@ -62,8 +62,14 @@ OpenShift artwork, fonts-as-logo or trademarks.
 ## Work log
 - 2026-11-25 frontend-engineer: in_progress → in_review. New fleet mark (hub + 3 satellites + broken ring) in both mark SVGs and favicon; `PRODUCT_LINE`; two-line `.brand`/`.product` lockup; aria-label "Consolinho Fleet Console"; tests updated.
 - Probe (mock :5372, 1280w), identical in OCP light/dark and Kubernetes light/dark: masthead 73px; link 149×40 at y16; mark 28×28 at y22; wordmark 113×32 at y20 (brand 12px, product 18px/19.8px); all centred on y36. Colours: #151515 (OCP light), #fff (OCP dark, Kubernetes both); Kubernetes uses the dark mark.
+- 2026-11-25 frontend-engineer: review round 1 fixes. `.brand` now uses `--font--weight--heading--bold`, and the favicon ring uses `stroke-width` 2. Login is unchanged (follow-up).
 
 ## Review
+- 2026-11-25 ux-designer, round 1: **CHANGES_REQUESTED** (1 blocking, 2 non-blocking). Measured on the worktree mock at 1280 wide, OCP light/dark and Kubernetes. The reference console was down, so parity is judged from source (`public/components/masthead/masthead.tsx` L66-79, `public/style/_overrides.scss` L175-185, `public/imgs/openshift-logo.svg` 119.2×40).
+  - OK: masthead 73px; logo box 149×40 at y16; mark 28px at y22; wordmark at y20-52. Everything is centred on y36, like OCP's 40px lockup image inside `MastheadLogo`. Gap 8px (`spacer--sm`). Colours are right in all three themes and Kubernetes uses the dark mark. The About brand is 37px, with the light and dark marks swapping correctly. The accessible name is "Consolinho Fleet Console".
+  - [blocking] Masthead brand line: at 12px and weight 600, "Consolinho" reads thin and grey-ish next to the 18px product line. This is exactly the "weak brand text" the human complained about. OCP's brand line ("Red Hat" in `openshift-logo.svg`) is the heavy line of its lockup. Fix: `.brand` `font-weight: var(--pf-t--global--font--weight--heading--bold)` (800). Keep 12px and the product line at 400.
+  - [non-blocking, follow-up] Login: the header brand is the bare mark at 24×24, the SVG's intrinsic size, with no name next to it. That is a weak brand surface and unchanged from T-0360. Suggestion: a follow-up task for a mark+wordmark lockup SVG (or a larger brand height) on Login.
+  - [non-blocking] Favicon: the 32px version is clear. At 16px the 1.5 ring drops to about 1px and almost vanishes, so it reads as a hub with specks. Optional: in `favicon.svg` only, use `stroke-width="2"` on the ring.
 
 ## Handover notes
 - Brand line uses the token `--pf-t--global--font--weight--body--bold`, which computes to **600** in PF6 (the spec text said 700). I kept the token, not a raw 700.
