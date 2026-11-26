@@ -14,9 +14,11 @@ the human. Status: `planned` → `in_progress` → `done`.
 | 3.7 | Fleet foundations | done (tag cp-3.7) |
 | 4 | Workloads day-2 operations | done (tags cp-4a, cp-4b, cp-4c) |
 | 4.5 | Access at scale (groups + cache) | done (tags cp-4.5a, cp-4.5b; live verify T-0286) |
-| 5 | Networking, storage, compute & cluster overview | planned |
-| 5.5 | Kubernetes clusters | planned |
-| 6 | Hardening, observability & polish | planned |
+| 5 | Networking, storage, compute & cluster overview | done (tags cp-5a, cp-5b, cp-5c) |
+| 5.5 | Kubernetes clusters | done (tags cp-5.5a, cp-5.5b) |
+| 6 | Hardening, observability & polish | designed (spec + tasks approved 2026-11-26), BUILD not started |
+| 6.5 | Namespaces UX, CRDs, operator operands & API explorer | planned |
+| 7 | Web terminal | planned (needs ADR) |
 
 ---
 
@@ -127,11 +129,42 @@ saved namespaces), per-distribution sidebar from discovery, Kubernetes-only kind
 for dev and e2e. (CP3.7 ACCEPT) Connection-test summary hides "OpenShift version" and "List cluster operators" on Kubernetes.
 
 ## CP6 — Hardening, observability & polish
-Caching of discovery (access caching moved to CP4.5), rate limiting, security review pass, OpenTelemetry
-dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
+Spec: `docs/specs/CP6-hardening.md`. **CP6a** backend hardening: server-side discovery cache, rate limiting (login,
+proxy mutations), XFF client IP in audit, secrets out of telemetry (T-0015), DP cert fail-fast (T-0012) and multi-cert
+rotation, forwarding pool keeps streams alive (T-0058), Prometheus metrics + ServiceMonitor/alerts/dashboard, keyring
+health log level, security review pass, ops docs (T-0107, T-0108). **CP6b** frontend: discovery degraded recovery
+(T-0390, before Kubernetes production), chunk-load "new version" recovery (T-0028), bounded events cache (T-0130),
+accessibility pass (axe, T-0128, T-0134, dark-mode contrast; dark mode itself exists), Playwright e2e gate script.
+
+## CP6.5 — Namespaces UX, CRDs, operator operands & API explorer
+(a) Namespace fallback on option A (no server-side security change, nothing installed on clusters): clearer admin
+credential field for fallback namespaces with an info alert explaining it; the selector lets users add their own
+namespaces, stored in browser localStorage per user + cluster and removable (convenience only — the token decides
+access); "All projects" shown only when the SA may list namespaces (OCP `FLAGS.CAN_LIST_NS` parity; today it shows
+whenever the projects list loads). (b) Generic kinds: G1 generic list/details/YAML pages for any discovered kind (the
+registry is static; unknown plurals say "Kind not supported yet" — covers IngressClasses, EndpointSlices, …); G2 CRD
+list/details/instances; G3 installed-operator per-provided-API instance tabs; G4 create operand via YAML prefilled from
+`alm-examples`; G5 operand details; G6 API Explorer; G7 search over all discovered kinds; G8 Import YAML (check whether
+it exists first). (c) **Needs ADR**: per-cluster metrics datasource configured by the admin → Utilization card, node
+CPU/memory/filesystem, PVC Used, Node Overview/Health tabs, alerts. Human decision 2026-11-26: per-namespace metric
+tenancy is **not** required for now (ops users can already read all Prometheus data); the form makes the admin pick the
+datasource **type** (Thanos querier / Prometheus / VictoriaMetrics) and shows a warning that every user with a grant
+on the cluster can read all of that datasource's metrics (Thanos tenancy port is the exception). Delivered as a
+**wizard** (type → connection & auth → TLS → test → review/save). (d) **Credential form becomes a wizard** too
+(cluster & SA token → fallback/inspect namespaces with the (a) info alert → **test token** as the last step before
+Save; save stays possible after a failed test only with explicit confirmation).
+
+## CP7 — Web terminal
+OCP-style web terminal backed by a DevWorkspace on the **host cluster** (DevWorkspace Operator present there). The
+terminal's kubeconfig points at the FleetConsole proxy with a **short-lived per-session FleetConsole token** (never the
+raw SA token), so read-only grants, audit, cluster-named safety and revocation still apply; `oc`/`kubectl` target the
+active cluster. **Needs an ADR first** (token minting/exchange, workspace lifecycle and cleanup, per-user isolation).
+ADR alternative to weigh (human, 2026-11-26): mint a short-lived token of the assigned SA via TokenRequest
+(`create serviceaccounts/token` on itself, granted once per SA by an SOP RoleBinding, no admin at runtime). Trade-offs:
+no FleetConsole audit/read-only enforcement inside the terminal, no early revocation, and a leaked token can mint
+further tokens unless the RoleBinding is narrowed. The connection test can report whether the SA can mint (SSAR).
 
 ## Backlog / ideas (product owner adds here)
-- (CP4.5b ACCEPT R1) Subscribe the cache backplane at startup and gate readiness on it, so a just-started pod cannot miss a revoke (today bounded by `Cache:Duration` 30 s).
 - (CP4.5a ACCEPT) Stored `system:` group grant row (direct SQL only) → 500: read it tolerantly (skip + log warning) instead of the GroupName converter throwing.
 - (CP4 spec) Environment tab (env editor) for Pods/Deployments/StatefulSets/DaemonSets.
 - (CP4 spec) Debug container ("Debug in terminal" for CrashLoopBackOff pods).
@@ -162,11 +195,8 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP1 ACCEPT) Credential "last used" (from proxy audit, CP2+) to find stale SA tokens before rotation/deletion.
 - (CP1 ACCEPT) Audit entries link their target (user/cluster/credential) to its admin page; "View in audit log" from detail pages.
 - (CP1 ACCEPT) Masthead link-out to the cluster's own OCP web console (URL already stored per cluster) for features we don't cover yet.
-- (CP3 Q10) Trust `X-Forwarded-For` from the Route and record the client IP in audit entries (CP6).
-- (CP3 T-0103) DP certificate rotation supports one previous cert only: accept a list of previous certs, or add a re-encrypt-all-keys command, so repeated rotations never orphan old keys.
 - (CP3 spec) Instance banner / masthead text per deployment (e.g. "consolinho on test-cluster-17").
 - (CP3 spec) Argo CD Application + example `production` overlay repo layout.
-- (CP3 spec) Prometheus metrics endpoint + ServiceMonitor; alerts for login failures and proxy 5xx rate.
 - (CP3 spec) Self-registration of the host cluster as a managed cluster (one click, admin only).
 - (CP3 spec) DP certificate rotation helper (script or admin page showing key ring age/expiry).
 - (CP3 ACCEPT) `deploy-dev.sh --register-self`: automate the 4 smoke steps (SA token, register host cluster, credential, grant) after every test-cluster reinstall.
@@ -182,22 +212,18 @@ dashboards, Playwright e2e suite, accessibility pass, dark mode, docs.
 - (CP4c ACCEPT) Shared `useResourceYamlSchema(cluster, model)` hook (uri duplicated in DeploymentForm / ResourceYamlTab).
 - (CP4c ACCEPT) Metadata-only Secret lists (form pickers, Secrets list) so Secret values stay out of the query cache.
 - (CP4c ACCEPT) DatabaseMigrator: shared hardened advisory-lock helper (same half-open-connection risk as T-0231).
-- (CP4c ACCEPT) Keyring health check logs at Error once per cold start ("Key ring not loaded yet") → Warning/Degraded to cut alert noise.
 - (CP4c ACCEPT) Edit Deployment form: ImageStream tag source + auto-deploy triggers once ImageStream pages exist.
 - (CP5 spec) Node drain: evict pods with PDB awareness, progress per pod, cluster-named confirmation (OCP has none; fleet invention).
-- (CP5 spec) Prometheus/Thanos query proxy → Utilization card, alerts, node CPU/memory/filesystem, PVC Used, Node Overview/Health tabs.
+- (CP5 spec) Prometheus/Thanos query proxy → now the CP6.5 (c) candidate (per-cluster metrics datasource, needs ADR).
 - (CP5 spec) MachineSet "Edit Machine count"; MachineAutoscalers, MachineHealthChecks, MachineConfigPools pages.
 - (CP5 spec) Fleet health history: scheduled status checks, last-change timestamps, notifications on cluster degradation.
 - (CP5 spec) Operator actions: approve InstallPlan, change channel, uninstall; OperatorHub read.
 - (CP5 spec) Create forms: Route, Ingress, NetworkPolicy, StorageClass; "Set as default" StorageClass; VolumeSnapshots.
 - (CP5 spec) Project details Workloads and RoleBindings tabs.
 - (CP5a ACCEPT) Route list "Backend health" column (OCP networking-plugin): derive from Service + Endpoints, no per-row requests.
-- (CP5.5 spec) Kubernetes-only kinds: IngressClasses, EndpointSlices, CustomResourceDefinitions browser.
 - (CP5.5 spec) Per-grant namespace list for the selector fallback, independent of the credential's inspect namespaces.
 - (CP5.5 spec) kind cluster as an optional AppHost resource; CI job running `kubernetes.e2e.ts`.
 - (CP5.5 spec) Create Namespace: default network policy option (OCP parity).
-- (CP5.5 accept) T-0390 — Discovery recovers from a transient failure: degraded flag + 30 s poll keeping the last good
-  result (OCP `api-discovery.ts:startAPIDiscovery`); today a discovery error lasts until reload.
 - (CP5.5 accept) T-0380 — Login page shows the mark with the two-line wordmark (brand lockup, T-0372 review follow-up).
 - (CP5.5 accept) Namespace selector fallback: skip the parallel namespace list when a cached SSAR already says "no", so
   a fallback user sends no 403 on reopen (first open may still send one, NSF-1 deviation).

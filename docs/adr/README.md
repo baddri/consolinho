@@ -47,3 +47,6 @@ Never edit an accepted ADR's decision — supersede it.
 | 0039 | Host group membership via FleetConsole host SA snapshot; revalidation fails closed (refines 0034, extends 0009; CP4.5) | Accepted |
 | 0040 | Access cache implementation: post-commit event stage, `IQueryCache` port, per-user access snapshot, Redis deploy (amends 0035, implements 0008 §6; CP4.5b) | Accepted |
 | 0041 | Fleet status: on-demand probes with the grant credential, NDJSON stream `GET /api/fleet/status`, per-(cluster, credential) cache (CP5c) | Accepted |
+| 0042 | Client IP from trusted forwarded headers; login (per IP, before auth) and proxy-mutation (per user) rate limits (amends 0028 §3; CP6a) | Accepted |
+| 0043 | Own metrics: Prometheus scrape on a management port, bounded labels, health-as-metrics, monitoring component (CP6a) | Accepted |
+| 0044 | Server-side discovery cache in the proxy keyed by cluster + credential + Accept, memory only, tag-invalidated (amends 0020; CP6a) | Accepted |
