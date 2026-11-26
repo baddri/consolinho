@@ -11,7 +11,7 @@
 - CP5.5 (Kubernetes clusters): spec `docs/specs/CP5.5-kubernetes-clusters.md` §Acceptance = ACCEPTED (all 5 deviations
   accepted). VERIFY T-0391: check-be 2369, check-fe 1677, e2e 60 (+4 kind skipped), kind e2e 4/4 (`E2E_KIND=1`), kind smoke green.
 - Human UI fixes T-0370..T-0374 shipped in CP5.5. Local kind: `scripts/kind-dev.sh` (isolated kubeconfig, API :16443).
-- Deployed on consolinho: **cp-5.5b** (28a6fe8, build consolinho-19 image sha256:0e69ac67…, 2026-11-26).
+- Deployed on consolinho: **eadc0e0** (cp-5.5b + T-0392 nav/glass fix + T-0393 neutral switcher, K8s logo; build consolinho-20, 2026-11-26).
 
 ## Next actions (resume here)
 1. CP6 (Hardening, observability & polish): no spec yet → SPEC step (ocp-product-owner). Schedule T-0390 (discovery
