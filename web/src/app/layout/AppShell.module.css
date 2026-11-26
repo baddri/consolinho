@@ -38,4 +38,6 @@
 
 .nav > :global(.pf-v6-c-nav__list) {
   overflow-y: auto;
+  /* PF's nav list is a grid; filling its 1fr row would stretch every item to share the height (T-0392). */
+  align-content: start;
 }

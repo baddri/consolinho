@@ -31,10 +31,26 @@
 /*
  * PF's glass theme (`:where(.pf-v6-theme-glass) .pf-v6-c-masthead`) sets the background, a translucent bottom border
  * and a drop shadow directly, not via the variable; override them only there and keep its shadow under the edge.
+ * Glass surfaces are translucent and blurred, so the navy is too (`--fc-k8s--glass-bg`, T-0392): an opaque fill was
+ * the only solid surface on the glass page and clashed with its tinted backdrop. Light glass: 85% navy keeps white
+ * text above 7:1 over the light page. Dark glass: the navy only tints PF's own glass surface, so the band matches the
+ * sidebar and cards; the accent edge and the K8s tag stay the cue.
  */
+:global(.pf-v6-theme-glass) .shell[data-cluster-type='kubernetes'] {
+  --fc-k8s--glass-bg: color-mix(in srgb, var(--fc-k8s--bg) 85%, transparent);
+}
+
+:global(.pf-v6-theme-glass.pf-v6-theme-dark) .shell[data-cluster-type='kubernetes'] {
+  --fc-k8s--glass-bg: color-mix(
+    in srgb,
+    var(--fc-k8s--bg) 45%,
+    var(--pf-t--global--background--color--glass--primary--default)
+  );
+}
+
 :global(.pf-v6-theme-glass) .shell[data-cluster-type='kubernetes'] .masthead {
   border-block-end-color: var(--fc-k8s--accent);
-  background-color: var(--fc-k8s--bg);
+  background-color: var(--fc-k8s--glass-bg);
   box-shadow:
     inset 0 -3px 0 var(--fc-k8s--accent),
     var(--pf-t--global--box-shadow--glass--default);
@@ -52,6 +68,11 @@
   border-radius: var(--pf-t--global--border--radius--small);
   background-color: var(--fc-k8s--bg);
   box-shadow: inset 0 -3px 0 var(--fc-k8s--accent);
+}
+
+/* Glass: the switcher frame uses the same translucent navy as the masthead (T-0392). */
+:global(.pf-v6-theme-glass) .shell[data-cluster-type='kubernetes'] .navHeader {
+  background-color: var(--fc-k8s--glass-bg);
 }
 
 /* UX.md §2a: plain buttons in the masthead (navigation toggle). */

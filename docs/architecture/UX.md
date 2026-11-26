@@ -96,7 +96,7 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
 - PF internals the theme relies on (recheck on every PF upgrade; all in `app/layout/clusterTheme.module.css`):
   PF classes are matched via `:global()` and limited to `:not(.pf-v6-c-menu *)` so opened menus keep PF surfaces;
   under `.pf-v6-theme-glass` the masthead `background-color`, `border-block-end` and drop shadow are set directly
-  (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); the menu toggle's resolved `--BackgroundColor` is
+  (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); there the masthead and nav header use the translucent `--fc-k8s--glass-bg` (light: 85% navy; dark: 45% navy mixed into the glass primary surface, T-0392); the menu toggle's resolved `--BackgroundColor` is
   pinned transparent, so `:hover/:focus` and expanded rules restore it from the hover/expanded variables; the navy
   masthead uses the dark-surface mark and white wordmark text (`MARK_SRC.dark`, T-0360); the nav header frame is sm padding cancelled by negative margins
   (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
