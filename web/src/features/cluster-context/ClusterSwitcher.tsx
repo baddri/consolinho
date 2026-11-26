@@ -52,15 +52,15 @@ import {
 const FLEET_TITLE = 'Fleet management';
 
 /**
- * Labels after the cluster's display name, in UX.md §2a order (SW-5): the `K8s` type tag (Kubernetes only — an
- * OpenShift cluster is recognised by its `OpenshiftIcon` and gets no `OCP` tag, T-0203), environment and — in the
- * menu only, for an effective read-only mode (contract §6) — "Read only". The toggle stays one line, so it drops
- * "Read only" (its accessible name still says it, SW-4).
+ * Labels after the cluster's display name, in UX.md §2a order (SW-5): in the menu only, the `K8s` type tag
+ * (Kubernetes only — an OpenShift cluster is recognised by its `OpenshiftIcon` and gets no `OCP` tag, T-0203); then
+ * environment and, in the menu only, for an effective read-only mode (contract §6), "Read only". The toggle shows
+ * the type by its icon alone (human directive, T-0393) and stays one line; its accessible name still says both.
  */
 function ClusterLabels({ cluster, placement }: { cluster: AccessibleCluster; placement: 'menu' | 'toggle' }) {
   return (
     <>
-      {cluster.distribution === 'kubernetes' && (
+      {placement === 'menu' && cluster.distribution === 'kubernetes' && (
         <FlexItem>
           <ClusterTypeLabel distribution={cluster.distribution} />
         </FlexItem>

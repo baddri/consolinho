@@ -298,7 +298,8 @@ describe('ClusterSwitcher cluster identity (SW-1..6)', () => {
     const { user } = renderApp('/c/lab-1/overview');
 
     const toggle = await findSwitcher(user, 'Cluster Lab 1 (lab-1, K8s, dev), switch cluster');
-    expect(within(toggle).getByText('K8s')).toBeInTheDocument();
+    // The toggle shows the type by its icon only; the K8s tag is for menu items (T-0393).
+    expect(within(toggle).queryByText('K8s')).not.toBeInTheDocument();
     await user.hover(toggle);
     const tooltip = await screen.findByRole('tooltip');
     // Two lines: the (possibly truncated) title in full, then the cluster name.

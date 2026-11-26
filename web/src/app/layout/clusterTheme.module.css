@@ -56,25 +56,6 @@
     var(--pf-t--global--box-shadow--glass--default);
 }
 
-/*
- * UX.md §2a: the nav header (switcher area) gets the same surface and edge. A small padding, cancelled by equal
- * negative margins (the bottom one includes the 3px edge), frames the toggle without moving it or the nav below it
- * from where they sit on OpenShift clusters.
- */
-.shell[data-cluster-type='kubernetes'] .navHeader {
-  margin: calc(-1 * var(--pf-t--global--spacer--sm));
-  margin-block-end: calc(-1 * (var(--pf-t--global--spacer--sm) + 3px));
-  padding: var(--pf-t--global--spacer--sm) var(--pf-t--global--spacer--sm) calc(var(--pf-t--global--spacer--sm) + 3px);
-  border-radius: var(--pf-t--global--border--radius--small);
-  background-color: var(--fc-k8s--bg);
-  box-shadow: inset 0 -3px 0 var(--fc-k8s--accent);
-}
-
-/* Glass: the switcher frame uses the same translucent navy as the masthead (T-0392). */
-:global(.pf-v6-theme-glass) .shell[data-cluster-type='kubernetes'] .navHeader {
-  background-color: var(--fc-k8s--glass-bg);
-}
-
 /* UX.md §2a: plain buttons in the masthead (navigation toggle). */
 .shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-button):global(.pf-m-plain):not(:global(.pf-v6-c-menu) *) {
   --pf-v6-c-button--m-plain--Color: var(--fc-k8s--icon);
@@ -85,9 +66,8 @@
   --pf-v6-c-button--m-plain--m-clicked--BackgroundColor: var(--fc-k8s--hover-bg);
 }
 
-/* UX.md §2a: masthead menu toggles (help, user) and the nav header switcher toggle. */
-.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *),
-.shell[data-cluster-type='kubernetes'] .navHeader :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *) {
+/* UX.md §2a: masthead menu toggles (help, user). The sidebar switcher keeps the page's own look (T-0393). */
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *){
   --pf-v6-c-menu-toggle--Color: var(--fc-k8s--text);
   --pf-v6-c-menu-toggle--hover--Color: var(--fc-k8s--text);
   --pf-v6-c-menu-toggle--expanded--Color: var(--fc-k8s--text);
@@ -110,16 +90,12 @@
  * The transparent resting background above outranks PF's own state rules, which assign the resolved background from
  * the hover/expanded variables; restore that hand-off for these toggles.
  */
-.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:hover, :focus),
-.shell[data-cluster-type='kubernetes'] .navHeader :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:hover, :focus) {
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:hover, :focus){
   --pf-v6-c-menu-toggle--BackgroundColor: var(--pf-v6-c-menu-toggle--hover--BackgroundColor);
 }
 
 .shell[data-cluster-type='kubernetes']
   .masthead
-  :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:global(.pf-m-expanded), [aria-expanded='true']),
-.shell[data-cluster-type='kubernetes']
-  .navHeader
   :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):is(:global(.pf-m-expanded), [aria-expanded='true']) {
   --pf-v6-c-menu-toggle--BackgroundColor: var(--pf-v6-c-menu-toggle--expanded--BackgroundColor);
 }
@@ -129,8 +105,7 @@
  * navy surface; give them the light-blue ring explicitly.
  */
 .shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-button):global(.pf-m-plain):not(:global(.pf-v6-c-menu) *):focus-visible,
-.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):focus-visible,
-.shell[data-cluster-type='kubernetes'] .navHeader :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):focus-visible {
+.shell[data-cluster-type='kubernetes'] .masthead :global(.pf-v6-c-menu-toggle):not(:global(.pf-v6-c-menu) *):focus-visible {
   outline: 2px solid var(--fc-k8s--focus);
   outline-offset: 2px;
 }

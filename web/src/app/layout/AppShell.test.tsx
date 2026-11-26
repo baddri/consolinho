@@ -311,7 +311,7 @@ describe('AppShell', () => {
       const toggle = await within(nav).findByRole('button', {
         name: 'Cluster Lab 1 (lab-1, K8s, dev, read only), switch cluster',
       });
-      expect(within(toggle).getByText('K8s')).toBeInTheDocument();
+      expect(within(toggle).queryByText('K8s')).not.toBeInTheDocument();
       expect(shell()).toHaveAttribute('data-cluster-type', 'kubernetes');
       // The navy masthead is dark in both themes, so it shows the dark-surface mark (light theme by default here).
       expect(await findBrandMark()).toHaveAttribute('src', MARK_SRC.dark);

@@ -86,33 +86,32 @@ OCP paths below are relative to `openshift/console/frontend/`. The local clone i
   | `--fc-k8s--focus` | `--pf-t--color--blue--30` #92c5f9 | 6.95:1 |
 - Overridden PF variables (component level only, never global `--pf-t--global--text/icon--*`, so nested Labels and
   menus keep their own surfaces): masthead `--pf-v6-c-masthead--BackgroundColor`; plain buttons
-  `--pf-v6-c-button--m-plain--Color`/`--hover--Color`/`--hover--BackgroundColor`; masthead user toggle and the nav
-  header switcher `--pf-v6-c-menu-toggle--Color`, `--BackgroundColor` (transparent), `--BorderColor`,
+  `--pf-v6-c-button--m-plain--Color`/`--hover--Color`/`--hover--BackgroundColor`; masthead user toggle
+  `--pf-v6-c-menu-toggle--Color`, `--BackgroundColor` (transparent), `--BorderColor`,
   `--hover--BackgroundColor`, `--expanded--BackgroundColor`, `__icon--Color`, `__toggle-icon--Color`; focus ring on
   those toggles/buttons only: PF6 `MenuToggle`/plain `Button` paint the browser's `outline: auto` (no PF token), so
-  set `:focus-visible { outline: 2px solid var(--fc-k8s--focus); outline-offset: 2px }` there (T-0149 review). The nav header gets `--fc-k8s--bg` + the
-  accent edge; the rest of the sidebar, content and every opened `Menu`/dropdown are untouched (verify with the probe:
+  set `:focus-visible { outline: 2px solid var(--fc-k8s--focus); outline-offset: 2px }` there (T-0149 review). The sidebar, including the cluster switcher (human directive, T-0393: never
+  blue, page background), content and every opened `Menu`/dropdown are untouched (verify with the probe:
   menu item focus ring must stay PF's default).
 - PF internals the theme relies on (recheck on every PF upgrade; all in `app/layout/clusterTheme.module.css`):
   PF classes are matched via `:global()` and limited to `:not(.pf-v6-c-menu *)` so opened menus keep PF surfaces;
   under `.pf-v6-theme-glass` the masthead `background-color`, `border-block-end` and drop shadow are set directly
-  (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); there the masthead and nav header use the translucent `--fc-k8s--glass-bg` (light: 85% navy; dark: 45% navy mixed into the glass primary surface, T-0392); the menu toggle's resolved `--BackgroundColor` is
+  (PF's glass rule bypasses `--pf-v6-c-masthead--BackgroundColor`); there the masthead uses the translucent `--fc-k8s--glass-bg` (light: 85% navy; dark: 45% navy mixed into the glass primary surface, T-0392); the menu toggle's resolved `--BackgroundColor` is
   pinned transparent, so `:hover/:focus` and expanded rules restore it from the hover/expanded variables; the navy
-  masthead uses the dark-surface mark and white wordmark text (`MARK_SRC.dark`, T-0360); the nav header frame is sm padding cancelled by negative margins
-  (bottom includes the 3px edge) so the toggle and nav keep their OpenShift positions.
-- Never the only cue: the `K8s` tag on the toggle is always shown. The production/staging `Banner` is never themed and
+  masthead uses the dark-surface mark and white wordmark text (`MARK_SRC.dark`, T-0360).
+- Never the only cue: the Kubernetes icon on the toggle and `K8s` in its accessible name and on menu items. The production/staging `Banner` is never themed and
   the theme uses no red/orange; the band stays the dominant cue. It is not flush under the masthead: with the glass/felt page it is the first row
   of the main card (y=90 vs masthead bottom 73), separated by the page background, so band vs the 3px accent edge is
   not an adjacency. Measured band vs navy (T-0172): light `#fbc5c5` 8.34:1, dark `#f9a8a8` 6.72:1; band text 12.08:1 /
   8.79:1.
 - Icons (`aria-hidden`, distinct shapes): OpenShift `OpenshiftIcon` from `@patternfly/react-icons`, Kubernetes
-  `CubesIcon` (generic until CP5.5: PF ships no Kubernetes logo icon), Fleet management `GlobeIcon` (round).
+  the Kubernetes logo (`siKubernetes` from `simple-icons`, CC0, wrapped with PF `createIcon`, T-0393), Fleet management `GlobeIcon` (round).
   **Logo exception (human directive, 2026-11-24, T-0203):** `OpenshiftIcon` is allowed **only** as the cluster type
   icon in the cluster switcher (menu items and toggle). It is the icon PF itself ships, never a copied asset. Everywhere
   else the "no Red Hat/OpenShift logos" rule stands (masthead, login, favicon, admin pages). No `DharmachakraIcon`.
 - Type tag: `<Label isCompact>` default grey, filled (own surface, readable on navy and in menus). Only Kubernetes
   clusters get a tag (`K8s`); OpenShift is the default and shows none, the icon marks it (T-0203). Order (SW-5): menu
-  item `[K8s] [environment] [Read only]`; toggle `[K8s] [environment]`. The Fleet admin clusters table keeps its
+  item `[K8s] [environment] [Read only]`; toggle `[environment]` (no type tag, T-0393). The Fleet admin clusters table keeps its
   Type column (`OCP` / `K8s`).
 
 ## 3. Page heading (every page)

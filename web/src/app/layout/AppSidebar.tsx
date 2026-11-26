@@ -10,7 +10,6 @@ import { FavoritesNavSection } from '@/features/preferences';
 import { useClusterNav } from '@/features/resources';
 import { usePerspective } from '@/shared/routing';
 import styles from './AppShell.module.css';
-import theme from './clusterTheme.module.css';
 import { buildFleetNav, type NavSection } from './navigation';
 
 /**
@@ -94,7 +93,7 @@ export function AppSidebar() {
           {/* The Nav is a grid with a row gap, which spaces the switcher and the sections. Min-width 0 keeps a long
               cluster name with labels from widening the grid column; the name truncates instead. Only the NavList
               below scrolls, so the switcher stays in view (T-0371, `AppShell.module.css`). */}
-          <div className={`pf-v6-u-min-width ${theme.navHeader}`}>
+          <div className="pf-v6-u-min-width">
             <ClusterSwitcher />
           </div>
           {perspective === 'fleet' ? (
