@@ -2,32 +2,29 @@
 
 > Updated by the orchestrator after every completed task and at session end. Keep it short; details belong in task files.
 
-**Last updated:** 2026-11-26 (CP5.5 deployed; CP6 plan awaiting human approval) · **Current checkpoint:** CP6 PLAN ·
-**Branch:** `main` (merged 28a6fe8; `cp/5.5-kubernetes-clusters` kept)
+**Last updated:** 2026-11-26 (CP6 plan approved; BUILD not started — human starts it) · **Current checkpoint:** CP6
+**BUILD** (next) · **Branch:** `main`
 
 ## Where we are
-- CP0–CP5.5 DONE. Tags: cp-0 … cp-3.7, cp-4a/b/c, cp-4.5a/b, cp-5a/b/c, **cp-5.5a, cp-5.5b** (both on merge 28a6fe8).
-  Nothing pushed (pushing needs the human).
-- CP5.5 (Kubernetes clusters): spec `docs/specs/CP5.5-kubernetes-clusters.md` §Acceptance = ACCEPTED (all 5 deviations
-  accepted). VERIFY T-0391: check-be 2369, check-fe 1677, e2e 60 (+4 kind skipped), kind e2e 4/4 (`E2E_KIND=1`), kind smoke green.
-- Human UI fixes T-0370..T-0374 shipped in CP5.5. Local kind: `scripts/kind-dev.sh` (isolated kubeconfig, API :16443).
-- Deployed on consolinho: **eadc0e0** (cp-5.5b + T-0392 nav/glass fix + T-0393 neutral switcher, K8s logo; build consolinho-20, 2026-11-26).
+- CP0–CP5.5 DONE (tags up to cp-5.5a/b); consolinho runs eadc0e0. Nothing pushed.
+- CP6 (Hardening) SPEC + DESIGN done and **approved by the human** 2026-11-26: `docs/specs/CP6-hardening.md`
+  (56 ACs; §7 records all decisions; "CP6a design"/"CP6b design" lane plans at the end). ADRs 0042–0044.
+- Tasks (all `todo`): CP6a BE T-0400..T-0414 + T-0107/T-0108; CP6b FE/QA T-0420..T-0429 + T-0390/T-0128/T-0130/T-0134.
+- ROADMAP gained **CP6.5** (namespace UX on option A incl. user-added namespaces in localStorage, G1–G8 generic
+  kinds/CRDs/operands/API explorer, metrics datasource wizard + credential wizard) and **CP7** (web terminal).
 
 ## Next actions (resume here)
-1. CP6 (Hardening, observability & polish): no spec yet → SPEC step (ocp-product-owner). Schedule T-0390 (discovery
-   recovery) before Kubernetes clusters go to production (PO).
-2. Backlog: T-0390, T-0380, T-0367, T-0349, T-0350; CP6 follow-ups T-0107, T-0108, T-0130, T-0134, T-0128.
-
-## How the human can test (current state)
-- Live: the `consolinho` Route in ns `consolinho` (cp-5.5b). Kubernetes: `scripts/kind-dev.sh` + add the kind cluster in admin.
-- Local: `aspire start --launch-profile http && aspire wait web` → login via DevOAuth (admin/alice/bob/ines;
-  e2e-user/e2e-admin for e2e); `aspire stop`. Mock UI: `cd web && npm run dev:mock` (`?mockUser=alice|bob|ines|admin|none`).
-- e2e: with Aspire running, `cd web && npm run e2e`.
+1. Start CP6 BUILD only when the human says so. Lanes: BE-A 0400→0402→0403→0405→0407→0411; BE-B 0404, 0401,
+   0406, 0408, 0409, 0410, 0413, 0412, 0107/0108; FE-A 0390→0420→0128→0134; FE-B 0130→0423/0424;
+   QA 0421→0422→0425→0426→0427; then T-0414 (security review), T-0428 (after 0401+0403), T-0429.
+2. Respect max 3 heavy agents (≤ 2 BE). T-0423 may split once T-0422's axe report exists.
+3. After CP6: SPEC CP6.5 (ocp-product-owner), using the ROADMAP CP6.5 entry as brief.
 
 ## Needs human
-- Push `main` + tags to a remote? (not done.)
-- Still open from CP2: H1–H6 manual checks on real clusters (`docs/specs/CP2-acceptance.md`).
-- CP3.6 reference console: `scripts/ocp-ref/run-console.sh` needs a live `oc login` (token expires) — `docs/dev/OCP-REFERENCE.md`.
+- CP7 token model undecided: FleetConsole proxy token vs TokenRequest-minted SA token (both in ROADMAP CP7).
+- T-0412: enabling user-workload monitoring on consolinho may need cluster-admin (deploy check skippable).
+- Push `main` + tags to a remote? (not done.) CP2 H1–H6 manual checks on real clusters still open.
+- CP3.6 reference console: `scripts/ocp-ref/run-console.sh` needs a live `oc login` — `docs/dev/OCP-REFERENCE.md`.
 
 ## Follow-ups (optional, not filed)
 - `scripts/ui-probe.mjs` uses one `/tmp` PID file for every worktree → make it per-worktree (T-0175).
@@ -35,8 +32,6 @@
 - BE: T-0324 PVC expand should accept JSON Patch content type; DatabaseMigrator shared lock helper (T-0231).
 - Shared UI: ResourceLink 18px vs OCP 21px; ConditionsTable empty state → small centred ConsoleEmptyState.
 - `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` 13.6.5 → 17.x once stable (ADR-0025).
-- CP3 hardening still open: callback URL never in logs/OTel (T-0015), DP cert-missing → startup error (T-0012),
-  "new version — reload" on chunk-load failure (T-0028), forwarding pool cuts followed logs 6 min after cluster edit (T-0058).
 
 ## Cleanup done 2026-11-26
 - All 32 agent worktrees + `worktree-agent-*` branches removed (every task commit verified in `main`); 7 stale Aspire PG
