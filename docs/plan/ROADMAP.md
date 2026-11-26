@@ -152,7 +152,10 @@ datasource **type** (Thanos querier / Prometheus / VictoriaMetrics) and shows a 
 on the cluster can read all of that datasource's metrics (Thanos tenancy port is the exception). Delivered as a
 **wizard** (type → connection & auth → TLS → test → review/save). (d) **Credential form becomes a wizard** too
 (cluster & SA token → fallback/inspect namespaces with the (a) info alert → **test token** as the last step before
-Save; save stays possible after a failed test only with explicit confirmation).
+Save; save stays possible after a failed test only with explicit confirmation). (e) **Workload metrics** (human, 2026-11-26):
+CPU / Memory columns in the Pods list (then Nodes) from `metrics.k8s.io` through the existing proxy with the user's SA
+token (no datasource, no ADR; columns degrade to "-" when the API isn't served or is forbidden) — schedule early. Then
+**Metrics tabs** with time-series graphs (Pod/Node details, overview Utilization card) once the (c) datasource lands.
 
 ## CP7 — Web terminal
 OCP-style web terminal backed by a DevWorkspace on the **host cluster** (DevWorkspace Operator present there). The
